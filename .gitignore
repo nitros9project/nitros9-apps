@@ -1,0 +1,10 @@
+*.dsk
+*.list
+*.map
+*.o
+*.r
+os9boot
+
+# Historical package inputs that use generated-artifact extensions.
+!os9l2bbs/os9l2bbs.dsk
+!uucpbb/sample_config/bin.list
