@@ -27,26 +27,17 @@ CMDS	= Ansicode Answer At \
 	Login Makdir Menu Monitor New_user Prompt T1mon Tsmon \
 	Uloada Uloadx Uloadxc Uloady ViewBBS
 
-all: $(CMDS)
+.PHONY: all clean
 
-dsk: $(DSK)
+all: $(DSK)
 
 $(DSK): $(CMDS)
+	$(RM) $@
 	$(OS9FORMAT) -q $@ -n"OS-9 L2 BBS for 6809"
 	$(MAKDIR) $@,CMDS
 	$(OS9COPY) $(CMDS) $@,CMDS
 	$(MAKDIR) $@,BBS
 	$(OS9COPY) $(BBSFILES) $@,BBS
 
-dskcopy: $(DSK)
-	$(CP) $(DSK) $(DSKDIR)
-
-clean: dskclean
-	$(RM) $(CMDS) *.list *.map
-
-dskclean:
-	$(RM) $(DSK)
-
-info:
-	@$(ECHO) "*** OS-9 L2 BBS for 6809 ***"
-	@$(ECHO) $(DSK)
+clean:
+	$(RM) $(DSK) $(CMDS) *.list *.map

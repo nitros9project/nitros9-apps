@@ -24,8 +24,9 @@ Set `NITROS9DIR` when the NitrOS-9 checkout is elsewhere:
 make NITROS9DIR=/path/to/nitros9
 ```
 
-Use `make dsk` to build application disk images for packages that provide
-them. Most disk builds require the corresponding NitrOS-9 modules and
+The default target builds each active application and the disk images for
+packages that provide them. Use `make clean` to remove generated commands and
+disk images. Most disk builds require the corresponding NitrOS-9 modules and
 commands to have been built first.
 
 The historical `ed` and `uemacs` sources retain their original native OS-9

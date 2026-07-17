@@ -8,7 +8,3 @@ cpm:	cpm.asm os9core.asm file.asm instbl.asm z80.asm parity.asm bdos.asm
 
 clean:
 	$(RM) cpm *.list *.map
-	
-dsk:
-
-dskcopy:

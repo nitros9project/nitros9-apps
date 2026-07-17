@@ -1,6 +1,8 @@
 include $(NITROS9DIR)/rules.mak
 
 dirs	=  6809l2
+
+.PHONY: all clean
  
 # Make all components
 all:
@@ -13,20 +15,4 @@ all:
 
 # Clean all components
 clean:
-	$(foreach dir, $(dirs), ($(CD) $(dir); make clean);)
-
-# Make DSK images
-dsk:	all
-	$(foreach dir, $(dirs), ($(CD) $(dir); make dsk);)
-
-# Copy DSK images
-dskcopy:	all
-	$(foreach dir, $(dirs), ($(CD) $(dir); make dskcopy);)
-
-# Clean DSK images
-dskclean:
-	$(foreach dir, $(dirs), ($(CD) $(dir); make dskclean);)
-
-info:
-	@$(foreach dir, $(dirs), $(MAKE) -C $(dir) info;)
-
+	$(foreach dir,$(dirs),$(MAKE) -C $(dir) clean &&) :

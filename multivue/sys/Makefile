@@ -4,7 +4,7 @@ vpath %.asm	$(LEVEL2)/sys
 
 AFLAGS      += -I.
 
-DEPENDS		= ./makefile
+DEPENDS		= ./Makefile
 
 SYSFILES	= env.file
 HELPFILES	= cocopr.hp control.hp gcal.hp gcalc.hp gclock.hp gport.hp \

@@ -13,8 +13,11 @@ DOCS	= adduser.man aliases.doc chown.man cnvrtmail.man fileserv.man fixtext.man 
 
 DSKS	= $(DISK68) $(DISK63)
 
-# Make all components
-all:
+.PHONY: all components clean
+
+all: $(DSKS)
+
+components:
 	@$(ECHO) "**************************************************"
 	@$(ECHO) "*                                                *"
 	@$(ECHO) "*                   UUCPbb v2.1                  *"
@@ -23,14 +26,12 @@ all:
 	$(MAKE) -C cmds_6809
 	$(MAKE) -C cmds_6309
 
-# Clean all components
-clean:	dskclean
+clean:
+	$(RM) $(DSKS)
 	$(MAKE) -C cmds_6809 clean
 	$(MAKE) -C cmds_6309 clean
 
-dsk: $(DSKS)
-
-$(DISK68): all
+$(DISK68): | components
 	$(RM) $@
 	$(OS9FORMAT) -l10000 $@ -q -n"UUCPbb v2.1 6809"
 	$(MAKDIR) $@,LOG
@@ -56,7 +57,7 @@ $(DISK68): all
 	$(CD) doc; $(CPL) $(DOCS) ../$@,UUCP/DOC
 	$(CPL) copying readme.first $@,UUCP
 
-$(DISK63): all
+$(DISK63): | components
 	$(RM) $@
 	$(OS9FORMAT) -l10000 $@ -q -n"UUCPbb v2.1 6309"
 	$(MAKDIR) $@,LOG
@@ -81,13 +82,3 @@ $(DISK63): all
 	$(OS9ATTR_EXEC) $(foreach file,$(notdir $(CMDS63WIN)),$@,UUCP/CMDS_WIN/$(file))
 	$(CD) doc; $(CPL) $(DOCS) ../$@,UUCP/DOC
 	$(CPL) copying readme.first $@,UUCP
-
-dskcopy: dsk
-	$(CP) $(DSKS) $(DSKDIR)
-
-dskclean:
-	$(RM) $(DSKS)
-
-info:
-	@$(ECHO) "*** UUCPbb 2.1 ***"
-	@$(foreach dsk, $(DSKS), $(ECHO) $(dsk);)
