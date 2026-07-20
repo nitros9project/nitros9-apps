@@ -1,92 +1,102 @@
+**********************************************************************
+* Prompt - OS-9 Level 2 BBS command
+*
+* Edt/Rev  YYYY/MM/DD  Modified by
+* Comment
+* ------------------------------------------------------------------
+*          2026/07/20  Codex
+* Annotated source and normalized comments.
+**********************************************************************
+
                     nam       Prompt
                     ttl       program module
 
-                    ifp1
+                  IFP1
                     use       defsfile
-                    endc
+                  ENDC
 
-tylg                set       Prgrm+Objct
-atrv                set       ReEnt+rev
-rev                 set       $01
+tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
+atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
+rev                 set       $01       ; set assembly-time module attribute rev
 
-                    mod       eom,name,tylg,atrv,start,size
+                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-U0000               rmb       2
-U0002               rmb       2
-U0004               rmb       2
-U0006               rmb       2
-U0008               rmb       1
-U0009               rmb       599
-size                equ       .
+U0000               rmb       2         ; reserve 2 byte(s) in the module workspace
+U0002               rmb       2         ; reserve 2 byte(s) in the module workspace
+U0004               rmb       2         ; reserve 2 byte(s) in the module workspace
+U0006               rmb       2         ; reserve 2 byte(s) in the module workspace
+U0008               rmb       1         ; reserve 1 byte(s) in the module workspace
+U0009               rmb       599       ; reserve 599 byte(s) in the module workspace
+size                equ       .         ; define the assembly-time value for size
 
-name                fcs       /Prompt/            * 000D 50 72 6F 6D 70 F4 Prompt
-start               stx       U0006,U             * 0013 AF 46          /F
-L0015               lda       ,X+                 * 0015 A6 80          &.
-                    cmpa      #32                 * 0017 81 20          .
-                    beq       L0021               * 0019 27 06          '.
-                    cmpa      #13                 * 001B 81 0D          ..
-                    beq       L0021               * 001D 27 02          '.
-                    bra       L0015               * 001F 20 F4           t
-L0021               lda       #13                 * 0021 86 0D          ..
-                    sta       -$01,X              * 0023 A7 1F          '.
-                    leay      U0008,U             * 0025 31 48          1H
-                    clr       U0000,U             * 0027 6F C4          oD
-L0029               lda       ,X+                 * 0029 A6 80          &.
-                    cmpa      #34                 * 002B 81 22          ."
-                    beq       L003A               * 002D 27 0B          '.
-                    sta       ,Y+                 * 002F A7 A0          '
-                    inc       U0000,U             * 0031 6C C4          lD
-                    cmpa      #13                 * 0033 81 0D          ..
-                    bne       L0029               * 0035 26 F2          &r
-                    lbra      L007A               * 0037 16 00 40       ..@
-L003A               stx       U0002,U             * 003A AF 42          /B
-                    clrb                          * 003C 5F             _
-L003D               lda       ,X+                 * 003D A6 80          &.
-                    cmpa      #13                 * 003F 81 0D          ..
-                    beq       L004A               * 0041 27 07          '.
-                    cmpa      #34                 * 0043 81 22          ."
-                    beq       L004A               * 0045 27 03          '.
-                    incb                          * 0047 5C             \
-                    bra       L003D               * 0048 20 F3           s
-L004A               stx       U0004,U             * 004A AF 44          /D
-                    ldx       U0002,U             * 004C AE 42          .B
-                    clra                          * 004E 4F             O
-                    pshs      Y                   * 004F 34 20          4
-                    tfr       D,Y                 * 0051 1F 02          ..
-                    lda       #1                  * 0053 86 01          ..
-                    os9       I$Write             * 0055 10 3F 8A       .?.
-                    ldx       0,S                 * 0058 AE E4          .d
-                    ldy       #80                 * 005A 10 8E 00 50    ...P
-                    clra                          * 005E 4F             O
-                    os9       I$ReadLn            * 005F 10 3F 8B       .?.
-                    leay      -$01,Y              * 0062 31 3F          1?
-                    tfr       Y,D                 * 0064 1F 20          .
-                    puls      Y                   * 0066 35 20          5
-                    leay      D,Y                 * 0068 31 AB          1+
-                    addb      U0000,U             * 006A EB C4          kD
-                    stb       U0000,U             * 006C E7 C4          gD
-                    ldx       U0004,U             * 006E AE 44          .D
-L0070               lda       ,X+                 * 0070 A6 80          &.
-                    sta       ,Y+                 * 0072 A7 A0          '
-                    inc       U0000,U             * 0074 6C C4          lD
-                    cmpa      #13                 * 0076 81 0D          ..
-                    bne       L0070               * 0078 26 F6          &v
-L007A               ldx       U0006,U             * 007A AE 46          .F
-                    ldb       U0000,U             * 007C E6 C4          fD
-                    clra                          * 007E 4F             O
-                    tfr       D,Y                 * 007F 1F 02          ..
-                    lda       #17                 * 0081 86 11          ..
-                    ldb       #3                  * 0083 C6 03          F.
-                    pshs      U                   * 0085 34 40          4@
-                    leau      U0008,U             * 0087 33 48          3H
-                    os9       F$Fork              * 0089 10 3F 03       .?.
-                    lbcs      L009A               * 008C 10 25 00 0A    .%..
-                    os9       F$Wait              * 0090 10 3F 04       .?.
-                    lbcs      L009A               * 0093 10 25 00 03    .%..
-                    puls      U                   * 0097 35 40          5@
-                    clrb                          * 0099 5F             _
-L009A               os9       F$Exit              * 009A 10 3F 06       .?.
+name                fcs       /Prompt/ ; store an OS-9 high-bit-terminated string
+start               stx       U0006,u   ; store x at U0006,u
+L0015               lda       ,x+       ; load a from ,x+
+                    cmpa      #32       ; compare a with #32 and set the condition codes
+                    beq       L0021     ; branch when the values are equal or the result is zero; target L0021
+                    cmpa      #13       ; compare a with #13 and set the condition codes
+                    beq       L0021     ; branch when the values are equal or the result is zero; target L0021
+                    bra       L0015     ; continue execution at L0015
+L0021               lda       #13       ; set a to the constant 13
+                    sta       -$01,x    ; store a at -$01,x
+                    leay      U0008,u   ; form the address U0008,u in y
+                    clr       U0000,u   ; clear U0000,u to zero and set the condition codes
+L0029               lda       ,x+       ; load a from ,x+
+                    cmpa      #34       ; compare a with #34 and set the condition codes
+                    beq       L003A     ; branch when the values are equal or the result is zero; target L003A
+                    sta       ,y+       ; store a at ,y+
+                    inc       U0000,u   ; increment the value at U0000,u
+                    cmpa      #13       ; compare a with #13 and set the condition codes
+                    bne       L0029     ; branch when the values differ or the result is nonzero; target L0029
+                    lbra      L007A     ; continue execution at L007A
+L003A               stx       U0002,u   ; store x at U0002,u
+                    clrb                ; clear b to zero and set the condition codes
+L003D               lda       ,x+       ; load a from ,x+
+                    cmpa      #13       ; compare a with #13 and set the condition codes
+                    beq       L004A     ; branch when the values are equal or the result is zero; target L004A
+                    cmpa      #34       ; compare a with #34 and set the condition codes
+                    beq       L004A     ; branch when the values are equal or the result is zero; target L004A
+                    incb                ; increment b
+                    bra       L003D     ; continue execution at L003D
+L004A               stx       U0004,u   ; store x at U0004,u
+                    ldx       U0002,u   ; load x from U0002,u
+                    clra                ; clear a to zero and set the condition codes
+                    pshs      y         ; save y on the stack
+                    tfr       d,y       ; copy the register values specified by d,y
+                    lda       #1        ; set a to the constant 1
+                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    ldx       0,s       ; load x from the current stack frame at 0,s
+                    ldy       #80       ; set y to the constant 80
+                    clra                ; clear a to zero and set the condition codes
+                    os9       I$ReadLn  ; invoke the OS-9 I$ReadLn service
+                    leay      -$01,y    ; form the address -$01,y in y
+                    tfr       y,d       ; copy the register values specified by y,d
+                    puls      y         ; restore y from the stack
+                    leay      d,y       ; form the address d,y in y
+                    addb      U0000,u   ; add to b using U0000,u
+                    stb       U0000,u   ; store b at U0000,u
+                    ldx       U0004,u   ; load x from U0004,u
+L0070               lda       ,x+       ; load a from ,x+
+                    sta       ,y+       ; store a at ,y+
+                    inc       U0000,u   ; increment the value at U0000,u
+                    cmpa      #13       ; compare a with #13 and set the condition codes
+                    bne       L0070     ; branch when the values differ or the result is nonzero; target L0070
+L007A               ldx       U0006,u   ; load x from U0006,u
+                    ldb       U0000,u   ; load b from U0000,u
+                    clra                ; clear a to zero and set the condition codes
+                    tfr       d,y       ; copy the register values specified by d,y
+                    lda       #17       ; set a to the constant 17
+                    ldb       #3        ; set b to the constant 3
+                    pshs      u         ; save u on the stack
+                    leau      U0008,u   ; form the workspace or data address U0008,u in u
+                    os9       F$Fork    ; invoke the OS-9 F$Fork service
+                    lbcs      L009A     ; branch when carry reports an error or unsigned underflow; target L009A
+                    os9       F$Wait    ; invoke the OS-9 F$Wait service
+                    lbcs      L009A     ; branch when carry reports an error or unsigned underflow; target L009A
+                    puls      u         ; restore u from the stack
+                    clrb                ; clear b to zero and set the condition codes
+L009A               os9       F$Exit    ; invoke the OS-9 F$Exit service
 
-                    emod
-eom                 equ       *
-                    end
+                    emod      ;         emit the OS-9 module CRC and trailer
+eom                 equ       *         ; define the assembly-time value for eom
+                    end       ;         end the assembly source

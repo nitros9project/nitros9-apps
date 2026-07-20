@@ -1,85 +1,95 @@
+**********************************************************************
+* Uloada - OS-9 Level 2 BBS command
+*
+* Edt/Rev  YYYY/MM/DD  Modified by
+* Comment
+* ------------------------------------------------------------------
+*          2026/07/20  Codex
+* Annotated source and normalized comments.
+**********************************************************************
+
                     nam       Uloada
                     ttl       program module
 
-                    ifp1
+                  IFP1
                     use       defsfile
-                    endc
+                  ENDC
 
-tylg                set       Prgrm+Objct
-atrv                set       ReEnt+rev
-rev                 set       $01
+tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
+atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
+rev                 set       $01       ; set assembly-time module attribute rev
 
-                    mod       eom,name,tylg,atrv,start,size
+                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-U0000               rmb       1
-U0001               rmb       200
-U00C9               rmb       1
-U00CA               rmb       599
-size                equ       .
+U0000               rmb       1         ; reserve 1 byte(s) in the module workspace
+U0001               rmb       200       ; reserve 200 byte(s) in the module workspace
+U00C9               rmb       1         ; reserve 1 byte(s) in the module workspace
+U00CA               rmb       599       ; reserve 599 byte(s) in the module workspace
+size                equ       .         ; define the assembly-time value for size
 
-name                fcs       /Uloada/            * 000D 55 6C 6F 61 64 E1 Uloada
-L0013               fcc       "Enter filename to upload" * 0013 45 6E 74 65 72 20 66 69 6C 65 6E 61 6D 65 20 74 6F 20 75 70 6C 6F 61 64 Enter filename to upload
-L002B               fcc       "Press <CTRL><T> to terminal upload" * 002B 50 72 65 73 73 20 3C 43 54 52 4C 3E 3C 54 3E 20 74 6F 20 74 65 72 6D 69 6E 61 6C 20 75 70 6C 6F 61 64 Press <CTRL><T> to terminal upload
-                    fcb       $0A                 * 004D 0A             .
-                    fcb       $0D                 * 004E 0D             .
-                    fcc       "Press <CTRL><X> to cancel" * 004F 50 72 65 73 73 20 3C 43 54 52 4C 3E 3C 58 3E 20 74 6F 20 63 61 6E 63 65 6C Press <CTRL><X> to cancel
-                    fcb       $0A                 * 0068 0A             .
-                    fcb       $0D                 * 0069 0D             .
-L006A               fcb       $0A                 * 006A 0A             .
-                    fcb       $3A                 * 006B 3A             :
-start               lda       0,X                 * 006C A6 84          &.
-                    cmpa      #13                 * 006E 81 0D          ..
-                    bne       L008B               * 0070 26 19          &.
-                    leax      >L0013,PC           * 0072 30 8D FF 9D    0...
-                    ldy       #24                 * 0076 10 8E 00 18    ....
-                    lda       #1                  * 007A 86 01          ..
-                    os9       I$Write             * 007C 10 3F 8A       .?.
-                    leax      U0001,U             * 007F 30 41          0A
-                    ldy       #200                * 0081 10 8E 00 C8    ...H
-                    clra                          * 0085 4F             O
-                    os9       I$ReadLn            * 0086 10 3F 8B       .?.
-                    leax      U0001,U             * 0089 30 41          0A
-L008B               lda       #3                  * 008B 86 03          ..
-                    ldb       #27                 * 008D C6 1B          F.
-                    os9       I$Create            * 008F 10 3F 83       .?.
-                    lbcs      L00F0               * 0092 10 25 00 5A    .%.Z
-                    sta       U0000,U             * 0096 A7 C4          'D
-                    leax      >L002B,PC           * 0098 30 8D FF 8F    0...
-                    ldy       #63                 * 009C 10 8E 00 3F    ...?
-                    lda       #1                  * 00A0 86 01          ..
-                    os9       I$Write             * 00A2 10 3F 8A       .?.
-                    leax      >L006A,PC           * 00A5 30 8D FF C1    0..A
-                    ldy       #2                  * 00A9 10 8E 00 02    ....
-                    lda       #1                  * 00AD 86 01          ..
-                    os9       I$Write             * 00AF 10 3F 8A       .?.
-L00B2               clra                          * 00B2 4F             O
-                    ldb       #1                  * 00B3 C6 01          F.
-                    os9       I$GetStt            * 00B5 10 3F 8D       .?.
-                    bcs       L00B2               * 00B8 25 F8          %x
-                    ldy       #1                  * 00BA 10 8E 00 01    ....
-                    leax      >U00C9,U            * 00BE 30 C9 00 C9    0I.I
-                    os9       I$Read              * 00C2 10 3F 89       .?.
-                    lda       0,X                 * 00C5 A6 84          &.
-                    cmpa      #20                 * 00C7 81 14          ..
-                    beq       L00EF               * 00C9 27 24          '$
-                    cmpa      #24                 * 00CB 81 18          ..
-                    beq       L00EB               * 00CD 27 1C          '.
-                    lda       U0000,U             * 00CF A6 C4          &D
-                    os9       I$Write             * 00D1 10 3F 8A       .?.
-                    lda       0,X                 * 00D4 A6 84          &.
-                    cmpa      #13                 * 00D6 81 0D          ..
-                    beq       L00DC               * 00D8 27 02          '.
-                    bra       L00B2               * 00DA 20 D6           V
-L00DC               leax      >L006A,PC           * 00DC 30 8D FF 8A    0...
-                    ldy       #2                  * 00E0 10 8E 00 02    ....
-                    lda       #1                  * 00E4 86 01          ..
-                    os9       I$Write             * 00E6 10 3F 8A       .?.
-                    bra       L00B2               * 00E9 20 C7           G
-L00EB               lda       #1                  * 00EB 86 01          ..
-                    bra       L00F0               * 00ED 20 01           .
-L00EF               clrb                          * 00EF 5F             _
-L00F0               os9       F$Exit              * 00F0 10 3F 06       .?.
+name                fcs       /Uloada/ ; store an OS-9 high-bit-terminated string
+L0013               fcc       "Enter filename to upload" ; store literal character data
+L002B               fcc       "Press <CTRL><T> to terminal upload" ; store literal character data
+                    fcb       $0A       ; store byte data
+                    fcb       $0D       ; store byte data
+                    fcc       "Press <CTRL><x> to cancel" ; store literal character data
+                    fcb       $0A       ; store byte data
+                    fcb       $0D       ; store byte data
+L006A               fcb       $0A       ; store byte data
+                    fcb       $3A       ; store byte data
+start               lda       0,x       ; load a from 0,x
+                    cmpa      #13       ; compare a with #13 and set the condition codes
+                    bne       L008B     ; branch when the values differ or the result is nonzero; target L008B
+                    leax      >L0013,pc ; form the address >L0013,pc in x
+                    ldy       #24       ; set y to the constant 24
+                    lda       #1        ; set a to the constant 1
+                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    leax      U0001,u   ; form the address U0001,u in x
+                    ldy       #200      ; set y to the constant 200
+                    clra                ; clear a to zero and set the condition codes
+                    os9       I$ReadLn  ; invoke the OS-9 I$ReadLn service
+                    leax      U0001,u   ; form the address U0001,u in x
+L008B               lda       #3        ; set a to the constant 3
+                    ldb       #27       ; set b to the constant 27
+                    os9       I$Create  ; invoke the OS-9 I$Create service
+                    lbcs      L00F0     ; branch when carry reports an error or unsigned underflow; target L00F0
+                    sta       U0000,u   ; store a at U0000,u
+                    leax      >L002B,pc ; form the address >L002B,pc in x
+                    ldy       #63       ; set y to the constant 63
+                    lda       #1        ; set a to the constant 1
+                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    leax      >L006A,pc ; form the address >L006A,pc in x
+                    ldy       #2        ; set y to the constant 2
+                    lda       #1        ; set a to the constant 1
+                    os9       I$Write   ; invoke the OS-9 I$Write service
+L00B2               clra                ; clear a to zero and set the condition codes
+                    ldb       #1        ; set b to the constant 1
+                    os9       I$GetStt  ; invoke the OS-9 I$GetStt service
+                    bcs       L00B2     ; branch when carry reports an error or unsigned underflow; target L00B2
+                    ldy       #1        ; set y to the constant 1
+                    leax      >U00C9,u  ; form the address >U00C9,u in x
+                    os9       I$Read    ; invoke the OS-9 I$Read service
+                    lda       0,x       ; load a from 0,x
+                    cmpa      #20       ; compare a with #20 and set the condition codes
+                    beq       L00EF     ; branch when the values are equal or the result is zero; target L00EF
+                    cmpa      #24       ; compare a with #24 and set the condition codes
+                    beq       L00EB     ; branch when the values are equal or the result is zero; target L00EB
+                    lda       U0000,u   ; load a from U0000,u
+                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    lda       0,x       ; load a from 0,x
+                    cmpa      #13       ; compare a with #13 and set the condition codes
+                    beq       L00DC     ; branch when the values are equal or the result is zero; target L00DC
+                    bra       L00B2     ; continue execution at L00B2
+L00DC               leax      >L006A,pc ; form the address >L006A,pc in x
+                    ldy       #2        ; set y to the constant 2
+                    lda       #1        ; set a to the constant 1
+                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    bra       L00B2     ; continue execution at L00B2
+L00EB               lda       #1        ; set a to the constant 1
+                    bra       L00F0     ; continue execution at L00F0
+L00EF               clrb                ; clear b to zero and set the condition codes
+L00F0               os9       F$Exit    ; invoke the OS-9 F$Exit service
 
-                    emod
-eom                 equ       *
-                    end
+                    emod      ;         emit the OS-9 module CRC and trailer
+eom                 equ       *         ; define the assembly-time value for eom
+                    end       ;         end the assembly source

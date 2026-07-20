@@ -1,47 +1,57 @@
+**********************************************************************
+* ViewBBS - OS-9 Level 2 BBS command
+*
+* Edt/Rev  YYYY/MM/DD  Modified by
+* Comment
+* ------------------------------------------------------------------
+*          2026/07/20  Codex
+* Annotated source and normalized comments.
+**********************************************************************
+
                     nam       ViewBBS
                     ttl       program module
 
-                    ifp1
+                  IFP1
                     use       defsfile
-                    endc
+                  ENDC
 
-tylg                set       Prgrm+Objct
-atrv                set       ReEnt+rev
-rev                 set       $01
+tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
+atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
+rev                 set       $01       ; set assembly-time module attribute rev
 
-                    mod       eom,name,tylg,atrv,start,size
+                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-U0000               rmb       1
-U0001               rmb       400
-size                equ       .
+U0000               rmb       1         ; reserve 1 byte(s) in the module workspace
+U0001               rmb       400       ; reserve 400 byte(s) in the module workspace
+size                equ       .         ; define the assembly-time value for size
 
-name                fcs       /ViewBBS/           * 000D 56 69 65 77 42 42 D3 ViewBBS
-L0014               fcc       "/wb"               * 0014 2F 77 62       /wb
-                    fcb       $0D                 * 0017 0D             .
-L0018               fcb       $1B                 * 0018 1B             .
-                    fcb       $21                 * 0019 21             !
-start               leax      >L0014,PC           * 001A 30 8D FF F6    0..v
-                    lda       #3                  * 001E 86 03          ..
-                    os9       I$Open              * 0020 10 3F 84       .?.
-                    lbcs      L004E               * 0023 10 25 00 27    .%.'
-                    sta       U0000,U             * 0027 A7 C4          'D
-                    leax      >L0018,PC           * 0029 30 8D FF EB    0..k
-                    ldy       #2                  * 002D 10 8E 00 02    ....
-                    lda       U0000,U             * 0031 A6 C4          &D
-                    os9       I$Write             * 0033 10 3F 8A       .?.
-                    clra                          * 0036 4F             O
-                    os9       I$Close             * 0037 10 3F 8F       .?.
-                    inca                          * 003A 4C             L
-                    os9       I$Close             * 003B 10 3F 8F       .?.
-                    inca                          * 003E 4C             L
-                    os9       I$Close             * 003F 10 3F 8F       .?.
-                    lda       U0000,U             * 0042 A6 C4          &D
-                    os9       I$Dup               * 0044 10 3F 82       .?.
-                    os9       I$Dup               * 0047 10 3F 82       .?.
-                    os9       I$Dup               * 004A 10 3F 82       .?.
-                    clrb                          * 004D 5F             _
-L004E               os9       F$Exit              * 004E 10 3F 06       .?.
+name                fcs       /ViewBBS/ ; store an OS-9 high-bit-terminated string
+L0014               fcc       "/wb" ; store literal character data
+                    fcb       $0D       ; store byte data
+L0018               fcb       $1B       ; store byte data
+                    fcb       $21       ; store byte data
+start               leax      >L0014,pc ; form the address >L0014,pc in x
+                    lda       #3        ; set a to the constant 3
+                    os9       I$Open    ; invoke the OS-9 I$Open service
+                    lbcs      L004E     ; branch when carry reports an error or unsigned underflow; target L004E
+                    sta       U0000,u   ; store a at U0000,u
+                    leax      >L0018,pc ; form the address >L0018,pc in x
+                    ldy       #2        ; set y to the constant 2
+                    lda       U0000,u   ; load a from U0000,u
+                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    clra                ; clear a to zero and set the condition codes
+                    os9       I$Close   ; invoke the OS-9 I$Close service
+                    inca                ; increment a
+                    os9       I$Close   ; invoke the OS-9 I$Close service
+                    inca                ; increment a
+                    os9       I$Close   ; invoke the OS-9 I$Close service
+                    lda       U0000,u   ; load a from U0000,u
+                    os9       I$Dup     ; invoke the OS-9 I$Dup service
+                    os9       I$Dup     ; invoke the OS-9 I$Dup service
+                    os9       I$Dup     ; invoke the OS-9 I$Dup service
+                    clrb                ; clear b to zero and set the condition codes
+L004E               os9       F$Exit    ; invoke the OS-9 F$Exit service
 
-                    emod
-eom                 equ       *
-                    end
+                    emod      ;         emit the OS-9 module CRC and trailer
+eom                 equ       *         ; define the assembly-time value for eom
+                    end       ;         end the assembly source

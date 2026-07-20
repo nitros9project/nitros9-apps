@@ -1,26 +1,36 @@
+**********************************************************************
+* Makdir - OS-9 Level 2 BBS command
+*
+* Edt/Rev  YYYY/MM/DD  Modified by
+* Comment
+* ------------------------------------------------------------------
+*          2026/07/20  Codex
+* Annotated source and normalized comments.
+**********************************************************************
+
                     nam       Makdir
                     ttl       program module
 
-                    ifp1
+                  IFP1
                     use       defsfile
-                    endc
+                  ENDC
 
-tylg                set       Prgrm+Objct
-atrv                set       ReEnt+rev
-rev                 set       $01
+tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
+atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
+rev                 set       $01       ; set assembly-time module attribute rev
 
-                    mod       eom,name,tylg,atrv,start,size
+                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-U0000               rmb       400
-size                equ       .
+U0000               rmb       400       ; reserve 400 byte(s) in the module workspace
+size                equ       .         ; define the assembly-time value for size
 
-name                fcs       /Makdir/            * 000D 4D 61 6B 64 69 F2 Makdir
-start               ldb       #63                 * 0013 C6 3F          F?
-                    os9       I$MakDir            * 0015 10 3F 85       .?.
-                    bcs       L001B               * 0018 25 01          %.
-                    clrb                          * 001A 5F             _
-L001B               os9       F$Exit              * 001B 10 3F 06       .?.
+name                fcs       /Makdir/ ; store an OS-9 high-bit-terminated string
+start               ldb       #63       ; set b to the constant 63
+                    os9       I$MakDir  ; invoke the OS-9 I$MakDir service
+                    bcs       L001B     ; branch when carry reports an error or unsigned underflow; target L001B
+                    clrb                ; clear b to zero and set the condition codes
+L001B               os9       F$Exit    ; invoke the OS-9 F$Exit service
 
-                    emod
-eom                 equ       *
-                    end
+                    emod      ;         emit the OS-9 module CRC and trailer
+eom                 equ       *         ; define the assembly-time value for eom
+                    end       ;         end the assembly source

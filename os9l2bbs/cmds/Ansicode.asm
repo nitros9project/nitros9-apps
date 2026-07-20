@@ -1,33 +1,43 @@
+**********************************************************************
+* Ansicode - OS-9 Level 2 BBS command
+*
+* Edt/Rev  YYYY/MM/DD  Modified by
+* Comment
+* ------------------------------------------------------------------
+*          2026/07/20  Codex
+* Annotated source and normalized comments.
+**********************************************************************
+
                     nam       Ansicode
                     ttl       program module
 
-                    ifp1
+                  IFP1
                     use       defsfile
-                    endc
+                  ENDC
 
-tylg                set       Prgrm+Objct
-atrv                set       ReEnt+rev
-rev                 set       $01
+tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
+atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
+rev                 set       $01       ; set assembly-time module attribute rev
 
-                    mod       eom,name,tylg,atrv,start,size
+                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-U0000               rmb       400
-size                equ       .
+U0000               rmb       400       ; reserve 400 byte(s) in the module workspace
+size                equ       .         ; define the assembly-time value for size
 
-name                fcs       /Ansicode/          * 000D 41 6E 73 69 63 6F 64 E5 Ansicode
-L0015               fcb       $1B                 * 0015 1B             .
-                    fcb       $5B                 * 0016 5B             [
-start               pshs      X                   * 0017 34 10          4.
-                    leax      >L0015,PC           * 0019 30 8D FF F8    0..x
-                    ldy       #2                  * 001D 10 8E 00 02    ....
-                    lda       #1                  * 0021 86 01          ..
-                    os9       I$Write             * 0023 10 3F 8A       .?.
-                    puls      X                   * 0026 35 10          5.
-                    ldy       #200                * 0028 10 8E 00 C8    ...H
-                    os9       I$WritLn            * 002C 10 3F 8C       .?.
-                    clrb                          * 002F 5F             _
-                    os9       F$Exit              * 0030 10 3F 06       .?.
+name                fcs       /Ansicode/ ; store an OS-9 high-bit-terminated string
+L0015               fcb       $1B       ; store byte data
+                    fcb       $5B       ; store byte data
+start               pshs      x         ; save x on the stack
+                    leax      >L0015,pc ; form the address >L0015,pc in x
+                    ldy       #2        ; set y to the constant 2
+                    lda       #1        ; set a to the constant 1
+                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    puls      x         ; restore x from the stack
+                    ldy       #200      ; set y to the constant 200
+                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
+                    clrb                ; clear b to zero and set the condition codes
+                    os9       F$Exit    ; invoke the OS-9 F$Exit service
 
-                    emod
-eom                 equ       *
-                    end
+                    emod      ;         emit the OS-9 module CRC and trailer
+eom                 equ       *         ; define the assembly-time value for eom
+                    end       ;         end the assembly source

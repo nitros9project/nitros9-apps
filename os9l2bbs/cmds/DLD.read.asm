@@ -1,136 +1,146 @@
+**********************************************************************
+* DLD.read - OS-9 Level 2 BBS command
+*
+* Edt/Rev  YYYY/MM/DD  Modified by
+* Comment
+* ------------------------------------------------------------------
+*          2026/07/20  Codex
+* Annotated source and normalized comments.
+**********************************************************************
+
                     nam       DLD.read
                     ttl       program module
 
-                    ifp1
+                  IFP1
                     use       defsfile
-                    endc
+                  ENDC
 
-tylg                set       Prgrm+Objct
-atrv                set       ReEnt+rev
-rev                 set       $01
+tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
+atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
+rev                 set       $01       ; set assembly-time module attribute rev
 
-                    mod       eom,name,tylg,atrv,start,size
+                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-U0000               rmb       1
-U0001               rmb       1
-U0002               rmb       80
-U0052               rmb       27
-U006D               rmb       27
-U0088               rmb       2
-U008A               rmb       2
-U008C               rmb       1
-U008D               rmb       1
-U008E               rmb       463
-size                equ       .
+U0000               rmb       1         ; reserve 1 byte(s) in the module workspace
+U0001               rmb       1         ; reserve 1 byte(s) in the module workspace
+U0002               rmb       80        ; reserve 80 byte(s) in the module workspace
+U0052               rmb       27        ; reserve 27 byte(s) in the module workspace
+U006D               rmb       27        ; reserve 27 byte(s) in the module workspace
+U0088               rmb       2         ; reserve 2 byte(s) in the module workspace
+U008A               rmb       2         ; reserve 2 byte(s) in the module workspace
+U008C               rmb       1         ; reserve 1 byte(s) in the module workspace
+U008D               rmb       1         ; reserve 1 byte(s) in the module workspace
+U008E               rmb       463       ; reserve 463 byte(s) in the module workspace
+size                equ       .         ; define the assembly-time value for size
 
-name                fcs       /DLD.read/          * 000D 44 4C 44 2E 72 65 61 E4 DLD.read
-L0015               fcc       "DLD.lst"           * 0015 44 4C 44 2E 6C 73 74 DLD.lst
-                    fcb       $0D                 * 001C 0D             .
-L001D               fcc       "DLD.dsc"           * 001D 44 4C 44 2E 64 73 63 DLD.dsc
-                    fcb       $0D                 * 0024 0D             .
-L0025               fcc       "Enter filename to read:" * 0025 45 6E 74 65 72 20 66 69 6C 65 6E 61 6D 65 20 74 6F 20 72 65 61 64 3A Enter filename to read:
-L003C               fcc       "Filename not found." * 003C 46 69 6C 65 6E 61 6D 65 20 6E 6F 74 20 66 6F 75 6E 64 2E Filename not found.
-                    fcb       $0D                 * 004F 0D             .
-L0050               fcb       $0A                 * 0050 0A             .
-                    fcb       $0D                 * 0051 0D             .
-                    fcc       "Name:"             * 0052 4E 61 6D 65 3A Name:
-L0057               fcc       "Desc:"             * 0057 44 65 73 63 3A Desc:
-L005C               fcc       "--------------------------------------------------------------" * 005C 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D
-                    fcb       $0D                 * 009A 0D             .
-start               lda       0,X                 * 009B A6 84          &.
-                    cmpa      #13                 * 009D 81 0D          ..
-                    beq       L00AA               * 009F 27 09          '.
-                    lda       #1                  * 00A1 86 01          ..
-                    os9       I$ChgDir            * 00A3 10 3F 86       .?.
-                    lbcs      L01A7               * 00A6 10 25 00 FD    .%.}
-L00AA               leax      >L0015,PC           * 00AA 30 8D FF 67    0..g
-                    lda       #1                  * 00AE 86 01          ..
-                    os9       I$Open              * 00B0 10 3F 84       .?.
-                    lbcs      L01A7               * 00B3 10 25 00 F0    .%.p
-                    sta       U0000,U             * 00B7 A7 C4          'D
-                    leax      >L001D,PC           * 00B9 30 8D FF 60    0..`
-                    lda       #1                  * 00BD 86 01          ..
-                    os9       I$Open              * 00BF 10 3F 84       .?.
-                    lbcs      L01A7               * 00C2 10 25 00 E1    .%.a
-                    sta       U0001,U             * 00C6 A7 41          'A
-L00C8               leax      >L0025,PC           * 00C8 30 8D FF 59    0..Y
-                    ldy       #23                 * 00CC 10 8E 00 17    ....
-                    lda       #1                  * 00D0 86 01          ..
-                    os9       I$Write             * 00D2 10 3F 8A       .?.
-                    leax      <U0052,U            * 00D5 30 C8 52       0HR
-                    ldy       #27                 * 00D8 10 8E 00 1B    ....
-                    clra                          * 00DC 4F             O
-                    os9       I$ReadLn            * 00DD 10 3F 8B       .?.
-                    lbcs      L00C8               * 00E0 10 25 FF E4    .%.d
-                    cmpy      #1                  * 00E4 10 8C 00 01    ....
-                    lble      L01A6               * 00E8 10 2F 00 BA    ./.:
-L00EC               lda       0,X                 * 00EC A6 84          &.
-                    anda      #223                * 00EE 84 DF          ._
-                    sta       ,X+                 * 00F0 A7 80          '.
-                    cmpa      #13                 * 00F2 81 0D          ..
-                    bne       L00EC               * 00F4 26 F6          &v
-L00F6               leax      <U006D,U            * 00F6 30 C8 6D       0Hm
-                    lda       U0000,U             * 00F9 A6 C4          &D
-                    ldy       #96                 * 00FB 10 8E 00 60    ...`
-                    clrb                          * 00FF 5F             _
-                    os9       I$Read              * 0100 10 3F 89       .?.
-                    lbcs      L0120               * 0103 10 25 00 19    .%..
-                    tst       >U008C,U            * 0107 6D C9 00 8C    mI..
-                    beq       L00F6               * 010B 27 E9          'i
-                    leay      <U0052,U            * 010D 31 C8 52       1HR
-L0110               lda       0,Y                 * 0110 A6 A4          &$
-                    cmpa      #13                 * 0112 81 0D          ..
-                    beq       L0136               * 0114 27 20          '
-                    lda       ,X+                 * 0116 A6 80          &.
-                    anda      #223                * 0118 84 DF          ._
-                    cmpa      ,Y+                 * 011A A1 A0          !
-                    bne       L00F6               * 011C 26 D8          &X
-                    bra       L0110               * 011E 20 F0           p
-L0120               cmpb      #211                * 0120 C1 D3          AS
-                    lbne      L01A7               * 0122 10 26 00 81    .&..
-                    leax      >L003C,PC           * 0126 30 8D FF 12    0...
-                    ldy       #200                * 012A 10 8E 00 C8    ...H
-                    lda       #1                  * 012E 86 01          ..
-                    os9       I$WritLn            * 0130 10 3F 8C       .?.
-                    lbra      L01A6               * 0133 16 00 70       ..p
-L0136               leax      >L0050,PC           * 0136 30 8D FF 16    0...
-                    ldy       #7                  * 013A 10 8E 00 07    ....
-                    lda       #1                  * 013E 86 01          ..
-                    os9       I$Write             * 0140 10 3F 8A       .?.
-                    leax      <U006D,U            * 0143 30 C8 6D       0Hm
-                    ldy       #30                 * 0146 10 8E 00 1E    ....
-                    os9       I$WritLn            * 014A 10 3F 8C       .?.
-                    leax      >L0057,PC           * 014D 30 8D FF 06    0...
-                    ldy       #5                  * 0151 10 8E 00 05    ....
-                    os9       I$Write             * 0155 10 3F 8A       .?.
-                    leax      >U008D,U            * 0158 30 C9 00 8D    0I..
-                    ldy       #65                 * 015C 10 8E 00 41    ...A
-                    os9       I$WritLn            * 0160 10 3F 8C       .?.
-                    leax      >L005C,PC           * 0163 30 8D FE F5    0.~u
-                    ldy       #65                 * 0167 10 8E 00 41    ...A
-                    os9       I$WritLn            * 016B 10 3F 8C       .?.
-                    lda       U0001,U             * 016E A6 41          &A
-                    ldx       >U0088,U            * 0170 AE C9 00 88    .I..
-                    pshs      U                   * 0174 34 40          4@
-                    ldu       >U008A,U            * 0176 EE C9 00 8A    nI..
-                    os9       I$Seek              * 017A 10 3F 88       .?.
-                    puls      U                   * 017D 35 40          5@
-L017F               lda       U0001,U             * 017F A6 41          &A
-                    leax      U0002,U             * 0181 30 42          0B
-                    ldy       #200                * 0183 10 8E 00 C8    ...H
-                    os9       I$ReadLn            * 0187 10 3F 8B       .?.
-                    lbcs      L01A7               * 018A 10 25 00 19    .%..
-                    lda       #1                  * 018E 86 01          ..
-                    os9       I$WritLn            * 0190 10 3F 8C       .?.
-                    cmpy      #1                  * 0193 10 8C 00 01    ....
-                    bgt       L017F               * 0197 2E E6          .f
-                    leax      >L005C,PC           * 0199 30 8D FE BF    0.~?
-                    ldy       #65                 * 019D 10 8E 00 41    ...A
-                    lda       #1                  * 01A1 86 01          ..
-                    os9       I$WritLn            * 01A3 10 3F 8C       .?.
-L01A6               clrb                          * 01A6 5F             _
-L01A7               os9       F$Exit              * 01A7 10 3F 06       .?.
+name                fcs       /DLD.read/ ; store an OS-9 high-bit-terminated string
+L0015               fcc       "DLD.lst" ; store literal character data
+                    fcb       $0D       ; store byte data
+L001D               fcc       "DLD.dsc" ; store literal character data
+                    fcb       $0D       ; store byte data
+L0025               fcc       "Enter filename to read:" ; store literal character data
+L003C               fcc       "Filename not found." ; store literal character data
+                    fcb       $0D       ; store byte data
+L0050               fcb       $0A       ; store byte data
+                    fcb       $0D       ; store byte data
+                    fcc       "Name:" ; store literal character data
+L0057               fcc       "Desc:" ; store literal character data
+L005C               fcc       "--------------------------------------------------------------" ; store literal character data
+                    fcb       $0D       ; store byte data
+start               lda       0,x       ; load a from 0,x
+                    cmpa      #13       ; compare a with #13 and set the condition codes
+                    beq       L00AA     ; branch when the values are equal or the result is zero; target L00AA
+                    lda       #1        ; set a to the constant 1
+                    os9       I$ChgDir  ; invoke the OS-9 I$ChgDir service
+                    lbcs      L01A7     ; branch when carry reports an error or unsigned underflow; target L01A7
+L00AA               leax      >L0015,pc ; form the address >L0015,pc in x
+                    lda       #1        ; set a to the constant 1
+                    os9       I$Open    ; invoke the OS-9 I$Open service
+                    lbcs      L01A7     ; branch when carry reports an error or unsigned underflow; target L01A7
+                    sta       U0000,u   ; store a at U0000,u
+                    leax      >L001D,pc ; form the address >L001D,pc in x
+                    lda       #1        ; set a to the constant 1
+                    os9       I$Open    ; invoke the OS-9 I$Open service
+                    lbcs      L01A7     ; branch when carry reports an error or unsigned underflow; target L01A7
+                    sta       U0001,u   ; store a at U0001,u
+L00C8               leax      >L0025,pc ; form the address >L0025,pc in x
+                    ldy       #23       ; set y to the constant 23
+                    lda       #1        ; set a to the constant 1
+                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    leax      <U0052,u  ; form the address <U0052,u in x
+                    ldy       #27       ; set y to the constant 27
+                    clra                ; clear a to zero and set the condition codes
+                    os9       I$ReadLn  ; invoke the OS-9 I$ReadLn service
+                    lbcs      L00C8     ; branch when carry reports an error or unsigned underflow; target L00C8
+                    cmpy      #1        ; compare y with #1 and set the condition codes
+                    lble      L01A6     ; branch when the signed value is less than or equal; target L01A6
+L00EC               lda       0,x       ; load a from 0,x
+                    anda      #223      ; mask a using #223
+                    sta       ,x+       ; store a at ,x+
+                    cmpa      #13       ; compare a with #13 and set the condition codes
+                    bne       L00EC     ; branch when the values differ or the result is nonzero; target L00EC
+L00F6               leax      <U006D,u  ; form the address <U006D,u in x
+                    lda       U0000,u   ; load a from U0000,u
+                    ldy       #96       ; set y to the constant 96
+                    clrb                ; clear b to zero and set the condition codes
+                    os9       I$Read    ; invoke the OS-9 I$Read service
+                    lbcs      L0120     ; branch when carry reports an error or unsigned underflow; target L0120
+                    tst       >U008C,u  ; set condition codes from >U008C,u without changing it
+                    beq       L00F6     ; branch when the values are equal or the result is zero; target L00F6
+                    leay      <U0052,u  ; form the address <U0052,u in y
+L0110               lda       0,y       ; load a from 0,y
+                    cmpa      #13       ; compare a with #13 and set the condition codes
+                    beq       L0136     ; branch when the values are equal or the result is zero; target L0136
+                    lda       ,x+       ; load a from ,x+
+                    anda      #223      ; mask a using #223
+                    cmpa      ,y+       ; compare a with ,y+ and set the condition codes
+                    bne       L00F6     ; branch when the values differ or the result is nonzero; target L00F6
+                    bra       L0110     ; continue execution at L0110
+L0120               cmpb      #211      ; compare b with #211 and set the condition codes
+                    lbne      L01A7     ; branch when the values differ or the result is nonzero; target L01A7
+                    leax      >L003C,pc ; form the address >L003C,pc in x
+                    ldy       #200      ; set y to the constant 200
+                    lda       #1        ; set a to the constant 1
+                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
+                    lbra      L01A6     ; continue execution at L01A6
+L0136               leax      >L0050,pc ; form the address >L0050,pc in x
+                    ldy       #7        ; set y to the constant 7
+                    lda       #1        ; set a to the constant 1
+                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    leax      <U006D,u  ; form the address <U006D,u in x
+                    ldy       #30       ; set y to the constant 30
+                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
+                    leax      >L0057,pc ; form the address >L0057,pc in x
+                    ldy       #5        ; set y to the constant 5
+                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    leax      >U008D,u  ; form the address >U008D,u in x
+                    ldy       #65       ; set y to the constant 65
+                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
+                    leax      >L005C,pc ; form the address >L005C,pc in x
+                    ldy       #65       ; set y to the constant 65
+                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
+                    lda       U0001,u   ; load a from U0001,u
+                    ldx       >U0088,u  ; load x from >U0088,u
+                    pshs      u         ; save u on the stack
+                    ldu       >U008A,u  ; load u from >U008A,u
+                    os9       I$Seek    ; invoke the OS-9 I$Seek service
+                    puls      u         ; restore u from the stack
+L017F               lda       U0001,u   ; load a from U0001,u
+                    leax      U0002,u   ; form the address U0002,u in x
+                    ldy       #200      ; set y to the constant 200
+                    os9       I$ReadLn  ; invoke the OS-9 I$ReadLn service
+                    lbcs      L01A7     ; branch when carry reports an error or unsigned underflow; target L01A7
+                    lda       #1        ; set a to the constant 1
+                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
+                    cmpy      #1        ; compare y with #1 and set the condition codes
+                    bgt       L017F     ; branch when the signed value is greater; target L017F
+                    leax      >L005C,pc ; form the address >L005C,pc in x
+                    ldy       #65       ; set y to the constant 65
+                    lda       #1        ; set a to the constant 1
+                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
+L01A6               clrb                ; clear b to zero and set the condition codes
+L01A7               os9       F$Exit    ; invoke the OS-9 F$Exit service
 
-                    emod
-eom                 equ       *
-                    end
+                    emod      ;         emit the OS-9 module CRC and trailer
+eom                 equ       *         ; define the assembly-time value for eom
+                    end       ;         end the assembly source
