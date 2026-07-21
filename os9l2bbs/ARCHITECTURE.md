@@ -347,9 +347,14 @@ It then sends signal zero to each collected process, retrying after one tick
 until OS-9 accepts the termination signal. This clears the caller's entire
 process tree so the next call cannot inherit the previous session.
 
-`T1mon` provides limited support for the CoCo 3 internal serial port at up to
-300 baud. The manual explicitly excludes chat, conference, upload, and
-download from reliable use on that port.
+`T1mon <port>` is a simpler supervisor for the CoCo 3 internal serial port. It
+fixes `PD.BAU` at 300 baud, disables echo, blocks on one-byte reads until it
+recognizes CR, then reenables echo and forks `BBS.login`. Its `Modem.set`
+handling writes each command as a complete line rather than pacing individual
+bytes. Although the module still embeds the name `Monitor` and performs a
+second `F$Wait`, it never forks that process; these appear to be remnants of
+the two-child `Tsmon` design. The manual explicitly excludes chat, conference,
+upload, and download from reliable use on the internal port.
 
 `ViewBBS` changes the current display to the special online-view window used
 with the supplied double driver. The double driver mirrors ordinary reads and
