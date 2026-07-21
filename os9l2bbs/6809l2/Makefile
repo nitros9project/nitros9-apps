@@ -31,13 +31,14 @@ CMDS	= Ansicode Answer At \
 
 all: $(DSK)
 
-$(DSK): $(CMDS)
+$(DSK): $(CMDS) Makefile
 	$(RM) $@
 	$(OS9FORMAT) -q $@ -n"OS-9 L2 BBS for 6809"
 	$(MAKDIR) $@,CMDS
 	$(OS9COPY) $(CMDS) $@,CMDS
 	$(MAKDIR) $@,BBS
 	$(OS9COPY) $(BBSFILES) $@,BBS
+	$(OS9ATTR) -npe -pw -pr -ne -w -r $@,BBS/BBS.userstats
 
 clean:
 	$(RM) $(DSK) $(CMDS) Login *.list *.map

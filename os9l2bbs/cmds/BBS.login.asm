@@ -14,6 +14,8 @@
 * decoded authentication, session launch, userlog, and time accounting.
 *          2026/07/21  Codex
 * initialize interactive terminal modes and preserve echo across password entry.
+*          2026/07/21  Codex
+* corrected the date utility option used for audit timestamps.
 **********************************************************************
 
                     nam       BBS.login
@@ -25,7 +27,7 @@
 
 tylg                set       Prgrm+Objct ; executable object module
 atrv                set       ReEnt+rev ; reentrant module with revision encoded below
-rev                 set       $02       ; restore inherited echo state after password entry
+rev                 set       $03       ; pass the correct date option for audit timestamps
 
                     mod       eom,name,tylg,atrv,start,size ; declare the OS-9 module header and entry point
 
@@ -128,7 +130,7 @@ BlankLine           fcb       C$LF      ; two-byte blank-line sequence
                     fcb       C$CR      ; terminate the blank line
 DateCommandName     fcc       "date"    ; command briefly redirected to /P
                     fcb       C$CR      ; terminate the module name
-DateCommandParams   fcb       't'       ; request the date command's time form
+DateCommandParams   fcc       "-t"      ; request the date command's time form
                     fcb       C$CR      ; terminate the parameter line
 PaddingSpaces       fcc       "                                       " ; align printer/userlog fields
 TimeColon           fcc       ":"      ; separator between two-digit time fields
@@ -453,8 +455,8 @@ PrinterPaddingDone  lbcs      ExitWithStatus ; propagate audit output failure
                     bmi       RestoreTerminalOutput ; skip the date command without /P
                     os9       I$Dup     ; duplicate /P into the free path-one slot
                     leax      >DateCommandName,pc ; select the date utility
-                    leau      >DateCommandParams,pc ; supply its "t" parameter
-                    ldy       #2        ; pass character plus CR
+                    leau      >DateCommandParams,pc ; supply its "-t" parameter
+                    ldy       #3        ; pass option prefix, character, and CR
                     lda       #17       ; fork an executable object module
                     ldb       #3        ; grant the child three 256-byte pages
                     os9       F$Fork    ; run date with output redirected to /P
@@ -846,6 +848,6 @@ FoldCaseLoop
 FoldCaseDone
                     puls      pc,x      ; restore X and return
 
-                    emod                ; emit the OS-9 module CRC and trailer
+                    emod      ;         emit the OS-9 module CRC and trailer
 eom                 equ       *         ; mark the module end for the size expression
-                    end                 ; end the assembly source
+                    end       ;         end the assembly source
