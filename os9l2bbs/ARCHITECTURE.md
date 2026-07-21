@@ -318,6 +318,20 @@ signal handler performs the same cleanup on interruption. CTRL-X forks
 `BBS.conf.who`, waits for the roster display to finish, and then resumes the
 conference loop.
 
+`BBS.page` uses a more invasive one-shot delivery mechanism. It resolves the
+requested alias to an OS-9 user ID, scans process descriptors for that user,
+and reads the target process's standard-output system path number. It then
+walks Level 2's system path and device tables with `F$CpyMem` to recover the
+high-bit-terminated terminal device name. After opening that device for output,
+it writes four bells, `Page from `, the sender's alias, and the entered message
+directly to the other caller's terminal; no target-side BBS process handles the
+page.
+
+The shipped paging code appears to omit restoration of U after using it as the
+high half of an `I$Seek` offset while rewinding `BBS.alias`. Its later U-relative
+workspace accesses are therefore suspect. The reconstructed source documents
+this apparent original defect but retains it for exact binary equivalence.
+
 ## ANSI tools
 
 `AnsiCode` emits ANSI control sequences selected on its command line.
