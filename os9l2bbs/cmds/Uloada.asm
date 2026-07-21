@@ -1,11 +1,17 @@
 **********************************************************************
 * Uloada - OS-9 Level 2 BBS command
 *
+* Syntax: Uloada [file]
+* Purpose: Receive an ASCII upload until the protocol terminating character.
+* Transfer engine selected by BBS.upload.
+*
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
 * Annotated source and normalized comments.
+*          2026/07/21  Codex
+* Refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       Uloada
@@ -21,74 +27,74 @@ rev                 set       $01       ; set assembly-time module attribute rev
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-U0000               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0001               rmb       200       ; reserve 200 byte(s) in the module workspace
-U00C9               rmb       1         ; reserve 1 byte(s) in the module workspace
-U00CA               rmb       599       ; reserve 599 byte(s) in the module workspace
+WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkBuffer_001      rmb       200       ; reserve 200 byte(s) in the module workspace
+WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkBuffer_002      rmb       599       ; reserve 599 byte(s) in the module workspace
 size                equ       .         ; define the assembly-time value for size
 
 name                fcs       /Uloada/ ; store an OS-9 high-bit-terminated string
-L0013               fcc       "Enter filename to upload" ; store literal character data
-L002B               fcc       "Press <CTRL><T> to terminal upload" ; store literal character data
+Text_001            fcc       "Enter filename to upload" ; store literal character data
+Text_002            fcc       "Press <CTRL><T> to terminal upload" ; store literal character data
                     fcb       $0A       ; store byte data
                     fcb       $0D       ; store byte data
-                    fcc       "Press <CTRL><x> to cancel" ; store literal character data
+                    fcc       "Press <CTRL><X> to cancel" ; store literal character data
                     fcb       $0A       ; store byte data
                     fcb       $0D       ; store byte data
-L006A               fcb       $0A       ; store byte data
+Data_001            fcb       $0A       ; store byte data
                     fcb       $3A       ; store byte data
-start               lda       0,x       ; load a from 0,x
+start               lda       ,x        ; load a from ,x
                     cmpa      #13       ; compare a with #13 and set the condition codes
-                    bne       L008B     ; branch when the values differ or the result is nonzero; target L008B
-                    leax      >L0013,pc ; form the address >L0013,pc in x
+                    bne       Branch_001 ; branch when the values differ or the result is nonzero; target Branch_001
+                    leax      >Text_001,pc ; form the address >Text_001,pc in x
                     ldy       #24       ; set y to the constant 24
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    leax      U0001,u   ; form the address U0001,u in x
+                    os9       I$Write   ; write Y bytes from X to path A
+                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
                     ldy       #200      ; set y to the constant 200
                     clra                ; clear a to zero and set the condition codes
-                    os9       I$ReadLn  ; invoke the OS-9 I$ReadLn service
-                    leax      U0001,u   ; form the address U0001,u in x
-L008B               lda       #3        ; set a to the constant 3
+                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
+                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
+Branch_001          lda       #3        ; set a to the constant 3
                     ldb       #27       ; set b to the constant 27
-                    os9       I$Create  ; invoke the OS-9 I$Create service
-                    lbcs      L00F0     ; branch when carry reports an error or unsigned underflow; target L00F0
-                    sta       U0000,u   ; store a at U0000,u
-                    leax      >L002B,pc ; form the address >L002B,pc in x
+                    os9       I$Create  ; create the path at X with mode A and attributes B
+                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
+                    sta       WorkByte_001,u ; store a at WorkByte_001,u
+                    leax      >Text_002,pc ; form the address >Text_002,pc in x
                     ldy       #63       ; set y to the constant 63
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    leax      >L006A,pc ; form the address >L006A,pc in x
+                    os9       I$Write   ; write Y bytes from X to path A
+                    leax      >Data_001,pc ; form the address >Data_001,pc in x
                     ldy       #2        ; set y to the constant 2
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-L00B2               clra                ; clear a to zero and set the condition codes
+                    os9       I$Write   ; write Y bytes from X to path A
+Branch_003          clra                ; clear a to zero and set the condition codes
                     ldb       #1        ; set b to the constant 1
-                    os9       I$GetStt  ; invoke the OS-9 I$GetStt service
-                    bcs       L00B2     ; branch when carry reports an error or unsigned underflow; target L00B2
+                    os9       I$GetStt  ; query status code B for path A
+                    bcs       Branch_003 ; branch when carry reports an error or unsigned underflow; target Branch_003
                     ldy       #1        ; set y to the constant 1
-                    leax      >U00C9,u  ; form the address >U00C9,u in x
-                    os9       I$Read    ; invoke the OS-9 I$Read service
-                    lda       0,x       ; load a from 0,x
+                    leax      >WorkByte_002,u ; form the address >WorkByte_002,u in x
+                    os9       I$Read    ; read up to Y bytes from path A into X
+                    lda       ,x        ; load a from ,x
                     cmpa      #20       ; compare a with #20 and set the condition codes
-                    beq       L00EF     ; branch when the values are equal or the result is zero; target L00EF
+                    beq       Branch_004 ; branch when the values are equal or the result is zero; target Branch_004
                     cmpa      #24       ; compare a with #24 and set the condition codes
-                    beq       L00EB     ; branch when the values are equal or the result is zero; target L00EB
-                    lda       U0000,u   ; load a from U0000,u
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    lda       0,x       ; load a from 0,x
+                    beq       Branch_005 ; branch when the values are equal or the result is zero; target Branch_005
+                    lda       WorkByte_001,u ; load a from WorkByte_001,u
+                    os9       I$Write   ; write Y bytes from X to path A
+                    lda       ,x        ; load a from ,x
                     cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       L00DC     ; branch when the values are equal or the result is zero; target L00DC
-                    bra       L00B2     ; continue execution at L00B2
-L00DC               leax      >L006A,pc ; form the address >L006A,pc in x
+                    beq       Branch_006 ; branch when the values are equal or the result is zero; target Branch_006
+                    bra       Branch_003 ; continue execution at Branch_003
+Branch_006          leax      >Data_001,pc ; form the address >Data_001,pc in x
                     ldy       #2        ; set y to the constant 2
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    bra       L00B2     ; continue execution at L00B2
-L00EB               lda       #1        ; set a to the constant 1
-                    bra       L00F0     ; continue execution at L00F0
-L00EF               clrb                ; clear b to zero and set the condition codes
-L00F0               os9       F$Exit    ; invoke the OS-9 F$Exit service
+                    os9       I$Write   ; write Y bytes from X to path A
+                    bra       Branch_003 ; continue execution at Branch_003
+Branch_005          lda       #1        ; set a to the constant 1
+                    bra       Branch_002 ; continue execution at Branch_002
+Branch_004          clrb                ; clear b to zero and set the condition codes
+Branch_002          os9       F$Exit    ; terminate the process with status B
 
                     emod      ;         emit the OS-9 module CRC and trailer
 eom                 equ       *         ; define the assembly-time value for eom

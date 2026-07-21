@@ -55,5 +55,10 @@ The buildable sources are a maintained reconstruction of the package; the
 generated disk should not be assumed to be byte-for-byte identical to the
 original distribution image unless that is verified separately.
 
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the recovered runtime model,
+command families, persistent data files, and source-annotation conventions.
+See [`COMMANDS.md`](COMMANDS.md) for a maintenance-oriented command and module
+reference derived from the original Release 3.00 manual.
+
 No ownership, licensing, or redistribution rights are implied by the presence
 of the historical material in this repository.

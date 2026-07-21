@@ -1,6 +1,6 @@
 -x
-DISPLAY C
-bbs.stat
+display c
+*bbs.stat
 echo
 echo ------  Auto  Message  ------
 list utils/automsg

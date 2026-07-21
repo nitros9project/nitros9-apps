@@ -1,11 +1,17 @@
 **********************************************************************
 * AnsiFilt - OS-9 Level 2 BBS command
 *
+* Syntax: AnsiFilt <input> or <producer> | AnsiFilt
+* Purpose: Translate ANSI terminal sequences into CoCo OS-9 display operations.
+* State: parser state, numeric parameters, cursor controls, and translated output.
+*
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
 * Annotated source and normalized comments.
+*          2026/07/21  Codex
+* Refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       AnsiFilt
@@ -24,12 +30,12 @@ rev                 set       $01       ; set assembly-time module attribute rev
 ReadBuf             rmb       1         ; reserve 1 byte(s) in the module workspace
 ColCount            rmb       1         ; reserve 1 byte(s) in the module workspace
 RowCount            rmb       1         ; reserve 1 byte(s) in the module workspace
-U0003               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0004               rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
 InEscSeq            rmb       1         ; reserve 1 byte(s) in the module workspace
 XSave               rmb       2         ; reserve 2 byte(s) in the module workspace
 WriteBuf            rmb       1         ; reserve 1 byte(s) in the module workspace
-U0009               rmb       499       ; reserve 499 byte(s) in the module workspace
+WorkBuffer_001      rmb       499       ; reserve 499 byte(s) in the module workspace
 size                equ       .         ; define the assembly-time value for size
 
 name                fcs       /AnsiFilt/ ; store an OS-9 high-bit-terminated string
@@ -39,17 +45,17 @@ start               lbsr      Setup     ; call subroutine Setup
 ReadLoop            clra                ; clear a to zero and set the condition codes
                     leax      ReadBuf,u ; form the address ReadBuf,u in x
                     ldy       #1        ; set y to the constant 1
-                    os9       I$Read    ; invoke the OS-9 I$Read service
+                    os9       I$Read    ; read up to Y bytes from path A into X
                     bcs       Error     ; branch when carry reports an error or unsigned underflow; target Error
                     lda       ReadBuf,u ; load a from ReadBuf,u
-                    lbsr      L0049     ; call subroutine L0049
+                    lbsr      Routine_001 ; call subroutine Routine_001
                     bra       ReadLoop  ; continue execution at ReadLoop
 
 Error               cmpb      #E$EOF    ; compare b with #E$EOF and set the condition codes
                     lbne      ErrExit   ; branch when the values differ or the result is nonzero; target ErrExit
                     bra       Exit      ; continue execution at Exit
 Exit                clrb                ; clear b to zero and set the condition codes
-ErrExit             os9       F$Exit    ; invoke the OS-9 F$Exit service
+ErrExit             os9       F$Exit    ; terminate the process with status B
 
 Setup               clr       InEscSeq,u ; clear InEscSeq,u to zero and set the condition codes
                     leax      WriteBuf,u ; form the address WriteBuf,u in x
@@ -57,131 +63,131 @@ Setup               clr       InEscSeq,u ; clear InEscSeq,u to zero and set the 
                     lda       #1        ; set a to the constant 1
                     sta       ColCount,u ; store a at ColCount,u
                     sta       RowCount,u ; store a at RowCount,u
-                    sta       U0003,u   ; store a at U0003,u
-                    sta       U0004,u   ; store a at U0004,u
+                    sta       WorkByte_001,u ; store a at WorkByte_001,u
+                    sta       WorkByte_002,u ; store a at WorkByte_002,u
                     rts                 ; return to the caller
 
-L0049               cmpa      #32       ; Is it a space?
-                    bcs       L007A     ; no, go check others
-                    tst       <InEscSeq ; In an ESC sequence?
-                    lbne      L00F2     ; Yes, go handle it
+Routine_001         cmpa      #32       ; is it a space?
+                    bcs       Branch_001 ; no, go check others
+                    tst       <InEscSeq ; in an ESC sequence?
+                    lbne      Branch_002 ; yes, go handle it
 
 * Write the character to the output path
                     pshs      a         ; save a on the stack
-                    leax      0,s       ; form the address 0,s in x
+                    leax      ,s        ; form the address ,s in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
 
-                    inc       ColCount,u ; Increment the number of chars written
+                    inc       ColCount,u ; increment the number of chars written
                     lda       ColCount,u ; load a from ColCount,u
-                    cmpa      #128      ; Have we written 128?
-                    bls       L0078     ; No, so return
+                    cmpa      #128      ; have we written 128?
+                    bls       Branch_003 ; no, so return
 
-                    lda       #1        ; Reset the column count
+                    lda       #1        ; reset the column count
                     sta       ColCount,u ; store a at ColCount,u
-                    inc       RowCount,u ; Increment the row count
+                    inc       RowCount,u ; increment the row count
                     lda       RowCount,u ; load a from RowCount,u
-                    cmpa      #23       ; Have we written 24 rows?
-                    bls       L0078     ; No, so return
+                    cmpa      #23       ; have we written 24 rows?
+                    bls       Branch_003 ; no, so return
 
-                    lda       #23       ; Reset the row count
+                    lda       #23       ; reset the row count
                     sta       RowCount,u ; store a at RowCount,u
-L0078               puls      pc,a      ; Clean the stack and return
+Branch_003          puls      pc,a      ; clean the stack and return
 
-L007A               cmpa      #27       ; Is it an ESC?
-                    beq       HandleESC ; Yes, go handle it
-                    cmpa      #7        ; Is it a BEL character?
-                    beq       HandleBEL ; Yes, go handle it
-                    cmpa      #8        ; Is it a BS character?
-                    beq       HandleBS  ; Yes, go handle it
-                    cmpa      #10       ; Is it an LF character?
-                    beq       HandleLF  ; Yes, go handle it
-                    cmpa      #13       ; Is it a CR character?
-                    beq       HandleCR  ; Yes, go handle it
-                    rts                 ; Something else, so return
+Branch_001          cmpa      #27       ; is it an ESC?
+                    beq       HandleESC ; yes, go handle it
+                    cmpa      #7        ; is it a BEL character?
+                    beq       HandleBEL ; yes, go handle it
+                    cmpa      #8        ; is it a BS character?
+                    beq       HandleBS  ; yes, go handle it
+                    cmpa      #10       ; is it an LF character?
+                    beq       HandleLF  ; yes, go handle it
+                    cmpa      #13       ; is it a CR character?
+                    beq       HandleCR  ; yes, go handle it
+                    rts                 ; something else, so return
 
-HandleESC           lda       #1        ; Parsing an ESC seq, so set the flag
+HandleESC           lda       #1        ; parsing an ESC seq, so set the flag
                     sta       InEscSeq,u ; store a at InEscSeq,u
-                    leax      WriteBuf,u ; Set X to the buffer
-                    lda       #27       ; Save the ESC code in the buffer
-                    sta       ,x+       ; Increment the buffer pointer
-                    stx       XSave,u   ; Save a copy of the pointer
+                    leax      WriteBuf,u ; set X to the buffer
+                    lda       #27       ; save the ESC code in the buffer
+                    sta       ,x+       ; increment the buffer pointer
+                    stx       XSave,u   ; save a copy of the pointer
                     rts                 ; ... and return
 
 * Write the BEL to the output path
 HandleBEL           pshs      a         ; save a on the stack
-                    leax      0,s       ; form the address 0,s in x
+                    leax      ,s        ; form the address ,s in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
                     puls      pc,a      ; restore pc,a and return to the caller
 
 HandleBS            pshs      a         ; save a on the stack
-                    dec       ColCount,u ; Decrement the column count
-                    bne       bs1       ; Branch if col count not zero
-                    lda       #1        ; Reset the column count
+                    dec       ColCount,u ; decrement the column count
+                    bne       bs1       ; branch if col count not zero
+                    lda       #1        ; reset the column count
                     sta       ColCount,u ; store a at ColCount,u
                     bra       bsret     ; ... and return
 
 * Write the BS to the output path
-bs1                 leax      0,s       ; form the address 0,s in x
+bs1                 leax      ,s        ; form the address ,s in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-bsret               puls      pc,a      ; Clean the stack and return
+                    os9       I$Write   ; write Y bytes from X to path A
+bsret               puls      pc,a      ; clean the stack and return
 
 * Write the LF to the output path
 HandleLF            pshs      a         ; save a on the stack
-                    leax      0,s       ; form the address 0,s in x
+                    leax      ,s        ; form the address ,s in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
 
-                    inc       RowCount,u ; Increment the row count
+                    inc       RowCount,u ; increment the row count
                     lda       RowCount,u ; load a from RowCount,u
                     cmpa      #23       ; compare a with #23 and set the condition codes
-                    bls       lfret     ; Return if less than 24 rows
-                    lda       #23       ; Reset the row count
+                    bls       lfret     ; return if less than 24 rows
+                    lda       #23       ; reset the row count
                     sta       RowCount,u ; store a at RowCount,u
-lfret               puls      pc,a      ; Clean the stack and return
+lfret               puls      pc,a      ; clean the stack and return
 
 * Write the CR to the output path
 HandleCR            pshs      a         ; save a on the stack
-                    leax      0,s       ; form the address 0,s in x
+                    leax      ,s        ; form the address ,s in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
 
-                    lda       #1        ; Reset the col count
+                    lda       #1        ; reset the col count
                     sta       ColCount,u ; store a at ColCount,u
-                    puls      pc,a      ; Clean the stack and return
+                    puls      pc,a      ; clean the stack and return
 
-L00F2               cmpa      #65       ; Is it less than 'A'?
-                    bcs       L0101     ; Yes, append it to the save sequence
-                    cmpa      #91       ; It is a '['?
-                    beq       L0101     ; Yes, append it to the save sequence
-                    cmpa      #122      ; Is it greater than 'z'?
-                    bhi       L0101     ; Yes, append it to the save sequence
-                    lbra      L0108     ; continue execution at L0108
+Branch_002          cmpa      #65       ; is it less than 'A'?
+                    bcs       Branch_004 ; yes, append it to the save sequence
+                    cmpa      #91       ; it is a '['?
+                    beq       Branch_004 ; yes, append it to the save sequence
+                    cmpa      #122      ; is it greater than 'z'?
+                    bhi       Branch_004 ; yes, append it to the save sequence
+                    lbra      Branch_005 ; continue execution at Branch_005
 
 * Append the char to the ESC sequence buffer
-L0101               ldx       XSave,u   ; load x from XSave,u
+Branch_004          ldx       XSave,u   ; load x from XSave,u
                     sta       ,x+       ; store a at ,x+
                     stx       XSave,u   ; store x at XSave,u
                     rts                 ; return to the caller
 
-L0108               clr       InEscSeq,u ; Reset the ESC sequence flag
-                    ldx       XSave,u   ; Get the buffer pointer
-                    sta       ,x+       ; Save the current character
+Branch_005          clr       InEscSeq,u ; reset the ESC sequence flag
+                    ldx       XSave,u   ; get the buffer pointer
+                    sta       ,x+       ; save the current character
                     stx       XSave,u   ; ... and save the new pointer
-                    cmpa      #72       ; Is it an 'H'?
-                    lbeq      Esc_Hf    ; Yes, handle it
-                    cmpa      #65       ; Is it an 'A'?
-                    lbeq      Esc_A     ; Yes, handle it
-                    cmpa      #66       ; Is it a 'B'?
-                    lbeq      Esc_B     ; Yes, handle it
-                    cmpa      #67       ; Is it a 'C'?
+                    cmpa      #72       ; is it an 'H'?
+                    lbeq      Esc_Hf    ; yes, handle it
+                    cmpa      #65       ; is it an 'A'?
+                    lbeq      Esc_A     ; yes, handle it
+                    cmpa      #66       ; is it a 'B'?
+                    lbeq      Esc_B     ; yes, handle it
+                    cmpa      #67       ; is it a 'C'?
                     lbeq      Esc_C     ; branch when the values are equal or the result is zero; target Esc_C
                     cmpa      #68       ; compare a with #68 and set the condition codes
                     lbeq      Esc_D     ; branch when the values are equal or the result is zero; target Esc_D
@@ -199,198 +205,198 @@ L0108               clr       InEscSeq,u ; Reset the ESC sequence flag
                     lbeq      Esc_m     ; branch when the values are equal or the result is zero; target Esc_m
 
 * Write the buffer to the output path
-L0152               leax      WriteBuf,u ; form the address WriteBuf,u in x
+Branch_006          leax      WriteBuf,u ; form the address WriteBuf,u in x
                     pshs      x         ; save x on the stack
                     ldd       XSave,u   ; load d from XSave,u
-                    subd      0,s       ; subtract from d using 0,s
+                    subd      ,s        ; subtract from d using ,s
                     leas      $02,s     ; adjust the system stack pointer
                     tfr       d,y       ; copy the register values specified by d,y
                     leax      WriteBuf,u ; form the address WriteBuf,u in x
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
                     clr       InEscSeq,u ; clear InEscSeq,u to zero and set the condition codes
                     rts                 ; return to the caller
 
 * Clear the screen
-L0168               fcb       $0C       ; store byte data
-Esc_J               lbsr      L0397     ; call subroutine L0397
+Data_001            fcb       $0C       ; store byte data
+Esc_J               lbsr      Code_001  ; call subroutine Code_001
                     lda       ,x+       ; load a from ,x+
                     cmpa      #50       ; compare a with #50 and set the condition codes
-                    bne       L0152     ; branch when the values differ or the result is nonzero; target L0152
-                    leax      >L0168,pc ; form the address >L0168,pc in x
+                    bne       Branch_006 ; branch when the values differ or the result is nonzero; target Branch_006
+                    leax      >Data_001,pc ; form the address >Data_001,pc in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
                     lda       #1        ; set a to the constant 1
                     sta       ColCount,u ; store a at ColCount,u
                     sta       RowCount,u ; store a at RowCount,u
                     rts                 ; return to the caller
 
-L0186               fcb       $04       ; store byte data
-Esc_k               lbsr      L0397     ; call subroutine L0397
-                    leax      >L0186,pc ; form the address >L0186,pc in x
+Data_002            fcb       $04       ; store byte data
+Esc_k               lbsr      Code_001  ; call subroutine Code_001
+                    leax      >Data_002,pc ; form the address >Data_002,pc in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
                     rts                 ; return to the caller
 
-L0198               fcb       $02       ; store byte data
-Esc_Hf              lbsr      L0397     ; call subroutine L0397
-                    lbsr      L03A7     ; call subroutine L03A7
+Data_003            fcb       $02       ; store byte data
+Esc_Hf              lbsr      Code_001  ; call subroutine Code_001
+                    lbsr      Routine_002 ; call subroutine Routine_002
                     sta       RowCount,u ; store a at RowCount,u
                     adda      #31       ; add to a using #31
                     pshs      a         ; save a on the stack
                     lda       ,x+       ; load a from ,x+
                     cmpa      #59       ; compare a with #59 and set the condition codes
-                    beq       L01B0     ; branch when the values are equal or the result is zero; target L01B0
+                    beq       Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
                     puls      a         ; restore a from the stack
-                    lbra      L0152     ; continue execution at L0152
-L01B0               lbsr      L03A7     ; call subroutine L03A7
+                    lbra      Branch_006 ; continue execution at Branch_006
+Branch_007          lbsr      Routine_002 ; call subroutine Routine_002
                     sta       ColCount,u ; store a at ColCount,u
                     adda      #31       ; add to a using #31
                     pshs      a         ; save a on the stack
-                    leax      >L0198,pc ; form the address >L0198,pc in x
+                    leax      >Data_003,pc ; form the address >Data_003,pc in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    leax      0,s       ; form the address 0,s in x
+                    os9       I$Write   ; write Y bytes from X to path A
+                    leax      ,s        ; form the address ,s in x
                     ldy       #2        ; set y to the constant 2
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
                     leas      $02,s     ; adjust the system stack pointer
                     rts                 ; return to the caller
 
-L01D2               fcb       $09       ; store byte data
-Esc_A               lbsr      L0397     ; call subroutine L0397
-                    lbsr      L03A7     ; call subroutine L03A7
+Data_004            fcb       $09       ; store byte data
+Esc_A               lbsr      Code_001  ; call subroutine Code_001
+                    lbsr      Routine_002 ; call subroutine Routine_002
                     pshs      a         ; save a on the stack
                     lda       RowCount,u ; load a from RowCount,u
-                    suba      0,s       ; subtract from a using 0,s
-                    bgt       L01E3     ; branch when the signed value is greater; target L01E3
+                    suba      ,s        ; subtract from a using ,s
+                    bgt       Branch_008 ; branch when the signed value is greater; target Branch_008
                     lda       #1        ; set a to the constant 1
-L01E3               sta       RowCount,u ; store a at RowCount,u
-                    leax      >L01D2,pc ; form the address >L01D2,pc in x
+Branch_008          sta       RowCount,u ; store a at RowCount,u
+                    leax      >Data_004,pc ; form the address >Data_004,pc in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-L01EF               tst       0,s       ; set condition codes from 0,s without changing it
-                    beq       L01FA     ; branch when the values are equal or the result is zero; target L01FA
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    dec       0,s       ; decrement the value at 0,s
-                    bne       L01EF     ; branch when the values differ or the result is nonzero; target L01EF
-L01FA               leas      $01,s     ; adjust the system stack pointer
+Branch_009          tst       ,s        ; set condition codes from ,s without changing it
+                    beq       Branch_010 ; branch when the values are equal or the result is zero; target Branch_010
+                    os9       I$Write   ; write Y bytes from X to path A
+                    dec       ,s        ; decrement the value at ,s
+                    bne       Branch_009 ; branch when the values differ or the result is nonzero; target Branch_009
+Branch_010          leas      $01,s     ; adjust the system stack pointer
                     rts                 ; return to the caller
 
-L01FD               fcb       $0A       ; store byte data
-Esc_B               lbsr      L0397     ; call subroutine L0397
-                    lbsr      L03A7     ; call subroutine L03A7
+Data_005            fcb       $0A       ; store byte data
+Esc_B               lbsr      Code_001  ; call subroutine Code_001
+                    lbsr      Routine_002 ; call subroutine Routine_002
                     pshs      a         ; save a on the stack
                     lda       RowCount,u ; load a from RowCount,u
-                    adda      0,s       ; add to a using 0,s
+                    adda      ,s        ; add to a using ,s
                     cmpa      #23       ; compare a with #23 and set the condition codes
-                    bls       L021C     ; branch when the unsigned value is lower or equal; target L021C
+                    bls       Branch_011 ; branch when the unsigned value is lower or equal; target Branch_011
                     suba      #23       ; subtract from a using #23
                     pshs      a         ; save a on the stack
                     lda       $01,s     ; load a from the current stack frame at $01,s
-                    suba      0,s       ; subtract from a using 0,s
+                    suba      ,s        ; subtract from a using ,s
                     leas      $01,s     ; adjust the system stack pointer
-                    sta       0,s       ; store a in the current stack frame at 0,s
+                    sta       ,s        ; store a in the current stack frame at ,s
                     lda       #23       ; set a to the constant 23
-L021C               sta       RowCount,u ; store a at RowCount,u
-                    leax      >L01FD,pc ; form the address >L01FD,pc in x
+Branch_011          sta       RowCount,u ; store a at RowCount,u
+                    leax      >Data_005,pc ; form the address >Data_005,pc in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    bra       L01EF     ; continue execution at L01EF
+                    bra       Branch_009 ; continue execution at Branch_009
 
-L022A               fcb       $06       ; store byte data
-Esc_C               lbsr      L0397     ; call subroutine L0397
-                    lbsr      L03A7     ; call subroutine L03A7
+Data_006            fcb       $06       ; store byte data
+Esc_C               lbsr      Code_001  ; call subroutine Code_001
+                    lbsr      Routine_002 ; call subroutine Routine_002
                     pshs      a         ; save a on the stack
                     lda       ColCount,u ; load a from ColCount,u
-                    adda      0,s       ; add to a using 0,s
+                    adda      ,s        ; add to a using ,s
                     cmpa      #80       ; compare a with #80 and set the condition codes
-                    bls       L0249     ; branch when the unsigned value is lower or equal; target L0249
+                    bls       Branch_012 ; branch when the unsigned value is lower or equal; target Branch_012
                     suba      #80       ; subtract from a using #80
                     pshs      a         ; save a on the stack
                     lda       $01,s     ; load a from the current stack frame at $01,s
-                    suba      0,s       ; subtract from a using 0,s
+                    suba      ,s        ; subtract from a using ,s
                     sta       $01,s     ; store a in the current stack frame at $01,s
                     leas      $01,s     ; adjust the system stack pointer
                     lda       #80       ; set a to the constant 80
-L0249               sta       ColCount,u ; store a at ColCount,u
-                    leax      >L022A,pc ; form the address >L022A,pc in x
+Branch_012          sta       ColCount,u ; store a at ColCount,u
+                    leax      >Data_006,pc ; form the address >Data_006,pc in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    lbra      L01EF     ; continue execution at L01EF
+                    lbra      Branch_009 ; continue execution at Branch_009
 
-L0258               fcb       $08       ; store byte data
-Esc_D               lbsr      L0397     ; call subroutine L0397
-                    lbsr      L03A7     ; call subroutine L03A7
+Data_007            fcb       $08       ; store byte data
+Esc_D               lbsr      Code_001  ; call subroutine Code_001
+                    lbsr      Routine_002 ; call subroutine Routine_002
                     pshs      a         ; save a on the stack
                     lda       ColCount,u ; load a from ColCount,u
-                    suba      0,s       ; subtract from a using 0,s
-                    bgt       L026E     ; branch when the signed value is greater; target L026E
+                    suba      ,s        ; subtract from a using ,s
+                    bgt       Branch_013 ; branch when the signed value is greater; target Branch_013
                     deca                ; decrement a
-                    adda      0,s       ; add to a using 0,s
-                    sta       0,s       ; store a in the current stack frame at 0,s
+                    adda      ,s        ; add to a using ,s
+                    sta       ,s        ; store a in the current stack frame at ,s
                     lda       #1        ; set a to the constant 1
-L026E               sta       ColCount,u ; store a at ColCount,u
-                    leax      >L0258,pc ; form the address >L0258,pc in x
+Branch_013          sta       ColCount,u ; store a at ColCount,u
+                    leax      >Data_007,pc ; form the address >Data_007,pc in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    lbra      L01EF     ; continue execution at L01EF
+                    lbra      Branch_009 ; continue execution at Branch_009
 
 Esc_s               lda       ColCount,u ; load a from ColCount,u
-                    sta       U0003,u   ; store a at U0003,u
+                    sta       WorkByte_001,u ; store a at WorkByte_001,u
                     lda       RowCount,u ; load a from RowCount,u
-                    sta       U0004,u   ; store a at U0004,u
+                    sta       WorkByte_002,u ; store a at WorkByte_002,u
                     rts                 ; return to the caller
 
-Esc_u               lda       U0004,u   ; load a from U0004,u
+Esc_u               lda       WorkByte_002,u ; load a from WorkByte_002,u
                     sta       RowCount,u ; store a at RowCount,u
                     adda      #31       ; add to a using #31
                     pshs      a         ; save a on the stack
-                    lda       U0003,u   ; load a from U0003,u
+                    lda       WorkByte_001,u ; load a from WorkByte_001,u
                     sta       ColCount,u ; store a at ColCount,u
                     adda      #31       ; add to a using #31
                     pshs      a         ; save a on the stack
-                    leax      >L0198,pc ; form the address >L0198,pc in x
+                    leax      >Data_003,pc ; form the address >Data_003,pc in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    leax      0,s       ; form the address 0,s in x
+                    os9       I$Write   ; write Y bytes from X to path A
+                    leax      ,s        ; form the address ,s in x
                     ldy       #2        ; set y to the constant 2
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
                     leas      $02,s     ; adjust the system stack pointer
                     rts                 ; return to the caller
 
-Esc_m               lbsr      L0397     ; call subroutine L0397
-L02B2               lda       0,x       ; load a from 0,x
+Esc_m               lbsr      Code_001  ; call subroutine Code_001
+Branch_014          lda       ,x        ; load a from ,x
                     cmpa      #109      ; compare a with #109 and set the condition codes
-                    beq       L02C3     ; branch when the values are equal or the result is zero; target L02C3
-                    lbsr      L03A7     ; call subroutine L03A7
-                    bsr       L02C4     ; call subroutine L02C4
+                    beq       Branch_015 ; branch when the values are equal or the result is zero; target Branch_015
+                    lbsr      Routine_002 ; call subroutine Routine_002
+                    bsr       Routine_003 ; call subroutine Routine_003
                     lda       ,x+       ; load a from ,x+
                     cmpa      #59       ; compare a with #59 and set the condition codes
-                    beq       L02B2     ; branch when the values are equal or the result is zero; target L02B2
-L02C3               rts                 ; return to the caller
+                    beq       Branch_014 ; branch when the values are equal or the result is zero; target Branch_014
+Branch_015          rts                 ; return to the caller
 
-L02C4               pshs      x         ; save x on the stack
+Routine_003         pshs      x         ; save x on the stack
                     cmpa      #0        ; compare a with #0 and set the condition codes
-                    beq       L02F2     ; branch when the values are equal or the result is zero; target L02F2
+                    beq       Branch_016 ; branch when the values are equal or the result is zero; target Branch_016
                     cmpa      #4        ; compare a with #4 and set the condition codes
-                    beq       L0303     ; branch when the values are equal or the result is zero; target L0303
+                    beq       Branch_017 ; branch when the values are equal or the result is zero; target Branch_017
                     cmpa      #5        ; compare a with #5 and set the condition codes
-                    beq       L0314     ; branch when the values are equal or the result is zero; target L0314
+                    beq       Branch_018 ; branch when the values are equal or the result is zero; target Branch_018
                     cmpa      #7        ; compare a with #7 and set the condition codes
-                    beq       L031C     ; branch when the values are equal or the result is zero; target L031C
+                    beq       Branch_019 ; branch when the values are equal or the result is zero; target Branch_019
                     cmpa      #8        ; compare a with #8 and set the condition codes
-                    beq       L0328     ; branch when the values are equal or the result is zero; target L0328
+                    beq       Branch_020 ; branch when the values are equal or the result is zero; target Branch_020
                     cmpa      #40       ; compare a with #40 and set the condition codes
-                    lbge      L0365     ; branch when the signed value is greater than or equal; target L0365
+                    lbge      Branch_021 ; branch when the signed value is greater than or equal; target Branch_021
                     cmpa      #30       ; compare a with #30 and set the condition codes
-                    bge       L0339     ; branch when the signed value is greater than or equal; target L0339
+                    bge       Branch_022 ; branch when the signed value is greater than or equal; target Branch_022
                     puls      pc,x      ; restore pc,x and return to the caller
 
-L02E6               fcb       $1B       ; store byte data
+Data_008            fcb       $1B       ; store byte data
                     fcb       $32       ; store byte data
                     fcb       $00       ; store byte data
                     fcb       $1B       ; store byte data
@@ -403,90 +409,90 @@ L02E6               fcb       $1B       ; store byte data
                     fcb       $1F       ; store byte data
                     fcb       $25       ; store byte data
 
-L02F2               leax      >L02E6,pc ; form the address >L02E6,pc in x
+Branch_016          leax      >Data_008,pc ; form the address >Data_008,pc in x
                     ldy       #12       ; set y to the constant 12
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
                     puls      pc,x      ; restore pc,x and return to the caller
 
-L0301               fcb       $1F       ; store byte data
+Data_009            fcb       $1F       ; store byte data
                     fcb       $22       ; store byte data
 
-L0303               leax      >L0301,pc ; form the address >L0301,pc in x
-L0307               ldy       #2        ; set y to the constant 2
+Branch_017          leax      >Data_009,pc ; form the address >Data_009,pc in x
+Branch_023          ldy       #2        ; set y to the constant 2
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
                     puls      pc,x      ; restore pc,x and return to the caller
 
-L0312               fcb       $1F       ; store byte data
+Data_010            fcb       $1F       ; store byte data
                     fcb       $24       ; store byte data
 
-L0314               leax      >L0312,pc ; form the address >L0312,pc in x
-                    bra       L0307     ; continue execution at L0307
+Branch_018          leax      >Data_010,pc ; form the address >Data_010,pc in x
+                    bra       Branch_023 ; continue execution at Branch_023
 
-L031A               fcb       $1F       ; store byte data
+Data_011            fcb       $1F       ; store byte data
                     fcb       $20       ; store byte data
 
-L031C               leax      >L031A,pc ; form the address >L031A,pc in x
-                    bra       L0307     ; continue execution at L0307
+Branch_019          leax      >Data_011,pc ; form the address >Data_011,pc in x
+                    bra       Branch_023 ; continue execution at Branch_023
 
-L0322               fcb       $1B       ; store byte data
+Data_012            fcb       $1B       ; store byte data
                     fcb       $32       ; store byte data
                     fcb       $02       ; store byte data
                     fcb       $1B       ; store byte data
                     fcb       $33       ; store byte data
                     fcb       $02       ; store byte data
 
-L0328               leax      >L0322,pc ; form the address >L0322,pc in x
+Branch_020          leax      >Data_012,pc ; form the address >Data_012,pc in x
                     ldy       #6        ; set y to the constant 6
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
                     puls      pc,x      ; restore pc,x and return to the caller
 
-L0337               fcb       $1B       ; store byte data
+Data_013            fcb       $1B       ; store byte data
                     fcb       $32       ; store byte data
 
-L0339               cmpa      #37       ; compare a with #37 and set the condition codes
-                    ble       L033F     ; branch when the signed value is less than or equal; target L033F
+Branch_022          cmpa      #37       ; compare a with #37 and set the condition codes
+                    ble       Branch_024 ; branch when the signed value is less than or equal; target Branch_024
                     puls      pc,x      ; restore pc,x and return to the caller
 
-L033F               suba      #30       ; subtract from a using #30
+Branch_024          suba      #30       ; subtract from a using #30
                     pshs      a         ; save a on the stack
-                    leax      >L0337,pc ; form the address >L0337,pc in x
+                    leax      >Data_013,pc ; form the address >Data_013,pc in x
                     ldy       #2        ; set y to the constant 2
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
                     puls      a         ; restore a from the stack
-                    leax      >L038F,pc ; form the address >L038F,pc in x
+                    leax      >Data_014,pc ; form the address >Data_014,pc in x
                     leax      a,x       ; form the address a,x in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
                     puls      pc,x      ; restore pc,x and return to the caller
 
-L0363               fcb       $1B       ; store byte data
+Data_015            fcb       $1B       ; store byte data
                     fcb       $33       ; store byte data
 
-L0365               cmpa      #47       ; compare a with #47 and set the condition codes
-                    ble       L036B     ; branch when the signed value is less than or equal; target L036B
+Branch_021          cmpa      #47       ; compare a with #47 and set the condition codes
+                    ble       Branch_025 ; branch when the signed value is less than or equal; target Branch_025
                     puls      pc,x      ; restore pc,x and return to the caller
 
-L036B               suba      #40       ; subtract from a using #40
+Branch_025          suba      #40       ; subtract from a using #40
                     pshs      a         ; save a on the stack
-                    leax      >L0363,pc ; form the address >L0363,pc in x
+                    leax      >Data_015,pc ; form the address >Data_015,pc in x
                     ldy       #2        ; set y to the constant 2
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    leax      >L038F,pc ; form the address >L038F,pc in x
+                    os9       I$Write   ; write Y bytes from X to path A
+                    leax      >Data_014,pc ; form the address >Data_014,pc in x
                     puls      a         ; restore a from the stack
                     leax      a,x       ; form the address a,x in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
 
                     puls      pc,x      ; restore pc,x and return to the caller
 
-L038F               fcb       $02       ; store byte data
+Data_014            fcb       $02       ; store byte data
                     fcb       $04       ; store byte data
                     fcb       $03       ; store byte data
                     fcb       $05       ; store byte data
@@ -495,51 +501,51 @@ L038F               fcb       $02       ; store byte data
                     fcb       $07       ; store byte data
                     fcb       $00       ; store byte data
 
-L0397               leax      WriteBuf,u ; form the address WriteBuf,u in x
+Code_001            leax      WriteBuf,u ; form the address WriteBuf,u in x
                     leax      $01,x     ; form the address $01,x in x
                     lda       ,x+       ; load a from ,x+
                     cmpa      #91       ; compare a with #91 and set the condition codes
-                    beq       L03A6     ; branch when the values are equal or the result is zero; target L03A6
+                    beq       Branch_026 ; branch when the values are equal or the result is zero; target Branch_026
                     leas      $02,s     ; adjust the system stack pointer
-                    lbra      L0152     ; continue execution at L0152
-L03A6               rts                 ; return to the caller
+                    lbra      Branch_006 ; continue execution at Branch_006
+Branch_026          rts                 ; return to the caller
 
-L03A7               lda       0,x       ; load a from 0,x
+Routine_002         lda       ,x        ; load a from ,x
                     cmpa      #48       ; compare a with #48 and set the condition codes
-                    blt       L03E7     ; branch when the signed value is less; target L03E7
+                    blt       Branch_027 ; branch when the signed value is less; target Branch_027
                     cmpa      #57       ; compare a with #57 and set the condition codes
-                    bgt       L03E7     ; branch when the signed value is greater; target L03E7
-L03B1               lda       ,x+       ; load a from ,x+
+                    bgt       Branch_027 ; branch when the signed value is greater; target Branch_027
+Branch_028          lda       ,x+       ; load a from ,x+
                     cmpa      #48       ; compare a with #48 and set the condition codes
-                    blt       L03BD     ; branch when the signed value is less; target L03BD
+                    blt       Branch_029 ; branch when the signed value is less; target Branch_029
                     cmpa      #57       ; compare a with #57 and set the condition codes
-                    bgt       L03BD     ; branch when the signed value is greater; target L03BD
-                    bra       L03B1     ; continue execution at L03B1
-L03BD               leax      -$01,x    ; form the address -$01,x in x
+                    bgt       Branch_029 ; branch when the signed value is greater; target Branch_029
+                    bra       Branch_028 ; continue execution at Branch_028
+Branch_029          leax      -$01,x    ; form the address -$01,x in x
                     tfr       x,y       ; copy the register values specified by x,y
                     pshs      x         ; save x on the stack
                     ldb       #1        ; set b to the constant 1
                     ldx       #0        ; set x to the constant 0
-L03C8               pshs      b         ; save b on the stack
+Branch_030          pshs      b         ; save b on the stack
                     lda       ,-y       ; load a from ,-y
                     cmpa      #48       ; compare a with #48 and set the condition codes
-                    blt       L03DF     ; branch when the signed value is less; target L03DF
+                    blt       Branch_031 ; branch when the signed value is less; target Branch_031
                     cmpa      #57       ; compare a with #57 and set the condition codes
-                    bgt       L03DF     ; branch when the signed value is greater; target L03DF
+                    bgt       Branch_031 ; branch when the signed value is greater; target Branch_031
                     suba      #48       ; subtract from a using #48
                     mul                 ; multiply a by b and return the product in d
                     abx                 ; advance x by the unsigned offset in b
                     puls      b         ; restore b from the stack
                     lda       #10       ; set a to the constant 10
                     mul                 ; multiply a by b and return the product in d
-                    bra       L03C8     ; continue execution at L03C8
+                    bra       Branch_030 ; continue execution at Branch_030
 
-L03DF               puls      b         ; restore b from the stack
+Branch_031          puls      b         ; restore b from the stack
                     tfr       x,d       ; copy the register values specified by x,d
                     tfr       b,a       ; copy the register values specified by b,a
                     puls      pc,x      ; restore pc,x and return to the caller
 
-L03E7               lda       #1        ; set a to the constant 1
+Branch_027          lda       #1        ; set a to the constant 1
                     rts                 ; return to the caller
 
                     emod      ;         emit the OS-9 module CRC and trailer

@@ -1,11 +1,17 @@
 **********************************************************************
 * AnsiEd - OS-9 Level 2 BBS command
 *
+* Syntax: AnsiEd [input] [output]
+* Purpose: Edit the final screen image while separately recording the ordered ANSI output stream.
+* State: screen/output buffers, cursor and saved cursor, edit/record mode, attributes, and colors.
+*
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
 * Annotated source and normalized comments.
+*          2026/07/21  Codex
+* Refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       AnsiEd
@@ -21,63 +27,63 @@ rev                 set       $01       ; set assembly-time module attribute rev
 
                     mod       eom,name,tylg,atrv,_cstart,size ; emit the OS-9 module header
 
-U0000               rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
 dpsiz               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0002               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0003               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0004               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0005               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0006               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0007               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0008               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0009               rmb       1         ; reserve 1 byte(s) in the module workspace
-U000A               rmb       1         ; reserve 1 byte(s) in the module workspace
-U000B               rmb       2         ; reserve 2 byte(s) in the module workspace
-U000D               rmb       2         ; reserve 2 byte(s) in the module workspace
-U000F               rmb       16        ; reserve 16 byte(s) in the module workspace
-U001F               rmb       16        ; reserve 16 byte(s) in the module workspace
-U002F               rmb       8         ; reserve 8 byte(s) in the module workspace
-U0037               rmb       2         ; reserve 2 byte(s) in the module workspace
-U0039               rmb       1         ; reserve 1 byte(s) in the module workspace
-U003A               rmb       2         ; reserve 2 byte(s) in the module workspace
-U003C               rmb       13        ; reserve 13 byte(s) in the module workspace
-U0049               rmb       196       ; reserve 196 byte(s) in the module workspace
-U010D               rmb       128       ; reserve 128 byte(s) in the module workspace
+WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_003        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_004        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_005        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_006        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_007        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_008        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_009        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_010        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkWord_002        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkBuffer_001      rmb       16        ; reserve 16 byte(s) in the module workspace
+WorkBuffer_002      rmb       16        ; reserve 16 byte(s) in the module workspace
+WorkBuffer_003      rmb       8         ; reserve 8 byte(s) in the module workspace
+WorkWord_003        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkByte_011        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkWord_004        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkBuffer_004      rmb       13        ; reserve 13 byte(s) in the module workspace
+WorkBuffer_005      rmb       196       ; reserve 196 byte(s) in the module workspace
+WorkBuffer_006      rmb       128       ; reserve 128 byte(s) in the module workspace
 argv                rmb       2         ; reserve 2 byte(s) in the module workspace
 argv_2              rmb       58        ; reserve 58 byte(s) in the module workspace
 argc                rmb       1         ; reserve 1 byte(s) in the module workspace
 argc_1              rmb       1         ; reserve 1 byte(s) in the module workspace
 _sttop              rmb       2         ; reserve 2 byte(s) in the module workspace
 memend              rmb       2         ; reserve 2 byte(s) in the module workspace
-U01CF               rmb       2         ; reserve 2 byte(s) in the module workspace
-U01D1               rmb       6         ; reserve 6 byte(s) in the module workspace
+WorkWord_005        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkBuffer_007      rmb       6         ; reserve 6 byte(s) in the module workspace
 _mtop               rmb       2         ; reserve 2 byte(s) in the module workspace
 _stbot              rmb       2         ; reserve 2 byte(s) in the module workspace
-U01DB               rmb       2         ; reserve 2 byte(s) in the module workspace
-U01DD               rmb       1         ; reserve 1 byte(s) in the module workspace
-U01DE               rmb       9         ; reserve 9 byte(s) in the module workspace
-U01E7               rmb       50        ; reserve 50 byte(s) in the module workspace
-U0219               rmb       2         ; reserve 2 byte(s) in the module workspace
-U021B               rmb       2         ; reserve 2 byte(s) in the module workspace
-U021D               rmb       2         ; reserve 2 byte(s) in the module workspace
-U021F               rmb       2         ; reserve 2 byte(s) in the module workspace
-U0221               rmb       2         ; reserve 2 byte(s) in the module workspace
-U0223               rmb       2         ; reserve 2 byte(s) in the module workspace
-U0225               rmb       8192      ; reserve 8192 byte(s) in the module workspace
-U2225               rmb       1840      ; reserve 1840 byte(s) in the module workspace
-U2955               rmb       3680      ; reserve 3680 byte(s) in the module workspace
-U37B5               rmb       2         ; reserve 2 byte(s) in the module workspace
-U37B7               rmb       10        ; reserve 10 byte(s) in the module workspace
-U37C1               rmb       10        ; reserve 10 byte(s) in the module workspace
-U37CB               rmb       2         ; reserve 2 byte(s) in the module workspace
-U37CD               rmb       2         ; reserve 2 byte(s) in the module workspace
-U37CF               rmb       1         ; reserve 1 byte(s) in the module workspace
-U37D0               rmb       2         ; reserve 2 byte(s) in the module workspace
-U37D2               rmb       2         ; reserve 2 byte(s) in the module workspace
-U37D4               rmb       2         ; reserve 2 byte(s) in the module workspace
-U37D6               rmb       14        ; reserve 14 byte(s) in the module workspace
+WorkWord_006        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkByte_012        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkBuffer_008      rmb       9         ; reserve 9 byte(s) in the module workspace
+WorkBuffer_009      rmb       50        ; reserve 50 byte(s) in the module workspace
+WorkWord_007        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkWord_008        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkWord_009        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkWord_010        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkWord_011        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkWord_012        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkBuffer_010      rmb       8192      ; reserve 8192 byte(s) in the module workspace
+WorkBuffer_011      rmb       1840      ; reserve 1840 byte(s) in the module workspace
+WorkBuffer_012      rmb       3680      ; reserve 3680 byte(s) in the module workspace
+WorkWord_013        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkBuffer_013      rmb       10        ; reserve 10 byte(s) in the module workspace
+WorkBuffer_014      rmb       10        ; reserve 10 byte(s) in the module workspace
+WorkWord_014        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkWord_015        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkByte_013        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkWord_016        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkWord_017        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkWord_018        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkBuffer_015      rmb       14        ; reserve 14 byte(s) in the module workspace
 end                 rmb       1         ; reserve 1 byte(s) in the module workspace
-U37E5               rmb       895       ; reserve 895 byte(s) in the module workspace
+WorkBuffer_016      rmb       895       ; reserve 895 byte(s) in the module workspace
 size                equ       .         ; define the assembly-time value for size
 
 name                fcs       /AnsiEd/ ; store an OS-9 high-bit-terminated string
@@ -103,8 +109,8 @@ csta05              sta       ,u+       ; clear dp bytes
                     decb                ; decrement b
                     bne       csta05    ; branch when the values differ or the result is nonzero; target csta05
 
-csta10              ldx       0,s       ; get the beginning of data address
-                    leau      0,x       ; (tfr x,u)
+csta10              ldx       ,s        ; get the beginning of data address
+                    leau      ,x        ; (tfr x,u)
                     leax      >$37E4,x  ; get the end of bss address
                     pshs      x         ; save it
                     leay      >etext,pc ; point to dp-data count word
@@ -121,7 +127,7 @@ csta15              leau      >dpsiz,u  ; point to where non-dp should start
 * Clear the bss area - starts where
 * the transferred data finished
                     clra                ; clear a to zero and set the condition codes
-clrbss              cmpu      0,s       ; reached the end?
+clrbss              cmpu      ,s        ; reached the end?
                     beq       reldt     ; bra if so
                     sta       ,u+       ; clear it
                     bra       clrbss    ; continue execution at clrbss
@@ -130,13 +136,13 @@ clrbss              cmpu      0,s       ; reached the end?
 reldt               ldu       $02,s     ; restore to data bottom
                     ldd       ,y++      ; get data-text ref. count
                     beq       reldd     ; branch when the values are equal or the result is zero; target reldd
-                    leax      >,pc      ; point to text
+                    leax      >0,pc     ; point to text
                     lbsr      patch     ; patch them
 
 * and the data-data refs.
 reldd               ldd       ,y++      ; get the count of data refs.
                     beq       restack   ; bra if none
-                    leax      U0000,u   ; u was already pointing there
+                    leax      WorkByte_001,u ; u was already pointing there
                     lbsr      patch     ; call subroutine patch
 
 restack             leas      $04,s     ; reset stack
@@ -158,7 +164,7 @@ restack             leas      $04,s     ; reset stack
                     ldd       #1        ; at least one arg
                     std       >argc,u   ; store d at >argc,u
                     leay      >argv_2,u ; point y at second slot
-                    leax      0,s       ; point x at params
+                    leax      ,s        ; point x at params
                     lda       ,x+       ; initialize
 
 aloop               ldb       >argc_1,u ; load b from >argc_1,u
@@ -186,7 +192,7 @@ aloop40             stx       ,y++      ; save address in vector
 qloop               lda       ,x+       ; get another
                     cmpa      #13       ; eol?
                     beq       aloop50   ; branch when the values are equal or the result is zero; target aloop50
-                    cmpa      0,s       ; delimiter?
+                    cmpa      ,s        ; delimiter?
                     bne       qloop     ; branch when the values differ or the result is nonzero; target qloop
 
 aloop50             puls      b         ; clean stack
@@ -219,7 +225,7 @@ final               leax      >argv,u   ; get the address of the arg vector
                     pshs      x         ; goes on the stack first
                     ldd       >argc,u   ; get the arg count
                     pshs      d         ; stack it
-                    leay      U0000,u   ; C progs. assume data & bss offset from y
+                    leay      WorkByte_001,u ; c progs. assume data & bss offset from y
 
                     bsr       _fixtop   ; set various variables
 
@@ -249,7 +255,7 @@ fixserr             fcc       "**** STACK OVERFLOW ****" ; store literal charact
                     fcb       $0D       ; store byte data
 
 fsterr              leax      <fixserr,pc ; address of error string
-                    ldb       #E$MemFul ; MEMORY FULL error number
+                    ldb       #E$MemFul ; memory FULL error number
 
 erexit              pshs      b         ; stack the error number
                     lda       #2        ; standard error output
@@ -295,10 +301,10 @@ patch               pshs      x         ; save the base
 * is unnecessary
 patch10             ldd       ,y++      ; get the offset
                     leax      d,u       ; point to location
-                    ldd       0,x       ; get the relative reference
+                    ldd       ,x        ; get the relative reference
                     addd      $02,s     ; add in the base
-                    std       0,x       ; store the absolute reference
-                    cmpy      0,s       ; reached the top?
+                    std       ,x        ; store the absolute reference
+                    cmpy      ,s        ; reached the top?
                     bne       patch10   ; no - round again
 
                     leas      $04,s     ; reset the stack
@@ -307,27 +313,27 @@ patch10             ldd       ,y++      ; get the offset
 main                pshs      u         ; save u on the stack
                     ldd       #-118     ; set d to the constant -118
                     lbsr      _stkcheck ; call subroutine _stkcheck
-                    leas      <$FFDE,s  ; adjust the system stack pointer
-                    lbsr      L02DF     ; call subroutine L02DF
-                    lbsr      L035D     ; call subroutine L035D
+                    leas      <-$22,s   ; adjust the system stack pointer
+                    lbsr      Routine_001 ; call subroutine Routine_001
+                    lbsr      Routine_002 ; call subroutine Routine_002
                     ldd       <$0026,s  ; load d from the current stack frame at <$0026,s
                     cmpd      #1        ; compare d with #1 and set the condition codes
-                    ble       L01A2     ; branch when the signed value is less than or equal; target L01A2
+                    ble       Branch_001 ; branch when the signed value is less than or equal; target Branch_001
                     ldx       <$0028,s  ; load x from the current stack frame at <$0028,s
                     ldd       $02,x     ; load d from $02,x
                     pshs      d         ; save d on the stack
-                    lbsr      L0555     ; call subroutine L0555
+                    lbsr      Routine_003 ; call subroutine Routine_003
                     leas      $02,s     ; adjust the system stack pointer
-L01A2               lbsr      L07B7     ; call subroutine L07B7
+Branch_001          lbsr      Code_001  ; call subroutine Code_001
                     ldd       <$0026,s  ; load d from the current stack frame at <$0026,s
                     cmpd      #2        ; compare d with #2 and set the condition codes
-                    ble       L01BB     ; branch when the signed value is less than or equal; target L01BB
+                    ble       Branch_002 ; branch when the signed value is less than or equal; target Branch_002
                     ldx       <$0028,s  ; load x from the current stack frame at <$0028,s
                     ldd       $04,x     ; load d from $04,x
                     pshs      d         ; save d on the stack
-                    lbsr      L03E2     ; call subroutine L03E2
-                    lbra      L0284     ; continue execution at L0284
-L01BB               ldd       #4        ; set d to the constant 4
+                    lbsr      Routine_004 ; call subroutine Routine_004
+                    lbra      Branch_003 ; continue execution at Branch_003
+Branch_002          ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
@@ -343,7 +349,7 @@ L01BB               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
@@ -363,23 +369,23 @@ L01BB               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L252A     ; call subroutine L252A
+                    lbsr      Routine_006 ; call subroutine Routine_006
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     leax      >savprmpt,pc ; form the address >savprmpt,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    leax      >U0049,y  ; form the address >U0049,y in x
+                    leax      >WorkBuffer_005,y ; form the address >WorkBuffer_005,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L337C     ; call subroutine L337C
+                    lbsr      Routine_008 ; call subroutine Routine_008
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #32       ; set d to the constant 32
                     pshs      d         ; save d on the stack
@@ -390,39 +396,39 @@ L01BB               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     lbsr      readln    ; call subroutine readln
                     leas      $06,s     ; adjust the system stack pointer
-                    std       0,s       ; store d in the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
                     cmpd      #1        ; compare d with #1 and set the condition codes
-                    bgt       L0269     ; branch when the signed value is greater; target L0269
+                    bgt       Branch_004 ; branch when the signed value is greater; target Branch_004
                     ldx       <$0028,s  ; load x from the current stack frame at <$0028,s
                     ldd       $02,x     ; load d from $02,x
                     pshs      d         ; save d on the stack
                     leax      $04,s     ; form the address $04,s in x
                     pshs      x         ; save x on the stack
-                    lbsr      L3556     ; call subroutine L3556
+                    lbsr      Routine_009 ; call subroutine Routine_009
                     leas      $04,s     ; adjust the system stack pointer
-L0269               leax      $02,s     ; form the address $02,s in x
+Branch_004          leax      $02,s     ; form the address $02,s in x
                     pshs      x         ; save x on the stack
-                    lbsr      L03E2     ; call subroutine L03E2
+                    lbsr      Routine_004 ; call subroutine Routine_004
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
-L0284               leas      $02,s     ; adjust the system stack pointer
+                    lbsr      Routine_010 ; call subroutine Routine_010
+Branch_003          leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AFB     ; call subroutine L3AFB
+                    lbsr      Routine_011 ; call subroutine Routine_011
                     leas      $02,s     ; adjust the system stack pointer
                     leax      >Title,pc ; form the address >Title,pc in x
                     pshs      x         ; save x on the stack
@@ -442,18 +448,18 @@ L0284               leas      $02,s     ; adjust the system stack pointer
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3B00     ; call subroutine L3B00
+                    lbsr      Routine_012 ; call subroutine Routine_012
                     leas      $02,s     ; adjust the system stack pointer
                     leas      <$0022,s  ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
 
 * -- method --
-L02DF               pshs      u         ; save u on the stack
+Routine_001         pshs      u         ; save u on the stack
                     ldd       #-84      ; set d to the constant -84
                     lbsr      _stkcheck ; call subroutine _stkcheck
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
@@ -474,7 +480,7 @@ L02DF               pshs      u         ; save u on the stack
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
@@ -495,45 +501,45 @@ L02DF               pshs      u         ; save u on the stack
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
 
 * -- method --
-L035D               pshs      u         ; save u on the stack
+Routine_002         pshs      u         ; save u on the stack
                     ldd       #-75      ; set d to the constant -75
                     lbsr      _stkcheck ; call subroutine _stkcheck
                     leas      -$05,s    ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    lbra      L03BE     ; continue execution at L03BE
-L036C               clra                ; clear a to zero and set the condition codes
+                    lbra      Branch_005 ; continue execution at Branch_005
+Branch_006          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    bra       L03AF     ; continue execution at L03AF
-L0370               ldd       $01,s     ; load d from the current stack frame at $01,s
+                    bra       Branch_007 ; continue execution at Branch_007
+Branch_008          ldd       $01,s     ; load d from the current stack frame at $01,s
                     pshs      d         ; save d on the stack
                     ldd       #80       ; set d to the constant 80
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2225,y  ; form the address >U2225,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_011,y ; form the address >WorkBuffer_011,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       $03,s     ; load d from the current stack frame at $03,s
                     leax      d,x       ; form the address d,x in x
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    stb       0,x       ; store b at 0,x
+                    stb       ,x        ; store b at ,x
                     ldd       $01,s     ; load d from the current stack frame at $01,s
                     pshs      d         ; save d on the stack
                     ldd       #160      ; set d to the constant 160
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2955,y  ; form the address >U2955,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_012,y ; form the address >WorkBuffer_012,y in x
                     leax      d,x       ; form the address d,x in x
                     tfr       x,d       ; copy the register values specified by x,d
                     pshs      d         ; save d on the stack
@@ -542,38 +548,38 @@ L0370               ldd       $01,s     ; load d from the current stack frame at
                     rola                ; rotate a left through carry
                     addd      ,s++      ; add to d using ,s++
                     tfr       d,x       ; copy the register values specified by d,x
-                    ldd       >U0009,y  ; load d from >U0009,y
-                    std       0,x       ; store d at 0,x
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
+                    std       ,x        ; store d at ,x
                     ldd       $01,s     ; load d from the current stack frame at $01,s
                     addd      #1        ; add to d using #1
-L03AF               std       $01,s     ; store d in the current stack frame at $01,s
+Branch_007          std       $01,s     ; store d in the current stack frame at $01,s
                     ldd       $01,s     ; load d from the current stack frame at $01,s
                     cmpd      #23       ; compare d with #23 and set the condition codes
-                    blt       L0370     ; branch when the signed value is less; target L0370
+                    blt       Branch_008 ; branch when the signed value is less; target Branch_008
                     ldd       $03,s     ; load d from the current stack frame at $03,s
                     addd      #1        ; add to d using #1
-L03BE               std       $03,s     ; store d in the current stack frame at $03,s
+Branch_005          std       $03,s     ; store d in the current stack frame at $03,s
                     ldd       $03,s     ; load d from the current stack frame at $03,s
                     cmpd      #80       ; compare d with #80 and set the condition codes
-                    lblt      L036C     ; branch when the signed value is less; target L036C
+                    lblt      Branch_006 ; branch when the signed value is less; target Branch_006
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
-                    std       >U0007,y  ; store d at >U0007,y
-                    lbsr      L20F0     ; call subroutine L20F0
+                    std       >WorkByte_007,y ; store d at >WorkByte_007,y
+                    lbsr      Routine_014 ; call subroutine Routine_014
                     leas      $05,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
 
 * -- method --
-L03E2               pshs      u         ; save u on the stack
+Routine_004         pshs      u         ; save u on the stack
                     ldd       #-99      ; set d to the constant -99
                     lbsr      _stkcheck ; call subroutine _stkcheck
                     leas      -$0F,s    ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0009,y  ; store d at >U0009,y
+                    std       >WorkByte_009,y ; store d at >WorkByte_009,y
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
                     ldd       <$0015,s  ; load d from the current stack frame at <$0015,s
@@ -582,16 +588,16 @@ L03E2               pshs      u         ; save u on the stack
                     leas      $04,s     ; adjust the system stack pointer
                     std       $0D,s     ; store d in the current stack frame at $0D,s
                     cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    bne       L0420     ; branch when the values differ or the result is nonzero; target L0420
-                    ldd       >U01DB,y  ; load d from >U01DB,y
+                    bne       Branch_009 ; branch when the values differ or the result is nonzero; target Branch_009
+                    ldd       >WorkWord_006,y ; load d from >WorkWord_006,y
                     pshs      d         ; save d on the stack
                     leax      >CantOpen1,pc ; form the address >CantOpen1,pc in x
                     pshs      x         ; save x on the stack
-                    lbsr      L2561     ; call subroutine L2561
+                    lbsr      Routine_015 ; call subroutine Routine_015
                     leas      $04,s     ; adjust the system stack pointer
                     ldd       #-1       ; set d to the constant -1
-                    lbra      L0551     ; continue execution at L0551
-L0420               ldd       #4        ; set d to the constant 4
+                    lbra      Branch_010 ; continue execution at Branch_010
+Branch_009          ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
@@ -607,7 +613,7 @@ L0420               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
@@ -627,19 +633,19 @@ L0420               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     leax      >PutScrn,pc ; form the address >PutScrn,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    leax      >U0049,y  ; form the address >U0049,y in x
+                    leax      >WorkBuffer_005,y ; form the address >WorkBuffer_005,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L337C     ; call subroutine L337C
+                    lbsr      Routine_008 ; call subroutine Routine_008
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
@@ -650,23 +656,23 @@ L0420               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     lbsr      read      ; call subroutine read
                     leas      $06,s     ; adjust the system stack pointer
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     clra                ; clear a to zero and set the condition codes
                     andb      #223      ; mask b using #223
                     cmpd      #78       ; compare d with #78 and set the condition codes
-                    beq       L04BA     ; branch when the values are equal or the result is zero; target L04BA
-                    lbsr      L212A     ; call subroutine L212A
-L04BA               ldd       #1        ; set d to the constant 1
+                    beq       Branch_011 ; branch when the values are equal or the result is zero; target Branch_011
+                    lbsr      Routine_016 ; call subroutine Routine_016
+Branch_011          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     leax      >ClrScrn,pc ; form the address >ClrScrn,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    leax      >U0049,y  ; form the address >U0049,y in x
+                    leax      >WorkBuffer_005,y ; form the address >WorkBuffer_005,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L337C     ; call subroutine L337C
+                    lbsr      Routine_008 ; call subroutine Routine_008
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
@@ -677,11 +683,11 @@ L04BA               ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
                     lbsr      read      ; call subroutine read
                     leas      $06,s     ; adjust the system stack pointer
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     clra                ; clear a to zero and set the condition codes
                     andb      #223      ; mask b using #223
                     cmpd      #89       ; compare d with #89 and set the condition codes
-                    bne       L051E     ; branch when the values differ or the result is nonzero; target L051E
+                    bne       Branch_012 ; branch when the values differ or the result is nonzero; target Branch_012
                     ldd       #27       ; set d to the constant 27
                     stb       $01,s     ; store b in the current stack frame at $01,s
                     ldd       #91       ; set d to the constant 91
@@ -698,17 +704,17 @@ L04BA               ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
                     lbsr      write     ; call subroutine write
                     leas      $06,s     ; adjust the system stack pointer
-L051E               ldd       #1        ; set d to the constant 1
+Branch_012          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     pshs      d         ; save d on the stack
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     pshs      x         ; save x on the stack
                     ldd       <$0011,s  ; load d from the current stack frame at <$0011,s
                     pshs      d         ; save d on the stack
@@ -718,11 +724,11 @@ L051E               ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
                     lbsr      close     ; call subroutine close
                     leas      $02,s     ; adjust the system stack pointer
-L0551               leas      $0F,s     ; adjust the system stack pointer
+Branch_010          leas      $0F,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
 
 * -- method --
-L0555               pshs      u         ; save u on the stack
+Routine_003         pshs      u         ; save u on the stack
                     ldd       #-88      ; set d to the constant -88
                     lbsr      _stkcheck ; call subroutine _stkcheck
                     leas      -$04,s    ; adjust the system stack pointer
@@ -734,33 +740,33 @@ L0555               pshs      u         ; save u on the stack
                     leas      $04,s     ; adjust the system stack pointer
                     std       $02,s     ; store d in the current stack frame at $02,s
                     cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    bne       L058C     ; branch when the values differ or the result is nonzero; target L058C
-                    ldd       >U01DB,y  ; load d from >U01DB,y
+                    bne       Branch_013 ; branch when the values differ or the result is nonzero; target Branch_013
+                    ldd       >WorkWord_006,y ; load d from >WorkWord_006,y
                     pshs      d         ; save d on the stack
                     leax      >CantOpen2,pc ; form the address >CantOpen2,pc in x
                     pshs      x         ; save x on the stack
-                    lbsr      L2561     ; call subroutine L2561
+                    lbsr      Routine_015 ; call subroutine Routine_015
                     leas      $04,s     ; adjust the system stack pointer
                     ldd       #-1       ; set d to the constant -1
-                    lbra      L07B3     ; continue execution at L07B3
-L058C               clra                ; clear a to zero and set the condition codes
+                    lbra      Branch_014 ; continue execution at Branch_014
+Branch_013          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0219,y  ; store d at >U0219,y
+                    std       >WorkWord_007,y ; store d at >WorkWord_007,y
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U021B,y  ; store d at >U021B,y
+                    std       >WorkWord_008,y ; store d at >WorkWord_008,y
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0221,y  ; store d at >U0221,y
+                    std       >WorkWord_011,y ; store d at >WorkWord_011,y
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0223,y  ; store d at >U0223,y
+                    std       >WorkWord_012,y ; store d at >WorkWord_012,y
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U021D,y  ; store d at >U021D,y
+                    std       >WorkWord_009,y ; store d at >WorkWord_009,y
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U021F,y  ; store d at >U021F,y
+                    std       >WorkWord_010,y ; store d at >WorkWord_010,y
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
@@ -780,20 +786,20 @@ L058C               clra                ; clear a to zero and set the condition 
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     leax      >ReadFile,pc ; form the address >ReadFile,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    leax      >U0049,y  ; form the address >U0049,y in x
+                    leax      >WorkBuffer_005,y ; form the address >WorkBuffer_005,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L337C     ; call subroutine L337C
+                    lbsr      Routine_008 ; call subroutine Routine_008
                     leas      $02,s     ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    bra       L060C     ; continue execution at L060C
-L05F5               ldd       #1        ; set d to the constant 1
+                    bra       Branch_015 ; continue execution at Branch_015
+Branch_016          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
                     leax      $03,s     ; form the address $03,s in x
                     pshs      x         ; save x on the stack
@@ -805,33 +811,33 @@ L05F5               ldd       #1        ; set d to the constant 1
                     ldb       $01,s     ; load b from the current stack frame at $01,s
                     clra                ; clear a to zero and set the condition codes
                     andb      #223      ; mask b using #223
-L060C               stb       $01,s     ; store b in the current stack frame at $01,s
+Branch_015          stb       $01,s     ; store b in the current stack frame at $01,s
                     ldb       $01,s     ; load b from the current stack frame at $01,s
                     cmpb      #79       ; compare b with #79 and set the condition codes
-                    beq       L061A     ; branch when the values are equal or the result is zero; target L061A
+                    beq       Branch_017 ; branch when the values are equal or the result is zero; target Branch_017
                     ldb       $01,s     ; load b from the current stack frame at $01,s
                     cmpb      #83       ; compare b with #83 and set the condition codes
-                    bne       L05F5     ; branch when the values differ or the result is nonzero; target L05F5
-L061A               ldb       $01,s     ; load b from the current stack frame at $01,s
+                    bne       Branch_016 ; branch when the values differ or the result is nonzero; target Branch_016
+Branch_017          ldb       $01,s     ; load b from the current stack frame at $01,s
                     cmpb      #83       ; compare b with #83 and set the condition codes
-                    bne       L0625     ; branch when the values differ or the result is nonzero; target L0625
+                    bne       Branch_018 ; branch when the values differ or the result is nonzero; target Branch_018
                     ldd       #1        ; set d to the constant 1
-                    bra       L0627     ; continue execution at L0627
-L0625               clra                ; clear a to zero and set the condition codes
+                    bra       Branch_019 ; continue execution at Branch_019
+Branch_018          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-L0627               std       >U0007,y  ; store d at >U0007,y
+Branch_019          std       >WorkByte_007,y ; store d at >WorkByte_007,y
                     leax      >AddLf,pc ; form the address >AddLf,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    leax      >U0049,y  ; form the address >U0049,y in x
+                    leax      >WorkBuffer_005,y ; form the address >WorkBuffer_005,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L337C     ; call subroutine L337C
+                    lbsr      Routine_008 ; call subroutine Routine_008
                     leas      $02,s     ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    bra       L065C     ; continue execution at L065C
-L0645               ldd       #1        ; set d to the constant 1
+                    bra       Branch_020 ; continue execution at Branch_020
+Branch_021          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
                     leax      $02,s     ; form the address $02,s in x
                     pshs      x         ; save x on the stack
@@ -840,45 +846,45 @@ L0645               ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
                     lbsr      read      ; call subroutine read
                     leas      $06,s     ; adjust the system stack pointer
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     clra                ; clear a to zero and set the condition codes
                     andb      #223      ; mask b using #223
-L065C               stb       0,s       ; store b in the current stack frame at 0,s
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+Branch_020          stb       ,s        ; store b in the current stack frame at ,s
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     cmpb      #89       ; compare b with #89 and set the condition codes
-                    beq       L066A     ; branch when the values are equal or the result is zero; target L066A
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+                    beq       Branch_022 ; branch when the values are equal or the result is zero; target Branch_022
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     cmpb      #78       ; compare b with #78 and set the condition codes
-                    bne       L0645     ; branch when the values differ or the result is nonzero; target L0645
-L066A               ldd       #1        ; set d to the constant 1
+                    bne       Branch_021 ; branch when the values differ or the result is nonzero; target Branch_021
+Branch_022          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
-                    lbra      L0790     ; continue execution at L0790
-L0675               ldd       >U0007,y  ; load d from >U0007,y
-                    bne       L06B2     ; branch when the values differ or the result is nonzero; target L06B2
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    lbsr      Routine_010 ; call subroutine Routine_010
+                    lbra      Branch_023 ; continue execution at Branch_023
+Branch_024          ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    bne       Branch_025 ; branch when the values differ or the result is nonzero; target Branch_025
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldb       $01,s     ; load b from the current stack frame at $01,s
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     cmpd      #8192     ; compare d with #8192 and set the condition codes
-                    blt       L06B2     ; branch when the signed value is less; target L06B2
+                    blt       Branch_025 ; branch when the signed value is less; target Branch_025
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AD8     ; call subroutine L3AD8
+                    lbsr      Routine_017 ; call subroutine Routine_017
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #-1       ; add to d using #-1
-                    std       >U000D,y  ; store d at >U000D,y
-L06B2               ldb       $01,s     ; load b from the current stack frame at $01,s
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
+Branch_025          ldb       $01,s     ; load b from the current stack frame at $01,s
                     cmpb      #27       ; compare b with #27 and set the condition codes
-                    lbne      L076D     ; branch when the values differ or the result is nonzero; target L076D
-                    ldd       >U0005,y  ; load d from >U0005,y
-                    lbne      L076D     ; branch when the values differ or the result is nonzero; target L076D
+                    lbne      Branch_026 ; branch when the values differ or the result is nonzero; target Branch_026
+                    ldd       >WorkByte_005,y ; load d from >WorkByte_005,y
+                    lbne      Branch_026 ; branch when the values differ or the result is nonzero; target Branch_026
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
                     leax      $03,s     ; form the address $03,s in x
@@ -887,31 +893,31 @@ L06B2               ldb       $01,s     ; load b from the current stack frame at
                     pshs      d         ; save d on the stack
                     lbsr      read      ; call subroutine read
                     leas      $06,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    bne       L0711     ; branch when the values differ or the result is nonzero; target L0711
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    bne       Branch_027 ; branch when the values differ or the result is nonzero; target Branch_027
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldb       $01,s     ; load b from the current stack frame at $01,s
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     cmpd      #8192     ; compare d with #8192 and set the condition codes
-                    blt       L0711     ; branch when the signed value is less; target L0711
+                    blt       Branch_027 ; branch when the signed value is less; target Branch_027
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AD8     ; call subroutine L3AD8
+                    lbsr      Routine_017 ; call subroutine Routine_017
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #-1       ; add to d using #-1
-                    std       >U000D,y  ; store d at >U000D,y
-L0711               ldb       $01,s     ; load b from the current stack frame at $01,s
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
+Branch_027          ldb       $01,s     ; load b from the current stack frame at $01,s
                     cmpb      #91       ; compare b with #91 and set the condition codes
-                    bne       L076D     ; branch when the values differ or the result is nonzero; target L076D
+                    bne       Branch_026 ; branch when the values differ or the result is nonzero; target Branch_026
                     ldd       #1        ; set d to the constant 1
-                    std       >U0005,y  ; store d at >U0005,y
+                    std       >WorkByte_005,y ; store d at >WorkByte_005,y
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
                     leax      $03,s     ; form the address $03,s in x
@@ -920,44 +926,44 @@ L0711               ldb       $01,s     ; load b from the current stack frame at
                     pshs      d         ; save d on the stack
                     lbsr      read      ; call subroutine read
                     leas      $06,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    bne       L076D     ; branch when the values differ or the result is nonzero; target L076D
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    bne       Branch_026 ; branch when the values differ or the result is nonzero; target Branch_026
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldb       $01,s     ; load b from the current stack frame at $01,s
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     cmpd      #8192     ; compare d with #8192 and set the condition codes
-                    blt       L076D     ; branch when the signed value is less; target L076D
+                    blt       Branch_026 ; branch when the signed value is less; target Branch_026
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AD8     ; call subroutine L3AD8
+                    lbsr      Routine_017 ; call subroutine Routine_017
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #-1       ; add to d using #-1
-                    std       >U000D,y  ; store d at >U000D,y
-L076D               ldb       0,s       ; load b from the current stack frame at 0,s
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
+Branch_026          ldb       ,s        ; load b from the current stack frame at ,s
                     cmpb      #89       ; compare b with #89 and set the condition codes
-                    bne       L0788     ; branch when the values differ or the result is nonzero; target L0788
+                    bne       Branch_028 ; branch when the values differ or the result is nonzero; target Branch_028
                     ldb       $01,s     ; load b from the current stack frame at $01,s
                     cmpb      #13       ; compare b with #13 and set the condition codes
-                    bne       L0788     ; branch when the values differ or the result is nonzero; target L0788
+                    bne       Branch_028 ; branch when the values differ or the result is nonzero; target Branch_028
                     ldb       $01,s     ; load b from the current stack frame at $01,s
                     sex                 ; sign-extend b into d
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #10       ; set d to the constant 10
-                    bra       L078B     ; continue execution at L078B
-L0788               ldb       $01,s     ; load b from the current stack frame at $01,s
+                    bra       Branch_029 ; continue execution at Branch_029
+Branch_028          ldb       $01,s     ; load b from the current stack frame at $01,s
                     sex                 ; sign-extend b into d
-L078B               pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
-L0790               leas      $02,s     ; adjust the system stack pointer
+Branch_029          pshs      d         ; save d on the stack
+                    lbsr      Routine_018 ; call subroutine Routine_018
+Branch_023          leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
                     leax      $03,s     ; form the address $03,s in x
@@ -967,23 +973,23 @@ L0790               leas      $02,s     ; adjust the system stack pointer
                     lbsr      read      ; call subroutine read
                     leas      $06,s     ; adjust the system stack pointer
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    lbne      L0675     ; branch when the values differ or the result is nonzero; target L0675
+                    lbne      Branch_024 ; branch when the values differ or the result is nonzero; target Branch_024
                     ldd       $02,s     ; load d from the current stack frame at $02,s
                     pshs      d         ; save d on the stack
                     lbsr      close     ; call subroutine close
                     leas      $02,s     ; adjust the system stack pointer
-L07B3               leas      $04,s     ; adjust the system stack pointer
+Branch_014          leas      $04,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
 
 * -- method --
-L07B7               pshs      u         ; save u on the stack
+Code_001            pshs      u         ; save u on the stack
                     ldd       #-120     ; set d to the constant -120
                     lbsr      _stkcheck ; call subroutine _stkcheck
-                    leas      <$FFDC,s  ; adjust the system stack pointer
+                    leas      <-$24,s   ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
-                    lbsr      L252A     ; call subroutine L252A
+                    lbsr      Routine_006 ; call subroutine Routine_006
                     leas      $02,s     ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
@@ -1004,18 +1010,18 @@ L07B7               pshs      u         ; save u on the stack
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
-                    lbra      L14E4     ; continue execution at L14E4
-L080D               clra                ; clear a to zero and set the condition codes
+                    lbra      Branch_030 ; continue execution at Branch_030
+Code_002            clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
                     ldd       #2        ; set d to the constant 2
@@ -1034,158 +1040,158 @@ L080D               clra                ; clear a to zero and set the condition 
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     addd      #1        ; add to d using #1
                     pshs      d         ; save d on the stack
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     addd      #1        ; add to d using #1
                     pshs      d         ; save d on the stack
                     leax      >Status,pc ; form the address >Status,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $06,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    beq       L0861     ; branch when the values are equal or the result is zero; target L0861
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    beq       Branch_031 ; branch when the values are equal or the result is zero; target Branch_031
                     leax      >Editing,pc ; form the address >Editing,pc in x
-                    bra       L0865     ; continue execution at L0865
-L0861               leax      >Recording,pc ; form the address >Recording,pc in x
-L0865               pshs      x         ; save x on the stack
+                    bra       Branch_032 ; continue execution at Branch_032
+Branch_031          leax      >Recording,pc ; form the address >Recording,pc in x
+Branch_032          pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     pshs      d         ; save d on the stack
                     ldd       #80       ; set d to the constant 80
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2225,y  ; form the address >U2225,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_011,y ; form the address >WorkBuffer_011,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
-                    beq       L08B2     ; branch when the values are equal or the result is zero; target L08B2
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    ldb       ,x        ; load b from ,x
+                    beq       Branch_033 ; branch when the values are equal or the result is zero; target Branch_033
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     pshs      d         ; save d on the stack
                     ldd       #80       ; set d to the constant 80
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2225,y  ; form the address >U2225,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_011,y ; form the address >WorkBuffer_011,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     sex                 ; sign-extend b into d
                     pshs      d         ; save d on the stack
                     leax      >CharDump,pc ; form the address >CharDump,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $04,s     ; adjust the system stack pointer
-                    bra       L08BD     ; continue execution at L08BD
-L08B2               leax      >Char,pc  ; form the address >Char,pc in x
+                    bra       Branch_034 ; continue execution at Branch_034
+Branch_033          leax      >Char,pc  ; form the address >Char,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-L08BD               leax      >Attrs,pc ; form the address >Attrs,pc in x
+Branch_034          leax      >Attrs,pc ; form the address >Attrs,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0009,y  ; load d from >U0009,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     anda      #1        ; mask a using #1
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       L08D9     ; branch when the values are equal or the result is zero; target L08D9
-                    leax      >L281F,pc ; form the address >L281F,pc in x
-                    bra       L08DD     ; continue execution at L08DD
-L08D9               leax      >L2821,pc ; form the address >L2821,pc in x
-L08DD               pshs      x         ; save x on the stack
+                    beq       Branch_035 ; branch when the values are equal or the result is zero; target Branch_035
+                    leax      >Text_001,pc ; form the address >Text_001,pc in x
+                    bra       Branch_036 ; continue execution at Branch_036
+Branch_035          leax      >Text_002,pc ; form the address >Text_002,pc in x
+Branch_036          pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0009,y  ; load d from >U0009,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     anda      #2        ; mask a using #2
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       L08F5     ; branch when the values are equal or the result is zero; target L08F5
-                    leax      >L2823,pc ; form the address >L2823,pc in x
-                    bra       L08F9     ; continue execution at L08F9
-L08F5               leax      >L2825,pc ; form the address >L2825,pc in x
-L08F9               pshs      x         ; save x on the stack
+                    beq       Branch_037 ; branch when the values are equal or the result is zero; target Branch_037
+                    leax      >Text_003,pc ; form the address >Text_003,pc in x
+                    bra       Branch_038 ; continue execution at Branch_038
+Branch_037          leax      >Text_004,pc ; form the address >Text_004,pc in x
+Branch_038          pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0009,y  ; load d from >U0009,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     anda      #4        ; mask a using #4
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       L0911     ; branch when the values are equal or the result is zero; target L0911
-                    leax      >L2827,pc ; form the address >L2827,pc in x
-                    bra       L0915     ; continue execution at L0915
-L0911               leax      >L2829,pc ; form the address >L2829,pc in x
-L0915               pshs      x         ; save x on the stack
+                    beq       Branch_039 ; branch when the values are equal or the result is zero; target Branch_039
+                    leax      >Text_005,pc ; form the address >Text_005,pc in x
+                    bra       Branch_040 ; continue execution at Branch_040
+Branch_039          leax      >Text_006,pc ; form the address >Text_006,pc in x
+Branch_040          pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0009,y  ; load d from >U0009,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     anda      #8        ; mask a using #8
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       L092D     ; branch when the values are equal or the result is zero; target L092D
-                    leax      >L282B,pc ; form the address >L282B,pc in x
-                    bra       L0931     ; continue execution at L0931
-L092D               leax      >L282D,pc ; form the address >L282D,pc in x
-L0931               pshs      x         ; save x on the stack
+                    beq       Branch_041 ; branch when the values are equal or the result is zero; target Branch_041
+                    leax      >Text_007,pc ; form the address >Text_007,pc in x
+                    bra       Branch_042 ; continue execution at Branch_042
+Branch_041          leax      >Text_008,pc ; form the address >Text_008,pc in x
+Branch_042          pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0009,y  ; load d from >U0009,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     anda      #16       ; mask a using #16
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       L0949     ; branch when the values are equal or the result is zero; target L0949
-                    leax      >L282F,pc ; form the address >L282F,pc in x
-                    bra       L094D     ; continue execution at L094D
-L0949               leax      >L2831,pc ; form the address >L2831,pc in x
-L094D               pshs      x         ; save x on the stack
+                    beq       Branch_043 ; branch when the values are equal or the result is zero; target Branch_043
+                    leax      >Text_009,pc ; form the address >Text_009,pc in x
+                    bra       Branch_044 ; continue execution at Branch_044
+Branch_043          leax      >Text_010,pc ; form the address >Text_010,pc in x
+Branch_044          pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0009,y  ; load d from >U0009,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     pshs      d         ; save d on the stack
                     ldd       #256      ; set d to the constant 256
-                    lbsr      L36BE     ; call subroutine L36BE
-                    beq       L09A2     ; branch when the values are equal or the result is zero; target L09A2
-                    ldd       >U0009,y  ; load d from >U0009,y
+                    lbsr      Routine_019 ; call subroutine Routine_019
+                    beq       Branch_045 ; branch when the values are equal or the result is zero; target Branch_045
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     pshs      d         ; save d on the stack
                     ldd       #16       ; set d to the constant 16
-                    lbsr      L36BE     ; call subroutine L36BE
+                    lbsr      Routine_019 ; call subroutine Routine_019
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
-                    leax      >U001F,y  ; form the address >U001F,y in x
+                    leax      >WorkBuffer_002,y ; form the address >WorkBuffer_002,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       0,x       ; load d from 0,x
+                    ldd       ,x        ; load d from ,x
                     pshs      d         ; save d on the stack
-                    ldd       >U0009,y  ; load d from >U0009,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     clra                ; clear a to zero and set the condition codes
                     andb      #240      ; mask b using #240
                     pshs      d         ; save d on the stack
                     ldd       #16       ; set d to the constant 16
-                    lbsr      L3711     ; call subroutine L3711
+                    lbsr      Routine_020 ; call subroutine Routine_020
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
-                    leax      >U001F,y  ; form the address >U001F,y in x
+                    leax      >WorkBuffer_002,y ; form the address >WorkBuffer_002,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       0,x       ; load d from 0,x
+                    ldd       ,x        ; load d from ,x
                     pshs      d         ; save d on the stack
                     leax      >ColorsOn,pc ; form the address >ColorsOn,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $06,s     ; adjust the system stack pointer
-                    bra       L09AD     ; continue execution at L09AD
-L09A2               leax      >ColorsBW,pc ; form the address >ColorsBW,pc in x
+                    bra       Branch_046 ; continue execution at Branch_046
+Branch_045          leax      >ColorsBW,pc ; form the address >ColorsBW,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-L09AD               leax      >U0049,y  ; form the address >U0049,y in x
+Branch_046          leax      >WorkBuffer_005,y ; form the address >WorkBuffer_005,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L337C     ; call subroutine L337C
+                    lbsr      Routine_008 ; call subroutine Routine_008
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
@@ -1197,12 +1203,12 @@ L09AD               leax      >U0049,y  ; form the address >U0049,y in x
                     lbsr      read      ; call subroutine read
                     leas      $06,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
-                    std       >U0005,y  ; store d at >U0005,y
+                    std       >WorkByte_005,y ; store d at >WorkByte_005,y
                     ldb       <$0023,s  ; load b from the current stack frame at <$0023,s
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; copy the register values specified by d,x
-                    lbra      L1463     ; continue execution at L1463
-L09E5               ldd       #4        ; set d to the constant 4
+                    lbra      Branch_047 ; continue execution at Branch_047
+Branch_048          ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
@@ -1218,7 +1224,7 @@ L09E5               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
@@ -1238,11 +1244,11 @@ L09E5               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     leax      >Help,pc  ; form the address >Help,pc in x
                     pshs      x         ; save x on the stack
@@ -1306,28 +1312,28 @@ L09E5               ldd       #4        ; set d to the constant 4
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3ACA     ; call subroutine L3ACA
+                    lbsr      Routine_021 ; call subroutine Routine_021
                     leas      $02,s     ; adjust the system stack pointer
-L0AF8               clra                ; clear a to zero and set the condition codes
+Branch_049          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
-                    lbsr      L3A35     ; call subroutine L3A35
+                    lbsr      Routine_022 ; call subroutine Routine_022
                     leas      $02,s     ; adjust the system stack pointer
                     cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    beq       L0AF8     ; branch when the values are equal or the result is zero; target L0AF8
+                    beq       Branch_049 ; branch when the values are equal or the result is zero; target Branch_049
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3ACF     ; call subroutine L3ACF
+                    lbsr      Routine_023 ; call subroutine Routine_023
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
-                    lbra      L145E     ; continue execution at L145E
-L0B26               ldd       #4        ; set d to the constant 4
+                    lbsr      Routine_010 ; call subroutine Routine_010
+                    lbra      Branch_050 ; continue execution at Branch_050
+Branch_051          ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
@@ -1343,7 +1349,7 @@ L0B26               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
@@ -1363,19 +1369,19 @@ L0B26               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     leax      >Sure,pc  ; form the address >Sure,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    leax      >U0049,y  ; form the address >U0049,y in x
+                    leax      >WorkBuffer_005,y ; form the address >WorkBuffer_005,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L337C     ; call subroutine L337C
+                    lbsr      Routine_008 ; call subroutine Routine_008
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
@@ -1388,28 +1394,28 @@ L0B26               ldd       #4        ; set d to the constant 4
                     leas      $06,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldb       <$0023,s  ; load b from the current stack frame at <$0023,s
                     clra                ; clear a to zero and set the condition codes
                     andb      #223      ; mask b using #223
                     cmpd      #89       ; compare d with #89 and set the condition codes
-                    lbne      L14E4     ; branch when the values differ or the result is nonzero; target L14E4
+                    lbne      Branch_030 ; branch when the values differ or the result is nonzero; target Branch_030
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AFB     ; call subroutine L3AFB
+                    lbsr      Routine_011 ; call subroutine Routine_011
                     leas      $02,s     ; adjust the system stack pointer
                     leax      >Title2,pc ; form the address >Title2,pc in x
                     pshs      x         ; save x on the stack
@@ -1429,18 +1435,18 @@ L0B26               ldd       #4        ; set d to the constant 4
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3B00     ; call subroutine L3B00
+                    lbsr      Routine_012 ; call subroutine Routine_012
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L252A     ; call subroutine L252A
+                    lbsr      Routine_006 ; call subroutine Routine_006
                     leas      $02,s     ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
                     lbsr      exit      ; call subroutine exit
-                    lbra      L145E     ; continue execution at L145E
-L0C3D               ldd       #4        ; set d to the constant 4
+                    lbra      Branch_050 ; continue execution at Branch_050
+Branch_052          ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
@@ -1456,7 +1462,7 @@ L0C3D               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
@@ -1476,23 +1482,23 @@ L0C3D               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L252A     ; call subroutine L252A
+                    lbsr      Routine_006 ; call subroutine Routine_006
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     leax      >LoadPrompt,pc ; form the address >LoadPrompt,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    leax      >U0049,y  ; form the address >U0049,y in x
+                    leax      >WorkBuffer_005,y ; form the address >WorkBuffer_005,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L337C     ; call subroutine L337C
+                    lbsr      Routine_008 ; call subroutine Routine_008
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #32       ; set d to the constant 32
                     pshs      d         ; save d on the stack
@@ -1503,29 +1509,29 @@ L0C3D               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     lbsr      readln    ; call subroutine readln
                     leas      $06,s     ; adjust the system stack pointer
-                    std       0,s       ; store d in the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
-                    lbsr      L252A     ; call subroutine L252A
+                    lbsr      Routine_006 ; call subroutine Routine_006
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       0,s       ; load d from the current stack frame at 0,s
+                    ldd       ,s        ; load d from the current stack frame at ,s
                     cmpd      #1        ; compare d with #1 and set the condition codes
-                    bgt       L0CFD     ; branch when the signed value is greater; target L0CFD
-                    lbra      L14E4     ; continue execution at L14E4
-L0CFD               leax      $02,s     ; form the address $02,s in x
+                    bgt       Branch_053 ; branch when the signed value is greater; target Branch_053
+                    lbra      Branch_030 ; continue execution at Branch_030
+Branch_053          leax      $02,s     ; form the address $02,s in x
                     pshs      x         ; save x on the stack
-                    lbsr      L0555     ; call subroutine L0555
-                    lbra      L145E     ; continue execution at L145E
-L0D07               ldd       #4        ; set d to the constant 4
+                    lbsr      Routine_003 ; call subroutine Routine_003
+                    lbra      Branch_050 ; continue execution at Branch_050
+Branch_054          ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
@@ -1541,7 +1547,7 @@ L0D07               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
@@ -1561,23 +1567,23 @@ L0D07               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L252A     ; call subroutine L252A
+                    lbsr      Routine_006 ; call subroutine Routine_006
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     leax      >SavePrompt,pc ; form the address >SavePrompt,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    leax      >U0049,y  ; form the address >U0049,y in x
+                    leax      >WorkBuffer_005,y ; form the address >WorkBuffer_005,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L337C     ; call subroutine L337C
+                    lbsr      Routine_008 ; call subroutine Routine_008
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #32       ; set d to the constant 32
                     pshs      d         ; save d on the stack
@@ -1588,61 +1594,61 @@ L0D07               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     lbsr      readln    ; call subroutine readln
                     leas      $06,s     ; adjust the system stack pointer
-                    std       0,s       ; store d in the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
-                    lbsr      L252A     ; call subroutine L252A
+                    lbsr      Routine_006 ; call subroutine Routine_006
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       0,s       ; load d from the current stack frame at 0,s
+                    ldd       ,s        ; load d from the current stack frame at ,s
                     cmpd      #1        ; compare d with #1 and set the condition codes
-                    bgt       L0DC7     ; branch when the signed value is greater; target L0DC7
-                    lbra      L14E4     ; continue execution at L14E4
-L0DC7               leax      $02,s     ; form the address $02,s in x
+                    bgt       Branch_055 ; branch when the signed value is greater; target Branch_055
+                    lbra      Branch_030 ; continue execution at Branch_030
+Branch_055          leax      $02,s     ; form the address $02,s in x
                     pshs      x         ; save x on the stack
-                    lbsr      L03E2     ; call subroutine L03E2
-                    lbra      L145E     ; continue execution at L145E
-L0DD1               ldd       #65       ; set d to the constant 65
+                    lbsr      Routine_004 ; call subroutine Routine_004
+                    lbra      Branch_050 ; continue execution at Branch_050
+Branch_056          ldd       #65       ; set d to the constant 65
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L14E4     ; branch when the values differ or the result is nonzero; target L14E4
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_030 ; branch when the values differ or the result is nonzero; target Branch_030
                     ldd       #65       ; set d to the constant 65
-                    lbra      L0FA6     ; continue execution at L0FA6
-L0DE9               ldd       #66       ; set d to the constant 66
+                    lbra      Branch_057 ; continue execution at Branch_057
+Branch_058          ldd       #66       ; set d to the constant 66
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L14E4     ; branch when the values differ or the result is nonzero; target L14E4
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_030 ; branch when the values differ or the result is nonzero; target Branch_030
                     ldd       #66       ; set d to the constant 66
-                    lbra      L0FA6     ; continue execution at L0FA6
-L0E01               ldd       #68       ; set d to the constant 68
+                    lbra      Branch_057 ; continue execution at Branch_057
+Branch_059          ldd       #68       ; set d to the constant 68
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L14E4     ; branch when the values differ or the result is nonzero; target L14E4
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_030 ; branch when the values differ or the result is nonzero; target Branch_030
                     ldd       #68       ; set d to the constant 68
-                    lbra      L0FA6     ; continue execution at L0FA6
-L0E19               ldd       #67       ; set d to the constant 67
+                    lbra      Branch_057 ; continue execution at Branch_057
+Branch_060          ldd       #67       ; set d to the constant 67
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L14E4     ; branch when the values differ or the result is nonzero; target L14E4
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_030 ; branch when the values differ or the result is nonzero; target Branch_030
                     ldd       #67       ; set d to the constant 67
-                    lbra      L0FA6     ; continue execution at L0FA6
-L0E31               ldd       #4        ; set d to the constant 4
+                    lbra      Branch_057 ; continue execution at Branch_057
+Branch_061          ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
@@ -1658,7 +1664,7 @@ L0E31               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
@@ -1678,11 +1684,11 @@ L0E31               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     leax      >PosSaved,pc ; form the address >PosSaved,pc in x
                     pshs      x         ; save x on the stack
@@ -1690,25 +1696,25 @@ L0E31               ldd       #4        ; set d to the constant 4
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #5        ; set d to the constant 5
                     pshs      d         ; save d on the stack
-                    lbsr      L363F     ; call subroutine L363F
+                    lbsr      Routine_024 ; call subroutine Routine_024
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #115      ; set d to the constant 115
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L14E4     ; branch when the values differ or the result is nonzero; target L14E4
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_030 ; branch when the values differ or the result is nonzero; target Branch_030
                     ldd       #115      ; set d to the constant 115
-                    lbra      L0FA6     ; continue execution at L0FA6
-L0ED6               ldd       #4        ; set d to the constant 4
+                    lbra      Branch_057 ; continue execution at Branch_057
+Branch_062          ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
@@ -1724,7 +1730,7 @@ L0ED6               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
@@ -1744,11 +1750,11 @@ L0ED6               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     leax      >PosRestrd,pc ; form the address >PosRestrd,pc in x
                     pshs      x         ; save x on the stack
@@ -1756,159 +1762,159 @@ L0ED6               ldd       #4        ; set d to the constant 4
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #5        ; set d to the constant 5
                     pshs      d         ; save d on the stack
-                    lbsr      L363F     ; call subroutine L363F
+                    lbsr      Routine_024 ; call subroutine Routine_024
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #117      ; set d to the constant 117
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L14E4     ; branch when the values differ or the result is nonzero; target L14E4
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_030 ; branch when the values differ or the result is nonzero; target Branch_030
                     ldd       #117      ; set d to the constant 117
-                    bra       L0FA6     ; continue execution at L0FA6
-L0F7A               ldd       #74       ; set d to the constant 74
+                    bra       Branch_057 ; continue execution at Branch_057
+Branch_063          ldd       #74       ; set d to the constant 74
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L14E4     ; branch when the values differ or the result is nonzero; target L14E4
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_030 ; branch when the values differ or the result is nonzero; target Branch_030
                     ldd       #74       ; set d to the constant 74
-                    bra       L0FA6     ; continue execution at L0FA6
-L0F91               ldd       #107      ; set d to the constant 107
+                    bra       Branch_057 ; continue execution at Branch_057
+Branch_064          ldd       #107      ; set d to the constant 107
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L14E4     ; branch when the values differ or the result is nonzero; target L14E4
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_030 ; branch when the values differ or the result is nonzero; target Branch_030
                     ldd       #107      ; set d to the constant 107
-L0FA6               pshs      d         ; save d on the stack
-                    lbsr      L1933     ; call subroutine L1933
-                    lbra      L145E     ; continue execution at L145E
-L0FAE               lbsr      L14EC     ; call subroutine L14EC
-                    lbra      L14E4     ; continue execution at L14E4
-L0FB4               ldd       >U0219,y  ; load d from >U0219,y
-                    cmpd      >U021D,y  ; compare d with >U021D,y and set the condition codes
-                    bne       L0FCC     ; branch when the values differ or the result is nonzero; target L0FCC
-                    ldd       >U021B,y  ; load d from >U021B,y
-                    cmpd      >U021F,y  ; compare d with >U021F,y and set the condition codes
-                    lbeq      L10F3     ; branch when the values are equal or the result is zero; target L10F3
-L0FCC               ldd       >U000D,y  ; load d from >U000D,y
+Branch_057          pshs      d         ; save d on the stack
+                    lbsr      Routine_025 ; call subroutine Routine_025
+                    lbra      Branch_050 ; continue execution at Branch_050
+Branch_065          lbsr      Code_003  ; call subroutine Code_003
+                    lbra      Branch_030 ; continue execution at Branch_030
+Branch_066          ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
+                    cmpd      >WorkWord_009,y ; compare d with >WorkWord_009,y and set the condition codes
+                    bne       Branch_067 ; branch when the values differ or the result is nonzero; target Branch_067
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
+                    cmpd      >WorkWord_010,y ; compare d with >WorkWord_010,y and set the condition codes
+                    lbeq      Branch_068 ; branch when the values are equal or the result is zero; target Branch_068
+Branch_067          ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #8        ; add to d using #8
                     cmpd      #8192     ; compare d with #8192 and set the condition codes
-                    lbge      L10E9     ; branch when the signed value is greater than or equal; target L10E9
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    lbge      Branch_069 ; branch when the signed value is greater than or equal; target Branch_069
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #27       ; set d to the constant 27
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #91       ; set d to the constant 91
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     addd      #1        ; add to d using #1
                     pshs      d         ; save d on the stack
                     ldd       #10       ; set d to the constant 10
-                    lbsr      L3711     ; call subroutine L3711
+                    lbsr      Routine_020 ; call subroutine Routine_020
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     addd      #1        ; add to d using #1
                     pshs      d         ; save d on the stack
                     ldd       #10       ; set d to the constant 10
-                    lbsr      L36BE     ; call subroutine L36BE
+                    lbsr      Routine_019 ; call subroutine Routine_019
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #59       ; set d to the constant 59
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     addd      #1        ; add to d using #1
                     pshs      d         ; save d on the stack
                     ldd       #10       ; set d to the constant 10
-                    lbsr      L3711     ; call subroutine L3711
+                    lbsr      Routine_020 ; call subroutine Routine_020
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     addd      #1        ; add to d using #1
                     pshs      d         ; save d on the stack
                     ldd       #10       ; set d to the constant 10
-                    lbsr      L36BE     ; call subroutine L36BE
+                    lbsr      Routine_019 ; call subroutine Routine_019
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #72       ; set d to the constant 72
-                    stb       0,x       ; store b at 0,x
-                    bra       L10F3     ; continue execution at L10F3
-L10E9               ldd       #1        ; set d to the constant 1
+                    stb       ,x        ; store b at ,x
+                    bra       Branch_068 ; continue execution at Branch_068
+Branch_069          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AD8     ; call subroutine L3AD8
+                    lbsr      Routine_017 ; call subroutine Routine_017
                     leas      $02,s     ; adjust the system stack pointer
-L10F3               clra                ; clear a to zero and set the condition codes
+Branch_068          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0007,y  ; store d at >U0007,y
-                    ldd       >U0219,y  ; load d from >U0219,y
-                    std       >U021D,y  ; store d at >U021D,y
-                    ldd       >U021B,y  ; load d from >U021B,y
-                    std       >U021F,y  ; store d at >U021F,y
-                    lbra      L14E4     ; continue execution at L14E4
-L110C               ldd       #1        ; set d to the constant 1
-                    std       >U0007,y  ; store d at >U0007,y
-                    lbra      L14E4     ; continue execution at L14E4
-L1116               ldd       #4        ; set d to the constant 4
+                    std       >WorkByte_007,y ; store d at >WorkByte_007,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
+                    std       >WorkWord_009,y ; store d at >WorkWord_009,y
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
+                    std       >WorkWord_010,y ; store d at >WorkWord_010,y
+                    lbra      Branch_030 ; continue execution at Branch_030
+Branch_070          ldd       #1        ; set d to the constant 1
+                    std       >WorkByte_007,y ; store d at >WorkByte_007,y
+                    lbra      Branch_030 ; continue execution at Branch_030
+Branch_071          ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
@@ -1924,7 +1930,7 @@ L1116               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
@@ -1944,32 +1950,32 @@ L1116               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     leax      >MovBuff,pc ; form the address >MovBuff,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    lbsr      L212A     ; call subroutine L212A
+                    lbsr      Routine_016 ; call subroutine Routine_016
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
-                    lbra      L145E     ; continue execution at L145E
-L119D               ldd       #1        ; set d to the constant 1
+                    lbsr      Routine_010 ; call subroutine Routine_010
+                    lbra      Branch_050 ; continue execution at Branch_050
+Branch_072          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L252A     ; call subroutine L252A
+                    lbsr      Routine_006 ; call subroutine Routine_006
                     leas      $02,s     ; adjust the system stack pointer
                     leas      <$0024,s  ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
-L11AC               ldd       #4        ; set d to the constant 4
+Branch_073          ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
@@ -1985,7 +1991,7 @@ L11AC               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
@@ -2005,11 +2011,11 @@ L11AC               ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     leax      >Zap,pc   ; form the address >Zap,pc in x
                     pshs      x         ; save x on the stack
@@ -2035,9 +2041,9 @@ L11AC               ldd       #4        ; set d to the constant 4
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    leax      >U0049,y  ; form the address >U0049,y in x
+                    leax      >WorkBuffer_005,y ; form the address >WorkBuffer_005,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L337C     ; call subroutine L337C
+                    lbsr      Routine_008 ; call subroutine Routine_008
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
@@ -2057,26 +2063,26 @@ L11AC               ldd       #4        ; set d to the constant 4
                     stb       <$0023,s  ; store b in the current stack frame at <$0023,s
                     ldb       <$0022,s  ; load b from the current stack frame at <$0022,s
                     cmpb      #83       ; compare b with #83 and set the condition codes
-                    beq       L12A1     ; branch when the values are equal or the result is zero; target L12A1
+                    beq       Branch_074 ; branch when the values are equal or the result is zero; target Branch_074
                     ldb       <$0022,s  ; load b from the current stack frame at <$0022,s
                     cmpb      #82       ; compare b with #82 and set the condition codes
-                    beq       L12A1     ; branch when the values are equal or the result is zero; target L12A1
+                    beq       Branch_074 ; branch when the values are equal or the result is zero; target Branch_074
                     ldb       <$0022,s  ; load b from the current stack frame at <$0022,s
                     cmpb      #66       ; compare b with #66 and set the condition codes
-                    beq       L12A1     ; branch when the values are equal or the result is zero; target L12A1
+                    beq       Branch_074 ; branch when the values are equal or the result is zero; target Branch_074
                     ldb       <$0022,s  ; load b from the current stack frame at <$0022,s
                     cmpb      #68       ; compare b with #68 and set the condition codes
-                    beq       L12A1     ; branch when the values are equal or the result is zero; target L12A1
+                    beq       Branch_074 ; branch when the values are equal or the result is zero; target Branch_074
                     ldb       <$0022,s  ; load b from the current stack frame at <$0022,s
                     cmpb      #84       ; compare b with #84 and set the condition codes
-                    bne       L12CA     ; branch when the values differ or the result is nonzero; target L12CA
-L12A1               leax      >Sure2,pc ; form the address >Sure2,pc in x
+                    bne       Branch_075 ; branch when the values differ or the result is nonzero; target Branch_075
+Branch_074          leax      >Sure2,pc ; form the address >Sure2,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    leax      >U0049,y  ; form the address >U0049,y in x
+                    leax      >WorkBuffer_005,y ; form the address >WorkBuffer_005,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L337C     ; call subroutine L337C
+                    lbsr      Routine_008 ; call subroutine Routine_008
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
@@ -2087,116 +2093,116 @@ L12A1               leax      >Sure2,pc ; form the address >Sure2,pc in x
                     pshs      d         ; save d on the stack
                     lbsr      read      ; call subroutine read
                     leas      $06,s     ; adjust the system stack pointer
-L12CA               ldd       #1        ; set d to the constant 1
+Branch_075          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldb       <$0023,s  ; load b from the current stack frame at <$0023,s
                     clra                ; clear a to zero and set the condition codes
                     andb      #223      ; mask b using #223
                     cmpd      #89       ; compare d with #89 and set the condition codes
-                    lbne      L14E4     ; branch when the values differ or the result is nonzero; target L14E4
+                    lbne      Branch_030 ; branch when the values differ or the result is nonzero; target Branch_030
                     ldb       <$0022,s  ; load b from the current stack frame at <$0022,s
                     clra                ; clear a to zero and set the condition codes
                     andb      #223      ; mask b using #223
                     tfr       d,x       ; copy the register values specified by d,x
-                    lbra      L13F0     ; continue execution at L13F0
-L12F7               clra                ; clear a to zero and set the condition codes
+                    lbra      Branch_076 ; continue execution at Branch_076
+Branch_077          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0009,y  ; store d at >U0009,y
+                    std       >WorkByte_009,y ; store d at >WorkByte_009,y
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A9F     ; call subroutine L3A9F
+                    lbsr      Routine_026 ; call subroutine Routine_026
                     leas      $04,s     ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AA3     ; call subroutine L3AA3
+                    lbsr      Routine_027 ; call subroutine Routine_027
                     leas      $04,s     ; adjust the system stack pointer
-                    lbsr      L035D     ; call subroutine L035D
+                    lbsr      Routine_002 ; call subroutine Routine_002
                     ldd       #74       ; set d to the constant 74
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
-                    lbra      L13EB     ; continue execution at L13EB
-L1328               clra                ; clear a to zero and set the condition codes
+                    lbsr      Routine_018 ; call subroutine Routine_018
+                    lbra      Branch_078 ; continue execution at Branch_078
+Branch_079          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A9F     ; call subroutine L3A9F
+                    lbsr      Routine_026 ; call subroutine Routine_026
                     leas      $04,s     ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AA3     ; call subroutine L3AA3
+                    lbsr      Routine_027 ; call subroutine Routine_027
                     leas      $04,s     ; adjust the system stack pointer
-                    lbsr      L035D     ; call subroutine L035D
+                    lbsr      Routine_002 ; call subroutine Routine_002
                     ldd       #74       ; set d to the constant 74
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-L1352               clra                ; clear a to zero and set the condition codes
+Branch_080          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0009,y  ; store d at >U0009,y
+                    std       >WorkByte_009,y ; store d at >WorkByte_009,y
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U000D,y  ; store d at >U000D,y
-                    lbra      L14E4     ; continue execution at L14E4
-L1361               ldd       >U0219,y  ; load d from >U0219,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
+                    lbra      Branch_030 ; continue execution at Branch_030
+Branch_081          ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     pshs      d         ; save d on the stack
                     ldd       #80       ; set d to the constant 80
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2225,y  ; form the address >U2225,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_011,y ; form the address >WorkBuffer_011,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     leax      d,x       ; form the address d,x in x
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     pshs      d         ; save d on the stack
                     ldd       #160      ; set d to the constant 160
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2955,y  ; form the address >U2955,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_012,y ; form the address >WorkBuffer_012,y in x
                     leax      d,x       ; form the address d,x in x
                     tfr       x,d       ; copy the register values specified by x,d
                     pshs      d         ; save d on the stack
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
                     addd      ,s++      ; add to d using ,s++
                     tfr       d,x       ; copy the register values specified by d,x
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       0,x       ; store d at 0,x
+                    std       ,x        ; store d at ,x
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    leax      >L2BE6,pc ; form the address >L2BE6,pc in x
+                    leax      >Text_011,pc ; form the address >Text_011,pc in x
                     pshs      x         ; save x on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
                     lbsr      write     ; call subroutine write
                     leas      $06,s     ; adjust the system stack pointer
-                    lbra      L14E4     ; continue execution at L14E4
-L13B9               ldd       >U000D,y  ; load d from >U000D,y
+                    lbra      Branch_030 ; continue execution at Branch_030
+Branch_082          ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #-1       ; add to d using #-1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3ADC     ; call subroutine L3ADC
+                    lbsr      Routine_028 ; call subroutine Routine_028
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    leax      >L2BE8,pc ; form the address >L2BE8,pc in x
+                    leax      >Text_012,pc ; form the address >Text_012,pc in x
                     pshs      x         ; save x on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
@@ -2204,126 +2210,126 @@ L13B9               ldd       >U000D,y  ; load d from >U000D,y
                     leas      $06,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3ADC     ; call subroutine L3ADC
-L13EB               leas      $02,s     ; adjust the system stack pointer
-                    lbra      L14E4     ; continue execution at L14E4
-L13F0               cmpx      #83       ; compare x with #83 and set the condition codes
-                    lbeq      L12F7     ; branch when the values are equal or the result is zero; target L12F7
+                    lbsr      Routine_028 ; call subroutine Routine_028
+Branch_078          leas      $02,s     ; adjust the system stack pointer
+                    lbra      Branch_030 ; continue execution at Branch_030
+Branch_076          cmpx      #83       ; compare x with #83 and set the condition codes
+                    lbeq      Branch_077 ; branch when the values are equal or the result is zero; target Branch_077
                     cmpx      #82       ; compare x with #82 and set the condition codes
-                    lbeq      L1352     ; branch when the values are equal or the result is zero; target L1352
+                    lbeq      Branch_080 ; branch when the values are equal or the result is zero; target Branch_080
                     cmpx      #66       ; compare x with #66 and set the condition codes
-                    lbeq      L1328     ; branch when the values are equal or the result is zero; target L1328
+                    lbeq      Branch_079 ; branch when the values are equal or the result is zero; target Branch_079
                     cmpx      #68       ; compare x with #68 and set the condition codes
-                    lbeq      L1361     ; branch when the values are equal or the result is zero; target L1361
+                    lbeq      Branch_081 ; branch when the values are equal or the result is zero; target Branch_081
                     cmpx      #84       ; compare x with #84 and set the condition codes
-                    beq       L13B9     ; branch when the values are equal or the result is zero; target L13B9
-                    lbra      L14E4     ; continue execution at L14E4
-L1414               clra                ; clear a to zero and set the condition codes
+                    beq       Branch_082 ; branch when the values are equal or the result is zero; target Branch_082
+                    lbra      Branch_030 ; continue execution at Branch_030
+Branch_083          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0005,y  ; store d at >U0005,y
+                    std       >WorkByte_005,y ; store d at >WorkByte_005,y
                     ldb       <$0023,s  ; load b from the current stack frame at <$0023,s
                     sex                 ; sign-extend b into d
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L14E4     ; branch when the values differ or the result is nonzero; target L14E4
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_030 ; branch when the values differ or the result is nonzero; target Branch_030
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
                     cmpd      #8192     ; compare d with #8192 and set the condition codes
-                    bge       L1456     ; branch when the signed value is greater than or equal; target L1456
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    bge       Branch_084 ; branch when the signed value is greater than or equal; target Branch_084
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldb       <$0023,s  ; load b from the current stack frame at <$0023,s
-                    stb       0,x       ; store b at 0,x
-                    lbra      L14E4     ; continue execution at L14E4
-L1456               ldd       #1        ; set d to the constant 1
+                    stb       ,x        ; store b at ,x
+                    lbra      Branch_030 ; continue execution at Branch_030
+Branch_084          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AD8     ; call subroutine L3AD8
-L145E               leas      $02,s     ; adjust the system stack pointer
-                    lbra      L14E4     ; continue execution at L14E4
-L1463               cmpx      #-81      ; compare x with #-81 and set the condition codes
-                    lbeq      L09E5     ; branch when the values are equal or the result is zero; target L09E5
+                    lbsr      Routine_017 ; call subroutine Routine_017
+Branch_050          leas      $02,s     ; adjust the system stack pointer
+                    lbra      Branch_030 ; continue execution at Branch_030
+Branch_047          cmpx      #-81      ; compare x with #-81 and set the condition codes
+                    lbeq      Branch_048 ; branch when the values are equal or the result is zero; target Branch_048
                     cmpx      #-15      ; compare x with #-15 and set the condition codes
-                    lbeq      L0B26     ; branch when the values are equal or the result is zero; target L0B26
+                    lbeq      Branch_051 ; branch when the values are equal or the result is zero; target Branch_051
                     cmpx      #-20      ; compare x with #-20 and set the condition codes
-                    lbeq      L0C3D     ; branch when the values are equal or the result is zero; target L0C3D
+                    lbeq      Branch_052 ; branch when the values are equal or the result is zero; target Branch_052
                     cmpx      #-21      ; compare x with #-21 and set the condition codes
-                    lbeq      L0D07     ; branch when the values are equal or the result is zero; target L0D07
+                    lbeq      Branch_054 ; branch when the values are equal or the result is zero; target Branch_054
                     cmpx      #12       ; compare x with #12 and set the condition codes
-                    lbeq      L0DD1     ; branch when the values are equal or the result is zero; target L0DD1
+                    lbeq      Branch_056 ; branch when the values are equal or the result is zero; target Branch_056
                     cmpx      #10       ; compare x with #10 and set the condition codes
-                    lbeq      L0DE9     ; branch when the values are equal or the result is zero; target L0DE9
+                    lbeq      Branch_058 ; branch when the values are equal or the result is zero; target Branch_058
                     cmpx      #8        ; compare x with #8 and set the condition codes
-                    lbeq      L0E01     ; branch when the values are equal or the result is zero; target L0E01
+                    lbeq      Branch_059 ; branch when the values are equal or the result is zero; target Branch_059
                     cmpx      #9        ; compare x with #9 and set the condition codes
-                    lbeq      L0E19     ; branch when the values are equal or the result is zero; target L0E19
+                    lbeq      Branch_060 ; branch when the values are equal or the result is zero; target Branch_060
                     cmpx      #-13      ; compare x with #-13 and set the condition codes
-                    lbeq      L0E31     ; branch when the values are equal or the result is zero; target L0E31
+                    lbeq      Branch_061 ; branch when the values are equal or the result is zero; target Branch_061
                     cmpx      #-31      ; compare x with #-31 and set the condition codes
-                    lbeq      L0ED6     ; branch when the values are equal or the result is zero; target L0ED6
+                    lbeq      Branch_062 ; branch when the values are equal or the result is zero; target Branch_062
                     cmpx      #-29      ; compare x with #-29 and set the condition codes
-                    lbeq      L0F7A     ; branch when the values are equal or the result is zero; target L0F7A
+                    lbeq      Branch_063 ; branch when the values are equal or the result is zero; target Branch_063
                     cmpx      #-18      ; compare x with #-18 and set the condition codes
-                    lbeq      L0F91     ; branch when the values are equal or the result is zero; target L0F91
+                    lbeq      Branch_064 ; branch when the values are equal or the result is zero; target Branch_064
                     cmpx      #-25      ; compare x with #-25 and set the condition codes
-                    lbeq      L0FAE     ; branch when the values are equal or the result is zero; target L0FAE
+                    lbeq      Branch_065 ; branch when the values are equal or the result is zero; target Branch_065
                     cmpx      #-14      ; compare x with #-14 and set the condition codes
-                    lbeq      L0FB4     ; branch when the values are equal or the result is zero; target L0FB4
+                    lbeq      Branch_066 ; branch when the values are equal or the result is zero; target Branch_066
                     cmpx      #-27      ; compare x with #-27 and set the condition codes
-                    lbeq      L110C     ; branch when the values are equal or the result is zero; target L110C
+                    lbeq      Branch_070 ; branch when the values are equal or the result is zero; target Branch_070
                     cmpx      #-16      ; compare x with #-16 and set the condition codes
-                    lbeq      L1116     ; branch when the values are equal or the result is zero; target L1116
+                    lbeq      Branch_071 ; branch when the values are equal or the result is zero; target Branch_071
                     cmpx      #-8       ; compare x with #-8 and set the condition codes
-                    lbeq      L119D     ; branch when the values are equal or the result is zero; target L119D
+                    lbeq      Branch_072 ; branch when the values are equal or the result is zero; target Branch_072
                     cmpx      #-6       ; compare x with #-6 and set the condition codes
-                    lbeq      L11AC     ; branch when the values are equal or the result is zero; target L11AC
-                    lbra      L1414     ; continue execution at L1414
-L14E4               lbra      L080D     ; continue execution at L080D
+                    lbeq      Branch_073 ; branch when the values are equal or the result is zero; target Branch_073
+                    lbra      Branch_083 ; continue execution at Branch_083
+Branch_030          lbra      Code_002  ; continue execution at Code_002
                     leas      <$0024,s  ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
 
 * -- method --
-L14EC               pshs      u         ; save u on the stack
+Code_003            pshs      u         ; save u on the stack
                     ldd       #-86      ; set d to the constant -86
                     lbsr      _stkcheck ; call subroutine _stkcheck
                     leas      -$02,s    ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    bne       L1547     ; branch when the values differ or the result is nonzero; target L1547
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    bne       Branch_085 ; branch when the values differ or the result is nonzero; target Branch_085
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #2        ; add to d using #2
                     cmpd      #8192     ; compare d with #8192 and set the condition codes
-                    bge       L153D     ; branch when the signed value is greater than or equal; target L153D
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    bge       Branch_086 ; branch when the signed value is greater than or equal; target Branch_086
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #27       ; set d to the constant 27
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #91       ; set d to the constant 91
-                    stb       0,x       ; store b at 0,x
-                    bra       L1547     ; continue execution at L1547
-L153D               ldd       #1        ; set d to the constant 1
+                    stb       ,x        ; store b at ,x
+                    bra       Branch_085 ; continue execution at Branch_085
+Branch_086          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AD8     ; call subroutine L3AD8
+                    lbsr      Routine_017 ; call subroutine Routine_017
                     leas      $02,s     ; adjust the system stack pointer
-L1547               clra                ; clear a to zero and set the condition codes
+Branch_085          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     stb       $01,s     ; store b in the current stack frame at $01,s
-                    lbra      L17EA     ; continue execution at L17EA
-L154E               ldd       #3        ; set d to the constant 3
+                    lbra      Branch_087 ; continue execution at Branch_087
+Branch_088          ldd       #3        ; set d to the constant 3
                     pshs      d         ; save d on the stack
                     ldd       #3        ; set d to the constant 3
                     pshs      d         ; save d on the stack
@@ -2339,7 +2345,7 @@ L154E               ldd       #3        ; set d to the constant 3
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
@@ -2359,11 +2365,11 @@ L154E               ldd       #3        ; set d to the constant 3
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     leax      >SetGraphs,pc ; form the address >SetGraphs,pc in x
                     pshs      x         ; save x on the stack
@@ -2413,9 +2419,9 @@ L154E               ldd       #3        ; set d to the constant 3
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    leax      >U0049,y  ; form the address >U0049,y in x
+                    leax      >WorkBuffer_005,y ; form the address >WorkBuffer_005,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L337C     ; call subroutine L337C
+                    lbsr      Routine_008 ; call subroutine Routine_008
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
@@ -2432,171 +2438,171 @@ L154E               ldd       #3        ; set d to the constant 3
                     stb       $01,s     ; store b in the current stack frame at $01,s
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldb       $01,s     ; load b from the current stack frame at $01,s
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; copy the register values specified by d,x
-                    lbra      L17B2     ; continue execution at L17B2
-L1676               ldd       #48       ; set d to the constant 48
+                    lbra      Branch_089 ; continue execution at Branch_089
+Branch_090          ldd       #48       ; set d to the constant 48
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #59       ; set d to the constant 59
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L17EA     ; branch when the values differ or the result is nonzero; target L17EA
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_087 ; branch when the values differ or the result is nonzero; target Branch_087
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    lbra      L17A9     ; continue execution at L17A9
-L1697               ldd       #49       ; set d to the constant 49
+                    lbra      Branch_091 ; continue execution at Branch_091
+Branch_092          ldd       #49       ; set d to the constant 49
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #59       ; set d to the constant 59
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L17EA     ; branch when the values differ or the result is nonzero; target L17EA
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_087 ; branch when the values differ or the result is nonzero; target Branch_087
                     ldd       #1        ; set d to the constant 1
-                    lbra      L17A9     ; continue execution at L17A9
-L16B9               ldd       #52       ; set d to the constant 52
+                    lbra      Branch_091 ; continue execution at Branch_091
+Branch_093          ldd       #52       ; set d to the constant 52
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #59       ; set d to the constant 59
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L17EA     ; branch when the values differ or the result is nonzero; target L17EA
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_087 ; branch when the values differ or the result is nonzero; target Branch_087
                     ldd       #4        ; set d to the constant 4
-                    lbra      L17A9     ; continue execution at L17A9
-L16DB               ldd       #53       ; set d to the constant 53
+                    lbra      Branch_091 ; continue execution at Branch_091
+Branch_094          ldd       #53       ; set d to the constant 53
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #59       ; set d to the constant 59
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L17EA     ; branch when the values differ or the result is nonzero; target L17EA
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_087 ; branch when the values differ or the result is nonzero; target Branch_087
                     ldd       #5        ; set d to the constant 5
-                    lbra      L17A9     ; continue execution at L17A9
-L16FD               ldd       #55       ; set d to the constant 55
+                    lbra      Branch_091 ; continue execution at Branch_091
+Branch_095          ldd       #55       ; set d to the constant 55
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #59       ; set d to the constant 59
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L17EA     ; branch when the values differ or the result is nonzero; target L17EA
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_087 ; branch when the values differ or the result is nonzero; target Branch_087
                     ldd       #7        ; set d to the constant 7
-                    lbra      L17A9     ; continue execution at L17A9
-L171F               ldd       #56       ; set d to the constant 56
+                    lbra      Branch_091 ; continue execution at Branch_091
+Branch_096          ldd       #56       ; set d to the constant 56
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #59       ; set d to the constant 59
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L17EA     ; branch when the values differ or the result is nonzero; target L17EA
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_087 ; branch when the values differ or the result is nonzero; target Branch_087
                     ldd       #8        ; set d to the constant 8
-                    lbra      L17A9     ; continue execution at L17A9
-L1741               lbsr      L1819     ; call subroutine L1819
-                    stb       0,s       ; store b in the current stack frame at 0,s
+                    lbra      Branch_091 ; continue execution at Branch_091
+Branch_097          lbsr      Code_004  ; call subroutine Code_004
+                    stb       ,s        ; store b in the current stack frame at ,s
                     ldd       #51       ; set d to the constant 51
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     sex                 ; sign-extend b into d
                     addd      #48       ; add to d using #48
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #59       ; set d to the constant 59
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L17EA     ; branch when the values differ or the result is nonzero; target L17EA
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_087 ; branch when the values differ or the result is nonzero; target Branch_087
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     sex                 ; sign-extend b into d
                     addd      #30       ; add to d using #30
-                    bra       L17A9     ; continue execution at L17A9
-L1777               lbsr      L1819     ; call subroutine L1819
-                    stb       0,s       ; store b in the current stack frame at 0,s
+                    bra       Branch_091 ; continue execution at Branch_091
+Branch_098          lbsr      Code_004  ; call subroutine Code_004
+                    stb       ,s        ; store b in the current stack frame at ,s
                     ldd       #52       ; set d to the constant 52
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     sex                 ; sign-extend b into d
                     addd      #48       ; add to d using #48
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #59       ; set d to the constant 59
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    bne       L17EA     ; branch when the values differ or the result is nonzero; target L17EA
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    bne       Branch_087 ; branch when the values differ or the result is nonzero; target Branch_087
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     sex                 ; sign-extend b into d
                     addd      #40       ; add to d using #40
-L17A9               pshs      d         ; save d on the stack
-                    lbsr      L249A     ; call subroutine L249A
+Branch_091          pshs      d         ; save d on the stack
+                    lbsr      Routine_029 ; call subroutine Routine_029
                     leas      $02,s     ; adjust the system stack pointer
-                    bra       L17EA     ; continue execution at L17EA
-L17B2               cmpx      #82       ; compare x with #82 and set the condition codes
-                    lbeq      L1676     ; branch when the values are equal or the result is zero; target L1676
+                    bra       Branch_087 ; continue execution at Branch_087
+Branch_089          cmpx      #82       ; compare x with #82 and set the condition codes
+                    lbeq      Branch_090 ; branch when the values are equal or the result is zero; target Branch_090
                     cmpx      #79       ; compare x with #79 and set the condition codes
-                    lbeq      L1697     ; branch when the values are equal or the result is zero; target L1697
+                    lbeq      Branch_092 ; branch when the values are equal or the result is zero; target Branch_092
                     cmpx      #85       ; compare x with #85 and set the condition codes
-                    lbeq      L16B9     ; branch when the values are equal or the result is zero; target L16B9
+                    lbeq      Branch_093 ; branch when the values are equal or the result is zero; target Branch_093
                     cmpx      #76       ; compare x with #76 and set the condition codes
-                    lbeq      L16DB     ; branch when the values are equal or the result is zero; target L16DB
+                    lbeq      Branch_094 ; branch when the values are equal or the result is zero; target Branch_094
                     cmpx      #86       ; compare x with #86 and set the condition codes
-                    lbeq      L16FD     ; branch when the values are equal or the result is zero; target L16FD
+                    lbeq      Branch_095 ; branch when the values are equal or the result is zero; target Branch_095
                     cmpx      #73       ; compare x with #73 and set the condition codes
-                    lbeq      L171F     ; branch when the values are equal or the result is zero; target L171F
+                    lbeq      Branch_096 ; branch when the values are equal or the result is zero; target Branch_096
                     cmpx      #70       ; compare x with #70 and set the condition codes
-                    lbeq      L1741     ; branch when the values are equal or the result is zero; target L1741
+                    lbeq      Branch_097 ; branch when the values are equal or the result is zero; target Branch_097
                     cmpx      #66       ; compare x with #66 and set the condition codes
-                    lbeq      L1777     ; branch when the values are equal or the result is zero; target L1777
-L17EA               ldb       $01,s     ; load b from the current stack frame at $01,s
+                    lbeq      Branch_098 ; branch when the values are equal or the result is zero; target Branch_098
+Branch_087          ldb       $01,s     ; load b from the current stack frame at $01,s
                     cmpb      #68       ; compare b with #68 and set the condition codes
-                    lbne      L154E     ; branch when the values differ or the result is nonzero; target L154E
+                    lbne      Branch_088 ; branch when the values differ or the result is nonzero; target Branch_088
                     ldd       #109      ; set d to the constant 109
                     pshs      d         ; save d on the stack
-                    lbsr      L19C1     ; call subroutine L19C1
+                    lbsr      Routine_018 ; call subroutine Routine_018
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0007,y  ; load d from >U0007,y
-                    lbne      L1C74     ; branch when the values differ or the result is nonzero; target L1C74
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    lbne      Branch_099 ; branch when the values differ or the result is nonzero; target Branch_099
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #-1       ; add to d using #-1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #109      ; set d to the constant 109
-                    stb       0,x       ; store b at 0,x
-                    lbra      L1C74     ; continue execution at L1C74
+                    stb       ,x        ; store b at ,x
+                    lbra      Branch_099 ; continue execution at Branch_099
 
 * -- method --
-L1819               pshs      u         ; save u on the stack
+Code_004            pshs      u         ; save u on the stack
                     ldd       #-87      ; set d to the constant -87
                     lbsr      _stkcheck ; call subroutine _stkcheck
                     leas      -$03,s    ; adjust the system stack pointer
@@ -2616,7 +2622,7 @@ L1819               pshs      u         ; save u on the stack
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
@@ -2636,43 +2642,43 @@ L1819               pshs      u         ; save u on the stack
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    lbra      L18DC     ; continue execution at L18DC
-L188C               ldd       $01,s     ; load d from the current stack frame at $01,s
+                    lbra      Branch_100 ; continue execution at Branch_100
+Branch_101          ldd       $01,s     ; load d from the current stack frame at $01,s
                     pshs      d         ; save d on the stack
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3B2A     ; call subroutine L3B2A
+                    lbsr      Routine_030 ; call subroutine Routine_030
                     leas      $06,s     ; adjust the system stack pointer
                     ldd       $01,s     ; load d from the current stack frame at $01,s
-                    beq       L18BA     ; branch when the values are equal or the result is zero; target L18BA
+                    beq       Branch_102 ; branch when the values are equal or the result is zero; target Branch_102
                     ldd       $01,s     ; load d from the current stack frame at $01,s
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
-                    leax      >U000F,y  ; form the address >U000F,y in x
+                    leax      >WorkBuffer_001,y ; form the address >WorkBuffer_001,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       0,x       ; load d from 0,x
+                    ldd       ,x        ; load d from ,x
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A9F     ; call subroutine L3A9F
+                    lbsr      Routine_026 ; call subroutine Routine_026
                     leas      $04,s     ; adjust the system stack pointer
-L18BA               ldd       $01,s     ; load d from the current stack frame at $01,s
+Branch_102          ldd       $01,s     ; load d from the current stack frame at $01,s
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
-                    leax      >U001F,y  ; form the address >U001F,y in x
+                    leax      >WorkBuffer_002,y ; form the address >WorkBuffer_002,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       0,x       ; load d from 0,x
+                    ldd       ,x        ; load d from ,x
                     pshs      d         ; save d on the stack
                     ldd       $03,s     ; load d from the current stack frame at $03,s
                     pshs      d         ; save d on the stack
@@ -2682,17 +2688,17 @@ L18BA               ldd       $01,s     ; load d from the current stack frame at
                     leas      $06,s     ; adjust the system stack pointer
                     ldd       $01,s     ; load d from the current stack frame at $01,s
                     addd      #1        ; add to d using #1
-L18DC               std       $01,s     ; store d in the current stack frame at $01,s
+Branch_100          std       $01,s     ; store d in the current stack frame at $01,s
                     ldd       $01,s     ; load d from the current stack frame at $01,s
                     cmpd      #8        ; compare d with #8 and set the condition codes
-                    lblt      L188C     ; branch when the signed value is less; target L188C
+                    lblt      Branch_101 ; branch when the signed value is less; target Branch_101
                     leax      >ClrNum,pc ; form the address >ClrNum,pc in x
                     pshs      x         ; save x on the stack
                     lbsr      printf    ; call subroutine printf
                     leas      $02,s     ; adjust the system stack pointer
-                    leax      >U0049,y  ; form the address >U0049,y in x
+                    leax      >WorkBuffer_005,y ; form the address >WorkBuffer_005,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L337C     ; call subroutine L337C
+                    lbsr      Routine_008 ; call subroutine Routine_008
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
@@ -2703,204 +2709,204 @@ L18DC               std       $01,s     ; store d in the current stack frame at 
                     pshs      d         ; save d on the stack
                     lbsr      read      ; call subroutine read
                     leas      $06,s     ; adjust the system stack pointer
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     sex                 ; sign-extend b into d
                     subd      #48       ; subtract from d using #48
-                    stb       0,s       ; store b in the current stack frame at 0,s
+                    stb       ,s        ; store b in the current stack frame at ,s
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     sex                 ; sign-extend b into d
                     leas      $03,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
 
 * -- method --
-L1933               pshs      u         ; save u on the stack
+Routine_025         pshs      u         ; save u on the stack
                     ldd       #-70      ; set d to the constant -70
                     lbsr      _stkcheck ; call subroutine _stkcheck
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #3        ; add to d using #3
                     cmpd      #8192     ; compare d with #8192 and set the condition codes
-                    lbge      L19B6     ; branch when the signed value is greater than or equal; target L19B6
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    lbge      Branch_103 ; branch when the signed value is greater than or equal; target Branch_103
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #27       ; set d to the constant 27
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #91       ; set d to the constant 91
-                    stb       0,x       ; store b at 0,x
+                    stb       ,x        ; store b at ,x
                     ldb       $05,s     ; load b from the current stack frame at $05,s
                     cmpb      #74       ; compare b with #74 and set the condition codes
-                    bne       L199B     ; branch when the values differ or the result is nonzero; target L199B
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    bne       Branch_104 ; branch when the values differ or the result is nonzero; target Branch_104
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #50       ; set d to the constant 50
-                    stb       0,x       ; store b at 0,x
-L199B               ldd       >U000D,y  ; load d from >U000D,y
+                    stb       ,x        ; store b at ,x
+Branch_104          ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldb       $05,s     ; load b from the current stack frame at $05,s
-                    stb       0,x       ; store b at 0,x
-                    lbra      L1C76     ; continue execution at L1C76
-L19B6               ldd       #1        ; set d to the constant 1
+                    stb       ,x        ; store b at ,x
+                    lbra      Branch_105 ; continue execution at Branch_105
+Branch_103          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AD8     ; call subroutine L3AD8
-                    lbra      L1C74     ; continue execution at L1C74
+                    lbsr      Routine_017 ; call subroutine Routine_017
+                    lbra      Branch_099 ; continue execution at Branch_099
 
 * -- method --
-L19C1               pshs      u         ; save u on the stack
+Routine_018         pshs      u         ; save u on the stack
                     ldd       #-76      ; set d to the constant -76
                     lbsr      _stkcheck ; call subroutine _stkcheck
                     leas      -$02,s    ; adjust the system stack pointer
-                    ldd       >U0005,y  ; load d from >U0005,y
-                    lbeq      L1B18     ; branch when the values are equal or the result is zero; target L1B18
+                    ldd       >WorkByte_005,y ; load d from >WorkByte_005,y
+                    lbeq      Branch_106 ; branch when the values are equal or the result is zero; target Branch_106
                     ldb       $07,s     ; load b from the current stack frame at $07,s
                     sex                 ; sign-extend b into d
-                    leax      >U010D,y  ; form the address >U010D,y in x
+                    leax      >WorkBuffer_006,y ; form the address >WorkBuffer_006,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     clra                ; clear a to zero and set the condition codes
                     andb      #8        ; mask b using #8
-                    beq       L1A0F     ; branch when the values are equal or the result is zero; target L1A0F
+                    beq       Branch_107 ; branch when the values are equal or the result is zero; target Branch_107
                     ldd       >dpsiz,y  ; load d from >dpsiz,y
                     pshs      d         ; save d on the stack
                     ldd       #5        ; set d to the constant 5
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U01E7,y  ; form the address >U01E7,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_009,y ; form the address >WorkBuffer_009,y in x
                     leax      d,x       ; form the address d,x in x
                     tfr       x,d       ; copy the register values specified by x,d
                     pshs      d         ; save d on the stack
-                    ldd       >U0003,y  ; load d from >U0003,y
+                    ldd       >WorkByte_003,y ; load d from >WorkByte_003,y
                     addd      #1        ; add to d using #1
-                    std       >U0003,y  ; store d at >U0003,y
+                    std       >WorkByte_003,y ; store d at >WorkByte_003,y
                     subd      #1        ; subtract from d using #1
                     addd      ,s++      ; add to d using ,s++
                     tfr       d,x       ; copy the register values specified by d,x
                     ldb       $07,s     ; load b from the current stack frame at $07,s
-                    stb       0,x       ; store b at 0,x
-L1A0F               ldb       $07,s     ; load b from the current stack frame at $07,s
+                    stb       ,x        ; store b at ,x
+Branch_107          ldb       $07,s     ; load b from the current stack frame at $07,s
                     sex                 ; sign-extend b into d
-                    leax      >U010D,y  ; form the address >U010D,y in x
+                    leax      >WorkBuffer_006,y ; form the address >WorkBuffer_006,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     clra                ; clear a to zero and set the condition codes
                     andb      #6        ; mask b using #6
-                    lbeq      L1AA2     ; branch when the values are equal or the result is zero; target L1AA2
-                    ldd       >U0003,y  ; load d from >U0003,y
-                    ble       L1A6C     ; branch when the signed value is less than or equal; target L1A6C
+                    lbeq      Branch_108 ; branch when the values are equal or the result is zero; target Branch_108
+                    ldd       >WorkByte_003,y ; load d from >WorkByte_003,y
+                    ble       Branch_109 ; branch when the signed value is less than or equal; target Branch_109
                     ldd       >dpsiz,y  ; load d from >dpsiz,y
                     pshs      d         ; save d on the stack
                     ldd       #5        ; set d to the constant 5
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U01E7,y  ; form the address >U01E7,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_009,y ; form the address >WorkBuffer_009,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       >U0003,y  ; load d from >U0003,y
+                    ldd       >WorkByte_003,y ; load d from >WorkByte_003,y
                     leax      d,x       ; form the address d,x in x
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    stb       0,x       ; store b at 0,x
+                    stb       ,x        ; store b at ,x
                     ldd       >dpsiz,y  ; load d from >dpsiz,y
-                    leax      >U01DD,y  ; form the address >U01DD,y in x
+                    leax      >WorkByte_012,y ; form the address >WorkByte_012,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
                     ldd       >dpsiz,y  ; load d from >dpsiz,y
                     pshs      d         ; save d on the stack
                     ldd       #5        ; set d to the constant 5
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U01E7,y  ; form the address >U01E7,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_009,y ; form the address >WorkBuffer_009,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
-                    lbsr      L35CC     ; call subroutine L35CC
+                    lbsr      Routine_031 ; call subroutine Routine_031
                     leas      $02,s     ; adjust the system stack pointer
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
-                    bra       L1A7B     ; continue execution at L1A7B
-L1A6C               ldd       >dpsiz,y  ; load d from >dpsiz,y
-                    leax      >U01DD,y  ; form the address >U01DD,y in x
+                    bra       Branch_110 ; continue execution at Branch_110
+Branch_109          ldd       >dpsiz,y  ; load d from >dpsiz,y
+                    leax      >WorkByte_012,y ; form the address >WorkByte_012,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #1        ; set d to the constant 1
-                    stb       0,x       ; store b at 0,x
-L1A7B               ldd       >U0003,y  ; load d from >U0003,y
-                    bgt       L1A87     ; branch when the signed value is greater; target L1A87
+                    stb       ,x        ; store b at ,x
+Branch_110          ldd       >WorkByte_003,y ; load d from >WorkByte_003,y
+                    bgt       Branch_111 ; branch when the signed value is greater; target Branch_111
                     ldb       $07,s     ; load b from the current stack frame at $07,s
                     cmpb      #109      ; compare b with #109 and set the condition codes
-                    beq       L1A92     ; branch when the values are equal or the result is zero; target L1A92
-L1A87               ldd       >dpsiz,y  ; load d from >dpsiz,y
+                    beq       Branch_112 ; branch when the values are equal or the result is zero; target Branch_112
+Branch_111          ldd       >dpsiz,y  ; load d from >dpsiz,y
                     addd      #1        ; add to d using #1
                     std       >dpsiz,y  ; store d at >dpsiz,y
-L1A92               clra                ; clear a to zero and set the condition codes
+Branch_112          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0003,y  ; store d at >U0003,y
+                    std       >WorkByte_003,y ; store d at >WorkByte_003,y
                     ldb       $07,s     ; load b from the current stack frame at $07,s
                     sex                 ; sign-extend b into d
                     pshs      d         ; save d on the stack
-                    lbsr      L1C78     ; call subroutine L1C78
+                    lbsr      Routine_032 ; call subroutine Routine_032
                     leas      $02,s     ; adjust the system stack pointer
-L1AA2               ldb       $07,s     ; load b from the current stack frame at $07,s
+Branch_108          ldb       $07,s     ; load b from the current stack frame at $07,s
                     cmpb      #59       ; compare b with #59 and set the condition codes
-                    lbne      L1C74     ; branch when the values differ or the result is nonzero; target L1C74
-                    ldd       >U0003,y  ; load d from >U0003,y
-                    ble       L1AF5     ; branch when the signed value is less than or equal; target L1AF5
+                    lbne      Branch_099 ; branch when the values differ or the result is nonzero; target Branch_099
+                    ldd       >WorkByte_003,y ; load d from >WorkByte_003,y
+                    ble       Branch_113 ; branch when the signed value is less than or equal; target Branch_113
                     ldd       >dpsiz,y  ; load d from >dpsiz,y
                     pshs      d         ; save d on the stack
                     ldd       #5        ; set d to the constant 5
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U01E7,y  ; form the address >U01E7,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_009,y ; form the address >WorkBuffer_009,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       >U0003,y  ; load d from >U0003,y
+                    ldd       >WorkByte_003,y ; load d from >WorkByte_003,y
                     leax      d,x       ; form the address d,x in x
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    stb       0,x       ; store b at 0,x
+                    stb       ,x        ; store b at ,x
                     ldd       >dpsiz,y  ; load d from >dpsiz,y
-                    leax      >U01DD,y  ; form the address >U01DD,y in x
+                    leax      >WorkByte_012,y ; form the address >WorkByte_012,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
                     ldd       >dpsiz,y  ; load d from >dpsiz,y
                     pshs      d         ; save d on the stack
                     ldd       #5        ; set d to the constant 5
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U01E7,y  ; form the address >U01E7,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_009,y ; form the address >WorkBuffer_009,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
-                    lbsr      L35CC     ; call subroutine L35CC
+                    lbsr      Routine_031 ; call subroutine Routine_031
                     leas      $02,s     ; adjust the system stack pointer
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
-                    bra       L1B04     ; continue execution at L1B04
-L1AF5               ldd       >dpsiz,y  ; load d from >dpsiz,y
-                    leax      >U01DD,y  ; form the address >U01DD,y in x
+                    bra       Branch_114 ; continue execution at Branch_114
+Branch_113          ldd       >dpsiz,y  ; load d from >dpsiz,y
+                    leax      >WorkByte_012,y ; form the address >WorkByte_012,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #1        ; set d to the constant 1
-                    stb       0,x       ; store b at 0,x
-L1B04               ldd       >dpsiz,y  ; load d from >dpsiz,y
+                    stb       ,x        ; store b at ,x
+Branch_114          ldd       >dpsiz,y  ; load d from >dpsiz,y
                     addd      #1        ; add to d using #1
                     std       >dpsiz,y  ; store d at >dpsiz,y
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0003,y  ; store d at >U0003,y
-                    lbra      L1C74     ; continue execution at L1C74
-L1B18               ldd       #1        ; set d to the constant 1
+                    std       >WorkByte_003,y ; store d at >WorkByte_003,y
+                    lbra      Branch_099 ; continue execution at Branch_099
+Branch_106          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
                     leax      $09,s     ; form the address $09,s in x
                     pshs      x         ; save x on the stack
@@ -2911,342 +2917,342 @@ L1B18               ldd       #1        ; set d to the constant 1
                     ldb       $07,s     ; load b from the current stack frame at $07,s
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; copy the register values specified by d,x
-                    lbra      L1C5C     ; continue execution at L1C5C
-L1B33               ldd       >U021B,y  ; load d from >U021B,y
+                    lbra      Branch_115 ; continue execution at Branch_115
+Branch_116          ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     addd      #1        ; add to d using #1
-                    std       >U021B,y  ; store d at >U021B,y
+                    std       >WorkWord_008,y ; store d at >WorkWord_008,y
                     cmpd      #23       ; compare d with #23 and set the condition codes
-                    lble      L1C74     ; branch when the signed value is less than or equal; target L1C74
+                    lble      Branch_099 ; branch when the signed value is less than or equal; target Branch_099
                     ldd       #23       ; set d to the constant 23
-                    lbra      L1C56     ; continue execution at L1C56
-L1B4C               clra                ; clear a to zero and set the condition codes
+                    lbra      Branch_117 ; continue execution at Branch_117
+Branch_118          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    lbra      L1BB3     ; continue execution at L1BB3
-L1B51               clra                ; clear a to zero and set the condition codes
+                    lbra      Branch_119 ; continue execution at Branch_119
+Branch_120          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    bra       L1B9E     ; continue execution at L1B9E
-L1B55               ldd       >U021B,y  ; load d from >U021B,y
+                    bra       Branch_121 ; continue execution at Branch_121
+Branch_122          ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     pshs      d         ; save d on the stack
                     ldd       #80       ; set d to the constant 80
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2225,y  ; form the address >U2225,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_011,y ; form the address >WorkBuffer_011,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     leax      d,x       ; form the address d,x in x
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     pshs      d         ; save d on the stack
                     ldd       #160      ; set d to the constant 160
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2955,y  ; form the address >U2955,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_012,y ; form the address >WorkBuffer_012,y in x
                     leax      d,x       ; form the address d,x in x
                     tfr       x,d       ; copy the register values specified by x,d
                     pshs      d         ; save d on the stack
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
                     addd      ,s++      ; add to d using ,s++
                     tfr       d,x       ; copy the register values specified by d,x
-                    ldd       >U0009,y  ; load d from >U0009,y
-                    std       0,x       ; store d at 0,x
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
+                    std       ,x        ; store d at ,x
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     addd      #1        ; add to d using #1
-L1B9E               std       >U021B,y  ; store d at >U021B,y
-                    ldd       >U021B,y  ; load d from >U021B,y
+Branch_121          std       >WorkWord_008,y ; store d at >WorkWord_008,y
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     cmpd      #23       ; compare d with #23 and set the condition codes
-                    blt       L1B55     ; branch when the signed value is less; target L1B55
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    blt       Branch_122 ; branch when the signed value is less; target Branch_122
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     addd      #1        ; add to d using #1
-L1BB3               std       >U0219,y  ; store d at >U0219,y
-                    ldd       >U0219,y  ; load d from >U0219,y
+Branch_119          std       >WorkWord_007,y ; store d at >WorkWord_007,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     cmpd      #80       ; compare d with #80 and set the condition codes
-                    lblt      L1B51     ; branch when the signed value is less; target L1B51
+                    lblt      Branch_120 ; branch when the signed value is less; target Branch_120
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0219,y  ; store d at >U0219,y
+                    std       >WorkWord_007,y ; store d at >WorkWord_007,y
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    lbra      L1C56     ; continue execution at L1C56
-L1BCE               clra                ; clear a to zero and set the condition codes
+                    lbra      Branch_117 ; continue execution at Branch_117
+Branch_123          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0219,y  ; store d at >U0219,y
-                    lbra      L1C74     ; continue execution at L1C74
-L1BD7               ldb       $07,s     ; load b from the current stack frame at $07,s
+                    std       >WorkWord_007,y ; store d at >WorkWord_007,y
+                    lbra      Branch_099 ; continue execution at Branch_099
+Branch_124          ldb       $07,s     ; load b from the current stack frame at $07,s
                     cmpb      #32       ; compare b with #32 and set the condition codes
-                    bge       L1BE3     ; branch when the signed value is greater than or equal; target L1BE3
+                    bge       Branch_125 ; branch when the signed value is greater than or equal; target Branch_125
                     ldb       $07,s     ; load b from the current stack frame at $07,s
-                    lbge      L1C74     ; branch when the signed value is greater than or equal; target L1C74
-L1BE3               ldd       >U0007,y  ; load d from >U0007,y
-                    beq       L1C2B     ; branch when the values are equal or the result is zero; target L1C2B
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    lbge      Branch_099 ; branch when the signed value is greater than or equal; target Branch_099
+Branch_125          ldd       >WorkByte_007,y ; load d from >WorkByte_007,y
+                    beq       Branch_126 ; branch when the values are equal or the result is zero; target Branch_126
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     pshs      d         ; save d on the stack
                     ldd       #80       ; set d to the constant 80
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2225,y  ; form the address >U2225,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_011,y ; form the address >WorkBuffer_011,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     leax      d,x       ; form the address d,x in x
                     ldb       $07,s     ; load b from the current stack frame at $07,s
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     pshs      d         ; save d on the stack
                     ldd       #160      ; set d to the constant 160
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2955,y  ; form the address >U2955,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_012,y ; form the address >WorkBuffer_012,y in x
                     leax      d,x       ; form the address d,x in x
                     tfr       x,d       ; copy the register values specified by x,d
                     pshs      d         ; save d on the stack
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
                     addd      ,s++      ; add to d using ,s++
                     tfr       d,x       ; copy the register values specified by d,x
-                    ldd       >U0009,y  ; load d from >U0009,y
-                    std       0,x       ; store d at 0,x
-L1C2B               ldd       >U0219,y  ; load d from >U0219,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
+                    std       ,x        ; store d at ,x
+Branch_126          ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     addd      #1        ; add to d using #1
-                    std       >U0219,y  ; store d at >U0219,y
+                    std       >WorkWord_007,y ; store d at >WorkWord_007,y
                     cmpd      #80       ; compare d with #80 and set the condition codes
-                    blt       L1C74     ; branch when the signed value is less; target L1C74
+                    blt       Branch_099 ; branch when the signed value is less; target Branch_099
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0219,y  ; store d at >U0219,y
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    std       >WorkWord_007,y ; store d at >WorkWord_007,y
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     addd      #1        ; add to d using #1
-                    std       >U021B,y  ; store d at >U021B,y
+                    std       >WorkWord_008,y ; store d at >WorkWord_008,y
                     cmpd      #23       ; compare d with #23 and set the condition codes
-                    blt       L1C74     ; branch when the signed value is less; target L1C74
+                    blt       Branch_099 ; branch when the signed value is less; target Branch_099
                     ldd       #22       ; set d to the constant 22
-L1C56               std       >U021B,y  ; store d at >U021B,y
-                    bra       L1C74     ; continue execution at L1C74
-L1C5C               cmpx      #10       ; compare x with #10 and set the condition codes
-                    lbeq      L1B33     ; branch when the values are equal or the result is zero; target L1B33
+Branch_117          std       >WorkWord_008,y ; store d at >WorkWord_008,y
+                    bra       Branch_099 ; continue execution at Branch_099
+Branch_115          cmpx      #10       ; compare x with #10 and set the condition codes
+                    lbeq      Branch_116 ; branch when the values are equal or the result is zero; target Branch_116
                     cmpx      #12       ; compare x with #12 and set the condition codes
-                    lbeq      L1B4C     ; branch when the values are equal or the result is zero; target L1B4C
+                    lbeq      Branch_118 ; branch when the values are equal or the result is zero; target Branch_118
                     cmpx      #13       ; compare x with #13 and set the condition codes
-                    lbeq      L1BCE     ; branch when the values are equal or the result is zero; target L1BCE
-                    lbra      L1BD7     ; continue execution at L1BD7
-L1C74               leas      $02,s     ; adjust the system stack pointer
-L1C76               puls      pc,u      ; restore pc,u and return to the caller
+                    lbeq      Branch_123 ; branch when the values are equal or the result is zero; target Branch_123
+                    lbra      Branch_124 ; continue execution at Branch_124
+Branch_099          leas      $02,s     ; adjust the system stack pointer
+Branch_105          puls      pc,u      ; restore pc,u and return to the caller
 
 * -- method --
-L1C78               pshs      u         ; save u on the stack
+Routine_032         pshs      u         ; save u on the stack
                     ldd       #-79      ; set d to the constant -79
                     lbsr      _stkcheck ; call subroutine _stkcheck
                     leas      -$05,s    ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0005,y  ; store d at >U0005,y
+                    std       >WorkByte_005,y ; store d at >WorkByte_005,y
                     ldb       $0A,s     ; load b from the current stack frame at $0A,s
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; copy the register values specified by d,x
-                    lbra      L209D     ; continue execution at L209D
-L1C90               ldb       >U01DD,y  ; load b from >U01DD,y
+                    lbra      Branch_127 ; continue execution at Branch_127
+Branch_128          ldb       >WorkByte_012,y ; load b from >WorkByte_012,y
                     sex                 ; sign-extend b into d
                     addd      #-1       ; add to d using #-1
                     pshs      d         ; save d on the stack
-                    ldb       >U01DE,y  ; load b from >U01DE,y
+                    ldb       >WorkBuffer_008,y ; load b from >WorkBuffer_008,y
                     sex                 ; sign-extend b into d
                     addd      #-1       ; add to d using #-1
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3B2A     ; call subroutine L3B2A
+                    lbsr      Routine_030 ; call subroutine Routine_030
                     leas      $06,s     ; adjust the system stack pointer
-                    ldb       >U01DE,y  ; load b from >U01DE,y
+                    ldb       >WorkBuffer_008,y ; load b from >WorkBuffer_008,y
                     sex                 ; sign-extend b into d
                     addd      #-1       ; add to d using #-1
-                    std       >U0219,y  ; store d at >U0219,y
-                    ldb       >U01DD,y  ; load b from >U01DD,y
+                    std       >WorkWord_007,y ; store d at >WorkWord_007,y
+                    ldb       >WorkByte_012,y ; load b from >WorkByte_012,y
                     sex                 ; sign-extend b into d
                     addd      #-1       ; add to d using #-1
-                    std       >U021B,y  ; store d at >U021B,y
-                    lbra      L20EA     ; continue execution at L20EA
-L1CC9               clra                ; clear a to zero and set the condition codes
+                    std       >WorkWord_008,y ; store d at >WorkWord_008,y
+                    lbra      Branch_129 ; continue execution at Branch_129
+Branch_130          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    bra       L1CEF     ; continue execution at L1CEF
-L1CCD               ldd       #1        ; set d to the constant 1
+                    bra       Branch_131 ; continue execution at Branch_131
+Branch_132          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AE0     ; call subroutine L3AE0
+                    lbsr      Routine_033 ; call subroutine Routine_033
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     addd      #-1       ; add to d using #-1
-                    std       >U021B,y  ; store d at >U021B,y
-                    bge       L1CEA     ; branch when the signed value is greater than or equal; target L1CEA
+                    std       >WorkWord_008,y ; store d at >WorkWord_008,y
+                    bge       Branch_133 ; branch when the signed value is greater than or equal; target Branch_133
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U021B,y  ; store d at >U021B,y
-L1CEA               ldd       $03,s     ; load d from the current stack frame at $03,s
+                    std       >WorkWord_008,y ; store d at >WorkWord_008,y
+Branch_133          ldd       $03,s     ; load d from the current stack frame at $03,s
                     addd      #1        ; add to d using #1
-L1CEF               std       $03,s     ; store d in the current stack frame at $03,s
-                    ldb       >U01DD,y  ; load b from >U01DD,y
+Branch_131          std       $03,s     ; store d in the current stack frame at $03,s
+                    ldb       >WorkByte_012,y ; load b from >WorkByte_012,y
                     sex                 ; sign-extend b into d
                     cmpd      $03,s     ; compare d with $03,s and set the condition codes
-                    bgt       L1CCD     ; branch when the signed value is greater; target L1CCD
-                    lbra      L20EA     ; continue execution at L20EA
-L1CFE               clra                ; clear a to zero and set the condition codes
+                    bgt       Branch_132 ; branch when the signed value is greater; target Branch_132
+                    lbra      Branch_129 ; continue execution at Branch_129
+Branch_134          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    bra       L1D2B     ; continue execution at L1D2B
-L1D02               ldd       >U021B,y  ; load d from >U021B,y
+                    bra       Branch_135 ; continue execution at Branch_135
+Branch_136          ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     addd      #1        ; add to d using #1
-                    std       >U021B,y  ; store d at >U021B,y
+                    std       >WorkWord_008,y ; store d at >WorkWord_008,y
                     cmpd      #23       ; compare d with #23 and set the condition codes
-                    blt       L1D1C     ; branch when the signed value is less; target L1D1C
+                    blt       Branch_137 ; branch when the signed value is less; target Branch_137
                     ldd       #22       ; set d to the constant 22
-                    std       >U021B,y  ; store d at >U021B,y
-                    bra       L1D26     ; continue execution at L1D26
-L1D1C               ldd       #1        ; set d to the constant 1
+                    std       >WorkWord_008,y ; store d at >WorkWord_008,y
+                    bra       Branch_138 ; continue execution at Branch_138
+Branch_137          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AE4     ; call subroutine L3AE4
+                    lbsr      Routine_034 ; call subroutine Routine_034
                     leas      $02,s     ; adjust the system stack pointer
-L1D26               ldd       $03,s     ; load d from the current stack frame at $03,s
+Branch_138          ldd       $03,s     ; load d from the current stack frame at $03,s
                     addd      #1        ; add to d using #1
-L1D2B               std       $03,s     ; store d in the current stack frame at $03,s
-                    ldb       >U01DD,y  ; load b from >U01DD,y
+Branch_135          std       $03,s     ; store d in the current stack frame at $03,s
+                    ldb       >WorkByte_012,y ; load b from >WorkByte_012,y
                     sex                 ; sign-extend b into d
                     cmpd      $03,s     ; compare d with $03,s and set the condition codes
-                    bgt       L1D02     ; branch when the signed value is greater; target L1D02
-                    lbra      L20EA     ; continue execution at L20EA
-L1D3A               clra                ; clear a to zero and set the condition codes
+                    bgt       Branch_136 ; branch when the signed value is greater; target Branch_136
+                    lbra      Branch_129 ; continue execution at Branch_129
+Branch_139          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    bra       L1D67     ; continue execution at L1D67
-L1D3E               ldd       >U0219,y  ; load d from >U0219,y
+                    bra       Branch_140 ; continue execution at Branch_140
+Branch_141          ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     addd      #1        ; add to d using #1
-                    std       >U0219,y  ; store d at >U0219,y
+                    std       >WorkWord_007,y ; store d at >WorkWord_007,y
                     cmpd      #79       ; compare d with #79 and set the condition codes
-                    ble       L1D58     ; branch when the signed value is less than or equal; target L1D58
+                    ble       Branch_142 ; branch when the signed value is less than or equal; target Branch_142
                     ldd       #79       ; set d to the constant 79
-                    std       >U0219,y  ; store d at >U0219,y
-                    bra       L1D62     ; continue execution at L1D62
-L1D58               ldd       #1        ; set d to the constant 1
+                    std       >WorkWord_007,y ; store d at >WorkWord_007,y
+                    bra       Branch_143 ; continue execution at Branch_143
+Branch_142          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AD4     ; call subroutine L3AD4
+                    lbsr      Routine_035 ; call subroutine Routine_035
                     leas      $02,s     ; adjust the system stack pointer
-L1D62               ldd       $03,s     ; load d from the current stack frame at $03,s
+Branch_143          ldd       $03,s     ; load d from the current stack frame at $03,s
                     addd      #1        ; add to d using #1
-L1D67               std       $03,s     ; store d in the current stack frame at $03,s
-                    ldb       >U01DD,y  ; load b from >U01DD,y
+Branch_140          std       $03,s     ; store d in the current stack frame at $03,s
+                    ldb       >WorkByte_012,y ; load b from >WorkByte_012,y
                     sex                 ; sign-extend b into d
                     cmpd      $03,s     ; compare d with $03,s and set the condition codes
-                    bgt       L1D3E     ; branch when the signed value is greater; target L1D3E
-                    lbra      L20EA     ; continue execution at L20EA
-L1D76               clra                ; clear a to zero and set the condition codes
+                    bgt       Branch_141 ; branch when the signed value is greater; target Branch_141
+                    lbra      Branch_129 ; continue execution at Branch_129
+Branch_144          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    bra       L1D9E     ; continue execution at L1D9E
-L1D7A               ldd       >U0219,y  ; load d from >U0219,y
+                    bra       Branch_145 ; continue execution at Branch_145
+Branch_146          ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     addd      #-1       ; add to d using #-1
-                    std       >U0219,y  ; store d at >U0219,y
-                    bge       L1D8F     ; branch when the signed value is greater than or equal; target L1D8F
+                    std       >WorkWord_007,y ; store d at >WorkWord_007,y
+                    bge       Branch_147 ; branch when the signed value is greater than or equal; target Branch_147
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0219,y  ; store d at >U0219,y
-                    bra       L1D99     ; continue execution at L1D99
-L1D8F               ldd       #1        ; set d to the constant 1
+                    std       >WorkWord_007,y ; store d at >WorkWord_007,y
+                    bra       Branch_148 ; continue execution at Branch_148
+Branch_147          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3ADC     ; call subroutine L3ADC
+                    lbsr      Routine_028 ; call subroutine Routine_028
                     leas      $02,s     ; adjust the system stack pointer
-L1D99               ldd       $03,s     ; load d from the current stack frame at $03,s
+Branch_148          ldd       $03,s     ; load d from the current stack frame at $03,s
                     addd      #1        ; add to d using #1
-L1D9E               std       $03,s     ; store d in the current stack frame at $03,s
-                    ldb       >U01DD,y  ; load b from >U01DD,y
+Branch_145          std       $03,s     ; store d in the current stack frame at $03,s
+                    ldb       >WorkByte_012,y ; load b from >WorkByte_012,y
                     sex                 ; sign-extend b into d
                     cmpd      $03,s     ; compare d with $03,s and set the condition codes
-                    bgt       L1D7A     ; branch when the signed value is greater; target L1D7A
-                    lbra      L20EA     ; continue execution at L20EA
-L1DAD               ldd       >U0219,y  ; load d from >U0219,y
-                    std       >U0221,y  ; store d at >U0221,y
-                    ldd       >U021B,y  ; load d from >U021B,y
-                    std       >U0223,y  ; store d at >U0223,y
-                    lbra      L20EA     ; continue execution at L20EA
-L1DC0               ldd       >U0221,y  ; load d from >U0221,y
-                    std       >U0219,y  ; store d at >U0219,y
-                    ldd       >U0223,y  ; load d from >U0223,y
-                    std       >U021B,y  ; store d at >U021B,y
+                    bgt       Branch_146 ; branch when the signed value is greater; target Branch_146
+                    lbra      Branch_129 ; continue execution at Branch_129
+Branch_149          ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
+                    std       >WorkWord_011,y ; store d at >WorkWord_011,y
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
+                    std       >WorkWord_012,y ; store d at >WorkWord_012,y
+                    lbra      Branch_129 ; continue execution at Branch_129
+Branch_150          ldd       >WorkWord_011,y ; load d from >WorkWord_011,y
+                    std       >WorkWord_007,y ; store d at >WorkWord_007,y
+                    ldd       >WorkWord_012,y ; load d from >WorkWord_012,y
+                    std       >WorkWord_008,y ; store d at >WorkWord_008,y
                     pshs      d         ; save d on the stack
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3B2A     ; call subroutine L3B2A
+                    lbsr      Routine_030 ; call subroutine Routine_030
                     leas      $06,s     ; adjust the system stack pointer
-                    lbra      L20EA     ; continue execution at L20EA
-L1DE5               ldd       #1        ; set d to the constant 1
+                    lbra      Branch_129 ; continue execution at Branch_129
+Branch_151          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    lbra      L1E56     ; continue execution at L1E56
-L1DF4               clra                ; clear a to zero and set the condition codes
+                    lbra      Branch_152 ; continue execution at Branch_152
+Branch_153          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    bra       L1E41     ; continue execution at L1E41
-L1DF8               ldd       >U021B,y  ; load d from >U021B,y
+                    bra       Branch_154 ; continue execution at Branch_154
+Branch_155          ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     pshs      d         ; save d on the stack
                     ldd       #80       ; set d to the constant 80
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2225,y  ; form the address >U2225,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_011,y ; form the address >WorkBuffer_011,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     leax      d,x       ; form the address d,x in x
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     pshs      d         ; save d on the stack
                     ldd       #160      ; set d to the constant 160
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2955,y  ; form the address >U2955,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_012,y ; form the address >WorkBuffer_012,y in x
                     leax      d,x       ; form the address d,x in x
                     tfr       x,d       ; copy the register values specified by x,d
                     pshs      d         ; save d on the stack
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
                     addd      ,s++      ; add to d using ,s++
                     tfr       d,x       ; copy the register values specified by d,x
-                    ldd       >U0009,y  ; load d from >U0009,y
-                    std       0,x       ; store d at 0,x
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
+                    std       ,x        ; store d at ,x
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     addd      #1        ; add to d using #1
-L1E41               std       >U021B,y  ; store d at >U021B,y
-                    ldd       >U021B,y  ; load d from >U021B,y
+Branch_154          std       >WorkWord_008,y ; store d at >WorkWord_008,y
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     cmpd      #23       ; compare d with #23 and set the condition codes
-                    blt       L1DF8     ; branch when the signed value is less; target L1DF8
-                    ldd       >U0219,y  ; load d from >U0219,y
+                    blt       Branch_155 ; branch when the signed value is less; target Branch_155
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     addd      #1        ; add to d using #1
-L1E56               std       >U0219,y  ; store d at >U0219,y
-                    ldd       >U0219,y  ; load d from >U0219,y
+Branch_152          std       >WorkWord_007,y ; store d at >WorkWord_007,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
                     cmpd      #80       ; compare d with #80 and set the condition codes
-                    lblt      L1DF4     ; branch when the signed value is less; target L1DF4
+                    lblt      Branch_153 ; branch when the signed value is less; target Branch_153
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U021B,y  ; store d at >U021B,y
-                    std       >U0219,y  ; store d at >U0219,y
-                    lbra      L20EA     ; continue execution at L20EA
-L1E73               ldd       #1        ; set d to the constant 1
+                    std       >WorkWord_008,y ; store d at >WorkWord_008,y
+                    std       >WorkWord_007,y ; store d at >WorkWord_007,y
+                    lbra      Branch_129 ; continue execution at Branch_129
+Branch_156          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AC6     ; call subroutine L3AC6
+                    lbsr      Routine_036 ; call subroutine Routine_036
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0219,y  ; load d from >U0219,y
-                    bra       L1EC4     ; continue execution at L1EC4
-L1E83               ldd       >U021B,y  ; load d from >U021B,y
+                    ldd       >WorkWord_007,y ; load d from >WorkWord_007,y
+                    bra       Branch_157 ; continue execution at Branch_157
+Branch_158          ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     pshs      d         ; save d on the stack
                     ldd       #80       ; set d to the constant 80
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2225,y  ; form the address >U2225,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_011,y ; form the address >WorkBuffer_011,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       $03,s     ; load d from the current stack frame at $03,s
                     leax      d,x       ; form the address d,x in x
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U021B,y  ; load d from >U021B,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_008,y ; load d from >WorkWord_008,y
                     pshs      d         ; save d on the stack
                     ldd       #160      ; set d to the constant 160
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2955,y  ; form the address >U2955,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_012,y ; form the address >WorkBuffer_012,y in x
                     leax      d,x       ; form the address d,x in x
                     tfr       x,d       ; copy the register values specified by x,d
                     pshs      d         ; save d on the stack
@@ -3257,128 +3263,128 @@ L1E83               ldd       >U021B,y  ; load d from >U021B,y
                     tfr       d,x       ; copy the register values specified by d,x
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       0,x       ; store d at 0,x
+                    std       ,x        ; store d at ,x
                     ldd       $03,s     ; load d from the current stack frame at $03,s
                     addd      #1        ; add to d using #1
-L1EC4               std       $03,s     ; store d in the current stack frame at $03,s
+Branch_157          std       $03,s     ; store d in the current stack frame at $03,s
                     ldd       $03,s     ; load d from the current stack frame at $03,s
                     cmpd      #80       ; compare d with #80 and set the condition codes
-                    blt       L1E83     ; branch when the signed value is less; target L1E83
-                    lbra      L20EA     ; continue execution at L20EA
-L1ED1               clra                ; clear a to zero and set the condition codes
+                    blt       Branch_158 ; branch when the signed value is less; target Branch_158
+                    lbra      Branch_129 ; continue execution at Branch_129
+Branch_159          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    lbra      L208E     ; continue execution at L208E
-L1ED6               ldd       $03,s     ; load d from the current stack frame at $03,s
-                    leax      >U01DD,y  ; form the address >U01DD,y in x
+                    lbra      Branch_160 ; continue execution at Branch_160
+Branch_161          ldd       $03,s     ; load d from the current stack frame at $03,s
+                    leax      >WorkByte_012,y ; form the address >WorkByte_012,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; copy the register values specified by d,x
-                    lbra      L205D     ; continue execution at L205D
-L1EE6               ldd       #2        ; set d to the constant 2
+                    lbra      Branch_162 ; continue execution at Branch_162
+Branch_163          ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AA3     ; call subroutine L3AA3
+                    lbsr      Routine_027 ; call subroutine Routine_027
                     leas      $04,s     ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A9F     ; call subroutine L3A9F
+                    lbsr      Routine_026 ; call subroutine Routine_026
                     leas      $04,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3B0A     ; call subroutine L3B0A
+                    lbsr      Routine_037 ; call subroutine Routine_037
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3B14     ; call subroutine L3B14
+                    lbsr      Routine_038 ; call subroutine Routine_038
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3B00     ; call subroutine L3B00
+                    lbsr      Routine_012 ; call subroutine Routine_012
                     leas      $02,s     ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    lbra      L2057     ; continue execution at L2057
-L1F26               ldd       >U0009,y  ; load d from >U0009,y
+                    lbra      Branch_164 ; continue execution at Branch_164
+Branch_165          ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     ora       #16       ; set selected bits in a using #16
-                    lbra      L2057     ; continue execution at L2057
-L1F2F               ldd       #1        ; set d to the constant 1
+                    lbra      Branch_164 ; continue execution at Branch_164
+Branch_166          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3B05     ; call subroutine L3B05
+                    lbsr      Routine_039 ; call subroutine Routine_039
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0009,y  ; load d from >U0009,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     ora       #1        ; set selected bits in a using #1
-                    lbra      L2057     ; continue execution at L2057
-L1F42               ldd       #1        ; set d to the constant 1
+                    lbra      Branch_164 ; continue execution at Branch_164
+Branch_167          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3B0F     ; call subroutine L3B0F
+                    lbsr      Routine_040 ; call subroutine Routine_040
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0009,y  ; load d from >U0009,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     ora       #2        ; set selected bits in a using #2
-                    lbra      L2057     ; continue execution at L2057
-L1F55               ldd       #1        ; set d to the constant 1
+                    lbra      Branch_164 ; continue execution at Branch_164
+Branch_168          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AFB     ; call subroutine L3AFB
+                    lbsr      Routine_011 ; call subroutine Routine_011
                     leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U0009,y  ; load d from >U0009,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     ora       #4        ; set selected bits in a using #4
-                    lbra      L2057     ; continue execution at L2057
-L1F68               ldd       >U0009,y  ; load d from >U0009,y
+                    lbra      Branch_164 ; continue execution at Branch_164
+Branch_169          ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     clra                ; clear a to zero and set the condition codes
                     andb      #15       ; mask b using #15
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
-                    leax      >U000F,y  ; form the address >U000F,y in x
+                    leax      >WorkBuffer_001,y ; form the address >WorkBuffer_001,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       0,x       ; load d from 0,x
+                    ldd       ,x        ; load d from ,x
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A9F     ; call subroutine L3A9F
+                    lbsr      Routine_026 ; call subroutine Routine_026
                     leas      $04,s     ; adjust the system stack pointer
-                    ldd       >U0009,y  ; load d from >U0009,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     ora       #8        ; set selected bits in a using #8
-                    lbra      L2057     ; continue execution at L2057
-L1F8E               ldd       $03,s     ; load d from the current stack frame at $03,s
-                    leax      >U01DD,y  ; form the address >U01DD,y in x
+                    lbra      Branch_164 ; continue execution at Branch_164
+Branch_170          ldd       $03,s     ; load d from the current stack frame at $03,s
+                    leax      >WorkByte_012,y ; form the address >WorkByte_012,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     cmpb      #30       ; compare b with #30 and set the condition codes
-                    lblt      L1FF5     ; branch when the signed value is less; target L1FF5
+                    lblt      Branch_171 ; branch when the signed value is less; target Branch_171
                     ldd       $03,s     ; load d from the current stack frame at $03,s
-                    leax      >U01DD,y  ; form the address >U01DD,y in x
+                    leax      >WorkByte_012,y ; form the address >WorkByte_012,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     cmpb      #38       ; compare b with #38 and set the condition codes
-                    bge       L1FF5     ; branch when the signed value is greater than or equal; target L1FF5
+                    bge       Branch_171 ; branch when the signed value is greater than or equal; target Branch_171
                     ldd       $03,s     ; load d from the current stack frame at $03,s
-                    leax      >U01DD,y  ; form the address >U01DD,y in x
+                    leax      >WorkByte_012,y ; form the address >WorkByte_012,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     sex                 ; sign-extend b into d
                     addd      #-30      ; add to d using #-30
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
-                    leax      >U000F,y  ; form the address >U000F,y in x
+                    leax      >WorkBuffer_001,y ; form the address >WorkBuffer_001,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       0,x       ; load d from 0,x
+                    ldd       ,x        ; load d from ,x
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A9F     ; call subroutine L3A9F
+                    lbsr      Routine_026 ; call subroutine Routine_026
                     leas      $04,s     ; adjust the system stack pointer
-                    ldd       >U0009,y  ; load d from >U0009,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     andb      #15       ; mask b using #15
-                    std       >U0009,y  ; store d at >U0009,y
+                    std       >WorkByte_009,y ; store d at >WorkByte_009,y
                     pshs      d         ; save d on the stack
                     ldd       $05,s     ; load d from the current stack frame at $05,s
-                    leax      >U01DD,y  ; form the address >U01DD,y in x
+                    leax      >WorkByte_012,y ; form the address >WorkByte_012,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     sex                 ; sign-extend b into d
                     addd      #-30      ; add to d using #-30
                     aslb                ; shift b left arithmetically
@@ -3389,125 +3395,125 @@ L1F8E               ldd       $03,s     ; load d from the current stack frame at
                     rola                ; rotate a left through carry
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
-                    lbra      L2053     ; continue execution at L2053
-L1FF5               ldd       $03,s     ; load d from the current stack frame at $03,s
-                    leax      >U01DD,y  ; form the address >U01DD,y in x
+                    lbra      Branch_172 ; continue execution at Branch_172
+Branch_171          ldd       $03,s     ; load d from the current stack frame at $03,s
+                    leax      >WorkByte_012,y ; form the address >WorkByte_012,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     cmpb      #40       ; compare b with #40 and set the condition codes
-                    lblt      L2089     ; branch when the signed value is less; target L2089
+                    lblt      Branch_173 ; branch when the signed value is less; target Branch_173
                     ldd       $03,s     ; load d from the current stack frame at $03,s
-                    leax      >U01DD,y  ; form the address >U01DD,y in x
+                    leax      >WorkByte_012,y ; form the address >WorkByte_012,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     cmpb      #48       ; compare b with #48 and set the condition codes
-                    lbge      L2089     ; branch when the signed value is greater than or equal; target L2089
+                    lbge      Branch_173 ; branch when the signed value is greater than or equal; target Branch_173
                     ldd       $03,s     ; load d from the current stack frame at $03,s
-                    leax      >U01DD,y  ; form the address >U01DD,y in x
+                    leax      >WorkByte_012,y ; form the address >WorkByte_012,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     sex                 ; sign-extend b into d
                     addd      #-40      ; add to d using #-40
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
-                    leax      >U000F,y  ; form the address >U000F,y in x
+                    leax      >WorkBuffer_001,y ; form the address >WorkBuffer_001,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldd       0,x       ; load d from 0,x
+                    ldd       ,x        ; load d from ,x
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AA3     ; call subroutine L3AA3
+                    lbsr      Routine_027 ; call subroutine Routine_027
                     leas      $04,s     ; adjust the system stack pointer
-                    ldd       >U0009,y  ; load d from >U0009,y
+                    ldd       >WorkByte_009,y ; load d from >WorkByte_009,y
                     andb      #240      ; mask b using #240
-                    std       >U0009,y  ; store d at >U0009,y
+                    std       >WorkByte_009,y ; store d at >WorkByte_009,y
                     pshs      d         ; save d on the stack
                     ldd       $05,s     ; load d from the current stack frame at $05,s
-                    leax      >U01DD,y  ; form the address >U01DD,y in x
+                    leax      >WorkByte_012,y ; form the address >WorkByte_012,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     sex                 ; sign-extend b into d
                     addd      #-40      ; add to d using #-40
-L2053               ora       ,s+       ; set selected bits in a using ,s+
+Branch_172          ora       ,s+       ; set selected bits in a using ,s+
                     orb       ,s+       ; set selected bits in b using ,s+
-L2057               std       >U0009,y  ; store d at >U0009,y
-                    bra       L2089     ; continue execution at L2089
-L205D               stx       -$02,s    ; store x in the current stack frame at -$02,s
-                    lbeq      L1EE6     ; branch when the values are equal or the result is zero; target L1EE6
+Branch_164          std       >WorkByte_009,y ; store d at >WorkByte_009,y
+                    bra       Branch_173 ; continue execution at Branch_173
+Branch_162          stx       -$02,s    ; store x in the current stack frame at -$02,s
+                    lbeq      Branch_163 ; branch when the values are equal or the result is zero; target Branch_163
                     cmpx      #1        ; compare x with #1 and set the condition codes
-                    lbeq      L1F26     ; branch when the values are equal or the result is zero; target L1F26
+                    lbeq      Branch_165 ; branch when the values are equal or the result is zero; target Branch_165
                     cmpx      #4        ; compare x with #4 and set the condition codes
-                    lbeq      L1F2F     ; branch when the values are equal or the result is zero; target L1F2F
+                    lbeq      Branch_166 ; branch when the values are equal or the result is zero; target Branch_166
                     cmpx      #5        ; compare x with #5 and set the condition codes
-                    lbeq      L1F42     ; branch when the values are equal or the result is zero; target L1F42
+                    lbeq      Branch_167 ; branch when the values are equal or the result is zero; target Branch_167
                     cmpx      #7        ; compare x with #7 and set the condition codes
-                    lbeq      L1F55     ; branch when the values are equal or the result is zero; target L1F55
+                    lbeq      Branch_168 ; branch when the values are equal or the result is zero; target Branch_168
                     cmpx      #8        ; compare x with #8 and set the condition codes
-                    lbeq      L1F68     ; branch when the values are equal or the result is zero; target L1F68
-                    lbra      L1F8E     ; continue execution at L1F8E
-L2089               ldd       $03,s     ; load d from the current stack frame at $03,s
+                    lbeq      Branch_169 ; branch when the values are equal or the result is zero; target Branch_169
+                    lbra      Branch_170 ; continue execution at Branch_170
+Branch_173          ldd       $03,s     ; load d from the current stack frame at $03,s
                     addd      #1        ; add to d using #1
-L208E               std       $03,s     ; store d in the current stack frame at $03,s
+Branch_160          std       $03,s     ; store d in the current stack frame at $03,s
                     ldd       $03,s     ; load d from the current stack frame at $03,s
                     cmpd      >dpsiz,y  ; compare d with >dpsiz,y and set the condition codes
-                    lblt      L1ED6     ; branch when the signed value is less; target L1ED6
-                    bra       L20EA     ; continue execution at L20EA
-L209D               cmpx      #72       ; compare x with #72 and set the condition codes
-                    lbeq      L1C90     ; branch when the values are equal or the result is zero; target L1C90
+                    lblt      Branch_161 ; branch when the signed value is less; target Branch_161
+                    bra       Branch_129 ; continue execution at Branch_129
+Branch_127          cmpx      #72       ; compare x with #72 and set the condition codes
+                    lbeq      Branch_128 ; branch when the values are equal or the result is zero; target Branch_128
                     cmpx      #102      ; compare x with #102 and set the condition codes
-                    lbeq      L1C90     ; branch when the values are equal or the result is zero; target L1C90
+                    lbeq      Branch_128 ; branch when the values are equal or the result is zero; target Branch_128
                     cmpx      #65       ; compare x with #65 and set the condition codes
-                    lbeq      L1CC9     ; branch when the values are equal or the result is zero; target L1CC9
+                    lbeq      Branch_130 ; branch when the values are equal or the result is zero; target Branch_130
                     cmpx      #66       ; compare x with #66 and set the condition codes
-                    lbeq      L1CFE     ; branch when the values are equal or the result is zero; target L1CFE
+                    lbeq      Branch_134 ; branch when the values are equal or the result is zero; target Branch_134
                     cmpx      #67       ; compare x with #67 and set the condition codes
-                    lbeq      L1D3A     ; branch when the values are equal or the result is zero; target L1D3A
+                    lbeq      Branch_139 ; branch when the values are equal or the result is zero; target Branch_139
                     cmpx      #68       ; compare x with #68 and set the condition codes
-                    lbeq      L1D76     ; branch when the values are equal or the result is zero; target L1D76
+                    lbeq      Branch_144 ; branch when the values are equal or the result is zero; target Branch_144
                     cmpx      #115      ; compare x with #115 and set the condition codes
-                    lbeq      L1DAD     ; branch when the values are equal or the result is zero; target L1DAD
+                    lbeq      Branch_149 ; branch when the values are equal or the result is zero; target Branch_149
                     cmpx      #117      ; compare x with #117 and set the condition codes
-                    lbeq      L1DC0     ; branch when the values are equal or the result is zero; target L1DC0
+                    lbeq      Branch_150 ; branch when the values are equal or the result is zero; target Branch_150
                     cmpx      #74       ; compare x with #74 and set the condition codes
-                    lbeq      L1DE5     ; branch when the values are equal or the result is zero; target L1DE5
+                    lbeq      Branch_151 ; branch when the values are equal or the result is zero; target Branch_151
                     cmpx      #107      ; compare x with #107 and set the condition codes
-                    lbeq      L1E73     ; branch when the values are equal or the result is zero; target L1E73
+                    lbeq      Branch_156 ; branch when the values are equal or the result is zero; target Branch_156
                     cmpx      #109      ; compare x with #109 and set the condition codes
-                    lbeq      L1ED1     ; branch when the values are equal or the result is zero; target L1ED1
-L20EA               bsr       L20F0     ; call subroutine L20F0
+                    lbeq      Branch_159 ; branch when the values are equal or the result is zero; target Branch_159
+Branch_129          bsr       Routine_014 ; call subroutine Routine_014
                     leas      $05,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
 
 * -- method --
-L20F0               pshs      u         ; save u on the stack
+Routine_014         pshs      u         ; save u on the stack
                     ldd       #-66      ; set d to the constant -66
                     lbsr      _stkcheck ; call subroutine _stkcheck
                     leas      -$02,s    ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    bra       L2110     ; continue execution at L2110
-L20FE               ldd       0,s       ; load d from the current stack frame at 0,s
-                    leax      >U01DD,y  ; form the address >U01DD,y in x
+                    bra       Branch_174 ; continue execution at Branch_174
+Branch_175          ldd       ,s        ; load d from the current stack frame at ,s
+                    leax      >WorkByte_012,y ; form the address >WorkByte_012,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #1        ; set d to the constant 1
-                    stb       0,x       ; store b at 0,x
-                    ldd       0,s       ; load d from the current stack frame at 0,s
+                    stb       ,x        ; store b at ,x
+                    ldd       ,s        ; load d from the current stack frame at ,s
                     addd      #1        ; add to d using #1
-L2110               std       0,s       ; store d in the current stack frame at 0,s
-                    ldd       0,s       ; load d from the current stack frame at 0,s
+Branch_174          std       ,s        ; store d in the current stack frame at ,s
+                    ldd       ,s        ; load d from the current stack frame at ,s
                     cmpd      #10       ; compare d with #10 and set the condition codes
-                    blt       L20FE     ; branch when the signed value is less; target L20FE
+                    blt       Branch_175 ; branch when the signed value is less; target Branch_175
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     std       >dpsiz,y  ; store d at >dpsiz,y
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U0003,y  ; store d at >U0003,y
+                    std       >WorkByte_003,y ; store d at >WorkByte_003,y
                     leas      $02,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
 
 * -- method --
-L212A               pshs      u         ; save u on the stack
+Routine_016         pshs      u         ; save u on the stack
                     ldd       #-80      ; set d to the constant -80
                     lbsr      _stkcheck ; call subroutine _stkcheck
                     leas      -$08,s    ; adjust the system stack pointer
@@ -3516,143 +3522,143 @@ L212A               pshs      u         ; save u on the stack
                     std       $02,s     ; store d in the current stack frame at $02,s
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       0,s       ; store d in the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    lbra      L2396     ; continue execution at L2396
-L2141               clra                ; clear a to zero and set the condition codes
+                    lbra      Branch_176 ; continue execution at Branch_176
+Branch_177          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    lbra      L2385     ; continue execution at L2385
-L2146               ldd       $04,s     ; load d from the current stack frame at $04,s
+                    lbra      Branch_178 ; continue execution at Branch_178
+Branch_179          ldd       $04,s     ; load d from the current stack frame at $04,s
                     pshs      d         ; save d on the stack
                     ldd       #80       ; set d to the constant 80
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2225,y  ; form the address >U2225,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_011,y ; form the address >WorkBuffer_011,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
-                    lbeq      L2348     ; branch when the values are equal or the result is zero; target L2348
+                    ldb       ,x        ; load b from ,x
+                    lbeq      Branch_180 ; branch when the values are equal or the result is zero; target Branch_180
                     ldd       $02,s     ; load d from the current stack frame at $02,s
                     cmpd      $06,s     ; compare d with $06,s and set the condition codes
-                    bne       L2170     ; branch when the values differ or the result is nonzero; target L2170
-                    ldd       0,s       ; load d from the current stack frame at 0,s
+                    bne       Branch_181 ; branch when the values differ or the result is nonzero; target Branch_181
+                    ldd       ,s        ; load d from the current stack frame at ,s
                     cmpd      $04,s     ; compare d with $04,s and set the condition codes
-                    lbeq      L22AD     ; branch when the values are equal or the result is zero; target L22AD
-L2170               ldd       >U000D,y  ; load d from >U000D,y
+                    lbeq      Branch_182 ; branch when the values are equal or the result is zero; target Branch_182
+Branch_181          ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #8        ; add to d using #8
                     cmpd      #8192     ; compare d with #8192 and set the condition codes
-                    lbge      L22A3     ; branch when the signed value is greater than or equal; target L22A3
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    lbge      Branch_183 ; branch when the signed value is greater than or equal; target Branch_183
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #27       ; set d to the constant 27
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #91       ; set d to the constant 91
-                    stb       0,x       ; store b at 0,x
+                    stb       ,x        ; store b at ,x
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     addd      #1        ; add to d using #1
                     cmpd      #10       ; compare d with #10 and set the condition codes
-                    blt       L21E4     ; branch when the signed value is less; target L21E4
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    blt       Branch_184 ; branch when the signed value is less; target Branch_184
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     addd      #1        ; add to d using #1
                     pshs      d         ; save d on the stack
                     ldd       #10       ; set d to the constant 10
-                    lbsr      L3711     ; call subroutine L3711
+                    lbsr      Routine_020 ; call subroutine Routine_020
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
-L21E4               ldd       >U000D,y  ; load d from >U000D,y
+Branch_184          ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     addd      #1        ; add to d using #1
                     pshs      d         ; save d on the stack
                     ldd       #10       ; set d to the constant 10
-                    lbsr      L36BE     ; call subroutine L36BE
+                    lbsr      Routine_019 ; call subroutine Routine_019
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #59       ; set d to the constant 59
-                    stb       0,x       ; store b at 0,x
+                    stb       ,x        ; store b at ,x
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     addd      #1        ; add to d using #1
                     cmpd      #10       ; compare d with #10 and set the condition codes
-                    blt       L2258     ; branch when the signed value is less; target L2258
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    blt       Branch_185 ; branch when the signed value is less; target Branch_185
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
                     ldd       $08,s     ; load d from the current stack frame at $08,s
                     addd      #1        ; add to d using #1
                     pshs      d         ; save d on the stack
                     ldd       #10       ; set d to the constant 10
-                    lbsr      L3711     ; call subroutine L3711
+                    lbsr      Routine_020 ; call subroutine Routine_020
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
-L2258               ldd       >U000D,y  ; load d from >U000D,y
+Branch_185          ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
                     ldd       $08,s     ; load d from the current stack frame at $08,s
                     addd      #1        ; add to d using #1
                     pshs      d         ; save d on the stack
                     ldd       #10       ; set d to the constant 10
-                    lbsr      L36BE     ; call subroutine L36BE
+                    lbsr      Routine_019 ; call subroutine Routine_019
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #72       ; set d to the constant 72
-                    stb       0,x       ; store b at 0,x
+                    stb       ,x        ; store b at ,x
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     std       $02,s     ; store d in the current stack frame at $02,s
                     ldd       $04,s     ; load d from the current stack frame at $04,s
-                    std       0,s       ; store d in the current stack frame at 0,s
-                    bra       L22AD     ; continue execution at L22AD
-L22A3               ldd       #1        ; set d to the constant 1
+                    std       ,s        ; store d in the current stack frame at ,s
+                    bra       Branch_182 ; continue execution at Branch_182
+Branch_183          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AD8     ; call subroutine L3AD8
+                    lbsr      Routine_017 ; call subroutine Routine_017
                     leas      $02,s     ; adjust the system stack pointer
-L22AD               ldd       $04,s     ; load d from the current stack frame at $04,s
+Branch_182          ldd       $04,s     ; load d from the current stack frame at $04,s
                     pshs      d         ; save d on the stack
                     ldd       #160      ; set d to the constant 160
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2955,y  ; form the address >U2955,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_012,y ; form the address >WorkBuffer_012,y in x
                     leax      d,x       ; form the address d,x in x
                     tfr       x,d       ; copy the register values specified by x,d
                     pshs      d         ; save d on the stack
@@ -3661,14 +3667,14 @@ L22AD               ldd       $04,s     ; load d from the current stack frame at
                     rola                ; rotate a left through carry
                     addd      ,s++      ; add to d using ,s++
                     tfr       d,x       ; copy the register values specified by d,x
-                    ldd       0,x       ; load d from 0,x
-                    cmpd      >U0009,y  ; compare d with >U0009,y and set the condition codes
-                    beq       L22F7     ; branch when the values are equal or the result is zero; target L22F7
+                    ldd       ,x        ; load d from ,x
+                    cmpd      >WorkByte_009,y ; compare d with >WorkByte_009,y and set the condition codes
+                    beq       Branch_186 ; branch when the values are equal or the result is zero; target Branch_186
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     pshs      d         ; save d on the stack
                     ldd       #160      ; set d to the constant 160
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2955,y  ; form the address >U2955,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_012,y ; form the address >WorkBuffer_012,y in x
                     leax      d,x       ; form the address d,x in x
                     tfr       x,d       ; copy the register values specified by x,d
                     pshs      d         ; save d on the stack
@@ -3677,58 +3683,58 @@ L22AD               ldd       $04,s     ; load d from the current stack frame at
                     rola                ; rotate a left through carry
                     addd      ,s++      ; add to d using ,s++
                     tfr       d,x       ; copy the register values specified by d,x
-                    ldd       0,x       ; load d from 0,x
+                    ldd       ,x        ; load d from ,x
                     pshs      d         ; save d on the stack
-                    lbsr      L23A6     ; call subroutine L23A6
+                    lbsr      Routine_041 ; call subroutine Routine_041
                     leas      $02,s     ; adjust the system stack pointer
-L22F7               ldd       >U000D,y  ; load d from >U000D,y
+Branch_186          ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     ldd       #80       ; set d to the constant 80
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2225,y  ; form the address >U2225,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_011,y ; form the address >WorkBuffer_011,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       $08,s     ; load d from the current stack frame at $08,s
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
                     ldd       $02,s     ; load d from the current stack frame at $02,s
                     addd      #1        ; add to d using #1
                     std       $02,s     ; store d in the current stack frame at $02,s
                     cmpd      #79       ; compare d with #79 and set the condition codes
-                    ble       L2348     ; branch when the signed value is less than or equal; target L2348
-                    ldd       0,s       ; load d from the current stack frame at 0,s
+                    ble       Branch_180 ; branch when the signed value is less than or equal; target Branch_180
+                    ldd       ,s        ; load d from the current stack frame at ,s
                     addd      #1        ; add to d using #1
-                    std       0,s       ; store d in the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
                     cmpd      #22       ; compare d with #22 and set the condition codes
-                    ble       L2344     ; branch when the signed value is less than or equal; target L2344
+                    ble       Branch_187 ; branch when the signed value is less than or equal; target Branch_187
                     ldd       #22       ; set d to the constant 22
-                    std       0,s       ; store d in the current stack frame at 0,s
-L2344               clra                ; clear a to zero and set the condition codes
+                    std       ,s        ; store d in the current stack frame at ,s
+Branch_187          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     std       $02,s     ; store d in the current stack frame at $02,s
-L2348               ldd       $04,s     ; load d from the current stack frame at $04,s
+Branch_180          ldd       $04,s     ; load d from the current stack frame at $04,s
                     pshs      d         ; save d on the stack
                     ldd       #80       ; set d to the constant 80
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2225,y  ; form the address >U2225,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_011,y ; form the address >WorkBuffer_011,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     leax      d,x       ; form the address d,x in x
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    stb       0,x       ; store b at 0,x
+                    stb       ,x        ; store b at ,x
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     pshs      d         ; save d on the stack
                     ldd       #160      ; set d to the constant 160
-                    lbsr      L365D     ; call subroutine L365D
-                    leax      >U2955,y  ; form the address >U2955,y in x
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    leax      >WorkBuffer_012,y ; form the address >WorkBuffer_012,y in x
                     leax      d,x       ; form the address d,x in x
                     tfr       x,d       ; copy the register values specified by x,d
                     pshs      d         ; save d on the stack
@@ -3739,96 +3745,96 @@ L2348               ldd       $04,s     ; load d from the current stack frame at
                     tfr       d,x       ; copy the register values specified by d,x
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       0,x       ; store d at 0,x
+                    std       ,x        ; store d at ,x
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     addd      #1        ; add to d using #1
-L2385               std       $06,s     ; store d in the current stack frame at $06,s
+Branch_178          std       $06,s     ; store d in the current stack frame at $06,s
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     cmpd      #80       ; compare d with #80 and set the condition codes
-                    lblt      L2146     ; branch when the signed value is less; target L2146
+                    lblt      Branch_179 ; branch when the signed value is less; target Branch_179
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     addd      #1        ; add to d using #1
-L2396               std       $04,s     ; store d in the current stack frame at $04,s
+Branch_176          std       $04,s     ; store d in the current stack frame at $04,s
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     cmpd      #23       ; compare d with #23 and set the condition codes
-                    lblt      L2141     ; branch when the signed value is less; target L2141
+                    lblt      Branch_177 ; branch when the signed value is less; target Branch_177
                     leas      $08,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
 
 * -- method --
-L23A6               pshs      u         ; save u on the stack
+Routine_041         pshs      u         ; save u on the stack
                     ldd       #-70      ; set d to the constant -70
                     lbsr      _stkcheck ; call subroutine _stkcheck
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #2        ; add to d using #2
                     cmpd      #8192     ; compare d with #8192 and set the condition codes
-                    bge       L23EF     ; branch when the signed value is greater than or equal; target L23EF
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    bge       Branch_188 ; branch when the signed value is greater than or equal; target Branch_188
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #27       ; set d to the constant 27
-                    stb       0,x       ; store b at 0,x
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    stb       ,x        ; store b at ,x
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #91       ; set d to the constant 91
-                    stb       0,x       ; store b at 0,x
-                    bra       L23F9     ; continue execution at L23F9
-L23EF               ldd       #1        ; set d to the constant 1
+                    stb       ,x        ; store b at ,x
+                    bra       Branch_189 ; continue execution at Branch_189
+Branch_188          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AD8     ; call subroutine L3AD8
+                    lbsr      Routine_017 ; call subroutine Routine_017
                     leas      $02,s     ; adjust the system stack pointer
-L23F9               clra                ; clear a to zero and set the condition codes
+Branch_189          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
-                    lbsr      L249A     ; call subroutine L249A
+                    lbsr      Routine_029 ; call subroutine Routine_029
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     anda      #16       ; mask a using #16
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       L2415     ; branch when the values are equal or the result is zero; target L2415
+                    beq       Branch_190 ; branch when the values are equal or the result is zero; target Branch_190
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L249A     ; call subroutine L249A
+                    lbsr      Routine_029 ; call subroutine Routine_029
                     leas      $02,s     ; adjust the system stack pointer
-L2415               ldd       $04,s     ; load d from the current stack frame at $04,s
+Branch_190          ldd       $04,s     ; load d from the current stack frame at $04,s
                     anda      #1        ; mask a using #1
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       L2428     ; branch when the values are equal or the result is zero; target L2428
+                    beq       Branch_191 ; branch when the values are equal or the result is zero; target Branch_191
                     ldd       #4        ; set d to the constant 4
                     pshs      d         ; save d on the stack
-                    lbsr      L249A     ; call subroutine L249A
+                    lbsr      Routine_029 ; call subroutine Routine_029
                     leas      $02,s     ; adjust the system stack pointer
-L2428               ldd       $04,s     ; load d from the current stack frame at $04,s
+Branch_191          ldd       $04,s     ; load d from the current stack frame at $04,s
                     anda      #2        ; mask a using #2
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       L243B     ; branch when the values are equal or the result is zero; target L243B
+                    beq       Branch_192 ; branch when the values are equal or the result is zero; target Branch_192
                     ldd       #5        ; set d to the constant 5
                     pshs      d         ; save d on the stack
-                    lbsr      L249A     ; call subroutine L249A
+                    lbsr      Routine_029 ; call subroutine Routine_029
                     leas      $02,s     ; adjust the system stack pointer
-L243B               ldd       $04,s     ; load d from the current stack frame at $04,s
+Branch_192          ldd       $04,s     ; load d from the current stack frame at $04,s
                     anda      #4        ; mask a using #4
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       L244E     ; branch when the values are equal or the result is zero; target L244E
+                    beq       Branch_193 ; branch when the values are equal or the result is zero; target Branch_193
                     ldd       #7        ; set d to the constant 7
                     pshs      d         ; save d on the stack
-                    lbsr      L249A     ; call subroutine L249A
+                    lbsr      Routine_029 ; call subroutine Routine_029
                     leas      $02,s     ; adjust the system stack pointer
-L244E               ldd       $04,s     ; load d from the current stack frame at $04,s
+Branch_193          ldd       $04,s     ; load d from the current stack frame at $04,s
                     clra                ; clear a to zero and set the condition codes
                     andb      #240      ; mask b using #240
-                    beq       L246B     ; branch when the values are equal or the result is zero; target L246B
+                    beq       Branch_194 ; branch when the values are equal or the result is zero; target Branch_194
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     clra                ; clear a to zero and set the condition codes
                     andb      #240      ; mask b using #240
@@ -3842,87 +3848,87 @@ L244E               ldd       $04,s     ; load d from the current stack frame at
                     rorb                ; rotate b right through carry
                     addd      #30       ; add to d using #30
                     pshs      d         ; save d on the stack
-                    bsr       L249A     ; call subroutine L249A
+                    bsr       Routine_029 ; call subroutine Routine_029
                     leas      $02,s     ; adjust the system stack pointer
-L246B               ldd       $04,s     ; load d from the current stack frame at $04,s
+Branch_194          ldd       $04,s     ; load d from the current stack frame at $04,s
                     clra                ; clear a to zero and set the condition codes
                     andb      #15       ; mask b using #15
-                    beq       L2480     ; branch when the values are equal or the result is zero; target L2480
+                    beq       Branch_195 ; branch when the values are equal or the result is zero; target Branch_195
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     clra                ; clear a to zero and set the condition codes
                     andb      #15       ; mask b using #15
                     addd      #40       ; add to d using #40
                     pshs      d         ; save d on the stack
-                    bsr       L249A     ; call subroutine L249A
+                    bsr       Routine_029 ; call subroutine Routine_029
                     leas      $02,s     ; adjust the system stack pointer
-L2480               ldd       $04,s     ; load d from the current stack frame at $04,s
-                    std       >U0009,y  ; store d at >U0009,y
-                    ldd       >U000D,y  ; load d from >U000D,y
+Branch_195          ldd       $04,s     ; load d from the current stack frame at $04,s
+                    std       >WorkByte_009,y ; store d at >WorkByte_009,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #-1       ; add to d using #-1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #109      ; set d to the constant 109
-                    stb       0,x       ; store b at 0,x
+                    stb       ,x        ; store b at ,x
                     puls      pc,u      ; restore pc,u and return to the caller
 
 * -- method --
-L249A               pshs      u         ; save u on the stack
+Routine_029         pshs      u         ; save u on the stack
                     ldd       #-72      ; set d to the constant -72
                     lbsr      _stkcheck ; call subroutine _stkcheck
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #3        ; add to d using #3
                     cmpd      #8192     ; compare d with #8192 and set the condition codes
-                    lbge      L251E     ; branch when the signed value is greater than or equal; target L251E
+                    lbge      Branch_196 ; branch when the signed value is greater than or equal; target Branch_196
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     cmpd      #10       ; compare d with #10 and set the condition codes
-                    blt       L24DE     ; branch when the signed value is less; target L24DE
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    blt       Branch_197 ; branch when the signed value is less; target Branch_197
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     ldd       #10       ; set d to the constant 10
-                    lbsr      L3711     ; call subroutine L3711
+                    lbsr      Routine_020 ; call subroutine Routine_020
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
-L24DE               ldd       >U000D,y  ; load d from >U000D,y
+Branch_197          ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     pshs      x         ; save x on the stack
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     ldd       #10       ; set d to the constant 10
-                    lbsr      L36BE     ; call subroutine L36BE
+                    lbsr      Routine_019 ; call subroutine Routine_019
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
-                    ldd       >U000D,y  ; load d from >U000D,y
+                    ldd       >WorkWord_002,y ; load d from >WorkWord_002,y
                     addd      #1        ; add to d using #1
-                    std       >U000D,y  ; store d at >U000D,y
+                    std       >WorkWord_002,y ; store d at >WorkWord_002,y
                     subd      #1        ; subtract from d using #1
-                    leax      >U0225,y  ; form the address >U0225,y in x
+                    leax      >WorkBuffer_010,y ; form the address >WorkBuffer_010,y in x
                     leax      d,x       ; form the address d,x in x
                     ldd       #59       ; set d to the constant 59
-                    stb       0,x       ; store b at 0,x
-                    bra       L2528     ; continue execution at L2528
-L251E               ldd       #1        ; set d to the constant 1
+                    stb       ,x        ; store b at ,x
+                    bra       Branch_198 ; continue execution at Branch_198
+Branch_196          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AD8     ; call subroutine L3AD8
+                    lbsr      Routine_017 ; call subroutine Routine_017
                     leas      $02,s     ; adjust the system stack pointer
-L2528               puls      pc,u      ; restore pc,u and return to the caller
+Branch_198          puls      pc,u      ; restore pc,u and return to the caller
 
 * -- method --
-L252A               pshs      u         ; save u on the stack
+Routine_006         pshs      u         ; save u on the stack
                     ldd       #-106     ; set d to the constant -106
                     lbsr      _stkcheck ; call subroutine _stkcheck
                     leas      -$20,s    ; adjust the system stack pointer
-                    leax      0,s       ; form the address 0,s in x
+                    leax      ,s        ; form the address ,s in x
                     pshs      x         ; save x on the stack
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
@@ -3930,11 +3936,11 @@ L252A               pshs      u         ; save u on the stack
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
-                    lbsr      L37B9     ; call subroutine L37B9
+                    lbsr      Routine_042 ; call subroutine Routine_042
                     leas      $06,s     ; adjust the system stack pointer
                     ldb       <$0025,s  ; load b from the current stack frame at <$0025,s
                     stb       $04,s     ; store b in the current stack frame at $04,s
-                    leax      0,s       ; form the address 0,s in x
+                    leax      ,s        ; form the address ,s in x
                     pshs      x         ; save x on the stack
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
@@ -3942,13 +3948,13 @@ L252A               pshs      u         ; save u on the stack
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
-                    lbsr      L37F4     ; call subroutine L37F4
+                    lbsr      Routine_043 ; call subroutine Routine_043
                     leas      $06,s     ; adjust the system stack pointer
                     leas      <$0020,s  ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
 
 * -- method --
-L2561               pshs      u         ; save u on the stack
+Routine_015         pshs      u         ; save u on the stack
                     ldd       #-85      ; set d to the constant -85
                     lbsr      _stkcheck ; call subroutine _stkcheck
                     leas      -$01,s    ; adjust the system stack pointer
@@ -3968,7 +3974,7 @@ L2561               pshs      u         ; save u on the stack
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #2        ; set d to the constant 2
                     pshs      d         ; save d on the stack
@@ -3988,18 +3994,18 @@ L2561               pshs      u         ; save u on the stack
                     pshs      d         ; save d on the stack
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A52     ; call subroutine L3A52
+                    lbsr      Routine_005 ; call subroutine Routine_005
                     leas      <$0010,s  ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3AEC     ; call subroutine L3AEC
+                    lbsr      Routine_007 ; call subroutine Routine_007
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       $05,s     ; load d from the current stack frame at $05,s
                     pshs      d         ; save d on the stack
-                    lbsr      L3545     ; call subroutine L3545
-                    std       0,s       ; store d in the current stack frame at 0,s
+                    lbsr      Routine_044 ; call subroutine Routine_044
+                    std       ,s        ; store d in the current stack frame at ,s
                     ldd       #2        ; set d to the constant 2
-                    lbsr      L3711     ; call subroutine L3711
+                    lbsr      Routine_020 ; call subroutine Routine_020
                     pshs      d         ; save d on the stack
                     ldd       #19       ; set d to the constant 19
                     subd      ,s++      ; subtract from d using ,s++
@@ -4033,11 +4039,11 @@ L2561               pshs      u         ; save u on the stack
                     leas      $06,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    lbsr      L3A82     ; call subroutine L3A82
+                    lbsr      Routine_010 ; call subroutine Routine_010
                     leas      $02,s     ; adjust the system stack pointer
                     leas      $01,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
@@ -4085,12 +4091,12 @@ ClrScrn             fcb       $0D       ; store byte data
 CantOpen2           fcc       "Cannot open file" ; store literal character data
                     fcb       $00       ; store byte data
 ReadFile            fcb       $0D       ; store byte data
-                    fcc       "Read file to [O]utput buffer or [s]creen buffer" ; store literal character data
+                    fcc       "Read file to [O]utput buffer or [S]creen buffer" ; store literal character data
                     fcb       $00       ; store byte data
 AddLf               fcb       $0D       ; store byte data
                     fcc       "Add line feeds to carriage returns?" ; store literal character data
                     fcb       $00       ; store byte data
-Status              fcc       "x=%2d y=%2d   Status:" ; store literal character data
+Status              fcc       "X=%2d Y=%2d   Status:" ; store literal character data
                     fcb       $00       ; store byte data
 Editing             fcc       "EDITING  " ; store literal character data
                     fcb       $00       ; store byte data
@@ -4102,25 +4108,25 @@ Char                fcc       "  Char: " ; store literal character data
                     fcb       $00       ; store byte data
 Attrs               fcc       "  Attrs:" ; store literal character data
                     fcb       $00       ; store byte data
-L281F               fcc       "u" ; store literal character data
+Text_001            fcc       "U" ; store literal character data
                     fcb       $00       ; store byte data
-L2821               fcc       " " ; store literal character data
+Text_002            fcc       " " ; store literal character data
                     fcb       $00       ; store byte data
-L2823               fcc       "L" ; store literal character data
+Text_003            fcc       "L" ; store literal character data
                     fcb       $00       ; store byte data
-L2825               fcc       " " ; store literal character data
+Text_004            fcc       " " ; store literal character data
                     fcb       $00       ; store byte data
-L2827               fcc       "V" ; store literal character data
+Text_005            fcc       "V" ; store literal character data
                     fcb       $00       ; store byte data
-L2829               fcc       " " ; store literal character data
+Text_006            fcc       " " ; store literal character data
                     fcb       $00       ; store byte data
-L282B               fcc       "I" ; store literal character data
+Text_007            fcc       "I" ; store literal character data
                     fcb       $00       ; store byte data
-L282D               fcc       " " ; store literal character data
+Text_008            fcc       " " ; store literal character data
                     fcb       $00       ; store byte data
-L282F               fcc       "O" ; store literal character data
+Text_009            fcc       "O" ; store literal character data
                     fcb       $00       ; store byte data
-L2831               fcc       " " ; store literal character data
+Text_010            fcc       " " ; store literal character data
                     fcb       $00       ; store byte data
 ColorsOn            fcc       " Colors:%7s on %7s" ; store literal character data
                     fcb       $00       ; store byte data
@@ -4138,7 +4144,7 @@ AltG                fcc       " [ALT][G] - Set graphics" ; store literal charact
 AltR                fcc       " [ALT][R] - Record mode" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
-AltE                fcc       " [ALT][e] - Edit mode" ; store literal character data
+AltE                fcc       " [ALT][E] - Edit mode" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
 AltC                fcc       " [ALT][C] - Clear screen" ; store literal character data
@@ -4147,10 +4153,10 @@ AltC                fcc       " [ALT][C] - Clear screen" ; store literal charact
 AltN                fcc       " [ALT][N] - Clear to end of line" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
-AltS                fcc       " [ALT][s] - Save cursor position" ; store literal character data
+AltS                fcc       " [ALT][S] - Save cursor position" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
-AltA                fcc       " [ALT][a] - Restore cursor position" ; store literal character data
+AltA                fcc       " [ALT][A] - Restore cursor position" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
 AltP                fcc       " [ALT][P] - Put screen into buffer" ; store literal character data
@@ -4165,10 +4171,10 @@ AltK                fcc       " [ALT][K] - Save to file" ; store literal charact
 AltZ                fcc       " [ALT][Z] - Zap buffers" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
-AltX                fcc       " [ALT][x] - Save & Exit" ; store literal character data
+AltX                fcc       " [ALT][X] - Save & Exit" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
-AltQ                fcc       " [ALT][q] - Quit without save" ; store literal character data
+AltQ                fcc       " [ALT][Q] - Quit without save" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
 Sure                fcb       $0D       ; store byte data
@@ -4205,16 +4211,16 @@ MovBuff             fcb       $0D       ; store byte data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
 Zap                 fcb       $0D       ; store byte data
-                    fcc       "Zap:   s> Screen Buffer" ; store literal character data
+                    fcc       "Zap:   S> Screen Buffer" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
 RecBuff             fcc       "       R> Record Buffer" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
-BothBuffs           fcc       "       b> Both   buffers" ; store literal character data
+BothBuffs           fcc       "       B> Both   buffers" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
-ScrnChar            fcc       "       d> Screen Character" ; store literal character data
+ScrnChar            fcc       "       D> Screen Character" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
 RecChar             fcc       "       T> Record Character" ; store literal character data
@@ -4227,9 +4233,9 @@ Sure2               fcb       $0C       ; store byte data
                     fcb       $0D       ; store byte data
                     fcc       "     Are you sure?" ; store literal character data
                     fcb       $00       ; store byte data
-L2BE6               fcc       " " ; store literal character data
+Text_011            fcc       " " ; store literal character data
                     fcb       $00       ; store byte data
-L2BE8               fcc       " " ; store literal character data
+Text_012            fcc       " " ; store literal character data
                     fcb       $00       ; store byte data
 SetGraphs           fcc       "             Set  Graphics" ; store literal character data
                     fcb       $0D       ; store byte data
@@ -4244,7 +4250,7 @@ RestGraph           fcc       "[R] - Reset Graphics (white on black)" ; store li
 BoldOn              fcc       "[O] - Bold on" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
-UndrOn              fcc       "[u] - Underscore on" ; store literal character data
+UndrOn              fcc       "[U] - Underscore on" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
 BlnkOn              fcc       "[L] - Blink on" ; store literal character data
@@ -4256,13 +4262,13 @@ RevVidOn            fcc       "[V] - Reverse Video on" ; store literal character
 InvisOn             fcc       "[I] - Invisible on" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
-SetForClr           fcc       "[f] - Set foreground color" ; store literal character data
+SetForClr           fcc       "[F] - Set foreground color" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
-SetBckClr           fcc       "[b] - Set background color" ; store literal character data
+SetBckClr           fcc       "[B] - Set background color" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
-Done                fcc       "[d] - Done" ; store literal character data
+Done                fcc       "[D] - Done" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
 SelChoice           fcb       $0D       ; store byte data
@@ -4284,55 +4290,55 @@ ErrNum              fcb       $0D       ; store byte data
                     fcb       $0D       ; store byte data
                     fcb       $00       ; store byte data
 printf              pshs      u         ; save u on the stack
-                    leax      >U0049,y  ; form the address >U0049,y in x
-                    stx       >U37B5,y  ; store x at >U37B5,y
+                    leax      >WorkBuffer_005,y ; form the address >WorkBuffer_005,y in x
+                    stx       >WorkWord_013,y ; store x at >WorkWord_013,y
                     leax      $06,s     ; form the address $06,s in x
                     pshs      x         ; save x on the stack
                     ldd       $06,s     ; load d from the current stack frame at $06,s
-                    bra       L2D6D     ; continue execution at L2D6D
+                    bra       Branch_199 ; continue execution at Branch_199
                     pshs      u         ; save u on the stack
                     ldd       $04,s     ; load d from the current stack frame at $04,s
-                    std       >U37B5,y  ; store d at >U37B5,y
+                    std       >WorkWord_013,y ; store d at >WorkWord_013,y
                     leax      $08,s     ; form the address $08,s in x
                     pshs      x         ; save x on the stack
                     ldd       $08,s     ; load d from the current stack frame at $08,s
-L2D6D               pshs      d         ; save d on the stack
-                    leax      >L3225,pc ; form the address >L3225,pc in x
+Branch_199          pshs      d         ; save d on the stack
+                    leax      >Code_005,pc ; form the address >Code_005,pc in x
                     pshs      x         ; save x on the stack
-                    bsr       L2D9F     ; call subroutine L2D9F
+                    bsr       Routine_045 ; call subroutine Routine_045
                     leas      $06,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
                     pshs      u         ; save u on the stack
                     ldd       $04,s     ; load d from the current stack frame at $04,s
-                    std       >U37B5,y  ; store d at >U37B5,y
+                    std       >WorkWord_013,y ; store d at >WorkWord_013,y
                     leax      $08,s     ; form the address $08,s in x
                     pshs      x         ; save x on the stack
                     ldd       $08,s     ; load d from the current stack frame at $08,s
                     pshs      d         ; save d on the stack
-                    leax      >L3238,pc ; form the address >L3238,pc in x
+                    leax      >Code_006,pc ; form the address >Code_006,pc in x
                     pshs      x         ; save x on the stack
-                    bsr       L2D9F     ; call subroutine L2D9F
+                    bsr       Routine_045 ; call subroutine Routine_045
                     leas      $06,s     ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     stb       [>$37B5,y] ; store b at [>$37B5,y]
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     puls      pc,u      ; restore pc,u and return to the caller
-L2D9F               pshs      u         ; save u on the stack
+Routine_045         pshs      u         ; save u on the stack
                     ldu       $06,s     ; load u from the current stack frame at $06,s
                     leas      -$0B,s    ; adjust the system stack pointer
-                    bra       L2DB7     ; continue execution at L2DB7
-L2DA7               ldb       $08,s     ; load b from the current stack frame at $08,s
-                    lbeq      L2FE8     ; branch when the values are equal or the result is zero; target L2FE8
+                    bra       Branch_200 ; continue execution at Branch_200
+Branch_201          ldb       $08,s     ; load b from the current stack frame at $08,s
+                    lbeq      Branch_202 ; branch when the values are equal or the result is zero; target Branch_202
                     ldb       $08,s     ; load b from the current stack frame at $08,s
                     sex                 ; sign-extend b into d
                     pshs      d         ; save d on the stack
                     jsr       [<$11,s]  ; call subroutine [<$11,s]
                     leas      $02,s     ; adjust the system stack pointer
-L2DB7               ldb       ,u+       ; load b from ,u+
+Branch_200          ldb       ,u+       ; load b from ,u+
                     stb       $08,s     ; store b in the current stack frame at $08,s
                     cmpb      #37       ; compare b with #37 and set the condition codes
-                    bne       L2DA7     ; branch when the values differ or the result is nonzero; target L2DA7
+                    bne       Branch_201 ; branch when the values differ or the result is nonzero; target Branch_201
                     ldb       ,u+       ; load b from ,u+
                     stb       $08,s     ; store b in the current stack frame at $08,s
                     clra                ; clear a to zero and set the condition codes
@@ -4341,27 +4347,27 @@ L2DB7               ldb       ,u+       ; load b from ,u+
                     std       $06,s     ; store d in the current stack frame at $06,s
                     ldb       $08,s     ; load b from the current stack frame at $08,s
                     cmpb      #45       ; compare b with #45 and set the condition codes
-                    bne       L2DDC     ; branch when the values differ or the result is nonzero; target L2DDC
+                    bne       Branch_203 ; branch when the values differ or the result is nonzero; target Branch_203
                     ldd       #1        ; set d to the constant 1
-                    std       >U37CB,y  ; store d at >U37CB,y
+                    std       >WorkWord_014,y ; store d at >WorkWord_014,y
                     ldb       ,u+       ; load b from ,u+
                     stb       $08,s     ; store b in the current stack frame at $08,s
-                    bra       L2DE2     ; continue execution at L2DE2
-L2DDC               clra                ; clear a to zero and set the condition codes
+                    bra       Branch_204 ; continue execution at Branch_204
+Branch_203          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       >U37CB,y  ; store d at >U37CB,y
-L2DE2               ldb       $08,s     ; load b from the current stack frame at $08,s
+                    std       >WorkWord_014,y ; store d at >WorkWord_014,y
+Branch_204          ldb       $08,s     ; load b from the current stack frame at $08,s
                     cmpb      #48       ; compare b with #48 and set the condition codes
-                    bne       L2DED     ; branch when the values differ or the result is nonzero; target L2DED
+                    bne       Branch_205 ; branch when the values differ or the result is nonzero; target Branch_205
                     ldd       #48       ; set d to the constant 48
-                    bra       L2DF0     ; continue execution at L2DF0
-L2DED               ldd       #32       ; set d to the constant 32
-L2DF0               std       >U37CD,y  ; store d at >U37CD,y
-                    bra       L2E10     ; continue execution at L2E10
-L2DF6               ldd       $06,s     ; load d from the current stack frame at $06,s
+                    bra       Branch_206 ; continue execution at Branch_206
+Branch_205          ldd       #32       ; set d to the constant 32
+Branch_206          std       >WorkWord_015,y ; store d at >WorkWord_015,y
+                    bra       Branch_207 ; continue execution at Branch_207
+Branch_208          ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     ldd       #10       ; set d to the constant 10
-                    lbsr      L365D     ; call subroutine L365D
+                    lbsr      Routine_013 ; call subroutine Routine_013
                     pshs      d         ; save d on the stack
                     ldb       $0A,s     ; load b from the current stack frame at $0A,s
                     sex                 ; sign-extend b into d
@@ -4370,74 +4376,74 @@ L2DF6               ldd       $06,s     ; load d from the current stack frame at
                     std       $06,s     ; store d in the current stack frame at $06,s
                     ldb       ,u+       ; load b from ,u+
                     stb       $08,s     ; store b in the current stack frame at $08,s
-L2E10               ldb       $08,s     ; load b from the current stack frame at $08,s
+Branch_207          ldb       $08,s     ; load b from the current stack frame at $08,s
                     sex                 ; sign-extend b into d
-                    leax      >U010D,y  ; form the address >U010D,y in x
+                    leax      >WorkBuffer_006,y ; form the address >WorkBuffer_006,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     clra                ; clear a to zero and set the condition codes
                     andb      #8        ; mask b using #8
-                    bne       L2DF6     ; branch when the values differ or the result is nonzero; target L2DF6
+                    bne       Branch_208 ; branch when the values differ or the result is nonzero; target Branch_208
                     ldb       $08,s     ; load b from the current stack frame at $08,s
                     cmpb      #46       ; compare b with #46 and set the condition codes
-                    bne       L2E59     ; branch when the values differ or the result is nonzero; target L2E59
+                    bne       Branch_209 ; branch when the values differ or the result is nonzero; target Branch_209
                     ldd       #1        ; set d to the constant 1
                     std       $04,s     ; store d in the current stack frame at $04,s
-                    bra       L2E43     ; continue execution at L2E43
-L2E2D               ldd       $02,s     ; load d from the current stack frame at $02,s
+                    bra       Branch_210 ; continue execution at Branch_210
+Branch_211          ldd       $02,s     ; load d from the current stack frame at $02,s
                     pshs      d         ; save d on the stack
                     ldd       #10       ; set d to the constant 10
-                    lbsr      L365D     ; call subroutine L365D
+                    lbsr      Routine_013 ; call subroutine Routine_013
                     pshs      d         ; save d on the stack
                     ldb       $0A,s     ; load b from the current stack frame at $0A,s
                     sex                 ; sign-extend b into d
                     addd      #-48      ; add to d using #-48
                     addd      ,s++      ; add to d using ,s++
                     std       $02,s     ; store d in the current stack frame at $02,s
-L2E43               ldb       ,u+       ; load b from ,u+
+Branch_210          ldb       ,u+       ; load b from ,u+
                     stb       $08,s     ; store b in the current stack frame at $08,s
                     ldb       $08,s     ; load b from the current stack frame at $08,s
                     sex                 ; sign-extend b into d
-                    leax      >U010D,y  ; form the address >U010D,y in x
+                    leax      >WorkBuffer_006,y ; form the address >WorkBuffer_006,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     clra                ; clear a to zero and set the condition codes
                     andb      #8        ; mask b using #8
-                    bne       L2E2D     ; branch when the values differ or the result is nonzero; target L2E2D
-                    bra       L2E5D     ; continue execution at L2E5D
-L2E59               clra                ; clear a to zero and set the condition codes
+                    bne       Branch_211 ; branch when the values differ or the result is nonzero; target Branch_211
+                    bra       Branch_212 ; continue execution at Branch_212
+Branch_209          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     std       $04,s     ; store d in the current stack frame at $04,s
-L2E5D               ldb       $08,s     ; load b from the current stack frame at $08,s
+Branch_212          ldb       $08,s     ; load b from the current stack frame at $08,s
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; copy the register values specified by d,x
-                    lbra      L2F8B     ; continue execution at L2F8B
-L2E65               ldd       $06,s     ; load d from the current stack frame at $06,s
+                    lbra      Branch_213 ; continue execution at Branch_213
+Branch_214          ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     ldx       <$0015,s  ; load x from the current stack frame at <$0015,s
                     leax      $02,x     ; form the address $02,x in x
                     stx       <$0015,s  ; store x in the current stack frame at <$0015,s
                     ldd       -$02,x    ; load d from -$02,x
                     pshs      d         ; save d on the stack
-                    lbsr      L2FEC     ; call subroutine L2FEC
-                    bra       L2E8D     ; continue execution at L2E8D
-L2E7A               ldd       $06,s     ; load d from the current stack frame at $06,s
+                    lbsr      Routine_046 ; call subroutine Routine_046
+                    bra       Branch_215 ; continue execution at Branch_215
+Branch_216          ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     ldx       <$0015,s  ; load x from the current stack frame at <$0015,s
                     leax      $02,x     ; form the address $02,x in x
                     stx       <$0015,s  ; store x in the current stack frame at <$0015,s
                     ldd       -$02,x    ; load d from -$02,x
                     pshs      d         ; save d on the stack
-                    lbsr      L30A9     ; call subroutine L30A9
-L2E8D               std       0,s       ; store d in the current stack frame at 0,s
-                    lbra      L2F71     ; continue execution at L2F71
-L2E92               ldd       $06,s     ; load d from the current stack frame at $06,s
+                    lbsr      Routine_047 ; call subroutine Routine_047
+Branch_215          std       ,s        ; store d in the current stack frame at ,s
+                    lbra      Branch_217 ; continue execution at Branch_217
+Branch_218          ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     ldb       $0A,s     ; load b from the current stack frame at $0A,s
                     sex                 ; sign-extend b into d
-                    leax      >U010D,y  ; form the address >U010D,y in x
+                    leax      >WorkBuffer_006,y ; form the address >WorkBuffer_006,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     clra                ; clear a to zero and set the condition codes
                     andb      #2        ; mask b using #2
                     pshs      d         ; save d on the stack
@@ -4446,24 +4452,24 @@ L2E92               ldd       $06,s     ; load d from the current stack frame at
                     stx       <$0017,s  ; store x in the current stack frame at <$0017,s
                     ldd       -$02,x    ; load d from -$02,x
                     pshs      d         ; save d on the stack
-                    lbsr      L30F1     ; call subroutine L30F1
-                    lbra      L2F6D     ; continue execution at L2F6D
-L2EB8               ldd       $06,s     ; load d from the current stack frame at $06,s
+                    lbsr      Routine_048 ; call subroutine Routine_048
+                    lbra      Branch_219 ; continue execution at Branch_219
+Branch_220          ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     ldx       <$0015,s  ; load x from the current stack frame at <$0015,s
                     leax      $02,x     ; form the address $02,x in x
                     stx       <$0015,s  ; store x in the current stack frame at <$0015,s
                     ldd       -$02,x    ; load d from -$02,x
                     pshs      d         ; save d on the stack
-                    leax      >U37B7,y  ; form the address >U37B7,y in x
+                    leax      >WorkBuffer_013,y ; form the address >WorkBuffer_013,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L3030     ; call subroutine L3030
-                    lbra      L2F6D     ; continue execution at L2F6D
-L2ED4               ldd       $04,s     ; load d from the current stack frame at $04,s
-                    bne       L2EDD     ; branch when the values differ or the result is nonzero; target L2EDD
+                    lbsr      Routine_049 ; call subroutine Routine_049
+                    lbra      Branch_219 ; continue execution at Branch_219
+Branch_221          ldd       $04,s     ; load d from the current stack frame at $04,s
+                    bne       Branch_222 ; branch when the values differ or the result is nonzero; target Branch_222
                     ldd       #6        ; set d to the constant 6
                     std       $02,s     ; store d in the current stack frame at $02,s
-L2EDD               ldd       $06,s     ; load d from the current stack frame at $06,s
+Branch_222          ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     leax      <$0015,s  ; form the address <$0015,s in x
                     pshs      x         ; save x on the stack
@@ -4472,35 +4478,35 @@ L2EDD               ldd       $06,s     ; load d from the current stack frame at
                     ldb       $0E,s     ; load b from the current stack frame at $0E,s
                     sex                 ; sign-extend b into d
                     pshs      d         ; save d on the stack
-                    lbsr      L353A     ; call subroutine L353A
+                    lbsr      Routine_050 ; call subroutine Routine_050
                     leas      $06,s     ; adjust the system stack pointer
-                    lbra      L2F6F     ; continue execution at L2F6F
-L2EF7               ldx       <$0013,s  ; load x from the current stack frame at <$0013,s
+                    lbra      Branch_223 ; continue execution at Branch_223
+Branch_224          ldx       <$0013,s  ; load x from the current stack frame at <$0013,s
                     leax      $02,x     ; form the address $02,x in x
                     stx       <$0013,s  ; store x in the current stack frame at <$0013,s
                     ldd       -$02,x    ; load d from -$02,x
-                    lbra      L2F81     ; continue execution at L2F81
-L2F04               ldx       <$0013,s  ; load x from the current stack frame at <$0013,s
+                    lbra      Branch_225 ; continue execution at Branch_225
+Branch_226          ldx       <$0013,s  ; load x from the current stack frame at <$0013,s
                     leax      $02,x     ; form the address $02,x in x
                     stx       <$0013,s  ; store x in the current stack frame at <$0013,s
                     ldd       -$02,x    ; load d from -$02,x
                     std       $09,s     ; store d in the current stack frame at $09,s
                     ldd       $04,s     ; load d from the current stack frame at $04,s
-                    beq       L2F4C     ; branch when the values are equal or the result is zero; target L2F4C
+                    beq       Branch_227 ; branch when the values are equal or the result is zero; target Branch_227
                     ldd       $09,s     ; load d from the current stack frame at $09,s
                     std       $04,s     ; store d in the current stack frame at $04,s
-                    bra       L2F26     ; continue execution at L2F26
-L2F1A               ldb       [<$09,s]  ; load b from the current stack frame at [<$09,s]
-                    beq       L2F32     ; branch when the values are equal or the result is zero; target L2F32
+                    bra       Branch_228 ; continue execution at Branch_228
+Branch_229          ldb       [<$09,s]  ; load b from the current stack frame at [<$09,s]
+                    beq       Branch_230 ; branch when the values are equal or the result is zero; target Branch_230
                     ldd       $09,s     ; load d from the current stack frame at $09,s
                     addd      #1        ; add to d using #1
                     std       $09,s     ; store d in the current stack frame at $09,s
-L2F26               ldd       $02,s     ; load d from the current stack frame at $02,s
+Branch_228          ldd       $02,s     ; load d from the current stack frame at $02,s
                     addd      #-1       ; add to d using #-1
                     std       $02,s     ; store d in the current stack frame at $02,s
                     subd      #-1       ; subtract from d using #-1
-                    bne       L2F1A     ; branch when the values differ or the result is nonzero; target L2F1A
-L2F32               ldd       $06,s     ; load d from the current stack frame at $06,s
+                    bne       Branch_229 ; branch when the values differ or the result is nonzero; target Branch_229
+Branch_230          ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     ldd       $0B,s     ; load d from the current stack frame at $0B,s
                     subd      $06,s     ; subtract from d using $06,s
@@ -4509,159 +4515,159 @@ L2F32               ldd       $06,s     ; load d from the current stack frame at
                     pshs      d         ; save d on the stack
                     ldd       <$0015,s  ; load d from the current stack frame at <$0015,s
                     pshs      d         ; save d on the stack
-                    lbsr      L315C     ; call subroutine L315C
+                    lbsr      Routine_051 ; call subroutine Routine_051
                     leas      $08,s     ; adjust the system stack pointer
-                    bra       L2F7B     ; continue execution at L2F7B
-L2F4C               ldd       $06,s     ; load d from the current stack frame at $06,s
+                    bra       Branch_231 ; continue execution at Branch_231
+Branch_227          ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     ldd       $0B,s     ; load d from the current stack frame at $0B,s
-                    bra       L2F6F     ; continue execution at L2F6F
-L2F54               ldb       ,u+       ; load b from ,u+
+                    bra       Branch_223 ; continue execution at Branch_223
+Branch_232          ldb       ,u+       ; load b from ,u+
                     stb       $08,s     ; store b in the current stack frame at $08,s
-                    bra       L2F5C     ; continue execution at L2F5C
+                    bra       Branch_233 ; continue execution at Branch_233
                     leas      -$0B,x    ; adjust the system stack pointer
-L2F5C               ldd       $06,s     ; load d from the current stack frame at $06,s
+Branch_233          ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     leax      <$0015,s  ; form the address <$0015,s in x
                     pshs      x         ; save x on the stack
                     ldb       $0C,s     ; load b from the current stack frame at $0C,s
                     sex                 ; sign-extend b into d
                     pshs      d         ; save d on the stack
-                    lbsr      L34FC     ; call subroutine L34FC
-L2F6D               leas      $04,s     ; adjust the system stack pointer
-L2F6F               pshs      d         ; save d on the stack
-L2F71               ldd       <$0013,s  ; load d from the current stack frame at <$0013,s
+                    lbsr      Routine_052 ; call subroutine Routine_052
+Branch_219          leas      $04,s     ; adjust the system stack pointer
+Branch_223          pshs      d         ; save d on the stack
+Branch_217          ldd       <$0013,s  ; load d from the current stack frame at <$0013,s
                     pshs      d         ; save d on the stack
-                    lbsr      L31BE     ; call subroutine L31BE
+                    lbsr      Routine_053 ; call subroutine Routine_053
                     leas      $06,s     ; adjust the system stack pointer
-L2F7B               lbra      L2DB7     ; continue execution at L2DB7
-L2F7E               ldb       $08,s     ; load b from the current stack frame at $08,s
+Branch_231          lbra      Branch_200 ; continue execution at Branch_200
+Branch_234          ldb       $08,s     ; load b from the current stack frame at $08,s
                     sex                 ; sign-extend b into d
-L2F81               pshs      d         ; save d on the stack
+Branch_225          pshs      d         ; save d on the stack
                     jsr       [<$11,s]  ; call subroutine [<$11,s]
                     leas      $02,s     ; adjust the system stack pointer
-                    lbra      L2DB7     ; continue execution at L2DB7
-L2F8B               cmpx      #100      ; compare x with #100 and set the condition codes
-                    lbeq      L2E65     ; branch when the values are equal or the result is zero; target L2E65
+                    lbra      Branch_200 ; continue execution at Branch_200
+Branch_213          cmpx      #100      ; compare x with #100 and set the condition codes
+                    lbeq      Branch_214 ; branch when the values are equal or the result is zero; target Branch_214
                     cmpx      #111      ; compare x with #111 and set the condition codes
-                    lbeq      L2E7A     ; branch when the values are equal or the result is zero; target L2E7A
+                    lbeq      Branch_216 ; branch when the values are equal or the result is zero; target Branch_216
                     cmpx      #120      ; compare x with #120 and set the condition codes
-                    lbeq      L2E92     ; branch when the values are equal or the result is zero; target L2E92
+                    lbeq      Branch_218 ; branch when the values are equal or the result is zero; target Branch_218
                     cmpx      #88       ; compare x with #88 and set the condition codes
-                    lbeq      L2E92     ; branch when the values are equal or the result is zero; target L2E92
+                    lbeq      Branch_218 ; branch when the values are equal or the result is zero; target Branch_218
                     cmpx      #117      ; compare x with #117 and set the condition codes
-                    lbeq      L2EB8     ; branch when the values are equal or the result is zero; target L2EB8
+                    lbeq      Branch_220 ; branch when the values are equal or the result is zero; target Branch_220
                     cmpx      #102      ; compare x with #102 and set the condition codes
-                    lbeq      L2ED4     ; branch when the values are equal or the result is zero; target L2ED4
+                    lbeq      Branch_221 ; branch when the values are equal or the result is zero; target Branch_221
                     cmpx      #101      ; compare x with #101 and set the condition codes
-                    lbeq      L2ED4     ; branch when the values are equal or the result is zero; target L2ED4
+                    lbeq      Branch_221 ; branch when the values are equal or the result is zero; target Branch_221
                     cmpx      #103      ; compare x with #103 and set the condition codes
-                    lbeq      L2ED4     ; branch when the values are equal or the result is zero; target L2ED4
+                    lbeq      Branch_221 ; branch when the values are equal or the result is zero; target Branch_221
                     cmpx      #69       ; compare x with #69 and set the condition codes
-                    lbeq      L2ED4     ; branch when the values are equal or the result is zero; target L2ED4
+                    lbeq      Branch_221 ; branch when the values are equal or the result is zero; target Branch_221
                     cmpx      #71       ; compare x with #71 and set the condition codes
-                    lbeq      L2ED4     ; branch when the values are equal or the result is zero; target L2ED4
+                    lbeq      Branch_221 ; branch when the values are equal or the result is zero; target Branch_221
                     cmpx      #99       ; compare x with #99 and set the condition codes
-                    lbeq      L2EF7     ; branch when the values are equal or the result is zero; target L2EF7
+                    lbeq      Branch_224 ; branch when the values are equal or the result is zero; target Branch_224
                     cmpx      #115      ; compare x with #115 and set the condition codes
-                    lbeq      L2F04     ; branch when the values are equal or the result is zero; target L2F04
+                    lbeq      Branch_226 ; branch when the values are equal or the result is zero; target Branch_226
                     cmpx      #108      ; compare x with #108 and set the condition codes
-                    lbeq      L2F54     ; branch when the values are equal or the result is zero; target L2F54
-                    bra       L2F7E     ; continue execution at L2F7E
-L2FE8               leas      $0B,s     ; adjust the system stack pointer
+                    lbeq      Branch_232 ; branch when the values are equal or the result is zero; target Branch_232
+                    bra       Branch_234 ; continue execution at Branch_234
+Branch_202          leas      $0B,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
-L2FEC               pshs      u,d       ; save u,d on the stack
-                    leax      >U37B7,y  ; form the address >U37B7,y in x
-                    stx       0,s       ; store x in the current stack frame at 0,s
+Routine_046         pshs      u,d       ; save u,d on the stack
+                    leax      >WorkBuffer_013,y ; form the address >WorkBuffer_013,y in x
+                    stx       ,s        ; store x in the current stack frame at ,s
                     ldd       $06,s     ; load d from the current stack frame at $06,s
-                    bge       L3021     ; branch when the signed value is greater than or equal; target L3021
+                    bge       Branch_235 ; branch when the signed value is greater than or equal; target Branch_235
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
                     std       $06,s     ; store d in the current stack frame at $06,s
-                    bge       L3016     ; branch when the signed value is greater than or equal; target L3016
-                    leax      >L324A,pc ; form the address >L324A,pc in x
+                    bge       Branch_236 ; branch when the signed value is greater than or equal; target Branch_236
+                    leax      >Text_013,pc ; form the address >Text_013,pc in x
                     pshs      x         ; save x on the stack
-                    leax      >U37B7,y  ; form the address >U37B7,y in x
+                    leax      >WorkBuffer_013,y ; form the address >WorkBuffer_013,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      L3556     ; call subroutine L3556
+                    lbsr      Routine_009 ; call subroutine Routine_009
                     leas      $04,s     ; adjust the system stack pointer
-                    lbra      L30ED     ; continue execution at L30ED
-L3016               ldd       #45       ; set d to the constant 45
-                    ldx       0,s       ; load x from the current stack frame at 0,s
+                    lbra      Branch_237 ; continue execution at Branch_237
+Branch_236          ldd       #45       ; set d to the constant 45
+                    ldx       ,s        ; load x from the current stack frame at ,s
                     leax      $01,x     ; form the address $01,x in x
-                    stx       0,s       ; store x in the current stack frame at 0,s
+                    stx       ,s        ; store x in the current stack frame at ,s
                     stb       -$01,x    ; store b at -$01,x
-L3021               ldd       $06,s     ; load d from the current stack frame at $06,s
+Branch_235          ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     ldd       $02,s     ; load d from the current stack frame at $02,s
                     pshs      d         ; save d on the stack
-                    bsr       L3030     ; call subroutine L3030
+                    bsr       Routine_049 ; call subroutine Routine_049
                     leas      $04,s     ; adjust the system stack pointer
-                    lbra      L30E7     ; continue execution at L30E7
-L3030               pshs      u,y,x,d   ; save u,y,x,d on the stack
+                    lbra      Branch_238 ; continue execution at Branch_238
+Routine_049         pshs      u,y,x,d   ; save u,y,x,d on the stack
                     ldu       $0A,s     ; load u from the current stack frame at $0A,s
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     std       $02,s     ; store d in the current stack frame at $02,s
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       0,s       ; store d in the current stack frame at 0,s
-                    bra       L304D     ; continue execution at L304D
-L303E               ldd       0,s       ; load d from the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
+                    bra       Branch_239 ; continue execution at Branch_239
+Branch_240          ldd       ,s        ; load d from the current stack frame at ,s
                     addd      #1        ; add to d using #1
-                    std       0,s       ; store d in the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
                     ldd       $0C,s     ; load d from the current stack frame at $0C,s
-                    subd      >U002F,y  ; subtract from d using >U002F,y
+                    subd      >WorkBuffer_003,y ; subtract from d using >WorkBuffer_003,y
                     std       $0C,s     ; store d in the current stack frame at $0C,s
-L304D               ldd       $0C,s     ; load d from the current stack frame at $0C,s
-                    blt       L303E     ; branch when the signed value is less; target L303E
-                    leax      >U002F,y  ; form the address >U002F,y in x
+Branch_239          ldd       $0C,s     ; load d from the current stack frame at $0C,s
+                    blt       Branch_240 ; branch when the signed value is less; target Branch_240
+                    leax      >WorkBuffer_003,y ; form the address >WorkBuffer_003,y in x
                     stx       $04,s     ; store x in the current stack frame at $04,s
-                    bra       L308F     ; continue execution at L308F
-L3059               ldd       0,s       ; load d from the current stack frame at 0,s
+                    bra       Branch_241 ; continue execution at Branch_241
+Branch_242          ldd       ,s        ; load d from the current stack frame at ,s
                     addd      #1        ; add to d using #1
-                    std       0,s       ; store d in the current stack frame at 0,s
-L3060               ldd       $0C,s     ; load d from the current stack frame at $0C,s
+                    std       ,s        ; store d in the current stack frame at ,s
+Branch_243          ldd       $0C,s     ; load d from the current stack frame at $0C,s
                     subd      [<$04,s]  ; subtract from d using [<$04,s]
                     std       $0C,s     ; store d in the current stack frame at $0C,s
-                    bge       L3059     ; branch when the signed value is greater than or equal; target L3059
+                    bge       Branch_242 ; branch when the signed value is greater than or equal; target Branch_242
                     ldd       $0C,s     ; load d from the current stack frame at $0C,s
                     addd      [<$04,s]  ; add to d using [<$04,s]
                     std       $0C,s     ; store d in the current stack frame at $0C,s
-                    ldd       0,s       ; load d from the current stack frame at 0,s
-                    beq       L3079     ; branch when the values are equal or the result is zero; target L3079
+                    ldd       ,s        ; load d from the current stack frame at ,s
+                    beq       Branch_244 ; branch when the values are equal or the result is zero; target Branch_244
                     ldd       #1        ; set d to the constant 1
                     std       $02,s     ; store d in the current stack frame at $02,s
-L3079               ldd       $02,s     ; load d from the current stack frame at $02,s
-                    beq       L3084     ; branch when the values are equal or the result is zero; target L3084
-                    ldd       0,s       ; load d from the current stack frame at 0,s
+Branch_244          ldd       $02,s     ; load d from the current stack frame at $02,s
+                    beq       Branch_245 ; branch when the values are equal or the result is zero; target Branch_245
+                    ldd       ,s        ; load d from the current stack frame at ,s
                     addd      #48       ; add to d using #48
                     stb       ,u+       ; store b at ,u+
-L3084               clra                ; clear a to zero and set the condition codes
+Branch_245          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       0,s       ; store d in the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     addd      #2        ; add to d using #2
                     std       $04,s     ; store d in the current stack frame at $04,s
-L308F               ldd       $04,s     ; load d from the current stack frame at $04,s
-                    cmpd      >U0037,y  ; compare d with >U0037,y and set the condition codes
-                    bne       L3060     ; branch when the values differ or the result is nonzero; target L3060
+Branch_241          ldd       $04,s     ; load d from the current stack frame at $04,s
+                    cmpd      >WorkWord_003,y ; compare d with >WorkWord_003,y and set the condition codes
+                    bne       Branch_243 ; branch when the values differ or the result is nonzero; target Branch_243
                     ldd       $0C,s     ; load d from the current stack frame at $0C,s
                     addd      #48       ; add to d using #48
                     stb       ,u+       ; store b at ,u+
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    stb       U0000,u   ; store b at U0000,u
+                    stb       WorkByte_001,u ; store b at WorkByte_001,u
                     ldd       $0A,s     ; load d from the current stack frame at $0A,s
                     leas      $06,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
-L30A9               pshs      u,d       ; save u,d on the stack
-                    leax      >U37B7,y  ; form the address >U37B7,y in x
-                    stx       0,s       ; store x in the current stack frame at 0,s
-                    leau      >U37C1,y  ; form the workspace or data address >U37C1,y in u
-L30B5               ldd       $06,s     ; load d from the current stack frame at $06,s
+Routine_047         pshs      u,d       ; save u,d on the stack
+                    leax      >WorkBuffer_013,y ; form the address >WorkBuffer_013,y in x
+                    stx       ,s        ; store x in the current stack frame at ,s
+                    leau      >WorkBuffer_014,y ; form the workspace or data address >WorkBuffer_014,y in u
+Branch_246          ldd       $06,s     ; load d from the current stack frame at $06,s
                     clra                ; clear a to zero and set the condition codes
                     andb      #7        ; mask b using #7
                     addd      #48       ; add to d using #48
@@ -4674,46 +4680,46 @@ L30B5               ldd       $06,s     ; load d from the current stack frame at
                     lsra                ; shift a right logically
                     rorb                ; rotate b right through carry
                     std       $06,s     ; store d in the current stack frame at $06,s
-                    bne       L30B5     ; branch when the values differ or the result is nonzero; target L30B5
-                    bra       L30D7     ; continue execution at L30D7
-L30CD               ldb       U0000,u   ; load b from U0000,u
-                    ldx       0,s       ; load x from the current stack frame at 0,s
+                    bne       Branch_246 ; branch when the values differ or the result is nonzero; target Branch_246
+                    bra       Branch_247 ; continue execution at Branch_247
+Branch_248          ldb       WorkByte_001,u ; load b from WorkByte_001,u
+                    ldx       ,s        ; load x from the current stack frame at ,s
                     leax      $01,x     ; form the address $01,x in x
-                    stx       0,s       ; store x in the current stack frame at 0,s
+                    stx       ,s        ; store x in the current stack frame at ,s
                     stb       -$01,x    ; store b at -$01,x
-L30D7               leau      -$01,u    ; form the workspace or data address -$01,u in u
+Branch_247          leau      -$01,u    ; form the workspace or data address -$01,u in u
                     pshs      u         ; save u on the stack
-                    leax      >U37C1,y  ; form the address >U37C1,y in x
+                    leax      >WorkBuffer_014,y ; form the address >WorkBuffer_014,y in x
                     cmpx      ,s++      ; compare x with ,s++ and set the condition codes
-                    bls       L30CD     ; branch when the unsigned value is lower or equal; target L30CD
+                    bls       Branch_248 ; branch when the unsigned value is lower or equal; target Branch_248
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     stb       [,s]      ; store b in the current stack frame at [,s]
-L30E7               leax      >U37B7,y  ; form the address >U37B7,y in x
+Branch_238          leax      >WorkBuffer_013,y ; form the address >WorkBuffer_013,y in x
                     tfr       x,d       ; copy the register values specified by x,d
-L30ED               leas      $02,s     ; adjust the system stack pointer
+Branch_237          leas      $02,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
-L30F1               pshs      u,x,d     ; save u,x,d on the stack
-                    leax      >U37B7,y  ; form the address >U37B7,y in x
+Routine_048         pshs      u,x,d     ; save u,x,d on the stack
+                    leax      >WorkBuffer_013,y ; form the address >WorkBuffer_013,y in x
                     stx       $02,s     ; store x in the current stack frame at $02,s
-                    leau      >U37C1,y  ; form the workspace or data address >U37C1,y in u
-L30FD               ldd       $08,s     ; load d from the current stack frame at $08,s
+                    leau      >WorkBuffer_014,y ; form the workspace or data address >WorkBuffer_014,y in u
+Branch_249          ldd       $08,s     ; load d from the current stack frame at $08,s
                     clra                ; clear a to zero and set the condition codes
                     andb      #15       ; mask b using #15
-                    std       0,s       ; store d in the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
                     pshs      d         ; save d on the stack
                     ldd       $02,s     ; load d from the current stack frame at $02,s
                     cmpd      #9        ; compare d with #9 and set the condition codes
-                    ble       L311F     ; branch when the signed value is less than or equal; target L311F
+                    ble       Branch_250 ; branch when the signed value is less than or equal; target Branch_250
                     ldd       $0C,s     ; load d from the current stack frame at $0C,s
-                    beq       L3117     ; branch when the values are equal or the result is zero; target L3117
+                    beq       Branch_251 ; branch when the values are equal or the result is zero; target Branch_251
                     ldd       #65       ; set d to the constant 65
-                    bra       L311A     ; continue execution at L311A
-L3117               ldd       #97       ; set d to the constant 97
-L311A               addd      #-10      ; add to d using #-10
-                    bra       L3122     ; continue execution at L3122
-L311F               ldd       #48       ; set d to the constant 48
-L3122               addd      ,s++      ; add to d using ,s++
+                    bra       Branch_252 ; continue execution at Branch_252
+Branch_251          ldd       #97       ; set d to the constant 97
+Branch_252          addd      #-10      ; add to d using #-10
+                    bra       Branch_253 ; continue execution at Branch_253
+Branch_250          ldd       #48       ; set d to the constant 48
+Branch_253          addd      ,s++      ; add to d using ,s++
                     stb       ,u+       ; store b at ,u+
                     ldd       $08,s     ; load d from the current stack frame at $08,s
                     lsra                ; shift a right logically
@@ -4726,199 +4732,199 @@ L3122               addd      ,s++      ; add to d using ,s++
                     rorb                ; rotate b right through carry
                     anda      #15       ; mask a using #15
                     std       $08,s     ; store d in the current stack frame at $08,s
-                    bne       L30FD     ; branch when the values differ or the result is nonzero; target L30FD
-                    bra       L3142     ; continue execution at L3142
-L3138               ldb       U0000,u   ; load b from U0000,u
+                    bne       Branch_249 ; branch when the values differ or the result is nonzero; target Branch_249
+                    bra       Branch_254 ; continue execution at Branch_254
+Branch_255          ldb       WorkByte_001,u ; load b from WorkByte_001,u
                     ldx       $02,s     ; load x from the current stack frame at $02,s
                     leax      $01,x     ; form the address $01,x in x
                     stx       $02,s     ; store x in the current stack frame at $02,s
                     stb       -$01,x    ; store b at -$01,x
-L3142               leau      -$01,u    ; form the workspace or data address -$01,u in u
+Branch_254          leau      -$01,u    ; form the workspace or data address -$01,u in u
                     pshs      u         ; save u on the stack
-                    leax      >U37C1,y  ; form the address >U37C1,y in x
+                    leax      >WorkBuffer_014,y ; form the address >WorkBuffer_014,y in x
                     cmpx      ,s++      ; compare x with ,s++ and set the condition codes
-                    bls       L3138     ; branch when the unsigned value is lower or equal; target L3138
+                    bls       Branch_255 ; branch when the unsigned value is lower or equal; target Branch_255
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     stb       [<$02,s]  ; store b in the current stack frame at [<$02,s]
-                    leax      >U37B7,y  ; form the address >U37B7,y in x
+                    leax      >WorkBuffer_013,y ; form the address >WorkBuffer_013,y in x
                     tfr       x,d       ; copy the register values specified by x,d
-                    lbra      L3234     ; continue execution at L3234
-L315C               pshs      u         ; save u on the stack
+                    lbra      Branch_256 ; continue execution at Branch_256
+Routine_051         pshs      u         ; save u on the stack
                     ldu       $06,s     ; load u from the current stack frame at $06,s
                     ldd       $0A,s     ; load d from the current stack frame at $0A,s
                     subd      $08,s     ; subtract from d using $08,s
                     std       $0A,s     ; store d in the current stack frame at $0A,s
-                    ldd       >U37CB,y  ; load d from >U37CB,y
-                    bne       L3191     ; branch when the values differ or the result is nonzero; target L3191
-                    bra       L3179     ; continue execution at L3179
-L316E               ldd       >U37CD,y  ; load d from >U37CD,y
+                    ldd       >WorkWord_014,y ; load d from >WorkWord_014,y
+                    bne       Branch_257 ; branch when the values differ or the result is nonzero; target Branch_257
+                    bra       Branch_258 ; continue execution at Branch_258
+Branch_259          ldd       >WorkWord_015,y ; load d from >WorkWord_015,y
                     pshs      d         ; save d on the stack
                     jsr       [<$06,s]  ; call subroutine [<$06,s]
                     leas      $02,s     ; adjust the system stack pointer
-L3179               ldd       $0A,s     ; load d from the current stack frame at $0A,s
+Branch_258          ldd       $0A,s     ; load d from the current stack frame at $0A,s
                     addd      #-1       ; add to d using #-1
                     std       $0A,s     ; store d in the current stack frame at $0A,s
                     subd      #-1       ; subtract from d using #-1
-                    bgt       L316E     ; branch when the signed value is greater; target L316E
-                    bra       L3191     ; continue execution at L3191
-L3187               ldb       ,u+       ; load b from ,u+
+                    bgt       Branch_259 ; branch when the signed value is greater; target Branch_259
+                    bra       Branch_257 ; continue execution at Branch_257
+Branch_260          ldb       ,u+       ; load b from ,u+
                     sex                 ; sign-extend b into d
                     pshs      d         ; save d on the stack
                     jsr       [<$06,s]  ; call subroutine [<$06,s]
                     leas      $02,s     ; adjust the system stack pointer
-L3191               ldd       $08,s     ; load d from the current stack frame at $08,s
+Branch_257          ldd       $08,s     ; load d from the current stack frame at $08,s
                     addd      #-1       ; add to d using #-1
                     std       $08,s     ; store d in the current stack frame at $08,s
                     subd      #-1       ; subtract from d using #-1
-                    bne       L3187     ; branch when the values differ or the result is nonzero; target L3187
-                    ldd       >U37CB,y  ; load d from >U37CB,y
-                    beq       L31BC     ; branch when the values are equal or the result is zero; target L31BC
-                    bra       L31B0     ; continue execution at L31B0
-L31A5               ldd       >U37CD,y  ; load d from >U37CD,y
+                    bne       Branch_260 ; branch when the values differ or the result is nonzero; target Branch_260
+                    ldd       >WorkWord_014,y ; load d from >WorkWord_014,y
+                    beq       Branch_261 ; branch when the values are equal or the result is zero; target Branch_261
+                    bra       Branch_262 ; continue execution at Branch_262
+Branch_263          ldd       >WorkWord_015,y ; load d from >WorkWord_015,y
                     pshs      d         ; save d on the stack
                     jsr       [<$06,s]  ; call subroutine [<$06,s]
                     leas      $02,s     ; adjust the system stack pointer
-L31B0               ldd       $0A,s     ; load d from the current stack frame at $0A,s
+Branch_262          ldd       $0A,s     ; load d from the current stack frame at $0A,s
                     addd      #-1       ; add to d using #-1
                     std       $0A,s     ; store d in the current stack frame at $0A,s
                     subd      #-1       ; subtract from d using #-1
-                    bgt       L31A5     ; branch when the signed value is greater; target L31A5
-L31BC               puls      pc,u      ; restore pc,u and return to the caller
-L31BE               pshs      u         ; save u on the stack
+                    bgt       Branch_263 ; branch when the signed value is greater; target Branch_263
+Branch_261          puls      pc,u      ; restore pc,u and return to the caller
+Routine_053         pshs      u         ; save u on the stack
                     ldu       $06,s     ; load u from the current stack frame at $06,s
                     ldd       $08,s     ; load d from the current stack frame at $08,s
                     pshs      d         ; save d on the stack
                     pshs      u         ; save u on the stack
-                    lbsr      L3545     ; call subroutine L3545
+                    lbsr      Routine_044 ; call subroutine Routine_044
                     leas      $02,s     ; adjust the system stack pointer
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
                     addd      ,s++      ; add to d using ,s++
                     std       $08,s     ; store d in the current stack frame at $08,s
-                    ldd       >U37CB,y  ; load d from >U37CB,y
-                    bne       L3200     ; branch when the values differ or the result is nonzero; target L3200
-                    bra       L31E8     ; continue execution at L31E8
-L31DD               ldd       >U37CD,y  ; load d from >U37CD,y
+                    ldd       >WorkWord_014,y ; load d from >WorkWord_014,y
+                    bne       Branch_264 ; branch when the values differ or the result is nonzero; target Branch_264
+                    bra       Branch_265 ; continue execution at Branch_265
+Branch_266          ldd       >WorkWord_015,y ; load d from >WorkWord_015,y
                     pshs      d         ; save d on the stack
                     jsr       [<$06,s]  ; call subroutine [<$06,s]
                     leas      $02,s     ; adjust the system stack pointer
-L31E8               ldd       $08,s     ; load d from the current stack frame at $08,s
+Branch_265          ldd       $08,s     ; load d from the current stack frame at $08,s
                     addd      #-1       ; add to d using #-1
                     std       $08,s     ; store d in the current stack frame at $08,s
                     subd      #-1       ; subtract from d using #-1
-                    bgt       L31DD     ; branch when the signed value is greater; target L31DD
-                    bra       L3200     ; continue execution at L3200
-L31F6               ldb       ,u+       ; load b from ,u+
+                    bgt       Branch_266 ; branch when the signed value is greater; target Branch_266
+                    bra       Branch_264 ; continue execution at Branch_264
+Branch_267          ldb       ,u+       ; load b from ,u+
                     sex                 ; sign-extend b into d
                     pshs      d         ; save d on the stack
                     jsr       [<$06,s]  ; call subroutine [<$06,s]
                     leas      $02,s     ; adjust the system stack pointer
-L3200               ldb       U0000,u   ; load b from U0000,u
-                    bne       L31F6     ; branch when the values differ or the result is nonzero; target L31F6
-                    ldd       >U37CB,y  ; load d from >U37CB,y
-                    beq       L3223     ; branch when the values are equal or the result is zero; target L3223
-                    bra       L3217     ; continue execution at L3217
-L320C               ldd       >U37CD,y  ; load d from >U37CD,y
+Branch_264          ldb       WorkByte_001,u ; load b from WorkByte_001,u
+                    bne       Branch_267 ; branch when the values differ or the result is nonzero; target Branch_267
+                    ldd       >WorkWord_014,y ; load d from >WorkWord_014,y
+                    beq       Branch_268 ; branch when the values are equal or the result is zero; target Branch_268
+                    bra       Branch_269 ; continue execution at Branch_269
+Branch_270          ldd       >WorkWord_015,y ; load d from >WorkWord_015,y
                     pshs      d         ; save d on the stack
                     jsr       [<$06,s]  ; call subroutine [<$06,s]
                     leas      $02,s     ; adjust the system stack pointer
-L3217               ldd       $08,s     ; load d from the current stack frame at $08,s
+Branch_269          ldd       $08,s     ; load d from the current stack frame at $08,s
                     addd      #-1       ; add to d using #-1
                     std       $08,s     ; store d in the current stack frame at $08,s
                     subd      #-1       ; subtract from d using #-1
-                    bgt       L320C     ; branch when the signed value is greater; target L320C
-L3223               puls      pc,u      ; restore pc,u and return to the caller
-L3225               pshs      u         ; save u on the stack
-                    ldd       >U37B5,y  ; load d from >U37B5,y
+                    bgt       Branch_270 ; branch when the signed value is greater; target Branch_270
+Branch_268          puls      pc,u      ; restore pc,u and return to the caller
+Code_005            pshs      u         ; save u on the stack
+                    ldd       >WorkWord_013,y ; load d from >WorkWord_013,y
                     pshs      d         ; save d on the stack
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
-                    lbsr      L3251     ; call subroutine L3251
-L3234               leas      $04,s     ; adjust the system stack pointer
+                    lbsr      Routine_054 ; call subroutine Routine_054
+Branch_256          leas      $04,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
-L3238               pshs      u         ; save u on the stack
+Code_006            pshs      u         ; save u on the stack
                     ldd       $04,s     ; load d from the current stack frame at $04,s
-                    ldx       >U37B5,y  ; load x from >U37B5,y
+                    ldx       >WorkWord_013,y ; load x from >WorkWord_013,y
                     leax      $01,x     ; form the address $01,x in x
-                    stx       >U37B5,y  ; store x at >U37B5,y
+                    stx       >WorkWord_013,y ; store x at >WorkWord_013,y
                     stb       -$01,x    ; store b at -$01,x
                     puls      pc,u      ; restore pc,u and return to the caller
-L324A               fcc       "-32768" ; store literal character data
+Text_013            fcc       "-32768" ; store literal character data
                     fcb       $00       ; store byte data
-L3251               pshs      u         ; save u on the stack
+Routine_054         pshs      u         ; save u on the stack
                     ldu       $06,s     ; load u from the current stack frame at $06,s
-                    ldd       U0006,u   ; load d from U0006,u
+                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     anda      #128      ; mask a using #128
                     andb      #34       ; mask b using #34
                     cmpd      #-32766   ; compare d with #-32766 and set the condition codes
-                    beq       L3275     ; branch when the values are equal or the result is zero; target L3275
-                    ldd       U0006,u   ; load d from U0006,u
+                    beq       Branch_271 ; branch when the values are equal or the result is zero; target Branch_271
+                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #34       ; mask b using #34
                     cmpd      #2        ; compare d with #2 and set the condition codes
-                    lbne      L338D     ; branch when the values differ or the result is nonzero; target L338D
+                    lbne      Branch_272 ; branch when the values differ or the result is nonzero; target Branch_272
                     pshs      u         ; save u on the stack
-                    lbsr      L346C     ; call subroutine L346C
+                    lbsr      Routine_055 ; call subroutine Routine_055
                     leas      $02,s     ; adjust the system stack pointer
-L3275               ldd       U0006,u   ; load d from U0006,u
+Branch_271          ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #4        ; mask b using #4
-                    beq       L32B1     ; branch when the values are equal or the result is zero; target L32B1
+                    beq       Branch_273 ; branch when the values are equal or the result is zero; target Branch_273
                     ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
                     leax      $07,s     ; form the address $07,s in x
                     pshs      x         ; save x on the stack
-                    ldd       U0008,u   ; load d from U0008,u
+                    ldd       WorkByte_008,u ; load d from WorkByte_008,u
                     pshs      d         ; save d on the stack
-                    ldd       U0006,u   ; load d from U0006,u
+                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #64       ; mask b using #64
-                    beq       L3296     ; branch when the values are equal or the result is zero; target L3296
+                    beq       Branch_274 ; branch when the values are equal or the result is zero; target Branch_274
                     leax      >writln,pc ; form the address >writln,pc in x
-                    bra       L329A     ; continue execution at L329A
-L3296               leax      >write,pc ; form the address >write,pc in x
-L329A               tfr       x,d       ; copy the register values specified by x,d
+                    bra       Branch_275 ; continue execution at Branch_275
+Branch_274          leax      >write,pc ; form the address >write,pc in x
+Branch_275          tfr       x,d       ; copy the register values specified by x,d
                     tfr       d,x       ; copy the register values specified by d,x
-                    jsr       0,x       ; call subroutine 0,x
+                    jsr       ,x        ; call subroutine ,x
                     leas      $06,s     ; adjust the system stack pointer
                     cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    bne       L32F2     ; branch when the values differ or the result is nonzero; target L32F2
-                    ldd       U0006,u   ; load d from U0006,u
+                    bne       Branch_276 ; branch when the values differ or the result is nonzero; target Branch_276
+                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     orb       #32       ; set selected bits in b using #32
-                    std       U0006,u   ; store d at U0006,u
-                    lbra      L338D     ; continue execution at L338D
-L32B1               ldd       U0006,u   ; load d from U0006,u
+                    std       WorkByte_006,u ; store d at WorkByte_006,u
+                    lbra      Branch_272 ; continue execution at Branch_272
+Branch_273          ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     anda      #1        ; mask a using #1
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    bne       L32C1     ; branch when the values differ or the result is nonzero; target L32C1
+                    bne       Branch_277 ; branch when the values differ or the result is nonzero; target Branch_277
                     pshs      u         ; save u on the stack
-                    lbsr      L33AA     ; call subroutine L33AA
+                    lbsr      Routine_056 ; call subroutine Routine_056
                     leas      $02,s     ; adjust the system stack pointer
-L32C1               ldd       U0000,u   ; load d from U0000,u
+Branch_277          ldd       WorkByte_001,u ; load d from WorkByte_001,u
                     addd      #1        ; add to d using #1
-                    std       U0000,u   ; store d at U0000,u
+                    std       WorkByte_001,u ; store d at WorkByte_001,u
                     subd      #1        ; subtract from d using #1
                     tfr       d,x       ; copy the register values specified by d,x
                     ldd       $04,s     ; load d from the current stack frame at $04,s
-                    stb       0,x       ; store b at 0,x
-                    ldd       U0000,u   ; load d from U0000,u
-                    cmpd      U0004,u   ; compare d with U0004,u and set the condition codes
-                    bcc       L32E7     ; branch when carry is clear; target L32E7
-                    ldd       U0006,u   ; load d from U0006,u
+                    stb       ,x        ; store b at ,x
+                    ldd       WorkByte_001,u ; load d from WorkByte_001,u
+                    cmpd      WorkByte_004,u ; compare d with WorkByte_004,u and set the condition codes
+                    bcc       Branch_278 ; branch when carry is clear; target Branch_278
+                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #64       ; mask b using #64
-                    beq       L32F2     ; branch when the values are equal or the result is zero; target L32F2
+                    beq       Branch_276 ; branch when the values are equal or the result is zero; target Branch_276
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     cmpd      #13       ; compare d with #13 and set the condition codes
-                    bne       L32F2     ; branch when the values differ or the result is nonzero; target L32F2
-L32E7               pshs      u         ; save u on the stack
-                    lbsr      L33AA     ; call subroutine L33AA
+                    bne       Branch_276 ; branch when the values differ or the result is nonzero; target Branch_276
+Branch_278          pshs      u         ; save u on the stack
+                    lbsr      Routine_056 ; call subroutine Routine_056
                     std       ,s++      ; store d in the current stack frame at ,s++
-                    lbne      L338D     ; branch when the values differ or the result is nonzero; target L338D
-L32F2               ldd       $04,s     ; load d from the current stack frame at $04,s
+                    lbne      Branch_272 ; branch when the values differ or the result is nonzero; target Branch_272
+Branch_276          ldd       $04,s     ; load d from the current stack frame at $04,s
                     puls      pc,u      ; restore pc,u and return to the caller
                     pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
@@ -4926,427 +4932,427 @@ L32F2               ldd       $04,s     ; load d from the current stack frame at
                     pshs      d         ; save d on the stack
                     pshs      u         ; save u on the stack
                     ldd       #8        ; set d to the constant 8
-                    lbsr      L3787     ; call subroutine L3787
+                    lbsr      Routine_057 ; call subroutine Routine_057
                     pshs      d         ; save d on the stack
-                    lbsr      L3251     ; call subroutine L3251
+                    lbsr      Routine_054 ; call subroutine Routine_054
                     leas      $04,s     ; adjust the system stack pointer
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     pshs      u         ; save u on the stack
-                    lbsr      L3251     ; call subroutine L3251
-                    lbra      L3464     ; continue execution at L3464
-L3319               pshs      u,d       ; save u,d on the stack
-                    leau      >U003C,y  ; form the workspace or data address >U003C,y in u
+                    lbsr      Routine_054 ; call subroutine Routine_054
+                    lbra      Branch_279 ; continue execution at Branch_279
+Routine_058         pshs      u,d       ; save u,d on the stack
+                    leau      >WorkBuffer_004,y ; form the workspace or data address >WorkBuffer_004,y in u
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       0,s       ; store d in the current stack frame at 0,s
-                    bra       L332F     ; continue execution at L332F
-L3325               tfr       u,d       ; copy the register values specified by u,d
-                    leau      U000D,u   ; form the workspace or data address U000D,u in u
+                    std       ,s        ; store d in the current stack frame at ,s
+                    bra       Branch_280 ; continue execution at Branch_280
+Branch_281          tfr       u,d       ; copy the register values specified by u,d
+                    leau      WorkWord_002,u ; form the workspace or data address WorkWord_002,u in u
                     pshs      d         ; save d on the stack
-                    bsr       L3342     ; call subroutine L3342
+                    bsr       Routine_059 ; call subroutine Routine_059
                     leas      $02,s     ; adjust the system stack pointer
-L332F               ldd       0,s       ; load d from the current stack frame at 0,s
+Branch_280          ldd       ,s        ; load d from the current stack frame at ,s
                     addd      #1        ; add to d using #1
-                    std       0,s       ; store d in the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
                     subd      #1        ; subtract from d using #1
                     cmpd      #16       ; compare d with #16 and set the condition codes
-                    blt       L3325     ; branch when the signed value is less; target L3325
-                    lbra      L33A6     ; continue execution at L33A6
-L3342               pshs      u         ; save u on the stack
+                    blt       Branch_281 ; branch when the signed value is less; target Branch_281
+                    lbra      Branch_282 ; continue execution at Branch_282
+Routine_059         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
                     leas      -$02,s    ; adjust the system stack pointer
                     cmpu      #0        ; compare u with #0 and set the condition codes
-                    beq       L3352     ; branch when the values are equal or the result is zero; target L3352
-                    ldd       U0006,u   ; load d from U0006,u
-                    bne       L3358     ; branch when the values differ or the result is nonzero; target L3358
-L3352               ldd       #-1       ; set d to the constant -1
-                    lbra      L33A6     ; continue execution at L33A6
-L3358               ldd       U0006,u   ; load d from U0006,u
+                    beq       Branch_283 ; branch when the values are equal or the result is zero; target Branch_283
+                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
+                    bne       Branch_284 ; branch when the values differ or the result is nonzero; target Branch_284
+Branch_283          ldd       #-1       ; set d to the constant -1
+                    lbra      Branch_282 ; continue execution at Branch_282
+Branch_284          ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #2        ; mask b using #2
-                    beq       L3367     ; branch when the values are equal or the result is zero; target L3367
+                    beq       Branch_285 ; branch when the values are equal or the result is zero; target Branch_285
                     pshs      u         ; save u on the stack
-                    bsr       L337C     ; call subroutine L337C
+                    bsr       Routine_008 ; call subroutine Routine_008
                     leas      $02,s     ; adjust the system stack pointer
-                    bra       L3369     ; continue execution at L3369
-L3367               clra                ; clear a to zero and set the condition codes
+                    bra       Branch_286 ; continue execution at Branch_286
+Branch_285          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-L3369               std       0,s       ; store d in the current stack frame at 0,s
-                    ldd       U0008,u   ; load d from U0008,u
+Branch_286          std       ,s        ; store d in the current stack frame at ,s
+                    ldd       WorkByte_008,u ; load d from WorkByte_008,u
                     pshs      d         ; save d on the stack
                     lbsr      close     ; call subroutine close
                     leas      $02,s     ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       U0006,u   ; store d at U0006,u
-                    ldd       0,s       ; load d from the current stack frame at 0,s
-                    bra       L33A6     ; continue execution at L33A6
-L337C               pshs      u         ; save u on the stack
+                    std       WorkByte_006,u ; store d at WorkByte_006,u
+                    ldd       ,s        ; load d from the current stack frame at ,s
+                    bra       Branch_282 ; continue execution at Branch_282
+Routine_008         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
-                    beq       L338D     ; branch when the values are equal or the result is zero; target L338D
-                    ldd       U0006,u   ; load d from U0006,u
+                    beq       Branch_272 ; branch when the values are equal or the result is zero; target Branch_272
+                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #34       ; mask b using #34
                     cmpd      #2        ; compare d with #2 and set the condition codes
-                    beq       L3392     ; branch when the values are equal or the result is zero; target L3392
-L338D               ldd       #-1       ; set d to the constant -1
+                    beq       Branch_287 ; branch when the values are equal or the result is zero; target Branch_287
+Branch_272          ldd       #-1       ; set d to the constant -1
                     puls      pc,u      ; restore pc,u and return to the caller
-L3392               ldd       U0006,u   ; load d from U0006,u
+Branch_287          ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     anda      #128      ; mask a using #128
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    bne       L33A2     ; branch when the values differ or the result is nonzero; target L33A2
+                    bne       Branch_288 ; branch when the values differ or the result is nonzero; target Branch_288
                     pshs      u         ; save u on the stack
-                    lbsr      L346C     ; call subroutine L346C
+                    lbsr      Routine_055 ; call subroutine Routine_055
                     leas      $02,s     ; adjust the system stack pointer
-L33A2               pshs      u         ; save u on the stack
-                    bsr       L33AA     ; call subroutine L33AA
-L33A6               leas      $02,s     ; adjust the system stack pointer
+Branch_288          pshs      u         ; save u on the stack
+                    bsr       Routine_056 ; call subroutine Routine_056
+Branch_282          leas      $02,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
-L33AA               pshs      u         ; save u on the stack
+Routine_056         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
                     leas      -$04,s    ; adjust the system stack pointer
-                    ldd       U0006,u   ; load d from U0006,u
+                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     anda      #1        ; mask a using #1
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    bne       L33DC     ; branch when the values differ or the result is nonzero; target L33DC
-                    ldd       U0000,u   ; load d from U0000,u
-                    cmpd      U0004,u   ; compare d with U0004,u and set the condition codes
-                    beq       L33DC     ; branch when the values are equal or the result is zero; target L33DC
+                    bne       Branch_289 ; branch when the values differ or the result is nonzero; target Branch_289
+                    ldd       WorkByte_001,u ; load d from WorkByte_001,u
+                    cmpd      WorkByte_004,u ; compare d with WorkByte_004,u and set the condition codes
+                    beq       Branch_289 ; branch when the values are equal or the result is zero; target Branch_289
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
                     pshs      u         ; save u on the stack
-                    lbsr      L3468     ; call subroutine L3468
+                    lbsr      Routine_060 ; call subroutine Routine_060
                     leas      $02,s     ; adjust the system stack pointer
                     ldd       $02,x     ; load d from $02,x
                     pshs      d         ; save d on the stack
-                    ldd       0,x       ; load d from 0,x
+                    ldd       ,x        ; load d from ,x
                     pshs      d         ; save d on the stack
-                    ldd       U0008,u   ; load d from U0008,u
+                    ldd       WorkByte_008,u ; load d from WorkByte_008,u
                     pshs      d         ; save d on the stack
-                    lbsr      L38FE     ; call subroutine L38FE
+                    lbsr      Routine_061 ; call subroutine Routine_061
                     leas      $08,s     ; adjust the system stack pointer
-L33DC               ldd       U0000,u   ; load d from U0000,u
-                    subd      U0002,u   ; subtract from d using U0002,u
+Branch_289          ldd       WorkByte_001,u ; load d from WorkByte_001,u
+                    subd      WorkByte_002,u ; subtract from d using WorkByte_002,u
                     std       $02,s     ; store d in the current stack frame at $02,s
-                    lbeq      L3454     ; branch when the values are equal or the result is zero; target L3454
-                    ldd       U0006,u   ; load d from U0006,u
+                    lbeq      Branch_290 ; branch when the values are equal or the result is zero; target Branch_290
+                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     anda      #1        ; mask a using #1
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    lbeq      L3454     ; branch when the values are equal or the result is zero; target L3454
-                    ldd       U0006,u   ; load d from U0006,u
+                    lbeq      Branch_290 ; branch when the values are equal or the result is zero; target Branch_290
+                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #64       ; mask b using #64
-                    beq       L342B     ; branch when the values are equal or the result is zero; target L342B
-                    ldd       U0002,u   ; load d from U0002,u
-                    bra       L3423     ; continue execution at L3423
-L33FC               ldd       $02,s     ; load d from the current stack frame at $02,s
+                    beq       Branch_291 ; branch when the values are equal or the result is zero; target Branch_291
+                    ldd       WorkByte_002,u ; load d from WorkByte_002,u
+                    bra       Branch_292 ; continue execution at Branch_292
+Branch_293          ldd       $02,s     ; load d from the current stack frame at $02,s
                     pshs      d         ; save d on the stack
-                    ldd       U0000,u   ; load d from U0000,u
+                    ldd       WorkByte_001,u ; load d from WorkByte_001,u
                     pshs      d         ; save d on the stack
-                    ldd       U0008,u   ; load d from U0008,u
+                    ldd       WorkByte_008,u ; load d from WorkByte_008,u
                     pshs      d         ; save d on the stack
                     lbsr      writln    ; call subroutine writln
                     leas      $06,s     ; adjust the system stack pointer
-                    std       0,s       ; store d in the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
                     cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    bne       L3419     ; branch when the values differ or the result is nonzero; target L3419
+                    bne       Branch_294 ; branch when the values differ or the result is nonzero; target Branch_294
                     leax      $04,s     ; form the address $04,s in x
-                    bra       L3443     ; continue execution at L3443
-L3419               ldd       $02,s     ; load d from the current stack frame at $02,s
-                    subd      0,s       ; subtract from d using 0,s
+                    bra       Branch_295 ; continue execution at Branch_295
+Branch_294          ldd       $02,s     ; load d from the current stack frame at $02,s
+                    subd      ,s        ; subtract from d using ,s
                     std       $02,s     ; store d in the current stack frame at $02,s
-                    ldd       U0000,u   ; load d from U0000,u
-                    addd      0,s       ; add to d using 0,s
-L3423               std       U0000,u   ; store d at U0000,u
+                    ldd       WorkByte_001,u ; load d from WorkByte_001,u
+                    addd      ,s        ; add to d using ,s
+Branch_292          std       WorkByte_001,u ; store d at WorkByte_001,u
                     ldd       $02,s     ; load d from the current stack frame at $02,s
-                    bne       L33FC     ; branch when the values differ or the result is nonzero; target L33FC
-                    bra       L3454     ; continue execution at L3454
-L342B               ldd       $02,s     ; load d from the current stack frame at $02,s
+                    bne       Branch_293 ; branch when the values differ or the result is nonzero; target Branch_293
+                    bra       Branch_290 ; continue execution at Branch_290
+Branch_291          ldd       $02,s     ; load d from the current stack frame at $02,s
                     pshs      d         ; save d on the stack
-                    ldd       U0002,u   ; load d from U0002,u
+                    ldd       WorkByte_002,u ; load d from WorkByte_002,u
                     pshs      d         ; save d on the stack
-                    ldd       U0008,u   ; load d from U0008,u
+                    ldd       WorkByte_008,u ; load d from WorkByte_008,u
                     pshs      d         ; save d on the stack
                     lbsr      write     ; call subroutine write
                     leas      $06,s     ; adjust the system stack pointer
                     cmpd      $02,s     ; compare d with $02,s and set the condition codes
-                    beq       L3454     ; branch when the values are equal or the result is zero; target L3454
-                    bra       L3445     ; continue execution at L3445
-L3443               leas      -$04,x    ; adjust the system stack pointer
-L3445               ldd       U0006,u   ; load d from U0006,u
+                    beq       Branch_290 ; branch when the values are equal or the result is zero; target Branch_290
+                    bra       Branch_296 ; continue execution at Branch_296
+Branch_295          leas      -$04,x    ; adjust the system stack pointer
+Branch_296          ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     orb       #32       ; set selected bits in b using #32
-                    std       U0006,u   ; store d at U0006,u
-                    ldd       U0004,u   ; load d from U0004,u
-                    std       U0000,u   ; store d at U0000,u
+                    std       WorkByte_006,u ; store d at WorkByte_006,u
+                    ldd       WorkByte_004,u ; load d from WorkByte_004,u
+                    std       WorkByte_001,u ; store d at WorkByte_001,u
                     ldd       #-1       ; set d to the constant -1
-                    bra       L3464     ; continue execution at L3464
-L3454               ldd       U0006,u   ; load d from U0006,u
+                    bra       Branch_279 ; continue execution at Branch_279
+Branch_290          ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     ora       #1        ; set selected bits in a using #1
-                    std       U0006,u   ; store d at U0006,u
-                    ldd       U0002,u   ; load d from U0002,u
-                    std       U0000,u   ; store d at U0000,u
-                    addd      U000B,u   ; add to d using U000B,u
-                    std       U0004,u   ; store d at U0004,u
+                    std       WorkByte_006,u ; store d at WorkByte_006,u
+                    ldd       WorkByte_002,u ; load d from WorkByte_002,u
+                    std       WorkByte_001,u ; store d at WorkByte_001,u
+                    addd      WorkWord_001,u ; add to d using WorkWord_001,u
+                    std       WorkByte_004,u ; store d at WorkByte_004,u
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-L3464               leas      $04,s     ; adjust the system stack pointer
+Branch_279          leas      $04,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
-L3468               pshs      u         ; save u on the stack
+Routine_060         pshs      u         ; save u on the stack
                     puls      pc,u      ; restore pc,u and return to the caller
-L346C               pshs      u         ; save u on the stack
+Routine_055         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
-                    ldd       U0006,u   ; load d from U0006,u
+                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #192      ; mask b using #192
-                    bne       L34A4     ; branch when the values differ or the result is nonzero; target L34A4
+                    bne       Branch_297 ; branch when the values differ or the result is nonzero; target Branch_297
                     leas      -$20,s    ; adjust the system stack pointer
-                    leax      0,s       ; form the address 0,s in x
+                    leax      ,s        ; form the address ,s in x
                     pshs      x         ; save x on the stack
-                    ldd       U0008,u   ; load d from U0008,u
+                    ldd       WorkByte_008,u ; load d from WorkByte_008,u
                     pshs      d         ; save d on the stack
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
-                    lbsr      L37B9     ; call subroutine L37B9
+                    lbsr      Routine_042 ; call subroutine Routine_042
                     leas      $06,s     ; adjust the system stack pointer
-                    ldd       U0006,u   ; load d from U0006,u
+                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     pshs      d         ; save d on the stack
                     ldb       $02,s     ; load b from the current stack frame at $02,s
-                    bne       L3498     ; branch when the values differ or the result is nonzero; target L3498
+                    bne       Branch_298 ; branch when the values differ or the result is nonzero; target Branch_298
                     ldd       #64       ; set d to the constant 64
-                    bra       L349B     ; continue execution at L349B
-L3498               ldd       #128      ; set d to the constant 128
-L349B               ora       ,s+       ; set selected bits in a using ,s+
+                    bra       Branch_299 ; continue execution at Branch_299
+Branch_298          ldd       #128      ; set d to the constant 128
+Branch_299          ora       ,s+       ; set selected bits in a using ,s+
                     orb       ,s+       ; set selected bits in b using ,s+
-                    std       U0006,u   ; store d at U0006,u
+                    std       WorkByte_006,u ; store d at WorkByte_006,u
                     leas      <$0020,s  ; adjust the system stack pointer
-L34A4               ldd       U0006,u   ; load d from U0006,u
+Branch_297          ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     ora       #128      ; set selected bits in a using #128
-                    std       U0006,u   ; store d at U0006,u
+                    std       WorkByte_006,u ; store d at WorkByte_006,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #12       ; mask b using #12
-                    beq       L34B1     ; branch when the values are equal or the result is zero; target L34B1
+                    beq       Branch_300 ; branch when the values are equal or the result is zero; target Branch_300
                     puls      pc,u      ; restore pc,u and return to the caller
-L34B1               ldd       U000B,u   ; load d from U000B,u
-                    bne       L34C6     ; branch when the values differ or the result is nonzero; target L34C6
-                    ldd       U0006,u   ; load d from U0006,u
+Branch_300          ldd       WorkWord_001,u ; load d from WorkWord_001,u
+                    bne       Branch_301 ; branch when the values differ or the result is nonzero; target Branch_301
+                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #64       ; mask b using #64
-                    beq       L34C1     ; branch when the values are equal or the result is zero; target L34C1
+                    beq       Branch_302 ; branch when the values are equal or the result is zero; target Branch_302
                     ldd       #128      ; set d to the constant 128
-                    bra       L34C4     ; continue execution at L34C4
-L34C1               ldd       #256      ; set d to the constant 256
-L34C4               std       U000B,u   ; store d at U000B,u
-L34C6               ldd       U0002,u   ; load d from U0002,u
-                    bne       L34DB     ; branch when the values differ or the result is nonzero; target L34DB
-                    ldd       U000B,u   ; load d from U000B,u
+                    bra       Branch_303 ; continue execution at Branch_303
+Branch_302          ldd       #256      ; set d to the constant 256
+Branch_303          std       WorkWord_001,u ; store d at WorkWord_001,u
+Branch_301          ldd       WorkByte_002,u ; load d from WorkByte_002,u
+                    bne       Branch_304 ; branch when the values differ or the result is nonzero; target Branch_304
+                    ldd       WorkWord_001,u ; load d from WorkWord_001,u
                     pshs      d         ; save d on the stack
-                    lbsr      L39EE     ; call subroutine L39EE
+                    lbsr      Routine_062 ; call subroutine Routine_062
                     leas      $02,s     ; adjust the system stack pointer
-                    std       U0002,u   ; store d at U0002,u
+                    std       WorkByte_002,u ; store d at WorkByte_002,u
                     cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    beq       L34E3     ; branch when the values are equal or the result is zero; target L34E3
-L34DB               ldd       U0006,u   ; load d from U0006,u
+                    beq       Branch_305 ; branch when the values are equal or the result is zero; target Branch_305
+Branch_304          ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     orb       #8        ; set selected bits in b using #8
-                    std       U0006,u   ; store d at U0006,u
-                    bra       L34F2     ; continue execution at L34F2
-L34E3               ldd       U0006,u   ; load d from U0006,u
+                    std       WorkByte_006,u ; store d at WorkByte_006,u
+                    bra       Branch_306 ; continue execution at Branch_306
+Branch_305          ldd       WorkByte_006,u ; load d from WorkByte_006,u
                     orb       #4        ; set selected bits in b using #4
-                    std       U0006,u   ; store d at U0006,u
-                    leax      U000A,u   ; form the address U000A,u in x
-                    stx       U0002,u   ; store x at U0002,u
+                    std       WorkByte_006,u ; store d at WorkByte_006,u
+                    leax      WorkByte_010,u ; form the address WorkByte_010,u in x
+                    stx       WorkByte_002,u ; store x at WorkByte_002,u
                     ldd       #1        ; set d to the constant 1
-                    std       U000B,u   ; store d at U000B,u
-L34F2               ldd       U0002,u   ; load d from U0002,u
-                    addd      U000B,u   ; add to d using U000B,u
-                    std       U0004,u   ; store d at U0004,u
-                    std       U0000,u   ; store d at U0000,u
+                    std       WorkWord_001,u ; store d at WorkWord_001,u
+Branch_306          ldd       WorkByte_002,u ; load d from WorkByte_002,u
+                    addd      WorkWord_001,u ; add to d using WorkWord_001,u
+                    std       WorkByte_004,u ; store d at WorkByte_004,u
+                    std       WorkByte_001,u ; store d at WorkByte_001,u
                     puls      pc,u      ; restore pc,u and return to the caller
-L34FC               pshs      u         ; save u on the stack
+Routine_052         pshs      u         ; save u on the stack
                     ldb       $05,s     ; load b from the current stack frame at $05,s
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; copy the register values specified by d,x
-                    bra       L3522     ; continue execution at L3522
-L3505               ldd       [<$06,s]  ; load d from the current stack frame at [<$06,s]
+                    bra       Branch_307 ; continue execution at Branch_307
+Branch_308          ldd       [<$06,s]  ; load d from the current stack frame at [<$06,s]
                     addd      #4        ; add to d using #4
                     std       [<$06,s]  ; store d in the current stack frame at [<$06,s]
-                    leax      >L3539,pc ; form the address >L3539,pc in x
-                    bra       L351E     ; continue execution at L351E
-L3514               ldb       $05,s     ; load b from the current stack frame at $05,s
-                    stb       >U003A,y  ; store b at >U003A,y
-                    leax      >U0039,y  ; form the address >U0039,y in x
-L351E               tfr       x,d       ; copy the register values specified by x,d
+                    leax      >Data_001,pc ; form the address >Data_001,pc in x
+                    bra       Branch_309 ; continue execution at Branch_309
+Branch_310          ldb       $05,s     ; load b from the current stack frame at $05,s
+                    stb       >WorkWord_004,y ; store b at >WorkWord_004,y
+                    leax      >WorkByte_011,y ; form the address >WorkByte_011,y in x
+Branch_309          tfr       x,d       ; copy the register values specified by x,d
                     puls      pc,u      ; restore pc,u and return to the caller
-L3522               cmpx      #100      ; compare x with #100 and set the condition codes
-                    beq       L3505     ; branch when the values are equal or the result is zero; target L3505
+Branch_307          cmpx      #100      ; compare x with #100 and set the condition codes
+                    beq       Branch_308 ; branch when the values are equal or the result is zero; target Branch_308
                     cmpx      #111      ; compare x with #111 and set the condition codes
-                    lbeq      L3505     ; branch when the values are equal or the result is zero; target L3505
+                    lbeq      Branch_308 ; branch when the values are equal or the result is zero; target Branch_308
                     cmpx      #120      ; compare x with #120 and set the condition codes
-                    lbeq      L3505     ; branch when the values are equal or the result is zero; target L3505
-                    bra       L3514     ; continue execution at L3514
+                    lbeq      Branch_308 ; branch when the values are equal or the result is zero; target Branch_308
+                    bra       Branch_310 ; continue execution at Branch_310
                     puls      pc,u      ; restore pc,u and return to the caller
-L3539               fcb       $00       ; store byte data
-L353A               pshs      u         ; save u on the stack
-                    leax      >L3544,pc ; form the address >L3544,pc in x
+Data_001            fcb       $00       ; store byte data
+Routine_050         pshs      u         ; save u on the stack
+                    leax      >Data_002,pc ; form the address >Data_002,pc in x
                     tfr       x,d       ; copy the register values specified by x,d
                     puls      pc,u      ; restore pc,u and return to the caller
-L3544               fcb       $00       ; store byte data
-L3545               pshs      u         ; save u on the stack
+Data_002            fcb       $00       ; store byte data
+Routine_044         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
-L3549               ldb       ,u+       ; load b from ,u+
-                    bne       L3549     ; branch when the values differ or the result is nonzero; target L3549
+Branch_311          ldb       ,u+       ; load b from ,u+
+                    bne       Branch_311 ; branch when the values differ or the result is nonzero; target Branch_311
                     tfr       u,d       ; copy the register values specified by u,d
                     subd      $04,s     ; subtract from d using $04,s
                     addd      #-1       ; add to d using #-1
                     puls      pc,u      ; restore pc,u and return to the caller
-L3556               pshs      u         ; save u on the stack
+Routine_009         pshs      u         ; save u on the stack
                     ldu       $06,s     ; load u from the current stack frame at $06,s
                     leas      -$02,s    ; adjust the system stack pointer
                     ldd       $06,s     ; load d from the current stack frame at $06,s
-                    std       0,s       ; store d in the current stack frame at 0,s
-L3560               ldb       ,u+       ; load b from ,u+
-                    ldx       0,s       ; load x from the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
+Branch_312          ldb       ,u+       ; load b from ,u+
+                    ldx       ,s        ; load x from the current stack frame at ,s
                     leax      $01,x     ; form the address $01,x in x
-                    stx       0,s       ; store x in the current stack frame at 0,s
+                    stx       ,s        ; store x in the current stack frame at ,s
                     stb       -$01,x    ; store b at -$01,x
-                    bne       L3560     ; branch when the values differ or the result is nonzero; target L3560
-                    bra       L3595     ; continue execution at L3595
+                    bne       Branch_312 ; branch when the values differ or the result is nonzero; target Branch_312
+                    bra       Branch_313 ; continue execution at Branch_313
                     pshs      u         ; save u on the stack
                     ldu       $06,s     ; load u from the current stack frame at $06,s
                     leas      -$02,s    ; adjust the system stack pointer
                     ldd       $06,s     ; load d from the current stack frame at $06,s
-                    std       0,s       ; store d in the current stack frame at 0,s
-L3578               ldx       0,s       ; load x from the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
+Branch_314          ldx       ,s        ; load x from the current stack frame at ,s
                     leax      $01,x     ; form the address $01,x in x
-                    stx       0,s       ; store x in the current stack frame at 0,s
+                    stx       ,s        ; store x in the current stack frame at ,s
                     ldb       -$01,x    ; load b from -$01,x
-                    bne       L3578     ; branch when the values differ or the result is nonzero; target L3578
-                    ldd       0,s       ; load d from the current stack frame at 0,s
+                    bne       Branch_314 ; branch when the values differ or the result is nonzero; target Branch_314
+                    ldd       ,s        ; load d from the current stack frame at ,s
                     addd      #-1       ; add to d using #-1
-                    std       0,s       ; store d in the current stack frame at 0,s
-L3589               ldb       ,u+       ; load b from ,u+
-                    ldx       0,s       ; load x from the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
+Branch_315          ldb       ,u+       ; load b from ,u+
+                    ldx       ,s        ; load x from the current stack frame at ,s
                     leax      $01,x     ; form the address $01,x in x
-                    stx       0,s       ; store x in the current stack frame at 0,s
+                    stx       ,s        ; store x in the current stack frame at ,s
                     stb       -$01,x    ; store b at -$01,x
-                    bne       L3589     ; branch when the values differ or the result is nonzero; target L3589
-L3595               ldd       $06,s     ; load d from the current stack frame at $06,s
+                    bne       Branch_315 ; branch when the values differ or the result is nonzero; target Branch_315
+Branch_313          ldd       $06,s     ; load d from the current stack frame at $06,s
                     leas      $02,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
                     pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
-                    bra       L35B1     ; continue execution at L35B1
-L35A1               ldx       $06,s     ; load x from the current stack frame at $06,s
+                    bra       Branch_316 ; continue execution at Branch_316
+Branch_317          ldx       $06,s     ; load x from the current stack frame at $06,s
                     leax      $01,x     ; form the address $01,x in x
                     stx       $06,s     ; store x in the current stack frame at $06,s
                     ldb       -$01,x    ; load b from -$01,x
-                    bne       L35AF     ; branch when the values differ or the result is nonzero; target L35AF
+                    bne       Branch_318 ; branch when the values differ or the result is nonzero; target Branch_318
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     puls      pc,u      ; restore pc,u and return to the caller
-L35AF               leau      dpsiz,u   ; form the workspace or data address dpsiz,u in u
-L35B1               ldb       U0000,u   ; load b from U0000,u
+Branch_318          leau      dpsiz,u   ; form the workspace or data address dpsiz,u in u
+Branch_316          ldb       WorkByte_001,u ; load b from WorkByte_001,u
                     sex                 ; sign-extend b into d
                     pshs      d         ; save d on the stack
                     ldb       [<$08,s]  ; load b from the current stack frame at [<$08,s]
                     sex                 ; sign-extend b into d
                     cmpd      ,s++      ; compare d with ,s++ and set the condition codes
-                    beq       L35A1     ; branch when the values are equal or the result is zero; target L35A1
+                    beq       Branch_317 ; branch when the values are equal or the result is zero; target Branch_317
                     ldb       [<$06,s]  ; load b from the current stack frame at [<$06,s]
                     sex                 ; sign-extend b into d
                     pshs      d         ; save d on the stack
-                    ldb       U0000,u   ; load b from U0000,u
+                    ldb       WorkByte_001,u ; load b from WorkByte_001,u
                     sex                 ; sign-extend b into d
                     subd      ,s++      ; subtract from d using ,s++
                     puls      pc,u      ; restore pc,u and return to the caller
-L35CC               pshs      u         ; save u on the stack
+Routine_031         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
                     leas      -$05,s    ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     std       $01,s     ; store d in the current stack frame at $01,s
-L35D6               ldb       ,u+       ; load b from ,u+
-                    stb       0,s       ; store b in the current stack frame at 0,s
+Branch_319          ldb       ,u+       ; load b from ,u+
+                    stb       ,s        ; store b in the current stack frame at ,s
                     cmpb      #32       ; compare b with #32 and set the condition codes
-                    beq       L35D6     ; branch when the values are equal or the result is zero; target L35D6
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+                    beq       Branch_319 ; branch when the values are equal or the result is zero; target Branch_319
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     cmpb      #9        ; compare b with #9 and set the condition codes
-                    lbeq      L35D6     ; branch when the values are equal or the result is zero; target L35D6
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+                    lbeq      Branch_319 ; branch when the values are equal or the result is zero; target Branch_319
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     cmpb      #45       ; compare b with #45 and set the condition codes
-                    bne       L35F1     ; branch when the values differ or the result is nonzero; target L35F1
+                    bne       Branch_320 ; branch when the values differ or the result is nonzero; target Branch_320
                     ldd       #1        ; set d to the constant 1
-                    bra       L35F3     ; continue execution at L35F3
-L35F1               clra                ; clear a to zero and set the condition codes
+                    bra       Branch_321 ; continue execution at Branch_321
+Branch_320          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-L35F3               std       $03,s     ; store d in the current stack frame at $03,s
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+Branch_321          std       $03,s     ; store d in the current stack frame at $03,s
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     cmpb      #45       ; compare b with #45 and set the condition codes
-                    beq       L3619     ; branch when the values are equal or the result is zero; target L3619
-                    ldb       0,s       ; load b from the current stack frame at 0,s
+                    beq       Branch_322 ; branch when the values are equal or the result is zero; target Branch_322
+                    ldb       ,s        ; load b from the current stack frame at ,s
                     cmpb      #43       ; compare b with #43 and set the condition codes
-                    bne       L361D     ; branch when the values differ or the result is nonzero; target L361D
-                    bra       L3619     ; continue execution at L3619
-L3603               ldd       $01,s     ; load d from the current stack frame at $01,s
+                    bne       Branch_323 ; branch when the values differ or the result is nonzero; target Branch_323
+                    bra       Branch_322 ; continue execution at Branch_322
+Branch_324          ldd       $01,s     ; load d from the current stack frame at $01,s
                     pshs      d         ; save d on the stack
                     ldd       #10       ; set d to the constant 10
-                    lbsr      L365D     ; call subroutine L365D
+                    lbsr      Routine_013 ; call subroutine Routine_013
                     pshs      d         ; save d on the stack
                     ldb       $02,s     ; load b from the current stack frame at $02,s
                     sex                 ; sign-extend b into d
                     addd      ,s++      ; add to d using ,s++
                     addd      #-48      ; add to d using #-48
                     std       $01,s     ; store d in the current stack frame at $01,s
-L3619               ldb       ,u+       ; load b from ,u+
-                    stb       0,s       ; store b in the current stack frame at 0,s
-L361D               ldb       0,s       ; load b from the current stack frame at 0,s
+Branch_322          ldb       ,u+       ; load b from ,u+
+                    stb       ,s        ; store b in the current stack frame at ,s
+Branch_323          ldb       ,s        ; load b from the current stack frame at ,s
                     sex                 ; sign-extend b into d
-                    leax      >U010D,y  ; form the address >U010D,y in x
+                    leax      >WorkBuffer_006,y ; form the address >WorkBuffer_006,y in x
                     leax      d,x       ; form the address d,x in x
-                    ldb       0,x       ; load b from 0,x
+                    ldb       ,x        ; load b from ,x
                     clra                ; clear a to zero and set the condition codes
                     andb      #8        ; mask b using #8
-                    bne       L3603     ; branch when the values differ or the result is nonzero; target L3603
+                    bne       Branch_324 ; branch when the values differ or the result is nonzero; target Branch_324
                     ldd       $03,s     ; load d from the current stack frame at $03,s
-                    beq       L3639     ; branch when the values are equal or the result is zero; target L3639
+                    beq       Branch_325 ; branch when the values are equal or the result is zero; target Branch_325
                     ldd       $01,s     ; load d from the current stack frame at $01,s
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
-                    bra       L363B     ; continue execution at L363B
-L3639               ldd       $01,s     ; load d from the current stack frame at $01,s
-L363B               leas      $05,s     ; adjust the system stack pointer
+                    bra       Branch_326 ; continue execution at Branch_326
+Branch_325          ldd       $01,s     ; load d from the current stack frame at $01,s
+Branch_326          leas      $05,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
-L363F               pshs      u         ; save u on the stack
+Routine_024         pshs      u         ; save u on the stack
                     ldd       $04,s     ; load d from the current stack frame at $04,s
-                    beq       L3651     ; branch when the values are equal or the result is zero; target L3651
+                    beq       Branch_327 ; branch when the values are equal or the result is zero; target Branch_327
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     pshs      d         ; save d on the stack
                     ldd       #10       ; set d to the constant 10
-                    lbsr      L365D     ; call subroutine L365D
-                    bra       L3654     ; continue execution at L3654
-L3651               ldd       #1        ; set d to the constant 1
-L3654               pshs      d         ; save d on the stack
+                    lbsr      Routine_013 ; call subroutine Routine_013
+                    bra       Branch_328 ; continue execution at Branch_328
+Branch_327          ldd       #1        ; set d to the constant 1
+Branch_328          pshs      d         ; save d on the stack
                     lbsr      sleep     ; call subroutine sleep
                     leas      $02,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
-L365D               tsta                ; set condition codes from a without changing it
-                    bne       L3672     ; branch when the values differ or the result is nonzero; target L3672
+Routine_013         tsta                ; set condition codes from a without changing it
+                    bne       Branch_329 ; branch when the values differ or the result is nonzero; target Branch_329
                     tst       $02,s     ; set condition codes from $02,s without changing it
-                    bne       L3672     ; branch when the values differ or the result is nonzero; target L3672
+                    bne       Branch_329 ; branch when the values differ or the result is nonzero; target Branch_329
                     lda       $03,s     ; load a from the current stack frame at $03,s
                     mul                 ; multiply a by b and return the product in d
-                    ldx       0,s       ; load x from the current stack frame at 0,s
+                    ldx       ,s        ; load x from the current stack frame at ,s
                     stx       $02,s     ; store x in the current stack frame at $02,s
                     ldx       #0        ; set x to the constant 0
-                    std       0,s       ; store d in the current stack frame at 0,s
+                    std       ,s        ; store d in the current stack frame at ,s
                     puls      pc,d      ; restore pc,d and return to the caller
-L3672               pshs      d         ; save d on the stack
+Branch_329          pshs      d         ; save d on the stack
                     ldd       #0        ; set d to the constant 0
                     pshs      d         ; save d on the stack
                     pshs      d         ; save d on the stack
@@ -5359,115 +5365,115 @@ L3672               pshs      d         ; save d on the stack
                     mul                 ; multiply a by b and return the product in d
                     addd      $01,s     ; add to d using $01,s
                     std       $01,s     ; store d in the current stack frame at $01,s
-                    bcc       L368F     ; branch when carry is clear; target L368F
-                    inc       0,s       ; increment the value at 0,s
-L368F               lda       $04,s     ; load a from the current stack frame at $04,s
+                    bcc       Branch_330 ; branch when carry is clear; target Branch_330
+                    inc       ,s        ; increment the value at ,s
+Branch_330          lda       $04,s     ; load a from the current stack frame at $04,s
                     ldb       $09,s     ; load b from the current stack frame at $09,s
                     mul                 ; multiply a by b and return the product in d
                     addd      $01,s     ; add to d using $01,s
                     std       $01,s     ; store d in the current stack frame at $01,s
-                    bcc       L369C     ; branch when carry is clear; target L369C
-                    inc       0,s       ; increment the value at 0,s
-L369C               lda       $04,s     ; load a from the current stack frame at $04,s
+                    bcc       Branch_331 ; branch when carry is clear; target Branch_331
+                    inc       ,s        ; increment the value at ,s
+Branch_331          lda       $04,s     ; load a from the current stack frame at $04,s
                     ldb       $08,s     ; load b from the current stack frame at $08,s
                     mul                 ; multiply a by b and return the product in d
-                    addd      0,s       ; add to d using 0,s
-                    std       0,s       ; store d in the current stack frame at 0,s
+                    addd      ,s        ; add to d using ,s
+                    std       ,s        ; store d in the current stack frame at ,s
                     ldx       $06,s     ; load x from the current stack frame at $06,s
                     stx       $08,s     ; store x in the current stack frame at $08,s
-                    ldx       0,s       ; load x from the current stack frame at 0,s
+                    ldx       ,s        ; load x from the current stack frame at ,s
                     ldd       $02,s     ; load d from the current stack frame at $02,s
                     leas      $08,s     ; adjust the system stack pointer
                     rts                 ; return to the caller
-                    clr       >U37CF,y  ; clear >U37CF,y to zero and set the condition codes
-                    leax      >L36F8,pc ; form the address >L36F8,pc in x
-                    stx       >U37D0,y  ; store x at >U37D0,y
-                    bra       L36D2     ; continue execution at L36D2
-L36BE               leax      >L3711,pc ; form the address >L3711,pc in x
-                    stx       >U37D0,y  ; store x at >U37D0,y
-                    clr       >U37CF,y  ; clear >U37CF,y to zero and set the condition codes
+                    clr       >WorkByte_013,y ; clear >WorkByte_013,y to zero and set the condition codes
+                    leax      >Code_007,pc ; form the address >Code_007,pc in x
+                    stx       >WorkWord_016,y ; store x at >WorkWord_016,y
+                    bra       Branch_332 ; continue execution at Branch_332
+Routine_019         leax      >Routine_020,pc ; form the address >Routine_020,pc in x
+                    stx       >WorkWord_016,y ; store x at >WorkWord_016,y
+                    clr       >WorkByte_013,y ; clear >WorkByte_013,y to zero and set the condition codes
                     tst       $02,s     ; set condition codes from $02,s without changing it
-                    bpl       L36D2     ; branch when the result is nonnegative; target L36D2
-                    inc       >U37CF,y  ; increment the value at >U37CF,y
-L36D2               subd      #0        ; subtract from d using #0
-                    bne       L36DD     ; branch when the values differ or the result is nonzero; target L36DD
+                    bpl       Branch_332 ; branch when the result is nonnegative; target Branch_332
+                    inc       >WorkByte_013,y ; increment the value at >WorkByte_013,y
+Branch_332          subd      #0        ; subtract from d using #0
+                    bne       Branch_333 ; branch when the values differ or the result is nonzero; target Branch_333
                     puls      x         ; restore x from the stack
                     ldd       ,s++      ; load d from the current stack frame at ,s++
-                    jmp       0,x       ; continue execution at 0,x
-L36DD               ldx       $02,s     ; load x from the current stack frame at $02,s
+                    jmp       ,x        ; continue execution at ,x
+Branch_333          ldx       $02,s     ; load x from the current stack frame at $02,s
                     pshs      x         ; save x on the stack
                     jsr       [>$37D0,y] ; call subroutine [>$37D0,y]
-                    ldd       0,s       ; load d from the current stack frame at 0,s
+                    ldd       ,s        ; load d from the current stack frame at ,s
                     std       $02,s     ; store d in the current stack frame at $02,s
                     tfr       x,d       ; copy the register values specified by x,d
-                    tst       >U37CF,y  ; set condition codes from >U37CF,y without changing it
-                    beq       L36F5     ; branch when the values are equal or the result is zero; target L36F5
+                    tst       >WorkByte_013,y ; set condition codes from >WorkByte_013,y without changing it
+                    beq       Branch_334 ; branch when the values are equal or the result is zero; target Branch_334
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
-L36F5               std       ,s++      ; store d in the current stack frame at ,s++
+Branch_334          std       ,s++      ; store d in the current stack frame at ,s++
                     rts                 ; return to the caller
-L36F8               subd      #0        ; subtract from d using #0
-                    beq       L3707     ; branch when the values are equal or the result is zero; target L3707
+Code_007            subd      #0        ; subtract from d using #0
+                    beq       Branch_335 ; branch when the values are equal or the result is zero; target Branch_335
                     pshs      d         ; save d on the stack
                     leas      -$02,s    ; adjust the system stack pointer
-                    clr       0,s       ; clear 0,s to zero and set the condition codes
+                    clr       ,s        ; clear ,s to zero and set the condition codes
                     clr       $01,s     ; clear $01,s to zero and set the condition codes
-                    bra       L3735     ; continue execution at L3735
-L3707               puls      d         ; restore d from the stack
-                    std       0,s       ; store d in the current stack frame at 0,s
+                    bra       Branch_336 ; continue execution at Branch_336
+Branch_335          puls      d         ; restore d from the stack
+                    std       ,s        ; store d in the current stack frame at ,s
                     ldd       #45       ; set d to the constant 45
                     lbra      send      ; continue execution at send
-L3711               subd      #0        ; subtract from d using #0
-                    beq       L3707     ; branch when the values are equal or the result is zero; target L3707
+Routine_020         subd      #0        ; subtract from d using #0
+                    beq       Branch_335 ; branch when the values are equal or the result is zero; target Branch_335
                     pshs      d         ; save d on the stack
                     leas      -$02,s    ; adjust the system stack pointer
-                    clr       0,s       ; clear 0,s to zero and set the condition codes
+                    clr       ,s        ; clear ,s to zero and set the condition codes
                     clr       $01,s     ; clear $01,s to zero and set the condition codes
                     tsta                ; set condition codes from a without changing it
-                    bpl       L3729     ; branch when the result is nonnegative; target L3729
+                    bpl       Branch_337 ; branch when the result is nonnegative; target Branch_337
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
                     inc       $01,s     ; increment the value at $01,s
                     std       $02,s     ; store d in the current stack frame at $02,s
-L3729               ldd       $06,s     ; load d from the current stack frame at $06,s
-                    bpl       L3735     ; branch when the result is nonnegative; target L3735
+Branch_337          ldd       $06,s     ; load d from the current stack frame at $06,s
+                    bpl       Branch_336 ; branch when the result is nonnegative; target Branch_336
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
                     com       $01,s     ; complement the value at $01,s
                     std       $06,s     ; store d in the current stack frame at $06,s
-L3735               lda       #1        ; set a to the constant 1
-L3737               inca                ; increment a
+Branch_336          lda       #1        ; set a to the constant 1
+Branch_338          inca                ; increment a
                     asl       $03,s     ; shift left the value at $03,s
                     rol       $02,s     ; rotate left through carry the value at $02,s
-                    bpl       L3737     ; branch when the result is nonnegative; target L3737
-                    sta       0,s       ; store a in the current stack frame at 0,s
+                    bpl       Branch_338 ; branch when the result is nonnegative; target Branch_338
+                    sta       ,s        ; store a in the current stack frame at ,s
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     clr       $06,s     ; clear $06,s to zero and set the condition codes
                     clr       $07,s     ; clear $07,s to zero and set the condition codes
-L3746               subd      $02,s     ; subtract from d using $02,s
-                    bcc       L3750     ; branch when carry is clear; target L3750
+Branch_339          subd      $02,s     ; subtract from d using $02,s
+                    bcc       Branch_340 ; branch when carry is clear; target Branch_340
                     addd      $02,s     ; add to d using $02,s
                     andcc     #254      ; clear selected condition-code bits using #254
-                    bra       L3752     ; continue execution at L3752
-L3750               orcc      #1        ; set selected condition-code bits using #1
-L3752               rol       $07,s     ; rotate left through carry the value at $07,s
+                    bra       Branch_341 ; continue execution at Branch_341
+Branch_340          orcc      #1        ; set selected condition-code bits using #1
+Branch_341          rol       $07,s     ; rotate left through carry the value at $07,s
                     rol       $06,s     ; rotate left through carry the value at $06,s
                     lsr       $02,s     ; shift right logically the value at $02,s
                     ror       $03,s     ; rotate right through carry the value at $03,s
-                    dec       0,s       ; decrement the value at 0,s
-                    bne       L3746     ; branch when the values differ or the result is nonzero; target L3746
+                    dec       ,s        ; decrement the value at ,s
+                    bne       Branch_339 ; branch when the values differ or the result is nonzero; target Branch_339
                     std       $02,s     ; store d in the current stack frame at $02,s
                     tst       $01,s     ; set condition codes from $01,s without changing it
-                    beq       L376C     ; branch when the values are equal or the result is zero; target L376C
+                    beq       Branch_342 ; branch when the values are equal or the result is zero; target Branch_342
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
                     std       $06,s     ; store d in the current stack frame at $06,s
-L376C               ldx       $04,s     ; load x from the current stack frame at $04,s
+Branch_342          ldx       $04,s     ; load x from the current stack frame at $04,s
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     std       $04,s     ; store d in the current stack frame at $04,s
                     stx       $06,s     ; store x in the current stack frame at $06,s
@@ -5476,138 +5482,138 @@ L376C               ldx       $04,s     ; load x from the current stack frame at
                     leas      $06,s     ; adjust the system stack pointer
                     rts                 ; return to the caller
                     tstb                ; set condition codes from b without changing it
-                    beq       L3791     ; branch when the values are equal or the result is zero; target L3791
-L377E               asr       $02,s     ; shift right arithmetically the value at $02,s
+                    beq       Branch_343 ; branch when the values are equal or the result is zero; target Branch_343
+Branch_344          asr       $02,s     ; shift right arithmetically the value at $02,s
                     ror       $03,s     ; rotate right through carry the value at $03,s
                     decb                ; decrement b
-                    bne       L377E     ; branch when the values differ or the result is nonzero; target L377E
-                    bra       L3791     ; continue execution at L3791
-L3787               tstb                ; set condition codes from b without changing it
-                    beq       L3791     ; branch when the values are equal or the result is zero; target L3791
-L378A               lsr       $02,s     ; shift right logically the value at $02,s
+                    bne       Branch_344 ; branch when the values differ or the result is nonzero; target Branch_344
+                    bra       Branch_343 ; continue execution at Branch_343
+Routine_057         tstb                ; set condition codes from b without changing it
+                    beq       Branch_343 ; branch when the values are equal or the result is zero; target Branch_343
+Branch_345          lsr       $02,s     ; shift right logically the value at $02,s
                     ror       $03,s     ; rotate right through carry the value at $03,s
                     decb                ; decrement b
-                    bne       L378A     ; branch when the values differ or the result is nonzero; target L378A
-L3791               ldd       $02,s     ; load d from the current stack frame at $02,s
+                    bne       Branch_345 ; branch when the values differ or the result is nonzero; target Branch_345
+Branch_343          ldd       $02,s     ; load d from the current stack frame at $02,s
                     pshs      d         ; save d on the stack
                     ldd       $02,s     ; load d from the current stack frame at $02,s
                     std       $04,s     ; store d in the current stack frame at $04,s
-                    ldd       0,s       ; load d from the current stack frame at 0,s
+                    ldd       ,s        ; load d from the current stack frame at ,s
                     leas      $04,s     ; adjust the system stack pointer
                     rts                 ; return to the caller
                     tstb                ; set condition codes from b without changing it
-                    beq       L3791     ; branch when the values are equal or the result is zero; target L3791
-L37A1               asl       $03,s     ; shift left the value at $03,s
+                    beq       Branch_343 ; branch when the values are equal or the result is zero; target Branch_343
+Branch_346          asl       $03,s     ; shift left the value at $03,s
                     rol       $02,s     ; rotate left through carry the value at $02,s
                     decb                ; decrement b
-                    bne       L37A1     ; branch when the values differ or the result is nonzero; target L37A1
-                    bra       L3791     ; continue execution at L3791
-send                std       >U01DB,y  ; store d at >U01DB,y
+                    bne       Branch_346 ; branch when the values differ or the result is nonzero; target Branch_346
+                    bra       Branch_343 ; continue execution at Branch_343
+send                std       >WorkWord_006,y ; store d at >WorkWord_006,y
                     pshs      y,b       ; save y,b on the stack
-                    os9       F$ID      ; invoke the OS-9 F$ID service
+                    os9       F$ID      ; retrieve the current process and user IDs
                     puls      y,b       ; restore y,b from the stack
-                    os9       F$Send    ; invoke the OS-9 F$Send service
+                    os9       F$Send    ; send signal B to process A
                     rts                 ; return to the caller
-L37B9               lda       $05,s     ; load a from the current stack frame at $05,s
+Routine_042         lda       $05,s     ; load a from the current stack frame at $05,s
                     ldb       $03,s     ; load b from the current stack frame at $03,s
-                    beq       L37EC     ; branch when the values are equal or the result is zero; target L37EC
+                    beq       Branch_347 ; branch when the values are equal or the result is zero; target Branch_347
                     cmpb      #1        ; compare b with #1 and set the condition codes
-                    beq       L37EE     ; branch when the values are equal or the result is zero; target L37EE
+                    beq       Branch_348 ; branch when the values are equal or the result is zero; target Branch_348
                     cmpb      #6        ; compare b with #6 and set the condition codes
-                    beq       L37EE     ; branch when the values are equal or the result is zero; target L37EE
+                    beq       Branch_348 ; branch when the values are equal or the result is zero; target Branch_348
                     cmpb      #2        ; compare b with #2 and set the condition codes
-                    beq       L37D4     ; branch when the values are equal or the result is zero; target L37D4
+                    beq       Branch_349 ; branch when the values are equal or the result is zero; target Branch_349
                     cmpb      #5        ; compare b with #5 and set the condition codes
-                    beq       L37D4     ; branch when the values are equal or the result is zero; target L37D4
+                    beq       Branch_349 ; branch when the values are equal or the result is zero; target Branch_349
                     ldb       #208      ; set b to the constant 208
-                    lbra      L3A1B     ; continue execution at L3A1B
-L37D4               pshs      u         ; save u on the stack
-                    os9       I$GetStt  ; invoke the OS-9 I$GetStt service
-                    bcc       L37E0     ; branch when carry is clear; target L37E0
+                    lbra      Branch_350 ; continue execution at Branch_350
+Branch_349          pshs      u         ; save u on the stack
+                    os9       I$GetStt  ; query status code B for path A
+                    bcc       Branch_351 ; branch when carry is clear; target Branch_351
                     puls      u         ; restore u from the stack
-                    lbra      L3A1B     ; continue execution at L3A1B
-L37E0               stx       [<$08,s]  ; store x in the current stack frame at [<$08,s]
+                    lbra      Branch_350 ; continue execution at Branch_350
+Branch_351          stx       [<$08,s]  ; store x in the current stack frame at [<$08,s]
                     ldx       $08,s     ; load x from the current stack frame at $08,s
                     stu       $02,x     ; store u at $02,x
                     puls      u         ; restore u from the stack
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     rts                 ; return to the caller
-L37EC               ldx       $06,s     ; load x from the current stack frame at $06,s
-L37EE               os9       I$GetStt  ; invoke the OS-9 I$GetStt service
-                    lbra      L3A24     ; continue execution at L3A24
-L37F4               lda       $05,s     ; load a from the current stack frame at $05,s
+Branch_347          ldx       $06,s     ; load x from the current stack frame at $06,s
+Branch_348          os9       I$GetStt  ; query status code B for path A
+                    lbra      Branch_352 ; continue execution at Branch_352
+Routine_043         lda       $05,s     ; load a from the current stack frame at $05,s
                     ldb       $03,s     ; load b from the current stack frame at $03,s
-                    beq       L3803     ; branch when the values are equal or the result is zero; target L3803
+                    beq       Branch_353 ; branch when the values are equal or the result is zero; target Branch_353
                     cmpb      #2        ; compare b with #2 and set the condition codes
-                    beq       L380B     ; branch when the values are equal or the result is zero; target L380B
+                    beq       Branch_354 ; branch when the values are equal or the result is zero; target Branch_354
                     ldb       #208      ; set b to the constant 208
-                    lbra      L3A1B     ; continue execution at L3A1B
-L3803               ldx       $06,s     ; load x from the current stack frame at $06,s
-                    os9       I$SetStt  ; invoke the OS-9 I$SetStt service
-                    lbra      L3A24     ; continue execution at L3A24
-L380B               pshs      u         ; save u on the stack
+                    lbra      Branch_350 ; continue execution at Branch_350
+Branch_353          ldx       $06,s     ; load x from the current stack frame at $06,s
+                    os9       I$SetStt  ; apply status operation B to path A
+                    lbra      Branch_352 ; continue execution at Branch_352
+Branch_354          pshs      u         ; save u on the stack
                     ldx       $08,s     ; load x from the current stack frame at $08,s
                     ldu       $0A,s     ; load u from the current stack frame at $0A,s
-                    os9       I$SetStt  ; invoke the OS-9 I$SetStt service
+                    os9       I$SetStt  ; apply status operation B to path A
                     puls      u         ; restore u from the stack
-                    lbra      L3A24     ; continue execution at L3A24
+                    lbra      Branch_352 ; continue execution at Branch_352
                     ldx       $02,s     ; load x from the current stack frame at $02,s
                     lda       $05,s     ; load a from the current stack frame at $05,s
-                    os9       I$Open    ; invoke the OS-9 I$Open service
-                    bcs       L3825     ; branch when carry reports an error or unsigned underflow; target L3825
-                    os9       I$Close   ; invoke the OS-9 I$Close service
-L3825               lbra      L3A24     ; continue execution at L3A24
+                    os9       I$Open    ; open the path at X using access mode A
+                    bcs       Branch_355 ; branch when carry reports an error or unsigned underflow; target Branch_355
+                    os9       I$Close   ; close path A
+Branch_355          lbra      Branch_352 ; continue execution at Branch_352
 open                ldx       $02,s     ; load x from the current stack frame at $02,s
                     lda       $05,s     ; load a from the current stack frame at $05,s
-                    os9       I$Open    ; invoke the OS-9 I$Open service
-                    lbcs      L3A1B     ; branch when carry reports an error or unsigned underflow; target L3A1B
+                    os9       I$Open    ; open the path at X using access mode A
+                    lbcs      Branch_350 ; branch when carry reports an error or unsigned underflow; target Branch_350
                     tfr       a,b       ; copy the register values specified by a,b
                     clra                ; clear a to zero and set the condition codes
                     rts                 ; return to the caller
 close               lda       $03,s     ; load a from the current stack frame at $03,s
-                    os9       I$Close   ; invoke the OS-9 I$Close service
-                    lbra      L3A24     ; continue execution at L3A24
+                    os9       I$Close   ; close path A
+                    lbra      Branch_352 ; continue execution at Branch_352
                     ldx       $02,s     ; load x from the current stack frame at $02,s
                     ldb       $05,s     ; load b from the current stack frame at $05,s
-                    os9       I$MakDir  ; invoke the OS-9 I$MakDir service
-                    lbra      L3A24     ; continue execution at L3A24
+                    os9       I$MakDir  ; create the directory named at X
+                    lbra      Branch_352 ; continue execution at Branch_352
 creat               ldx       $02,s     ; load x from the current stack frame at $02,s
                     lda       $05,s     ; load a from the current stack frame at $05,s
                     tfr       a,b       ; copy the register values specified by a,b
                     andb      #36       ; mask b using #36
                     orb       #11       ; set selected bits in b using #11
-                    os9       I$Create  ; invoke the OS-9 I$Create service
-                    bcs       L385C     ; branch when carry reports an error or unsigned underflow; target L385C
-L3858               tfr       a,b       ; copy the register values specified by a,b
+                    os9       I$Create  ; create the path at X with mode A and attributes B
+                    bcs       Branch_356 ; branch when carry reports an error or unsigned underflow; target Branch_356
+Branch_357          tfr       a,b       ; copy the register values specified by a,b
                     clra                ; clear a to zero and set the condition codes
                     rts                 ; return to the caller
-L385C               cmpb      #218      ; compare b with #218 and set the condition codes
-                    lbne      L3A1B     ; branch when the values differ or the result is nonzero; target L3A1B
+Branch_356          cmpb      #218      ; compare b with #218 and set the condition codes
+                    lbne      Branch_350 ; branch when the values differ or the result is nonzero; target Branch_350
                     lda       $05,s     ; load a from the current stack frame at $05,s
                     bita      #128      ; test selected bits in a using #128
-                    lbne      L3A1B     ; branch when the values differ or the result is nonzero; target L3A1B
+                    lbne      Branch_350 ; branch when the values differ or the result is nonzero; target Branch_350
                     anda      #7        ; mask a using #7
                     ldx       $02,s     ; load x from the current stack frame at $02,s
-                    os9       I$Open    ; invoke the OS-9 I$Open service
-                    lbcs      L3A1B     ; branch when carry reports an error or unsigned underflow; target L3A1B
+                    os9       I$Open    ; open the path at X using access mode A
+                    lbcs      Branch_350 ; branch when carry reports an error or unsigned underflow; target Branch_350
                     pshs      u,a       ; save u,a on the stack
                     ldx       #0        ; set x to the constant 0
-                    leau      0,x       ; form the workspace or data address 0,x in u
+                    leau      ,x        ; form the workspace or data address ,x in u
                     ldb       #2        ; set b to the constant 2
-                    os9       I$SetStt  ; invoke the OS-9 I$SetStt service
+                    os9       I$SetStt  ; apply status operation B to path A
                     puls      u,a       ; restore u,a from the stack
-                    bcc       L3858     ; branch when carry is clear; target L3858
+                    bcc       Branch_357 ; branch when carry is clear; target Branch_357
                     pshs      b         ; save b on the stack
-                    os9       I$Close   ; invoke the OS-9 I$Close service
+                    os9       I$Close   ; close path A
                     puls      b         ; restore b from the stack
-                    lbra      L3A1B     ; continue execution at L3A1B
+                    lbra      Branch_350 ; continue execution at Branch_350
                     ldx       $02,s     ; load x from the current stack frame at $02,s
-                    os9       I$Delete  ; invoke the OS-9 I$Delete service
-                    lbra      L3A24     ; continue execution at L3A24
+                    os9       I$Delete  ; delete the path named at X
+                    lbra      Branch_352 ; continue execution at Branch_352
                     lda       $03,s     ; load a from the current stack frame at $03,s
-                    os9       I$Dup     ; invoke the OS-9 I$Dup service
-                    lbcs      L3A1B     ; branch when carry reports an error or unsigned underflow; target L3A1B
+                    os9       I$Dup     ; duplicate path A into the next free path number
+                    lbcs      Branch_350 ; branch when carry reports an error or unsigned underflow; target Branch_350
                     tfr       a,b       ; copy the register values specified by a,b
                     clra                ; clear a to zero and set the condition codes
                     rts                 ; return to the caller
@@ -5616,188 +5622,188 @@ read                pshs      y         ; save y on the stack
                     lda       $05,s     ; load a from the current stack frame at $05,s
                     ldy       $08,s     ; load y from the current stack frame at $08,s
                     pshs      y         ; save y on the stack
-                    os9       I$Read    ; invoke the OS-9 I$Read service
-L38B2               bcc       L38C1     ; branch when carry is clear; target L38C1
+                    os9       I$Read    ; read up to Y bytes from path A into X
+Branch_358          bcc       Code_008  ; branch when carry is clear; target Code_008
                     cmpb      #211      ; compare b with #211 and set the condition codes
-                    bne       L38BC     ; branch when the values differ or the result is nonzero; target L38BC
+                    bne       Branch_359 ; branch when the values differ or the result is nonzero; target Branch_359
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     puls      pc,y,x    ; restore pc,y,x and return to the caller
-L38BC               puls      y,x       ; restore y,x from the stack
-                    lbra      L3A1B     ; continue execution at L3A1B
-L38C1               tfr       y,d       ; copy the register values specified by y,d
+Branch_359          puls      y,x       ; restore y,x from the stack
+                    lbra      Branch_350 ; continue execution at Branch_350
+Code_008            tfr       y,d       ; copy the register values specified by y,d
                     puls      pc,y,x    ; restore pc,y,x and return to the caller
 readln              pshs      y         ; save y on the stack
                     lda       $05,s     ; load a from the current stack frame at $05,s
                     ldx       $06,s     ; load x from the current stack frame at $06,s
                     ldy       $08,s     ; load y from the current stack frame at $08,s
                     pshs      y         ; save y on the stack
-                    os9       I$ReadLn  ; invoke the OS-9 I$ReadLn service
-                    bra       L38B2     ; continue execution at L38B2
+                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
+                    bra       Branch_358 ; continue execution at Branch_358
 write               pshs      y         ; save y on the stack
                     ldy       $08,s     ; load y from the current stack frame at $08,s
-                    beq       L38EA     ; branch when the values are equal or the result is zero; target L38EA
+                    beq       Branch_360 ; branch when the values are equal or the result is zero; target Branch_360
                     lda       $05,s     ; load a from the current stack frame at $05,s
                     ldx       $06,s     ; load x from the current stack frame at $06,s
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-L38E3               bcc       L38EA     ; branch when carry is clear; target L38EA
+                    os9       I$Write   ; write Y bytes from X to path A
+Branch_361          bcc       Branch_360 ; branch when carry is clear; target Branch_360
                     puls      y         ; restore y from the stack
-                    lbra      L3A1B     ; continue execution at L3A1B
-L38EA               tfr       y,d       ; copy the register values specified by y,d
+                    lbra      Branch_350 ; continue execution at Branch_350
+Branch_360          tfr       y,d       ; copy the register values specified by y,d
                     puls      pc,y      ; restore pc,y and return to the caller
 writln              pshs      y         ; save y on the stack
                     ldy       $08,s     ; load y from the current stack frame at $08,s
-                    beq       L38EA     ; branch when the values are equal or the result is zero; target L38EA
+                    beq       Branch_360 ; branch when the values are equal or the result is zero; target Branch_360
                     lda       $05,s     ; load a from the current stack frame at $05,s
                     ldx       $06,s     ; load x from the current stack frame at $06,s
-                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
-                    bra       L38E3     ; continue execution at L38E3
-L38FE               pshs      u         ; save u on the stack
+                    os9       I$WritLn  ; write a CR-terminated line from X to path A
+                    bra       Branch_361 ; continue execution at Branch_361
+Routine_061         pshs      u         ; save u on the stack
                     ldd       $0A,s     ; load d from the current stack frame at $0A,s
-                    bne       L390C     ; branch when the values differ or the result is nonzero; target L390C
+                    bne       Branch_362 ; branch when the values differ or the result is nonzero; target Branch_362
                     ldu       #0        ; set u to the constant 0
                     ldx       #0        ; set x to the constant 0
-                    bra       L3940     ; continue execution at L3940
-L390C               cmpd      #1        ; compare d with #1 and set the condition codes
-                    beq       L3937     ; branch when the values are equal or the result is zero; target L3937
+                    bra       Branch_363 ; continue execution at Branch_363
+Branch_362          cmpd      #1        ; compare d with #1 and set the condition codes
+                    beq       Branch_364 ; branch when the values are equal or the result is zero; target Branch_364
                     cmpd      #2        ; compare d with #2 and set the condition codes
                     beq       getstat   ; branch when the values are equal or the result is zero; target getstat
                     ldb       #247      ; set b to the constant 247
-L391A               clra                ; clear a to zero and set the condition codes
-                    std       >U01DB,y  ; store d at >U01DB,y
+Branch_365          clra                ; clear a to zero and set the condition codes
+                    std       >WorkWord_006,y ; store d at >WorkWord_006,y
                     ldd       #-1       ; set d to the constant -1
-                    leax      >U01CF,y  ; form the address >U01CF,y in x
-                    std       0,x       ; store d at 0,x
+                    leax      >WorkWord_005,y ; form the address >WorkWord_005,y in x
+                    std       ,x        ; store d at ,x
                     std       $02,x     ; store d at $02,x
                     puls      pc,u      ; restore pc,u and return to the caller
 getstat             lda       $05,s     ; load a from the current stack frame at $05,s
                     ldb       #2        ; set b to the constant 2
-                    os9       I$GetStt  ; invoke the OS-9 I$GetStt service
-                    bcs       L391A     ; branch when carry reports an error or unsigned underflow; target L391A
-                    bra       L3940     ; continue execution at L3940
-L3937               lda       $05,s     ; load a from the current stack frame at $05,s
+                    os9       I$GetStt  ; query status code B for path A
+                    bcs       Branch_365 ; branch when carry reports an error or unsigned underflow; target Branch_365
+                    bra       Branch_363 ; continue execution at Branch_363
+Branch_364          lda       $05,s     ; load a from the current stack frame at $05,s
                     ldb       #5        ; set b to the constant 5
-                    os9       I$GetStt  ; invoke the OS-9 I$GetStt service
-                    bcs       L391A     ; branch when carry reports an error or unsigned underflow; target L391A
-L3940               tfr       u,d       ; copy the register values specified by u,d
+                    os9       I$GetStt  ; query status code B for path A
+                    bcs       Branch_365 ; branch when carry reports an error or unsigned underflow; target Branch_365
+Branch_363          tfr       u,d       ; copy the register values specified by u,d
                     addd      $08,s     ; add to d using $08,s
-                    std       >U01D1,y  ; store d at >U01D1,y
+                    std       >WorkBuffer_007,y ; store d at >WorkBuffer_007,y
                     tfr       d,u       ; copy the register values specified by d,u
                     tfr       x,d       ; copy the register values specified by x,d
                     adcb      $07,s     ; add with carry to b using $07,s
                     adca      $06,s     ; add with carry to a using $06,s
-                    bmi       L391A     ; branch when the result is negative; target L391A
+                    bmi       Branch_365 ; branch when the result is negative; target Branch_365
                     tfr       d,x       ; copy the register values specified by d,x
-                    std       >U01CF,y  ; store d at >U01CF,y
+                    std       >WorkWord_005,y ; store d at >WorkWord_005,y
                     lda       $05,s     ; load a from the current stack frame at $05,s
-                    os9       I$Seek    ; invoke the OS-9 I$Seek service
-                    bcs       L391A     ; branch when carry reports an error or unsigned underflow; target L391A
-                    leax      >U01CF,y  ; form the address >U01CF,y in x
+                    os9       I$Seek    ; position path A at the 32-bit offset in X:U
+                    bcs       Branch_365 ; branch when carry reports an error or unsigned underflow; target Branch_365
+                    leax      >WorkWord_005,y ; form the address >WorkWord_005,y in x
                     puls      pc,u      ; restore pc,u and return to the caller
                     rts                 ; return to the caller
                     ldx       #0        ; set x to the constant 0
                     clrb                ; clear b to zero and set the condition codes
-                    os9       F$Sleep   ; invoke the OS-9 F$Sleep service
-                    lbra      L3A1B     ; continue execution at L3A1B
+                    os9       F$Sleep   ; sleep for the number of ticks in X
+                    lbra      Branch_350 ; continue execution at Branch_350
                     rts                 ; return to the caller
                     pshs      u,y       ; save u,y on the stack
                     ldx       $06,s     ; load x from the current stack frame at $06,s
                     ldy       $08,s     ; load y from the current stack frame at $08,s
                     ldu       $0A,s     ; load u from the current stack frame at $0A,s
-                    os9       F$CRC     ; invoke the OS-9 F$CRC service
+                    os9       F$CRC     ; update the CRC accumulator over Y bytes at X
                     puls      pc,u,y    ; restore pc,u,y and return to the caller
                     lda       $03,s     ; load a from the current stack frame at $03,s
                     ldb       $05,s     ; load b from the current stack frame at $05,s
-                    os9       F$PErr    ; invoke the OS-9 F$PErr service
-                    lbcs      L3A1B     ; branch when carry reports an error or unsigned underflow; target L3A1B
+                    os9       F$PErr    ; print the error message for status B
+                    lbcs      Branch_350 ; branch when carry reports an error or unsigned underflow; target Branch_350
                     rts                 ; return to the caller
 sleep               ldx       $02,s     ; load x from the current stack frame at $02,s
-                    os9       F$Sleep   ; invoke the OS-9 F$Sleep service
-                    lbcs      L3A1B     ; branch when carry reports an error or unsigned underflow; target L3A1B
+                    os9       F$Sleep   ; sleep for the number of ticks in X
+                    lbcs      Branch_350 ; branch when carry reports an error or unsigned underflow; target Branch_350
                     tfr       x,d       ; copy the register values specified by x,d
                     rts                 ; return to the caller
                     ldd       >memend,y ; load d from >memend,y
                     pshs      d         ; save d on the stack
                     ldd       $04,s     ; load d from the current stack frame at $04,s
-                    cmpd      >U37D2,y  ; compare d with >U37D2,y and set the condition codes
-                    bcs       L39CB     ; branch when carry reports an error or unsigned underflow; target L39CB
+                    cmpd      >WorkWord_017,y ; compare d with >WorkWord_017,y and set the condition codes
+                    bcs       Branch_366 ; branch when carry reports an error or unsigned underflow; target Branch_366
                     addd      >memend,y ; add to d using >memend,y
                     pshs      y         ; save y on the stack
-                    subd      0,s       ; subtract from d using 0,s
-                    os9       F$Mem     ; invoke the OS-9 F$Mem service
+                    subd      ,s        ; subtract from d using ,s
+                    os9       F$Mem     ; resize process memory to D pages
                     tfr       y,d       ; copy the register values specified by y,d
                     puls      y         ; restore y from the stack
-                    bcc       L39BD     ; branch when carry is clear; target L39BD
+                    bcc       Branch_367 ; branch when carry is clear; target Branch_367
                     ldd       #-1       ; set d to the constant -1
                     leas      $02,s     ; adjust the system stack pointer
                     rts                 ; return to the caller
-L39BD               std       >memend,y ; store d at >memend,y
-                    addd      >U37D2,y  ; add to d using >U37D2,y
-                    subd      0,s       ; subtract from d using 0,s
-                    std       >U37D2,y  ; store d at >U37D2,y
-L39CB               leas      $02,s     ; adjust the system stack pointer
-                    ldd       >U37D2,y  ; load d from >U37D2,y
+Branch_367          std       >memend,y ; store d at >memend,y
+                    addd      >WorkWord_017,y ; add to d using >WorkWord_017,y
+                    subd      ,s        ; subtract from d using ,s
+                    std       >WorkWord_017,y ; store d at >WorkWord_017,y
+Branch_366          leas      $02,s     ; adjust the system stack pointer
+                    ldd       >WorkWord_017,y ; load d from >WorkWord_017,y
                     pshs      d         ; save d on the stack
                     subd      $04,s     ; subtract from d using $04,s
-                    std       >U37D2,y  ; store d at >U37D2,y
+                    std       >WorkWord_017,y ; store d at >WorkWord_017,y
                     ldd       >memend,y ; load d from >memend,y
                     subd      ,s++      ; subtract from d using ,s++
                     pshs      d         ; save d on the stack
                     clra                ; clear a to zero and set the condition codes
-                    ldx       0,s       ; load x from the current stack frame at 0,s
-L39E4               sta       ,x+       ; store a at ,x+
+                    ldx       ,s        ; load x from the current stack frame at ,s
+Branch_368          sta       ,x+       ; store a at ,x+
                     cmpx      >memend,y ; compare x with >memend,y and set the condition codes
-                    bcs       L39E4     ; branch when carry reports an error or unsigned underflow; target L39E4
+                    bcs       Branch_368 ; branch when carry reports an error or unsigned underflow; target Branch_368
                     puls      pc,d      ; restore pc,d and return to the caller
-L39EE               ldd       $02,s     ; load d from the current stack frame at $02,s
+Routine_062         ldd       $02,s     ; load d from the current stack frame at $02,s
                     addd      >_mtop,y  ; add to d using >_mtop,y
-                    bcs       L3A17     ; branch when carry reports an error or unsigned underflow; target L3A17
+                    bcs       Branch_369 ; branch when carry reports an error or unsigned underflow; target Branch_369
                     cmpd      >_stbot,y ; compare d with >_stbot,y and set the condition codes
-                    bcc       L3A17     ; branch when carry is clear; target L3A17
+                    bcc       Branch_369 ; branch when carry is clear; target Branch_369
                     pshs      d         ; save d on the stack
                     ldx       >_mtop,y  ; load x from >_mtop,y
                     clra                ; clear a to zero and set the condition codes
-L3A04               cmpx      0,s       ; compare x with 0,s and set the condition codes
-                    bcc       L3A0C     ; branch when carry is clear; target L3A0C
+Branch_370          cmpx      ,s        ; compare x with ,s and set the condition codes
+                    bcc       Branch_371 ; branch when carry is clear; target Branch_371
                     sta       ,x+       ; store a at ,x+
-                    bra       L3A04     ; continue execution at L3A04
-L3A0C               ldd       >_mtop,y  ; load d from >_mtop,y
+                    bra       Branch_370 ; continue execution at Branch_370
+Branch_371          ldd       >_mtop,y  ; load d from >_mtop,y
                     puls      x         ; restore x from the stack
                     stx       >_mtop,y  ; store x at >_mtop,y
                     rts                 ; return to the caller
-L3A17               ldd       #-1       ; set d to the constant -1
+Branch_369          ldd       #-1       ; set d to the constant -1
                     rts                 ; return to the caller
-L3A1B               clra                ; clear a to zero and set the condition codes
-                    std       >U01DB,y  ; store d at >U01DB,y
+Branch_350          clra                ; clear a to zero and set the condition codes
+                    std       >WorkWord_006,y ; store d at >WorkWord_006,y
                     ldd       #-1       ; set d to the constant -1
                     rts                 ; return to the caller
-L3A24               bcs       L3A1B     ; branch when carry reports an error or unsigned underflow; target L3A1B
+Branch_352          bcs       Branch_350 ; branch when carry reports an error or unsigned underflow; target Branch_350
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     rts                 ; return to the caller
-exit                lbsr      L3A34     ; call subroutine L3A34
-                    lbsr      L3319     ; call subroutine L3319
+exit                lbsr      Code_009  ; call subroutine Code_009
+                    lbsr      Routine_058 ; call subroutine Routine_058
 _exit               ldd       $02,s     ; load d from the current stack frame at $02,s
-                    os9       F$Exit    ; invoke the OS-9 F$Exit service
-L3A34               rts                 ; return to the caller
-L3A35               lda       $03,s     ; load a from the current stack frame at $03,s
+                    os9       F$Exit    ; terminate the process with status B
+Code_009            rts                 ; return to the caller
+Routine_022         lda       $03,s     ; load a from the current stack frame at $03,s
                     ldb       #1        ; set b to the constant 1
-                    os9       I$GetStt  ; invoke the OS-9 I$GetStt service
-                    lbcs      L3A1B     ; branch when carry reports an error or unsigned underflow; target L3A1B
+                    os9       I$GetStt  ; query status code B for path A
+                    lbcs      Branch_350 ; branch when carry reports an error or unsigned underflow; target Branch_350
                     clra                ; clear a to zero and set the condition codes
                     rts                 ; return to the caller
                     ldd       #6944     ; set d to the constant 6944
-                    bsr       L3A5B     ; call subroutine L3A5B
+                    bsr       Routine_063 ; call subroutine Routine_063
                     ldb       #9        ; set b to the constant 9
                     tst       $05,s     ; set condition codes from $05,s without changing it
-                    ble       L3A4F     ; branch when the signed value is less than or equal; target L3A4F
+                    ble       Branch_372 ; branch when the signed value is less than or equal; target Branch_372
                     ldb       #10       ; set b to the constant 10
-L3A4F               lbra      L3B43     ; continue execution at L3B43
-L3A52               ldd       #6946     ; set d to the constant 6946
-                    bsr       L3A5B     ; call subroutine L3A5B
+Branch_372          lbra      Branch_373 ; continue execution at Branch_373
+Routine_005         ldd       #6946     ; set d to the constant 6946
+                    bsr       Routine_063 ; call subroutine Routine_063
                     ldb       #9        ; set b to the constant 9
-                    bra       L3A4F     ; continue execution at L3A4F
-L3A5B               leax      >U37D4,y  ; form the address >U37D4,y in x
+                    bra       Branch_372 ; continue execution at Branch_372
+Routine_063         leax      >WorkWord_018,y ; form the address >WorkWord_018,y in x
                     std       ,x++      ; store d at ,x++
                     lda       $07,s     ; load a from the current stack frame at $07,s
                     ldb       $09,s     ; load b from the current stack frame at $09,s
@@ -5810,80 +5816,80 @@ L3A5B               leax      >U37D4,y  ; form the address >U37D4,y in x
                     std       ,x++      ; store d at ,x++
                     lda       <$0013,s  ; load a from the current stack frame at <$0013,s
                     ldb       <$0015,s  ; load b from the current stack frame at <$0015,s
-                    std       0,x       ; store d at 0,x
+                    std       ,x        ; store d at ,x
                     rts                 ; return to the caller
                     ldd       #6948     ; set d to the constant 6948
-                    bra       L3A8A     ; continue execution at L3A8A
-L3A82               ldd       #6947     ; set d to the constant 6947
-                    bra       L3A8A     ; continue execution at L3A8A
+                    bra       Branch_374 ; continue execution at Branch_374
+Routine_010         ldd       #6947     ; set d to the constant 6947
+                    bra       Branch_374 ; continue execution at Branch_374
                     ldd       #6945     ; set d to the constant 6945
-L3A8A               std       >U37D4,y  ; store d at >U37D4,y
+Branch_374          std       >WorkWord_018,y ; store d at >WorkWord_018,y
                     ldb       #2        ; set b to the constant 2
-                    lbra      L3B43     ; continue execution at L3B43
+                    lbra      Branch_373 ; continue execution at Branch_373
                     ldd       #6960     ; set d to the constant 6960
-                    std       >U37D4,y  ; store d at >U37D4,y
+                    std       >WorkWord_018,y ; store d at >WorkWord_018,y
                     ldb       #2        ; set b to the constant 2
-                    lbra      L3B43     ; continue execution at L3B43
-L3A9F               ldb       #50       ; set b to the constant 50
-                    bra       L3AAD     ; continue execution at L3AAD
-L3AA3               ldb       #51       ; set b to the constant 51
-                    bra       L3AAD     ; continue execution at L3AAD
+                    lbra      Branch_373 ; continue execution at Branch_373
+Routine_026         ldb       #50       ; set b to the constant 50
+                    bra       Branch_375 ; continue execution at Branch_375
+Routine_027         ldb       #51       ; set b to the constant 51
+                    bra       Branch_375 ; continue execution at Branch_375
                     ldb       #52       ; set b to the constant 52
-                    bra       L3AAD     ; continue execution at L3AAD
+                    bra       Branch_375 ; continue execution at Branch_375
                     ldb       #47       ; set b to the constant 47
-L3AAD               lda       #27       ; set a to the constant 27
-                    std       >U37D4,y  ; store d at >U37D4,y
+Branch_375          lda       #27       ; set a to the constant 27
+                    std       >WorkWord_018,y ; store d at >WorkWord_018,y
                     ldb       $05,s     ; load b from the current stack frame at $05,s
-                    stb       >U37D6,y  ; store b at >U37D6,y
+                    stb       >WorkBuffer_015,y ; store b at >WorkBuffer_015,y
                     ldb       #3        ; set b to the constant 3
-                    lbra      L3B43     ; continue execution at L3B43
+                    lbra      Branch_373 ; continue execution at Branch_373
                     ldb       #1        ; set b to the constant 1
-                    bra       L3AF2     ; continue execution at L3AF2
+                    bra       Branch_376 ; continue execution at Branch_376
                     ldb       #3        ; set b to the constant 3
-                    bra       L3AF2     ; continue execution at L3AF2
-L3AC6               ldb       #4        ; set b to the constant 4
-                    bra       L3AF2     ; continue execution at L3AF2
-L3ACA               ldd       #1312     ; set d to the constant 1312
-                    bra       L3B21     ; continue execution at L3B21
-L3ACF               ldd       #1313     ; set d to the constant 1313
-                    bra       L3B21     ; continue execution at L3B21
-L3AD4               ldb       #6        ; set b to the constant 6
-                    bra       L3AF2     ; continue execution at L3AF2
-L3AD8               ldb       #7        ; set b to the constant 7
-                    bra       L3AF2     ; continue execution at L3AF2
-L3ADC               ldb       #8        ; set b to the constant 8
-                    bra       L3AF2     ; continue execution at L3AF2
-L3AE0               ldb       #9        ; set b to the constant 9
-                    bra       L3AF2     ; continue execution at L3AF2
-L3AE4               ldb       #10       ; set b to the constant 10
-                    bra       L3AF2     ; continue execution at L3AF2
+                    bra       Branch_376 ; continue execution at Branch_376
+Routine_036         ldb       #4        ; set b to the constant 4
+                    bra       Branch_376 ; continue execution at Branch_376
+Routine_021         ldd       #1312     ; set d to the constant 1312
+                    bra       Branch_377 ; continue execution at Branch_377
+Routine_023         ldd       #1313     ; set d to the constant 1313
+                    bra       Branch_377 ; continue execution at Branch_377
+Routine_035         ldb       #6        ; set b to the constant 6
+                    bra       Branch_376 ; continue execution at Branch_376
+Routine_017         ldb       #7        ; set b to the constant 7
+                    bra       Branch_376 ; continue execution at Branch_376
+Routine_028         ldb       #8        ; set b to the constant 8
+                    bra       Branch_376 ; continue execution at Branch_376
+Routine_033         ldb       #9        ; set b to the constant 9
+                    bra       Branch_376 ; continue execution at Branch_376
+Routine_034         ldb       #10       ; set b to the constant 10
+                    bra       Branch_376 ; continue execution at Branch_376
                     ldb       #11       ; set b to the constant 11
-                    bra       L3AF2     ; continue execution at L3AF2
-L3AEC               ldb       #12       ; set b to the constant 12
-                    bra       L3AF2     ; continue execution at L3AF2
+                    bra       Branch_376 ; continue execution at Branch_376
+Routine_007         ldb       #12       ; set b to the constant 12
+                    bra       Branch_376 ; continue execution at Branch_376
                     ldb       #13       ; set b to the constant 13
-L3AF2               stb       >U37D4,y  ; store b at >U37D4,y
+Branch_376          stb       >WorkWord_018,y ; store b at >WorkWord_018,y
                     ldb       #1        ; set b to the constant 1
-                    lbra      L3B43     ; continue execution at L3B43
-L3AFB               ldd       #7968     ; set d to the constant 7968
-                    bra       L3B21     ; continue execution at L3B21
-L3B00               ldd       #7969     ; set d to the constant 7969
-                    bra       L3B21     ; continue execution at L3B21
-L3B05               ldd       #7970     ; set d to the constant 7970
-                    bra       L3B21     ; continue execution at L3B21
-L3B0A               ldd       #7971     ; set d to the constant 7971
-                    bra       L3B21     ; continue execution at L3B21
-L3B0F               ldd       #7972     ; set d to the constant 7972
-                    bra       L3B21     ; continue execution at L3B21
-L3B14               ldd       #7973     ; set d to the constant 7973
-                    bra       L3B21     ; continue execution at L3B21
+                    lbra      Branch_373 ; continue execution at Branch_373
+Routine_011         ldd       #7968     ; set d to the constant 7968
+                    bra       Branch_377 ; continue execution at Branch_377
+Routine_012         ldd       #7969     ; set d to the constant 7969
+                    bra       Branch_377 ; continue execution at Branch_377
+Routine_039         ldd       #7970     ; set d to the constant 7970
+                    bra       Branch_377 ; continue execution at Branch_377
+Routine_037         ldd       #7971     ; set d to the constant 7971
+                    bra       Branch_377 ; continue execution at Branch_377
+Routine_040         ldd       #7972     ; set d to the constant 7972
+                    bra       Branch_377 ; continue execution at Branch_377
+Routine_038         ldd       #7973     ; set d to the constant 7973
+                    bra       Branch_377 ; continue execution at Branch_377
                     ldd       #7984     ; set d to the constant 7984
-                    bra       L3B21     ; continue execution at L3B21
+                    bra       Branch_377 ; continue execution at Branch_377
                     ldd       #7985     ; set d to the constant 7985
-L3B21               std       >U37D4,y  ; store d at >U37D4,y
+Branch_377          std       >WorkWord_018,y ; store d at >WorkWord_018,y
                     ldb       #2        ; set b to the constant 2
-                    lbra      L3B43     ; continue execution at L3B43
-L3B2A               leax      >U37D4,y  ; form the address >U37D4,y in x
+                    lbra      Branch_373 ; continue execution at Branch_373
+Routine_030         leax      >WorkWord_018,y ; form the address >WorkWord_018,y in x
                     ldb       #2        ; set b to the constant 2
                     stb       ,x+       ; store b at ,x+
                     ldd       $04,s     ; load d from the current stack frame at $04,s
@@ -5893,20 +5899,20 @@ L3B2A               leax      >U37D4,y  ; form the address >U37D4,y in x
                     addb      #32       ; add to b using #32
                     stb       ,x+       ; store b at ,x+
                     ldb       #3        ; set b to the constant 3
-                    lbra      L3B43     ; continue execution at L3B43
-L3B43               clra                ; clear a to zero and set the condition codes
-                    leax      >U37D4,y  ; form the address >U37D4,y in x
+                    lbra      Branch_373 ; continue execution at Branch_373
+Branch_373          clra                ; clear a to zero and set the condition codes
+                    leax      >WorkWord_018,y ; form the address >WorkWord_018,y in x
                     pshs      y         ; save y on the stack
                     tfr       d,y       ; copy the register values specified by d,y
                     lda       $05,s     ; load a from the current stack frame at $05,s
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
                     puls      y         ; restore y from the stack
-                    bcs       L3B58     ; branch when carry reports an error or unsigned underflow; target L3B58
+                    bcs       Branch_378 ; branch when carry reports an error or unsigned underflow; target Branch_378
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     rts                 ; return to the caller
-L3B58               clra                ; clear a to zero and set the condition codes
-                    std       >U01DB,y  ; store d at >U01DB,y
+Branch_378          clra                ; clear a to zero and set the condition codes
+                    std       >WorkWord_006,y ; store d at >WorkWord_006,y
                     ldd       #-1       ; set d to the constant -1
                     rts                 ; return to the caller
 
@@ -5947,7 +5953,7 @@ etext               fcb       $00       ; store byte data
                     fcb       $07       ; store byte data
                     fcb       $00       ; store byte data
                     fcb       $00       ; store byte data
-                    fcc       "&?&e&I&O&V&[&c&h'" ; store literal character data
+                    fcc       "&?&E&I&O&V&[&c&h'" ; store literal character data
                     fcb       $10       ; store byte data
                     fcb       $03       ; store byte data
                     fcb       $E8       ; store byte data

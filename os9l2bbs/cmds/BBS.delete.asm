@@ -1,11 +1,17 @@
 **********************************************************************
 * BBS.delete - OS-9 Level 2 BBS command
 *
+* Syntax: BBS.delete
+* Purpose: Mark selected messages deleted in the current board index.
+* Deletion is logical until BBS.pack rewrites the base.
+*
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
 * Annotated source and normalized comments.
+*          2026/07/21  Codex
+* Refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       BBS.delete
@@ -21,23 +27,23 @@ rev                 set       $01       ; set assembly-time module attribute rev
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-U0000               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0001               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0002               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0003               rmb       4         ; reserve 4 byte(s) in the module workspace
-U0007               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0008               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0009               rmb       2         ; reserve 2 byte(s) in the module workspace
-U000B               rmb       12        ; reserve 12 byte(s) in the module workspace
-U0017               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0018               rmb       6         ; reserve 6 byte(s) in the module workspace
-U001E               rmb       1         ; reserve 1 byte(s) in the module workspace
-U001F               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0020               rmb       11        ; reserve 11 byte(s) in the module workspace
-U002B               rmb       64        ; reserve 64 byte(s) in the module workspace
-U006B               rmb       60        ; reserve 60 byte(s) in the module workspace
-U00A7               rmb       1         ; reserve 1 byte(s) in the module workspace
-U00A8               rmb       203       ; reserve 203 byte(s) in the module workspace
+WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_003        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkBuffer_001      rmb       4         ; reserve 4 byte(s) in the module workspace
+WorkByte_004        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_005        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkBuffer_002      rmb       12        ; reserve 12 byte(s) in the module workspace
+WorkByte_006        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkBuffer_003      rmb       6         ; reserve 6 byte(s) in the module workspace
+WorkByte_007        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_008        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkBuffer_004      rmb       11        ; reserve 11 byte(s) in the module workspace
+WorkBuffer_005      rmb       64        ; reserve 64 byte(s) in the module workspace
+WorkBuffer_006      rmb       60        ; reserve 60 byte(s) in the module workspace
+WorkByte_009        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkBuffer_007      rmb       203       ; reserve 203 byte(s) in the module workspace
 size                equ       .         ; define the assembly-time value for size
 
 name                fcs       /BBS.delete/ ; store an OS-9 high-bit-terminated string
@@ -59,227 +65,227 @@ name                fcs       /BBS.delete/ ; store an OS-9 high-bit-terminated s
                     fcb       $EF       ; store byte data
                     fcb       $F4       ; store byte data
                     fcb       $F0       ; store byte data
-L0082               fcc       "High message is #" ; store literal character data
-L0093               fcb       $00       ; store byte data
+Text_001            fcc       "High message is #" ; store literal character data
+Data_001            fcb       $00       ; store byte data
                     fcb       $11       ; store byte data
-L0095               fcc       "Enter message number to delete" ; store literal character data
+Text_002            fcc       "Enter message number to delete" ; store literal character data
                     fcb       $0D       ; store byte data
-L00B4               fcc       ">Msg #    User name              Date        Subject" ; store literal character data
+Text_003            fcc       ">Msg #    User name              Date        Subject" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcc       "-------------------------------------------------------------------------------" ; store literal character data
                     fcb       $0D       ; store byte data
-L0139               fcc       "BBS.msg.inx" ; store literal character data
+Text_004            fcc       "BBS.msg.inx" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcc       "                                       " ; store literal character data
-L016C               fcc       "          ******   DELETED   ******" ; store literal character data
+Text_005            fcc       "          ******   DELETED   ******" ; store literal character data
                     fcb       $0D       ; store byte data
-L0190               fcc       "Sorry, you cannot delete that message" ; store literal character data
+Text_006            fcc       "Sorry, you cannot delete that message" ; store literal character data
                     fcb       $0D       ; store byte data
 
-start               os9       F$ID      ; invoke the OS-9 F$ID service
-                    sty       U0003,u   ; store y at U0003,u
+start               os9       F$ID      ; retrieve the current process and user IDs
+                    sty       WorkBuffer_001,u ; store y at WorkBuffer_001,u
                     ldy       #0        ; set y to the constant 0
-                    os9       F$SUser   ; invoke the OS-9 F$SUser service
-                    leax      >L0139,pc ; form the address >L0139,pc in x
+                    os9       F$SUser   ; change the process user ID to Y
+                    leax      >Text_004,pc ; form the address >Text_004,pc in x
                     lda       #3        ; set a to the constant 3
-                    os9       I$Open    ; invoke the OS-9 I$Open service
-                    lbcs      L02C4     ; branch when carry reports an error or unsigned underflow; target L02C4
-                    sta       U0000,u   ; store a at U0000,u
-                    leax      <U002B,u  ; form the address <U002B,u in x
+                    os9       I$Open    ; open the path at X using access mode A
+                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
+                    sta       WorkByte_001,u ; store a at WorkByte_001,u
+                    leax      <WorkBuffer_005,u ; form the address <WorkBuffer_005,u in x
                     ldy       #64       ; set y to the constant 64
-                    lda       U0000,u   ; load a from U0000,u
-                    os9       I$Read    ; invoke the OS-9 I$Read service
-                    lbcs      L02C4     ; branch when carry reports an error or unsigned underflow; target L02C4
-                    ldd       <U002B,u  ; load d from <U002B,u
-                    leax      U000B,u   ; form the address U000B,u in x
-                    lbsr      L0347     ; call subroutine L0347
-                    leax      >L0082,pc ; form the address >L0082,pc in x
-                    ldy       >L0093,pc ; load y from >L0093,pc
+                    lda       WorkByte_001,u ; load a from WorkByte_001,u
+                    os9       I$Read    ; read up to Y bytes from path A into X
+                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
+                    ldd       <WorkBuffer_005,u ; load d from <WorkBuffer_005,u
+                    leax      WorkBuffer_002,u ; form the address WorkBuffer_002,u in x
+                    lbsr      Routine_001 ; call subroutine Routine_001
+                    leax      >Text_001,pc ; form the address >Text_001,pc in x
+                    ldy       >Data_001,pc ; load y from >Data_001,pc
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    lbcs      L02C4     ; branch when carry reports an error or unsigned underflow; target L02C4
-                    leax      U000B,u   ; form the address U000B,u in x
+                    os9       I$Write   ; write Y bytes from X to path A
+                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
+                    leax      WorkBuffer_002,u ; form the address WorkBuffer_002,u in x
                     ldy       #6        ; set y to the constant 6
-                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
-                    lbcs      L02C4     ; branch when carry reports an error or unsigned underflow; target L02C4
-                    leax      >L0095,pc ; form the address >L0095,pc in x
+                    os9       I$WritLn  ; write a CR-terminated line from X to path A
+                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
+                    leax      >Text_002,pc ; form the address >Text_002,pc in x
                     ldy       #200      ; set y to the constant 200
                     lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
-                    lbcs      L02C4     ; branch when carry reports an error or unsigned underflow; target L02C4
-                    leax      >L00B4,pc ; form the address >L00B4,pc in x
+                    os9       I$WritLn  ; write a CR-terminated line from X to path A
+                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
+                    leax      >Text_003,pc ; form the address >Text_003,pc in x
                     ldy       #1        ; set y to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    lbcs      L02C4     ; branch when carry reports an error or unsigned underflow; target L02C4
-                    leax      <U0018,u  ; form the address <U0018,u in x
+                    os9       I$Write   ; write Y bytes from X to path A
+                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
+                    leax      <WorkBuffer_003,u ; form the address <WorkBuffer_003,u in x
                     ldy       #6        ; set y to the constant 6
                     clra                ; clear a to zero and set the condition codes
-                    os9       I$ReadLn  ; invoke the OS-9 I$ReadLn service
-                    lbcs      L02C4     ; branch when carry reports an error or unsigned underflow; target L02C4
-                    clr       <U0017,u  ; clear <U0017,u to zero and set the condition codes
-                    leax      <U0018,u  ; form the address <U0018,u in x
+                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
+                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
+                    clr       <WorkByte_006,u ; clear <WorkByte_006,u to zero and set the condition codes
+                    leax      <WorkBuffer_003,u ; form the address <WorkBuffer_003,u in x
                     lda       #13       ; set a to the constant 13
                     sta       $02,x     ; store a at $02,x
-                    lbsr      L02E0     ; call subroutine L02E0
+                    lbsr      Routine_002 ; call subroutine Routine_002
                     cmpd      #1        ; compare d with #1 and set the condition codes
-                    lbcs      L02C3     ; branch when carry reports an error or unsigned underflow; target L02C3
-                    cmpd      <U002B,u  ; compare d with <U002B,u and set the condition codes
-                    lbhi      L02C3     ; branch when the unsigned value is higher; target L02C3
-                    std       U000B,u   ; store d at U000B,u
-                    ldy       U0003,u   ; load y from U0003,u
-                    beq       L0276     ; branch when the values are equal or the result is zero; target L0276
-                    bsr       L0298     ; call subroutine L0298
-                    leax      <U006B,u  ; form the address <U006B,u in x
+                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
+                    cmpd      <WorkBuffer_005,u ; compare d with <WorkBuffer_005,u and set the condition codes
+                    lbhi      Branch_002 ; branch when the unsigned value is higher; target Branch_002
+                    std       WorkBuffer_002,u ; store d at WorkBuffer_002,u
+                    ldy       WorkBuffer_001,u ; load y from WorkBuffer_001,u
+                    beq       Branch_003 ; branch when the values are equal or the result is zero; target Branch_003
+                    bsr       Routine_003 ; call subroutine Routine_003
+                    leax      <WorkBuffer_006,u ; form the address <WorkBuffer_006,u in x
                     ldy       #64       ; set y to the constant 64
-                    lda       U0000,u   ; load a from U0000,u
-                    os9       I$Read    ; invoke the OS-9 I$Read service
-                    ldy       U0003,u   ; load y from U0003,u
-                    cmpy      >U00A7,u  ; compare y with >U00A7,u and set the condition codes
-                    lbne      L02D1     ; branch when the values differ or the result is nonzero; target L02D1
-L0276               bsr       L0298     ; call subroutine L0298
-                    leax      <U006B,u  ; form the address <U006B,u in x
+                    lda       WorkByte_001,u ; load a from WorkByte_001,u
+                    os9       I$Read    ; read up to Y bytes from path A into X
+                    ldy       WorkBuffer_001,u ; load y from WorkBuffer_001,u
+                    cmpy      >WorkByte_009,u ; compare y with >WorkByte_009,u and set the condition codes
+                    lbne      Branch_004 ; branch when the values differ or the result is nonzero; target Branch_004
+Branch_003          bsr       Routine_003 ; call subroutine Routine_003
+                    leax      <WorkBuffer_006,u ; form the address <WorkBuffer_006,u in x
                     ldd       #-1       ; set d to the constant -1
-                    std       0,x       ; store d at 0,x
+                    std       ,x        ; store d at ,x
                     ldy       #64       ; set y to the constant 64
-                    lda       U0000,u   ; load a from U0000,u
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    leax      >L016C,pc ; form the address >L016C,pc in x
+                    lda       WorkByte_001,u ; load a from WorkByte_001,u
+                    os9       I$Write   ; write Y bytes from X to path A
+                    leax      >Text_005,pc ; form the address >Text_005,pc in x
                     ldy       #200      ; set y to the constant 200
                     lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
-                    bra       L02C3     ; continue execution at L02C3
-L0298               clr       <U001E,u  ; clear <U001E,u to zero and set the condition codes
-                    clr       <U001F,u  ; clear <U001F,u to zero and set the condition codes
+                    os9       I$WritLn  ; write a CR-terminated line from X to path A
+                    bra       Branch_002 ; continue execution at Branch_002
+Routine_003         clr       <WorkByte_007,u ; clear <WorkByte_007,u to zero and set the condition codes
+                    clr       <WorkByte_008,u ; clear <WorkByte_008,u to zero and set the condition codes
                     lda       #6        ; set a to the constant 6
-                    sta       U0001,u   ; store a at U0001,u
-                    ldd       U000B,u   ; load d from U000B,u
-L02A4               aslb                ; shift b left arithmetically
+                    sta       WorkByte_002,u ; store a at WorkByte_002,u
+                    ldd       WorkBuffer_002,u ; load d from WorkBuffer_002,u
+Branch_005          aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
-                    rol       <U001F,u  ; rotate left through carry the value at <U001F,u
-                    dec       U0001,u   ; decrement the value at U0001,u
-                    bne       L02A4     ; branch when the values differ or the result is nonzero; target L02A4
-                    std       <U0020,u  ; store d at <U0020,u
-                    ldx       <U001E,u  ; load x from <U001E,u
-                    lda       U0000,u   ; load a from U0000,u
+                    rol       <WorkByte_008,u ; rotate left through carry the value at <WorkByte_008,u
+                    dec       WorkByte_002,u ; decrement the value at WorkByte_002,u
+                    bne       Branch_005 ; branch when the values differ or the result is nonzero; target Branch_005
+                    std       <WorkBuffer_004,u ; store d at <WorkBuffer_004,u
+                    ldx       <WorkByte_007,u ; load x from <WorkByte_007,u
+                    lda       WorkByte_001,u ; load a from WorkByte_001,u
                     pshs      u         ; save u on the stack
-                    ldu       <U0020,u  ; load u from <U0020,u
-                    os9       I$Seek    ; invoke the OS-9 I$Seek service
-                    lbcs      L02C4     ; branch when carry reports an error or unsigned underflow; target L02C4
+                    ldu       <WorkBuffer_004,u ; load u from <WorkBuffer_004,u
+                    os9       I$Seek    ; position path A at the 32-bit offset in X:U
+                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
                     puls      pc,u      ; restore pc,u and return to the caller
-L02C3               clrb                ; clear b to zero and set the condition codes
-L02C4               pshs      b         ; save b on the stack
-                    ldy       U0003,u   ; load y from U0003,u
-                    os9       F$SUser   ; invoke the OS-9 F$SUser service
+Branch_002          clrb                ; clear b to zero and set the condition codes
+Branch_001          pshs      b         ; save b on the stack
+                    ldy       WorkBuffer_001,u ; load y from WorkBuffer_001,u
+                    os9       F$SUser   ; change the process user ID to Y
                     puls      b         ; restore b from the stack
-                    os9       F$Exit    ; invoke the OS-9 F$Exit service
-L02D1               leax      >L0190,pc ; form the address >L0190,pc in x
+                    os9       F$Exit    ; terminate the process with status B
+Branch_004          leax      >Text_006,pc ; form the address >Text_006,pc in x
                     ldy       #200      ; set y to the constant 200
                     lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
-                    bra       L02C3     ; continue execution at L02C3
-L02E0               pshs      y         ; save y on the stack
-L02E2               lda       ,x+       ; load a from ,x+
+                    os9       I$WritLn  ; write a CR-terminated line from X to path A
+                    bra       Branch_002 ; continue execution at Branch_002
+Routine_002         pshs      y         ; save y on the stack
+Branch_006          lda       ,x+       ; load a from ,x+
                     cmpa      #13       ; compare a with #13 and set the condition codes
-                    lbeq      L03B5     ; branch when the values are equal or the result is zero; target L03B5
+                    lbeq      Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
                     cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       L02E2     ; branch when carry reports an error or unsigned underflow; target L02E2
+                    bcs       Branch_006 ; branch when carry reports an error or unsigned underflow; target Branch_006
                     cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       L02E2     ; branch when the unsigned value is higher; target L02E2
+                    bhi       Branch_006 ; branch when the unsigned value is higher; target Branch_006
                     leax      -$01,x    ; form the address -$01,x in x
-L02F4               lda       ,x+       ; load a from ,x+
+Branch_008          lda       ,x+       ; load a from ,x+
                     cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       L0300     ; branch when carry reports an error or unsigned underflow; target L0300
+                    bcs       Branch_009 ; branch when carry reports an error or unsigned underflow; target Branch_009
                     cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       L0300     ; branch when the unsigned value is higher; target L0300
-                    bra       L02F4     ; continue execution at L02F4
-L0300               pshs      x         ; save x on the stack
+                    bhi       Branch_009 ; branch when the unsigned value is higher; target Branch_009
+                    bra       Branch_008 ; continue execution at Branch_008
+Branch_009          pshs      x         ; save x on the stack
                     leax      -$01,x    ; form the address -$01,x in x
-                    clr       U0007,u   ; clear U0007,u to zero and set the condition codes
-                    clr       U0008,u   ; clear U0008,u to zero and set the condition codes
+                    clr       WorkByte_004,u ; clear WorkByte_004,u to zero and set the condition codes
+                    clr       WorkByte_005,u ; clear WorkByte_005,u to zero and set the condition codes
                     ldd       #1        ; set d to the constant 1
-                    std       U0009,u   ; store d at U0009,u
-L030D               lda       ,-x       ; load a from ,-x
+                    std       WorkWord_001,u ; store d at WorkWord_001,u
+Branch_010          lda       ,-x       ; load a from ,-x
                     cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       L0341     ; branch when carry reports an error or unsigned underflow; target L0341
+                    bcs       Branch_011 ; branch when carry reports an error or unsigned underflow; target Branch_011
                     cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       L0341     ; branch when the unsigned value is higher; target L0341
+                    bhi       Branch_011 ; branch when the unsigned value is higher; target Branch_011
                     suba      #48       ; subtract from a using #48
-                    sta       U0002,u   ; store a at U0002,u
+                    sta       WorkByte_003,u ; store a at WorkByte_003,u
                     ldd       #0        ; set d to the constant 0
-L031E               tst       U0002,u   ; set condition codes from U0002,u without changing it
-                    beq       L0328     ; branch when the values are equal or the result is zero; target L0328
-                    addd      U0009,u   ; add to d using U0009,u
-                    dec       U0002,u   ; decrement the value at U0002,u
-                    bra       L031E     ; continue execution at L031E
-L0328               addd      U0007,u   ; add to d using U0007,u
-                    std       U0007,u   ; store d at U0007,u
+Branch_012          tst       WorkByte_003,u ; set condition codes from WorkByte_003,u without changing it
+                    beq       Branch_013 ; branch when the values are equal or the result is zero; target Branch_013
+                    addd      WorkWord_001,u ; add to d using WorkWord_001,u
+                    dec       WorkByte_003,u ; decrement the value at WorkByte_003,u
+                    bra       Branch_012 ; continue execution at Branch_012
+Branch_013          addd      WorkByte_004,u ; add to d using WorkByte_004,u
+                    std       WorkByte_004,u ; store d at WorkByte_004,u
                     lda       #10       ; set a to the constant 10
-                    sta       U0002,u   ; store a at U0002,u
+                    sta       WorkByte_003,u ; store a at WorkByte_003,u
                     ldd       #0        ; set d to the constant 0
-L0333               tst       U0002,u   ; set condition codes from U0002,u without changing it
-                    beq       L033D     ; branch when the values are equal or the result is zero; target L033D
-                    addd      U0009,u   ; add to d using U0009,u
-                    dec       U0002,u   ; decrement the value at U0002,u
-                    bra       L0333     ; continue execution at L0333
-L033D               std       U0009,u   ; store d at U0009,u
-                    bra       L030D     ; continue execution at L030D
-L0341               ldd       U0007,u   ; load d from U0007,u
+Branch_014          tst       WorkByte_003,u ; set condition codes from WorkByte_003,u without changing it
+                    beq       Branch_015 ; branch when the values are equal or the result is zero; target Branch_015
+                    addd      WorkWord_001,u ; add to d using WorkWord_001,u
+                    dec       WorkByte_003,u ; decrement the value at WorkByte_003,u
+                    bra       Branch_014 ; continue execution at Branch_014
+Branch_015          std       WorkWord_001,u ; store d at WorkWord_001,u
+                    bra       Branch_010 ; continue execution at Branch_010
+Branch_011          ldd       WorkByte_004,u ; load d from WorkByte_004,u
                     puls      x         ; restore x from the stack
                     puls      pc,y      ; restore pc,y and return to the caller
-L0347               pshs      x         ; save x on the stack
-                    std       U0007,u   ; store d at U0007,u
+Routine_001         pshs      x         ; save x on the stack
+                    std       WorkByte_004,u ; store d at WorkByte_004,u
                     lda       #48       ; set a to the constant 48
-                    sta       0,x       ; store a at 0,x
+                    sta       ,x        ; store a at ,x
                     sta       $01,x     ; store a at $01,x
                     sta       $02,x     ; store a at $02,x
                     sta       $03,x     ; store a at $03,x
                     sta       $04,x     ; store a at $04,x
                     ldd       #10000    ; set d to the constant 10000
-                    std       U0009,u   ; store d at U0009,u
-                    ldd       U0007,u   ; load d from U0007,u
-                    lbsr      L03A6     ; call subroutine L03A6
+                    std       WorkWord_001,u ; store d at WorkWord_001,u
+                    ldd       WorkByte_004,u ; load d from WorkByte_004,u
+                    lbsr      Routine_004 ; call subroutine Routine_004
                     ldd       #1000     ; set d to the constant 1000
-                    std       U0009,u   ; store d at U0009,u
-                    ldd       U0007,u   ; load d from U0007,u
-                    bsr       L03A6     ; call subroutine L03A6
+                    std       WorkWord_001,u ; store d at WorkWord_001,u
+                    ldd       WorkByte_004,u ; load d from WorkByte_004,u
+                    bsr       Routine_004 ; call subroutine Routine_004
                     ldd       #100      ; set d to the constant 100
-                    std       U0009,u   ; store d at U0009,u
-                    ldd       U0007,u   ; load d from U0007,u
-                    bsr       L03A6     ; call subroutine L03A6
+                    std       WorkWord_001,u ; store d at WorkWord_001,u
+                    ldd       WorkByte_004,u ; load d from WorkByte_004,u
+                    bsr       Routine_004 ; call subroutine Routine_004
                     ldd       #10       ; set d to the constant 10
-                    std       U0009,u   ; store d at U0009,u
-                    ldd       U0007,u   ; load d from U0007,u
-                    bsr       L03A6     ; call subroutine L03A6
+                    std       WorkWord_001,u ; store d at WorkWord_001,u
+                    ldd       WorkByte_004,u ; load d from WorkByte_004,u
+                    bsr       Routine_004 ; call subroutine Routine_004
                     ldd       #1        ; set d to the constant 1
-                    std       U0009,u   ; store d at U0009,u
-                    ldd       U0007,u   ; load d from U0007,u
-                    bsr       L03A6     ; call subroutine L03A6
+                    std       WorkWord_001,u ; store d at WorkWord_001,u
+                    ldd       WorkByte_004,u ; load d from WorkByte_004,u
+                    bsr       Routine_004 ; call subroutine Routine_004
                     lda       #13       ; set a to the constant 13
-                    sta       0,x       ; store a at 0,x
+                    sta       ,x        ; store a at ,x
                     puls      x         ; restore x from the stack
                     ldb       #32       ; set b to the constant 32
-L038D               lda       0,x       ; load a from 0,x
+Branch_016          lda       ,x        ; load a from ,x
                     cmpa      #48       ; compare a with #48 and set the condition codes
-                    bne       L0397     ; branch when the values differ or the result is nonzero; target L0397
+                    bne       Branch_017 ; branch when the values differ or the result is nonzero; target Branch_017
                     stb       ,x+       ; store b at ,x+
-                    bra       L038D     ; continue execution at L038D
-L0397               lda       ,x+       ; load a from ,x+
+                    bra       Branch_016 ; continue execution at Branch_016
+Branch_017          lda       ,x+       ; load a from ,x+
                     cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       L03A3     ; branch when carry reports an error or unsigned underflow; target L03A3
+                    bcs       Branch_018 ; branch when carry reports an error or unsigned underflow; target Branch_018
                     cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       L03A3     ; branch when the unsigned value is higher; target L03A3
-                    bra       L0397     ; continue execution at L0397
-L03A3               leax      -$01,x    ; form the address -$01,x in x
+                    bhi       Branch_018 ; branch when the unsigned value is higher; target Branch_018
+                    bra       Branch_017 ; continue execution at Branch_017
+Branch_018          leax      -$01,x    ; form the address -$01,x in x
                     rts                 ; return to the caller
-L03A6               subd      U0009,u   ; subtract from d using U0009,u
-                    bcs       L03AE     ; branch when carry reports an error or unsigned underflow; target L03AE
-                    inc       0,x       ; increment the value at 0,x
-                    bra       L03A6     ; continue execution at L03A6
-L03AE               addd      U0009,u   ; add to d using U0009,u
-                    std       U0007,u   ; store d at U0007,u
+Routine_004         subd      WorkWord_001,u ; subtract from d using WorkWord_001,u
+                    bcs       Branch_019 ; branch when carry reports an error or unsigned underflow; target Branch_019
+                    inc       ,x        ; increment the value at ,x
+                    bra       Routine_004 ; continue execution at Routine_004
+Branch_019          addd      WorkWord_001,u ; add to d using WorkWord_001,u
+                    std       WorkByte_004,u ; store d at WorkByte_004,u
                     leax      $01,x     ; form the address $01,x in x
                     rts                 ; return to the caller
-L03B5               ldd       #-1       ; set d to the constant -1
+Branch_007          ldd       #-1       ; set d to the constant -1
                     puls      pc,y      ; restore pc,y and return to the caller
 
                     emod      ;         emit the OS-9 module CRC and trailer

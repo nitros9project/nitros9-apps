@@ -1,11 +1,17 @@
 **********************************************************************
 * Prompt - OS-9 Level 2 BBS command
 *
+* Syntax: Prompt <command> "prompt" [arguments]
+* Purpose: Read one value, insert it into a command line, and execute that command.
+* Provides parameter prompting for menu and script workflows.
+*
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
 * Annotated source and normalized comments.
+*          2026/07/21  Codex
+* Refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       Prompt
@@ -21,81 +27,81 @@ rev                 set       $01       ; set assembly-time module attribute rev
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-U0000               rmb       2         ; reserve 2 byte(s) in the module workspace
-U0002               rmb       2         ; reserve 2 byte(s) in the module workspace
-U0004               rmb       2         ; reserve 2 byte(s) in the module workspace
-U0006               rmb       2         ; reserve 2 byte(s) in the module workspace
-U0008               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0009               rmb       599       ; reserve 599 byte(s) in the module workspace
+WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkWord_002        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkWord_003        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkWord_004        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkBuffer_001      rmb       599       ; reserve 599 byte(s) in the module workspace
 size                equ       .         ; define the assembly-time value for size
 
 name                fcs       /Prompt/ ; store an OS-9 high-bit-terminated string
-start               stx       U0006,u   ; store x at U0006,u
-L0015               lda       ,x+       ; load a from ,x+
+start               stx       WorkWord_004,u ; store x at WorkWord_004,u
+Branch_001          lda       ,x+       ; load a from ,x+
                     cmpa      #32       ; compare a with #32 and set the condition codes
-                    beq       L0021     ; branch when the values are equal or the result is zero; target L0021
+                    beq       Branch_002 ; branch when the values are equal or the result is zero; target Branch_002
                     cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       L0021     ; branch when the values are equal or the result is zero; target L0021
-                    bra       L0015     ; continue execution at L0015
-L0021               lda       #13       ; set a to the constant 13
+                    beq       Branch_002 ; branch when the values are equal or the result is zero; target Branch_002
+                    bra       Branch_001 ; continue execution at Branch_001
+Branch_002          lda       #13       ; set a to the constant 13
                     sta       -$01,x    ; store a at -$01,x
-                    leay      U0008,u   ; form the address U0008,u in y
-                    clr       U0000,u   ; clear U0000,u to zero and set the condition codes
-L0029               lda       ,x+       ; load a from ,x+
+                    leay      WorkByte_001,u ; form the address WorkByte_001,u in y
+                    clr       WorkWord_001,u ; clear WorkWord_001,u to zero and set the condition codes
+Branch_003          lda       ,x+       ; load a from ,x+
                     cmpa      #34       ; compare a with #34 and set the condition codes
-                    beq       L003A     ; branch when the values are equal or the result is zero; target L003A
+                    beq       Branch_004 ; branch when the values are equal or the result is zero; target Branch_004
                     sta       ,y+       ; store a at ,y+
-                    inc       U0000,u   ; increment the value at U0000,u
+                    inc       WorkWord_001,u ; increment the value at WorkWord_001,u
                     cmpa      #13       ; compare a with #13 and set the condition codes
-                    bne       L0029     ; branch when the values differ or the result is nonzero; target L0029
-                    lbra      L007A     ; continue execution at L007A
-L003A               stx       U0002,u   ; store x at U0002,u
+                    bne       Branch_003 ; branch when the values differ or the result is nonzero; target Branch_003
+                    lbra      Branch_005 ; continue execution at Branch_005
+Branch_004          stx       WorkWord_002,u ; store x at WorkWord_002,u
                     clrb                ; clear b to zero and set the condition codes
-L003D               lda       ,x+       ; load a from ,x+
+Branch_006          lda       ,x+       ; load a from ,x+
                     cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       L004A     ; branch when the values are equal or the result is zero; target L004A
+                    beq       Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
                     cmpa      #34       ; compare a with #34 and set the condition codes
-                    beq       L004A     ; branch when the values are equal or the result is zero; target L004A
+                    beq       Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
                     incb                ; increment b
-                    bra       L003D     ; continue execution at L003D
-L004A               stx       U0004,u   ; store x at U0004,u
-                    ldx       U0002,u   ; load x from U0002,u
+                    bra       Branch_006 ; continue execution at Branch_006
+Branch_007          stx       WorkWord_003,u ; store x at WorkWord_003,u
+                    ldx       WorkWord_002,u ; load x from WorkWord_002,u
                     clra                ; clear a to zero and set the condition codes
                     pshs      y         ; save y on the stack
                     tfr       d,y       ; copy the register values specified by d,y
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    ldx       0,s       ; load x from the current stack frame at 0,s
+                    os9       I$Write   ; write Y bytes from X to path A
+                    ldx       ,s        ; load x from the current stack frame at ,s
                     ldy       #80       ; set y to the constant 80
                     clra                ; clear a to zero and set the condition codes
-                    os9       I$ReadLn  ; invoke the OS-9 I$ReadLn service
+                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
                     leay      -$01,y    ; form the address -$01,y in y
                     tfr       y,d       ; copy the register values specified by y,d
                     puls      y         ; restore y from the stack
                     leay      d,y       ; form the address d,y in y
-                    addb      U0000,u   ; add to b using U0000,u
-                    stb       U0000,u   ; store b at U0000,u
-                    ldx       U0004,u   ; load x from U0004,u
-L0070               lda       ,x+       ; load a from ,x+
+                    addb      WorkWord_001,u ; add to b using WorkWord_001,u
+                    stb       WorkWord_001,u ; store b at WorkWord_001,u
+                    ldx       WorkWord_003,u ; load x from WorkWord_003,u
+Branch_008          lda       ,x+       ; load a from ,x+
                     sta       ,y+       ; store a at ,y+
-                    inc       U0000,u   ; increment the value at U0000,u
+                    inc       WorkWord_001,u ; increment the value at WorkWord_001,u
                     cmpa      #13       ; compare a with #13 and set the condition codes
-                    bne       L0070     ; branch when the values differ or the result is nonzero; target L0070
-L007A               ldx       U0006,u   ; load x from U0006,u
-                    ldb       U0000,u   ; load b from U0000,u
+                    bne       Branch_008 ; branch when the values differ or the result is nonzero; target Branch_008
+Branch_005          ldx       WorkWord_004,u ; load x from WorkWord_004,u
+                    ldb       WorkWord_001,u ; load b from WorkWord_001,u
                     clra                ; clear a to zero and set the condition codes
                     tfr       d,y       ; copy the register values specified by d,y
                     lda       #17       ; set a to the constant 17
                     ldb       #3        ; set b to the constant 3
                     pshs      u         ; save u on the stack
-                    leau      U0008,u   ; form the workspace or data address U0008,u in u
-                    os9       F$Fork    ; invoke the OS-9 F$Fork service
-                    lbcs      L009A     ; branch when carry reports an error or unsigned underflow; target L009A
-                    os9       F$Wait    ; invoke the OS-9 F$Wait service
-                    lbcs      L009A     ; branch when carry reports an error or unsigned underflow; target L009A
+                    leau      WorkByte_001,u ; form the workspace or data address WorkByte_001,u in u
+                    os9       F$Fork    ; spawn the module at X with parameters at U
+                    lbcs      Branch_009 ; branch when carry reports an error or unsigned underflow; target Branch_009
+                    os9       F$Wait    ; wait for a child process to terminate
+                    lbcs      Branch_009 ; branch when carry reports an error or unsigned underflow; target Branch_009
                     puls      u         ; restore u from the stack
                     clrb                ; clear b to zero and set the condition codes
-L009A               os9       F$Exit    ; invoke the OS-9 F$Exit service
+Branch_009          os9       F$Exit    ; terminate the process with status B
 
                     emod      ;         emit the OS-9 module CRC and trailer
 eom                 equ       *         ; define the assembly-time value for eom

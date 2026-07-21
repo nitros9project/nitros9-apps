@@ -1,11 +1,17 @@
 **********************************************************************
 * BBS.chat - OS-9 Level 2 BBS command
 *
+* Syntax: BBS.chat
+* Purpose: Publish a user chat request and exchange characters with the sysop-side Answer command.
+* Coordination: process signals and a shared one-character mailbox.
+*
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
 * Annotated source and normalized comments.
+*          2026/07/21  Codex
+* Refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       BBS.chat
@@ -27,7 +33,7 @@ Flag                rmb       3         ; reserve 3 byte(s) in the module worksp
 DotCntr             rmb       1         ; reserve 1 byte(s) in the module workspace
 WPath               rmb       1         ; reserve 1 byte(s) in the module workspace
 XSave               rmb       2         ; reserve 2 byte(s) in the module workspace
-U0009               rmb       400       ; reserve 400 byte(s) in the module workspace
+ReservedWorkspace   rmb       400       ; retain the command's original minimum data allocation
 size                equ       .         ; define the assembly-time value for size
 
 name                fcs       /BBS.chat/ ; store an OS-9 high-bit-terminated string
@@ -56,144 +62,144 @@ ChatBuf             fcb       $00       ; store byte data
 
 start_a             stx       XSave,u   ; store x at XSave,u
                     lda       #10       ; set a to the constant 10
-                    sta       DefCntr,u ; Initialize the default counter
+                    sta       DefCntr,u ; initialize the default counter
 
 * Set up the signal intercept handler
                     leax      >Icpt,pc  ; form the address >Icpt,pc in x
-                    os9       F$Icpt    ; invoke the OS-9 F$Icpt service
+                    os9       F$Icpt    ; install the signal-intercept routine at X
 
                     lda       #255      ; set a to the constant 255
-                    sta       Flag,u    ; Set the flag
+                    sta       Flag,u    ; set the flag
                     lda       #10       ; set a to the constant 10
-                    sta       DotCntr,u ; Initialize the counter
+                    sta       DotCntr,u ; initialize the counter
 
 * Open /w for read/write
                     leax      >w,pc     ; form the address >w,pc in x
                     lda       #3        ; set a to the constant 3
-                    os9       I$Open    ; invoke the OS-9 I$Open service
-                    lbcs      ErrExit   ; Exit on error
-                    sta       WPath,u   ; Store the path
+                    os9       I$Open    ; open the path at X using access mode A
+                    lbcs      ErrExit   ; exit on error
+                    sta       WPath,u   ; store the path
 
 * Inform the user we are paging the sysop
                     leax      >Paging,pc ; form the address >Paging,pc in x
                     ldy       #200      ; set y to the constant 200
                     lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
+                    os9       I$WritLn  ; write a CR-terminated line from X to path A
 
 **************************************************
 * Page the sysop to join the chat
-PageLoop            lda       DefCntr,u ; Get the default counter
-                    sta       BeepCntr,u ; Initialize the beep counter
+PageLoop            lda       DefCntr,u ; get the default counter
+                    sta       BeepCntr,u ; initialize the beep counter
 
 * Ding the sysop
 BeepBeep            leax      >bell,pc  ; form the address >bell,pc in x
                     lda       WPath,u   ; load a from WPath,u
                     ldy       #1        ; set y to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    lbcs      ErrExit   ; Exit on error
+                    os9       I$Write   ; write Y bytes from X to path A
+                    lbcs      ErrExit   ; exit on error
                     ldx       #4        ; set x to the constant 4
-                    os9       F$Sleep   ; Sleep 4 ticks
-                    dec       BeepCntr,u ; Decrement the counter
-                    bne       BeepBeep  ; Beep again if the counter is not zero
+                    os9       F$Sleep   ; sleep 4 ticks
+                    dec       BeepCntr,u ; decrement the counter
+                    bne       BeepBeep  ; beep again if the counter is not zero
 
                     ldx       #90       ; set x to the constant 90
-                    os9       F$Sleep   ; Sleep 90 ticks
-                    tst       Flag,u    ; Is the sysop home?
-                    beq       L00E6     ; Yes, and he answered the chat
+                    os9       F$Sleep   ; sleep 90 ticks
+                    tst       Flag,u    ; is the sysop home?
+                    beq       SysopAnswered ; signal 129 means Answer attached to this request
 
 * Write a dot on /w
                     leax      >dot,pc   ; form the address >dot,pc in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    dec       DotCntr,u ; Decrement the counter
-                    bne       PageLoop  ; Try again if the counter is not zero
+                    os9       I$Write   ; write Y bytes from X to path A
+                    dec       DotCntr,u ; decrement the counter
+                    bne       PageLoop  ; try again if the counter is not zero
 
 * Nobody's home so inform the user and exit
                     leax      >NotHome,pc ; form the address >NotHome,pc in x
                     ldy       #200      ; set y to the constant 200
                     lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
+                    os9       I$WritLn  ; write a CR-terminated line from X to path A
                     lbra      Exit      ; continue execution at Exit
 
-L00E6               clr       >DataRdy,pc ; No data is available yet
+SysopAnswered       clr       >DataRdy,pc ; initialize the shared mailbox as empty
 
 * Wait for the user or the sysop to press a key
 DataLoop            clra                ; clear a to zero and set the condition codes
-                    ldb       #1        ; SS.Ready
-                    os9       I$GetStt  ; Has the user pressed a key?
-                    bcc       TestFlag  ; Yes, so go read it
-                    tst       >DataRdy,pc ; Has the sysop pressed a key?
-                    beq       DataLoop  ; No, so continue polling
+                    ldb       #1        ; ss.Ready
+                    os9       I$GetStt  ; has the user pressed a key?
+                    bcc       TestFlag  ; yes, so go read it
+                    tst       >DataRdy,pc ; has the sysop pressed a key?
+                    beq       DataLoop  ; no, so continue polling
 
 * Echo the sysop's char to the user
 Echo                leax      >ChatBuf,pc ; form the address >ChatBuf,pc in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
 
-                    lda       >ChatBuf,pc ; Get the char the sysop typed
-                    cmpa      #13       ; Is it a CR?
-                    bne       ClrFlag   ; No, clear the flag and poll for more
+                    lda       >ChatBuf,pc ; get the char the sysop typed
+                    cmpa      #13       ; is it a CR?
+                    bne       ClrFlag   ; no, clear the flag and poll for more
 
 * Append LF to CR on the output path
                     leax      >lf,pc    ; form the address >lf,pc in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
 
-ClrFlag             clr       >DataRdy,pc ; We are ready for more data
-                    bra       DataLoop  ; Check for more data
+ClrFlag             clr       >DataRdy,pc ; we are ready for more data
+                    bra       DataLoop  ; check for more data
 
-TestFlag            tst       >DataRdy,pc ; Is data available yet?
-                    bne       Echo      ; Yes, go read it
+TestFlag            tst       >DataRdy,pc ; is data available yet?
+                    bne       Echo      ; yes, go read it
 
 * Read one character from the user
                     leax      >ChatBuf,pc ; form the address >ChatBuf,pc in x
                     ldy       #1        ; set y to the constant 1
                     clra                ; clear a to zero and set the condition codes
-                    os9       I$Read    ; invoke the OS-9 I$Read service
+                    os9       I$Read    ; read up to Y bytes from path A into X
 
-                    lda       0,x       ; Get the character read
-                    cmpa      #13       ; Is it a CR?
-                    bne       SetFlag   ; No, so don't write an LF
+                    lda       ,x        ; get the character read
+                    cmpa      #13       ; is it a CR?
+                    bne       SetFlag   ; no, so don't write an LF
 
 * Append an LF to the CR
                     leax      >lf,pc    ; form the address >lf,pc in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
+                    os9       I$Write   ; write Y bytes from X to path A
 
-SetFlag             pshs      cc        ; Save the condition codes
-                    orcc      #80       ; Disable interrupts
-                    tst       >DataRdy,pc ; Is data available yet?
-                    bne       SleepRet  ; Yes, echo it to the user
+SetFlag             pshs      cc        ; save the condition codes
+                    orcc      #80       ; disable interrupts
+                    tst       >DataRdy,pc ; is data available yet?
+                    bne       SleepRet  ; yes, echo it to the user
                     lda       #1        ; set a to the constant 1
-                    sta       >DataRdy,pc ; Set the data available flag
+                    sta       >DataRdy,pc ; set the data available flag
                     puls      cc        ; restore cc from the stack
 
 * Sleep until the flag is cleared
-Sleep               lda       >DataRdy,pc ; Get the data available flag
-                    lbeq      DataLoop  ; Flag reset, so continue the loop
+Sleep               lda       >DataRdy,pc ; get the data available flag
+                    lbeq      DataLoop  ; flag reset, so continue the loop
                     ldx       #1        ; set x to the constant 1
-                    os9       F$Sleep   ; Sleep the remainder of the time slice
+                    os9       F$Sleep   ; sleep the remainder of the time slice
                     bra       Sleep     ; ... until the flag is cleared
 
-SleepRet            puls      cc        ; Restore interrupts
-                    lbra      Echo      ; Echo the character to the user
+SleepRet            puls      cc        ; restore interrupts
+                    lbra      Echo      ; echo the character to the user
 
-Exit                clrb                ; Clear the error flag...
+Exit                clrb                ; clear the error flag...
 ErrExit             os9       F$Exit    ; ... and exit
 
 * Interrupt service handler
 Icpt                cmpb      #2        ; compare b with #2 and set the condition codes
-                    beq       Exit2     ; Exit if signal 2
+                    beq       Exit2     ; exit if signal 2
                     cmpb      #3        ; compare b with #3 and set the condition codes
-                    beq       Return    ; Return if signal 3
-                    clr       Flag,u    ; Clear the flag...
+                    beq       Return    ; return if signal 3
+                    clr       Flag,u    ; clear the flag...
 Return              rti                 ; ... and exit the interrupt handler
 
-Exit2               clrb                ; Clear the error flag...
+Exit2               clrb                ; clear the error flag...
                     os9       F$Exit    ; ... and exit
 
                     emod      ;         emit the OS-9 module CRC and trailer

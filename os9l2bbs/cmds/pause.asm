@@ -1,11 +1,17 @@
 **********************************************************************
 * pause - OS-9 Level 2 BBS command
 *
+* Syntax: pause ["message"]
+* Purpose: Display a message and wait for one keypress.
+* Interactive scripts must redirect standard input from the caller terminal.
+*
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
 * Annotated source and normalized comments.
+*          2026/07/21  Codex
+* Refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       pause
@@ -21,51 +27,51 @@ rev                 set       $01       ; set assembly-time module attribute rev
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-U0000               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0001               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0002               rmb       2         ; reserve 2 byte(s) in the module workspace
-U0004               rmb       400       ; reserve 400 byte(s) in the module workspace
+KeyBuffer           rmb       1         ; receives the single key that dismisses the prompt
+MessageLength       rmb       1         ; length of a caller-supplied message before CR/quote
+MessagePointer      rmb       2         ; beginning of the caller-supplied message
+ReservedWorkspace   rmb       400       ; retain the command's original minimum data allocation
 size                equ       .         ; define the assembly-time value for size
 
 name                fcs       /pause/ ; store an OS-9 high-bit-terminated string
-L0012               fcb       $0A       ; store byte data
+TrailingNewline     fcb       $0A       ; LF/CR written after the keypress
                     fcb       $0D       ; store byte data
 start               lda       ,x+       ; load a from ,x+
                     cmpa      #34       ; compare a with #34 and set the condition codes
-                    beq       L0028     ; branch when the values are equal or the result is zero; target L0028
+                    beq       MeasureCustomMessage ; nonempty parameters replace the default prompt
                     cmpa      #13       ; compare a with #13 and set the condition codes
                     bne       start     ; branch when the values differ or the result is nonzero; target start
-                    leax      >L0065,pc ; form the address >L0065,pc in x
+                    leax      >DefaultPrompt,pc ; no message was supplied, so use the documented default
                     ldy       #28       ; set y to the constant 28
-                    bra       L0041     ; continue execution at L0041
-L0028               clr       U0001,u   ; clear U0001,u to zero and set the condition codes
-                    stx       U0002,u   ; store x at U0002,u
-L002C               lda       ,x+       ; load a from ,x+
+                    bra       DisplayPrompt ; default text already has a known length
+MeasureCustomMessage clr       MessageLength,u ; count only the visible caller-supplied text
+                    stx       MessagePointer,u ; retain its beginning while X scans for the end
+ScanMessageEnd      lda       ,x+       ; inspect the next parameter character
                     cmpa      #34       ; compare a with #34 and set the condition codes
-                    beq       L003A     ; branch when the values are equal or the result is zero; target L003A
+                    beq       CustomLengthReady ; cr terminates an unquoted parameter
                     cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       L003A     ; branch when the values are equal or the result is zero; target L003A
-                    inc       U0001,u   ; increment the value at U0001,u
-                    bra       L002C     ; continue execution at L002C
-L003A               ldb       U0001,u   ; load b from U0001,u
+                    beq       CustomLengthReady ; closing quote is not part of the displayed message
+                    inc       MessageLength,u ; include this visible character
+                    bra       ScanMessageEnd ; continue until CR or the closing quote
+CustomLengthReady   ldb       MessageLength,u ; convert the byte count to I$Write's Y length
                     clra                ; clear a to zero and set the condition codes
                     tfr       d,y       ; copy the register values specified by d,y
-                    ldx       U0002,u   ; load x from U0002,u
-L0041               lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; invoke the OS-9 I$Write service
-                    bcs       L0062     ; branch when carry reports an error or unsigned underflow; target L0062
+                    ldx       MessagePointer,u ; restore the start of the custom message
+DisplayPrompt       lda       #1        ; display the selected prompt on standard output
+                    os9       I$Write   ; write Y bytes from X to path A
+                    bcs       ExitWithStatus ; do not wait for input after an output failure
                     clra                ; clear a to zero and set the condition codes
                     ldy       #1        ; set y to the constant 1
-                    leax      U0000,u   ; form the address U0000,u in x
-                    os9       I$Read    ; invoke the OS-9 I$Read service
-                    bcs       L0062     ; branch when carry reports an error or unsigned underflow; target L0062
+                    leax      KeyBuffer,u ; discard one key into the one-byte input buffer
+                    os9       I$Read    ; read up to Y bytes from path A into X
+                    bcs       ExitWithStatus ; propagate an input-path failure
                     lda       #1        ; set a to the constant 1
-                    leax      >L0012,pc ; form the address >L0012,pc in x
+                    leax      >TrailingNewline,pc ; leave the terminal at the next line
                     ldy       #2        ; set y to the constant 2
-                    os9       I$WritLn  ; invoke the OS-9 I$WritLn service
+                    os9       I$WritLn  ; write a CR-terminated line from X to path A
                     clrb                ; clear b to zero and set the condition codes
-L0062               os9       F$Exit    ; invoke the OS-9 F$Exit service
-L0065               fcc       "Press any key to continue..." ; store literal character data
+ExitWithStatus      os9       F$Exit    ; return the I/O status in B
+DefaultPrompt       fcc       "Press any key to continue..." ; default when no message argument is present
                     fcb       $0D       ; store byte data
 
                     emod      ;         emit the OS-9 module CRC and trailer

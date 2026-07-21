@@ -1,11 +1,17 @@
 **********************************************************************
 * Monitor - OS-9 Level 2 BBS command
 *
+* Syntax: Monitor
+* Purpose: Watch carrier detect and terminate the caller process tree after hangup.
+* Normally started by Tsmon beside BBS.login.
+*
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
 * Annotated source and normalized comments.
+*          2026/07/21  Codex
+* Refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       Monitor
@@ -21,17 +27,17 @@ rev                 set       $01       ; set assembly-time module attribute rev
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-U0000               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0001               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0002               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0003               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0004               rmb       2         ; reserve 2 byte(s) in the module workspace
-U0006               rmb       2         ; reserve 2 byte(s) in the module workspace
-U0008               rmb       32        ; reserve 32 byte(s) in the module workspace
-U0028               rmb       255       ; reserve 255 byte(s) in the module workspace
-U0127               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0128               rmb       1         ; reserve 1 byte(s) in the module workspace
-U0129               rmb       711       ; reserve 711 byte(s) in the module workspace
+WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_003        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_004        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkWord_002        rmb       2         ; reserve 2 byte(s) in the module workspace
+WorkBuffer_001      rmb       32        ; reserve 32 byte(s) in the module workspace
+WorkBuffer_002      rmb       255       ; reserve 255 byte(s) in the module workspace
+WorkByte_005        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkByte_006        rmb       1         ; reserve 1 byte(s) in the module workspace
+WorkBuffer_003      rmb       711       ; reserve 711 byte(s) in the module workspace
 size                equ       .         ; define the assembly-time value for size
 
 name                fcs       /Monitor/ ; store an OS-9 high-bit-terminated string
@@ -50,87 +56,87 @@ name                fcs       /Monitor/ ; store an OS-9 high-bit-terminated stri
                     fcb       $EF       ; store byte data
                     fcb       $F4       ; store byte data
                     fcb       $F0       ; store byte data
-start               lda       0,x       ; load a from 0,x
+start               lda       ,x        ; load a from ,x
                     cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       L00A0     ; branch when the values are equal or the result is zero; target L00A0
+                    beq       Branch_001 ; branch when the values are equal or the result is zero; target Branch_001
                     clra                ; clear a to zero and set the condition codes
-                    os9       I$Close   ; invoke the OS-9 I$Close service
+                    os9       I$Close   ; close path A
                     inca                ; increment a
-                    os9       I$Close   ; invoke the OS-9 I$Close service
+                    os9       I$Close   ; close path A
                     inca                ; increment a
-                    os9       I$Close   ; invoke the OS-9 I$Close service
+                    os9       I$Close   ; close path A
                     lda       #3        ; set a to the constant 3
-                    os9       I$Open    ; invoke the OS-9 I$Open service
-                    lbcs      L0106     ; branch when carry reports an error or unsigned underflow; target L0106
-                    os9       I$Dup     ; invoke the OS-9 I$Dup service
-                    os9       I$Dup     ; invoke the OS-9 I$Dup service
-L00A0               clra                ; clear a to zero and set the condition codes
+                    os9       I$Open    ; open the path at X using access mode A
+                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
+                    os9       I$Dup     ; duplicate path A into the next free path number
+                    os9       I$Dup     ; duplicate path A into the next free path number
+Branch_001          clra                ; clear a to zero and set the condition codes
                     ldb       #14       ; set b to the constant 14
-                    leax      U0008,u   ; form the address U0008,u in x
-                    os9       I$GetStt  ; invoke the OS-9 I$GetStt service
-                    lbcs      L0106     ; branch when carry reports an error or unsigned underflow; target L0106
+                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
+                    os9       I$GetStt  ; query status code B for path A
+                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
                     lda       #241      ; set a to the constant 241
                     pshs      u         ; save u on the stack
-                    os9       F$Link    ; invoke the OS-9 F$Link service
-                    lbcs      L0106     ; branch when carry reports an error or unsigned underflow; target L0106
+                    os9       F$Link    ; link the module named at X
+                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
                     tfr       u,y       ; copy the register values specified by u,y
                     puls      u         ; restore u from the stack
                     ldx       $0F,y     ; load x from $0F,y
                     leax      $01,x     ; form the address $01,x in x
-                    stx       U0004,u   ; store x at U0004,u
-L00C1               ldx       #1        ; set x to the constant 1
-                    os9       F$Sleep   ; invoke the OS-9 F$Sleep service
-                    ldx       U0004,u   ; load x from U0004,u
-                    lda       0,x       ; load a from 0,x
+                    stx       WorkWord_001,u ; store x at WorkWord_001,u
+Branch_003          ldx       #1        ; set x to the constant 1
+                    os9       F$Sleep   ; sleep for the number of ticks in X
+                    ldx       WorkWord_001,u ; load x from WorkWord_001,u
+                    lda       ,x        ; load a from ,x
                     bita      #32       ; test selected bits in a using #32
-                    beq       L00C1     ; branch when the values are equal or the result is zero; target L00C1
-                    os9       F$ID      ; invoke the OS-9 F$ID service
-                    sta       U0002,u   ; store a at U0002,u
-                    leax      >U0127,u  ; form the address >U0127,u in x
-                    os9       F$GPrDsc  ; invoke the OS-9 F$GPrDsc service
-                    lda       >U0128,u  ; load a from >U0128,u
-                    sta       U0000,u   ; store a at U0000,u
+                    beq       Branch_003 ; branch when the values are equal or the result is zero; target Branch_003
+                    os9       F$ID      ; retrieve the current process and user IDs
+                    sta       WorkByte_003,u ; store a at WorkByte_003,u
+                    leax      >WorkByte_005,u ; form the address >WorkByte_005,u in x
+                    os9       F$GPrDsc  ; copy the requested process descriptor into X
+                    lda       >WorkByte_006,u ; load a from >WorkByte_006,u
+                    sta       WorkByte_001,u ; store a at WorkByte_001,u
                     lda       #255      ; set a to the constant 255
-                    sta       U0001,u   ; store a at U0001,u
-                    clr       U0003,u   ; clear U0003,u to zero and set the condition codes
-                    leax      <U0028,u  ; form the address <U0028,u in x
-                    stx       U0006,u   ; store x at U0006,u
-L00EC               lda       U0001,u   ; load a from U0001,u
-L00EE               leax      >U0127,u  ; form the address >U0127,u in x
-                    os9       F$GPrDsc  ; invoke the OS-9 F$GPrDsc service
-                    bcs       L0117     ; branch when carry reports an error or unsigned underflow; target L0117
-                    lda       >U0128,u  ; load a from >U0128,u
-                    cmpa      U0000,u   ; compare a with U0000,u and set the condition codes
-                    beq       L0109     ; branch when the values are equal or the result is zero; target L0109
+                    sta       WorkByte_002,u ; store a at WorkByte_002,u
+                    clr       WorkByte_004,u ; clear WorkByte_004,u to zero and set the condition codes
+                    leax      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in x
+                    stx       WorkWord_002,u ; store x at WorkWord_002,u
+Branch_004          lda       WorkByte_002,u ; load a from WorkByte_002,u
+Branch_005          leax      >WorkByte_005,u ; form the address >WorkByte_005,u in x
+                    os9       F$GPrDsc  ; copy the requested process descriptor into X
+                    bcs       Branch_006 ; branch when carry reports an error or unsigned underflow; target Branch_006
+                    lda       >WorkByte_006,u ; load a from >WorkByte_006,u
+                    cmpa      WorkByte_001,u ; compare a with WorkByte_001,u and set the condition codes
+                    beq       Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
                     cmpa      #0        ; compare a with #0 and set the condition codes
-                    beq       L0117     ; branch when the values are equal or the result is zero; target L0117
-                    bra       L00EE     ; continue execution at L00EE
-L0105               clrb                ; clear b to zero and set the condition codes
-L0106               os9       F$Exit    ; invoke the OS-9 F$Exit service
-L0109               lda       U0001,u   ; load a from U0001,u
-                    cmpa      U0002,u   ; compare a with U0002,u and set the condition codes
-                    beq       L0117     ; branch when the values are equal or the result is zero; target L0117
-                    ldx       U0006,u   ; load x from U0006,u
+                    beq       Branch_006 ; branch when the values are equal or the result is zero; target Branch_006
+                    bra       Branch_005 ; continue execution at Branch_005
+Branch_008          clrb                ; clear b to zero and set the condition codes
+Branch_002          os9       F$Exit    ; terminate the process with status B
+Branch_007          lda       WorkByte_002,u ; load a from WorkByte_002,u
+                    cmpa      WorkByte_003,u ; compare a with WorkByte_003,u and set the condition codes
+                    beq       Branch_006 ; branch when the values are equal or the result is zero; target Branch_006
+                    ldx       WorkWord_002,u ; load x from WorkWord_002,u
                     sta       ,x+       ; store a at ,x+
-                    stx       U0006,u   ; store x at U0006,u
-                    inc       U0003,u   ; increment the value at U0003,u
-L0117               dec       U0001,u   ; decrement the value at U0001,u
+                    stx       WorkWord_002,u ; store x at WorkWord_002,u
+                    inc       WorkByte_004,u ; increment the value at WorkByte_004,u
+Branch_006          dec       WorkByte_002,u ; decrement the value at WorkByte_002,u
                     cmpa      #3        ; compare a with #3 and set the condition codes
-                    beq       L011F     ; branch when the values are equal or the result is zero; target L011F
-                    bra       L00EC     ; continue execution at L00EC
-L011F               leax      <U0028,u  ; form the address <U0028,u in x
-L0122               tst       U0003,u   ; set condition codes from U0003,u without changing it
-                    lbeq      L0105     ; branch when the values are equal or the result is zero; target L0105
-                    dec       U0003,u   ; decrement the value at U0003,u
+                    beq       Branch_009 ; branch when the values are equal or the result is zero; target Branch_009
+                    bra       Branch_004 ; continue execution at Branch_004
+Branch_009          leax      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in x
+Branch_010          tst       WorkByte_004,u ; set condition codes from WorkByte_004,u without changing it
+                    lbeq      Branch_008 ; branch when the values are equal or the result is zero; target Branch_008
+                    dec       WorkByte_004,u ; decrement the value at WorkByte_004,u
                     lda       ,x+       ; load a from ,x+
                     clrb                ; clear b to zero and set the condition codes
-L012D               os9       F$Send    ; invoke the OS-9 F$Send service
-                    bcc       L0122     ; branch when carry is clear; target L0122
+Branch_011          os9       F$Send    ; send signal B to process A
+                    bcc       Branch_010 ; branch when carry is clear; target Branch_010
                     pshs      x,a       ; save x,a on the stack
                     ldx       #1        ; set x to the constant 1
-                    os9       F$Sleep   ; invoke the OS-9 F$Sleep service
+                    os9       F$Sleep   ; sleep for the number of ticks in X
                     puls      x,a       ; restore x,a from the stack
-                    bra       L012D     ; continue execution at L012D
+                    bra       Branch_011 ; continue execution at Branch_011
 
                     emod      ;         emit the OS-9 module CRC and trailer
 eom                 equ       *         ; define the assembly-time value for eom
