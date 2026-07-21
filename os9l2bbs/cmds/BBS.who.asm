@@ -1,17 +1,17 @@
 **********************************************************************
 * BBS.who - OS-9 Level 2 BBS command
 *
-* Syntax: BBS.who
-* Purpose: List callers currently online.
-* Walks OS-9 process descriptors and extracts BBS session identities.
+* syntax: BBS.who
+* purpose: list distinct OS-9 user IDs represented by active processes.
+* resolves each nonzero user ID through /dd/bbs/BBS.alias for display.
 *
-* Edt/Rev  YYYY/MM/DD  Modified by
-* Comment
+* edt/rev  YYYY/MM/DD  Modified by
+* comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
-* Annotated source and normalized comments.
+* annotated source and normalized comments.
 *          2026/07/21  Codex
-* Refined command annotations and normalized formatting.
+* refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       BBS.who
@@ -21,244 +21,216 @@
                     use       defsfile
                   ENDC
 
-tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
-atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+tylg                set       Prgrm+Objct ; executable object module
+atrv                set       ReEnt+rev ; reentrant module with revision encoded below
+rev                 set       $01       ; original module revision
 
-                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
+                    mod       eom,name,tylg,atrv,start,size ; declare the OS-9 module header and entry point
 
-WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_003        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_004        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_005        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_002        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkBuffer_001      rmb       200       ; reserve 200 byte(s) in the module workspace
-WorkBuffer_002      rmb       200       ; reserve 200 byte(s) in the module workspace
-WorkByte_006        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_003      rmb       911       ; reserve 911 byte(s) in the module workspace
-size                equ       .         ; define the assembly-time value for size
+AliasPath           rmb       1         ; open path to /dd/bbs/BBS.alias
+CandidatePid        rmb       1         ; process ID currently being examined
+DigitCounter        rmb       1         ; repeated-add counter for decimal conversion
+ParsedAliasId       rmb       2         ; numeric user ID parsed from an alias record
+CurrentUserId       rmb       2         ; process user ID currently being resolved
+DecimalPlace        rmb       2         ; decimal multiplier built as 1, 10, 100, and so on
+AliasRecord         rmb       200       ; one name,ID line from BBS.alias
+SeenUserIds         rmb       200       ; zero-terminated table of distinct 16-bit user IDs
+ProcessDescriptor   rmb       912       ; f$gprdsc result; p$user is inspected at offset eight
+size                equ       .         ; total per-process workspace size
 
-name                fcs       /BBS.who/ ; store an OS-9 high-bit-terminated string
-Text_001            fcc       "Unknown User" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_002            fcc       "/dd/bbs/BBS.alias" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_003            fcc       "The following users are on-line" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_004            fcc       "-------------------------------" ; store literal character data
-                    fcb       $0D       ; store byte data
-start               clra                ; clear a to zero and set the condition codes
-                    leax      >WorkBuffer_002,u ; form the address >WorkBuffer_002,u in x
-                    ldb       #200      ; set b to the constant 200
-Branch_001          sta       ,x+       ; store a at ,x+
-                    decb                ; decrement b
-                    bne       Branch_001 ; branch when the values differ or the result is nonzero; target Branch_001
-                    clr       WorkByte_002,u ; clear WorkByte_002,u to zero and set the condition codes
-                    leax      >Text_002,pc ; form the address >Text_002,pc in x
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    sta       WorkByte_001,u ; store a at WorkByte_001,u
-                    leax      >Text_003,pc ; form the address >Text_003,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >Text_004,pc ; form the address >Text_004,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-Branch_003          leax      >WorkByte_006,u ; form the address >WorkByte_006,u in x
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    os9       F$GPrDsc  ; copy the requested process descriptor into X
-                    bcs       Branch_004 ; branch when carry reports an error or unsigned underflow; target Branch_004
-                    ldd       $08,x     ; load d from $08,x
-                    bsr       Routine_001 ; call subroutine Routine_001
-Branch_004          lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    inca                ; increment a
-                    sta       WorkByte_002,u ; store a at WorkByte_002,u
-                    cmpa      #255      ; compare a with #255 and set the condition codes
-                    bcs       Branch_003 ; branch when carry reports an error or unsigned underflow; target Branch_003
-                    lbra      Branch_005 ; continue execution at Branch_005
-Routine_001         leax      >WorkBuffer_002,u ; form the address >WorkBuffer_002,u in x
-Branch_006          cmpd      ,x        ; compare d with ,x and set the condition codes
-                    beq       Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
-                    pshs      d         ; save d on the stack
-                    ldd       ,x++      ; load d from ,x++
-                    beq       Branch_008 ; branch when the values are equal or the result is zero; target Branch_008
-                    puls      d         ; restore d from the stack
-                    bra       Branch_006 ; continue execution at Branch_006
-Branch_007          rts                 ; return to the caller
-Branch_008          puls      d         ; restore d from the stack
-                    std       -$02,x    ; store d at -$02,x
-                    std       WorkWord_001,u ; store d at WorkWord_001,u
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    pshs      u         ; save u on the stack
-                    ldu       #0        ; set u to the constant 0
-                    ldx       #0        ; set x to the constant 0
-                    os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    puls      u         ; restore u from the stack
-Branch_009          lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-                    ldy       #200      ; set y to the constant 200
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    bcs       Branch_010 ; branch when carry reports an error or unsigned underflow; target Branch_010
-Branch_011          lda       ,x+       ; load a from ,x+
-                    cmpa      #44       ; compare a with #44 and set the condition codes
-                    beq       Branch_012 ; branch when the values are equal or the result is zero; target Branch_012
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    bne       Branch_011 ; branch when the values differ or the result is nonzero; target Branch_011
-                    bra       Branch_009 ; continue execution at Branch_009
-Branch_012          lda       #13       ; set a to the constant 13
-                    sta       -$01,x    ; store a at -$01,x
-                    lbsr      Routine_002 ; call subroutine Routine_002
-                    cmpd      WorkWord_001,u ; compare d with WorkWord_001,u and set the condition codes
-                    beq       Branch_013 ; branch when the values are equal or the result is zero; target Branch_013
-                    bra       Branch_009 ; continue execution at Branch_009
-Branch_010          leax      >Text_001,pc ; form the address >Text_001,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    rts                 ; return to the caller
-Branch_013          leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    rts                 ; return to the caller
-Branch_005          clrb                ; clear b to zero and set the condition codes
-Branch_002          os9       F$Exit    ; terminate the process with status B
-Routine_002         pshs      y         ; save y on the stack
-Branch_014          lda       ,x+       ; load a from ,x+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    lbeq      Branch_015 ; branch when the values are equal or the result is zero; target Branch_015
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       Branch_014 ; branch when carry reports an error or unsigned underflow; target Branch_014
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       Branch_014 ; branch when the unsigned value is higher; target Branch_014
-                    leax      -$01,x    ; form the address -$01,x in x
-Branch_016          lda       ,x+       ; load a from ,x+
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       Branch_017 ; branch when carry reports an error or unsigned underflow; target Branch_017
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       Branch_017 ; branch when the unsigned value is higher; target Branch_017
-                    bra       Branch_016 ; continue execution at Branch_016
-Branch_017          pshs      x         ; save x on the stack
-                    leax      -$01,x    ; form the address -$01,x in x
-                    clr       WorkByte_004,u ; clear WorkByte_004,u to zero and set the condition codes
-                    clr       WorkByte_005,u ; clear WorkByte_005,u to zero and set the condition codes
-                    ldd       #1        ; set d to the constant 1
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-Branch_018          lda       ,-x       ; load a from ,-x
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       Branch_019 ; branch when carry reports an error or unsigned underflow; target Branch_019
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       Branch_019 ; branch when the unsigned value is higher; target Branch_019
-                    suba      #48       ; subtract from a using #48
-                    sta       WorkByte_003,u ; store a at WorkByte_003,u
-                    ldd       #0        ; set d to the constant 0
-Branch_020          tst       WorkByte_003,u ; set condition codes from WorkByte_003,u without changing it
-                    beq       Branch_021 ; branch when the values are equal or the result is zero; target Branch_021
-                    addd      WorkWord_002,u ; add to d using WorkWord_002,u
-                    dec       WorkByte_003,u ; decrement the value at WorkByte_003,u
-                    bra       Branch_020 ; continue execution at Branch_020
-Branch_021          addd      WorkByte_004,u ; add to d using WorkByte_004,u
-                    std       WorkByte_004,u ; store d at WorkByte_004,u
-                    lda       #10       ; set a to the constant 10
-                    sta       WorkByte_003,u ; store a at WorkByte_003,u
-                    ldd       #0        ; set d to the constant 0
-Branch_022          tst       WorkByte_003,u ; set condition codes from WorkByte_003,u without changing it
-                    beq       Branch_023 ; branch when the values are equal or the result is zero; target Branch_023
-                    addd      WorkWord_002,u ; add to d using WorkWord_002,u
-                    dec       WorkByte_003,u ; decrement the value at WorkByte_003,u
-                    bra       Branch_022 ; continue execution at Branch_022
-Branch_023          std       WorkWord_002,u ; store d at WorkWord_002,u
-                    bra       Branch_018 ; continue execution at Branch_018
-Branch_019          ldd       WorkByte_004,u ; load d from WorkByte_004,u
-                    puls      x         ; restore x from the stack
-                    puls      pc,y      ; restore pc,y and return to the caller
-                    fcb       $ED       ; store byte data
-                    fcb       $43       ; store byte data
-                    fcb       $86       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $A7       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $A7       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $A7       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $A7       ; store byte data
-                    fcb       $03       ; store byte data
-                    fcb       $A7       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $47       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $43       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $29       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $03       ; store byte data
-                    fcb       $E8       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $47       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $43       ; store byte data
-                    fcb       $8D       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $47       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $43       ; store byte data
-                    fcb       $8D       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $0A       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $47       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $43       ; store byte data
-                    fcb       $8D       ; store byte data
-                    fcb       $0E       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $47       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $43       ; store byte data
-                    fcb       $8D       ; store byte data
-                    fcb       $05       ; store byte data
-                    fcb       $86       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcb       $A7       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $39       ; store byte data
-                    fcb       $A3       ; store byte data
-                    fcb       $47       ; store byte data
-                    fcb       $25       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $6C       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $F8       ; store byte data
-                    fcb       $E3       ; store byte data
-                    fcb       $47       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $43       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $39       ; store byte data
-Branch_015          ldd       #0        ; set d to the constant 0
-                    rts                 ; return to the caller
+name                fcs       /BBS.who/ ; os-9 module name
+UnknownUserMessage  fcc       "Unknown User" ; fallback for an ID absent from BBS.alias
+                    fcb       C$CR      ; terminate the fallback line
+AliasFilename       fcc       "/dd/bbs/BBS.alias" ; system-wide user ID mapping
+                    fcb       C$CR      ; terminate the path name
+HeadingMessage      fcc       "The following users are on-line" ; report heading
+                    fcb       C$CR      ; terminate the heading line
+HeadingDivider      fcc       "-------------------------------" ; visual separator
+                    fcb       C$CR      ; terminate the divider line
 
-                    emod      ;         emit the OS-9 module CRC and trailer
+start               clra                ; seed the seen-ID table with zero bytes
+                    leax      >SeenUserIds,u ; select its first byte
+                    ldb       #200      ; clear all one hundred word slots
+ClearSeenIds        sta       ,x+       ; initialize the next table byte
+                    decb                ; count down the fixed buffer size
+                    bne       ClearSeenIds ; continue until every slot is zero
+                    clr       CandidatePid,u ; begin with process ID zero
+                    leax      >AliasFilename,pc ; select the user mapping file
+                    lda       #READ.    ; open it for sequential lookup
+                    os9       I$Open    ; obtain the alias path in A
+                    lbcs      ExitWithStatus ; listing requires an accessible alias file
+                    sta       AliasPath,u ; retain the path across process scans
+                    leax      >HeadingMessage,pc ; select the report heading
+                    ldy       #200      ; allow I$WritLn to locate its CR
+                    lda       #1        ; target standard output
+                    os9       I$WritLn  ; introduce the online-user list
+                    leax      >HeadingDivider,pc ; select the visual separator
+                    ldy       #200      ; allow I$WritLn to locate its CR
+                    os9       I$WritLn  ; underline the heading
+
+ScanNextProcess     leax      >ProcessDescriptor,u ; receive the candidate descriptor
+                    lda       CandidatePid,u ; select the process ID
+                    os9       F$GPrDsc  ; copy its Level 2 process descriptor
+                    bcs       AdvanceProcess ; skip unused process IDs
+                    ldd       P$User,x  ; obtain the process's 16-bit OS-9 user ID
+                    bsr       ListUserOnce ; resolve it only if not already seen
+AdvanceProcess      lda       CandidatePid,u ; recover the current process ID
+                    inca                ; advance to the next ID
+                    sta       CandidatePid,u ; retain it for F$GPrDsc
+                    cmpa      #255      ; has the scan reached the final one-byte ID?
+                    bcs       ScanNextProcess ; continue through process 254
+                    lbra      ExitSuccess ; finish after the process-table scan
+
+* zero is both the table terminator and the system user ID, so system processes
+* are suppressed automatically. Each new nonzero ID is appended before lookup.
+ListUserOnce        leax      >SeenUserIds,u ; begin at the first saved user ID
+FindSeenId          cmpd      ,x        ; has this ID already been listed?
+                    beq       ReturnFromLookup ; suppress duplicate processes
+                    pshs      d         ; preserve the candidate while reading this slot
+                    ldd       ,x++      ; fetch the saved ID and advance one word
+                    beq       AppendSeenId ; zero marks the first unused slot
+                    puls      d         ; recover the candidate ID
+                    bra       FindSeenId ; continue through the compact table
+ReturnFromLookup    rts                 ; leave duplicates and system user zero unprinted
+AppendSeenId        puls      d         ; recover the first occurrence's user ID
+                    std       -2,x      ; replace the zero terminator with that ID
+                    std       CurrentUserId,u ; retain it during alias lookup
+                    lda       AliasPath,u ; select BBS.alias
+                    pshs      u         ; preserve the workspace pointer for 32-bit seek
+                    ldu       #0        ; set the high file-position word to zero
+                    ldx       #0        ; set the low file-position word to zero
+                    os9       I$Seek    ; rewind the alias file for this user
+                    puls      u         ; recover the workspace pointer
+
+ReadNextAlias       lda       AliasPath,u ; select BBS.alias
+                    leax      AliasRecord,u ; receive one comma-delimited mapping
+                    ldy       #200      ; bound the line by the available buffer
+                    os9       I$ReadLn  ; fetch the next name,ID record
+                    bcs       PrintUnknownUser ; eof means this ID has no alias
+FindAliasComma      lda       ,x+       ; scan the display name
+                    cmpa      #','      ; does this byte separate name from numeric ID?
+                    beq       ParseAliasId ; terminate the name and parse the suffix
+                    cmpa      #C$CR     ; malformed records have no ID field
+                    bne       FindAliasComma ; continue through the display name
+                    bra       ReadNextAlias ; ignore the malformed record
+ParseAliasId        lda       #C$CR     ; turn the comma into a printable line terminator
+                    sta       -1,x      ; leave AliasRecord containing only the name
+                    lbsr      ParseDecimalId ; convert the numeric suffix at X
+                    cmpd      CurrentUserId,u ; is this the active process user ID?
+                    beq       PrintAliasName ; display the matching record
+                    bra       ReadNextAlias ; continue through the mapping file
+PrintUnknownUser    leax      >UnknownUserMessage,pc ; select the fallback text
+                    ldy       #200      ; allow I$WritLn to locate its CR
+                    lda       #1        ; target standard output
+                    os9       I$WritLn  ; represent the unresolved active ID
+                    rts                 ; resume the process-table scan
+PrintAliasName      leax      AliasRecord,u ; select the CR-terminated display name
+                    ldy       #200      ; allow I$WritLn to locate its CR
+                    lda       #1        ; target standard output
+                    os9       I$WritLn  ; list this distinct active user
+                    rts                 ; resume the process-table scan
+ExitSuccess         clrb                ; report a successful listing
+ExitWithStatus      os9       F$Exit    ; return status B to the invoking process
+* convert the first decimal token at or after X. The parser scans to the token's
+* end, walks its digits backward, and forms the value with repeated addition.
+ParseDecimalId      pshs      y         ; preserve the caller's Y register
+FindFirstDigit      lda       ,x+       ; scan toward a numeric alias ID
+                    cmpa      #C$CR     ; an absent ID converts to zero
+                    lbeq      ReturnZeroId ; stop at the record terminator
+                    cmpa      #'0'      ; skip bytes below the decimal range
+                    bcs       FindFirstDigit ; continue past separators
+                    cmpa      #'9'      ; skip bytes above the decimal range
+                    bhi       FindFirstDigit ; continue past separators
+                    leax      -1,x      ; return to the token's first digit
+FindIdEnd           lda       ,x+       ; scan across the decimal token
+                    cmpa      #'0'      ; bytes below zero delimit the token
+                    bcs       ConvertIdBackward ; begin conversion at the end
+                    cmpa      #'9'      ; bytes above nine also delimit it
+                    bhi       ConvertIdBackward ; begin conversion at the end
+                    bra       FindIdEnd ; continue through the digit run
+ConvertIdBackward   pshs      x         ; retain the pointer following the token
+                    leax      -1,x      ; select its rightmost digit
+                    clr       ParsedAliasId,u ; clear the high result byte
+                    clr       ParsedAliasId+1,u ; clear the low result byte
+                    ldd       #1        ; seed the rightmost decimal place as units
+                    std       DecimalPlace,u ; retain the current place multiplier
+ParsePreviousDigit  lda       ,-x       ; fetch one digit while moving left
+                    cmpa      #'0'      ; a lower delimiter precedes the token
+                    bcs       ReturnParsedId ; finish conversion there
+                    cmpa      #'9'      ; an upper delimiter also precedes the token
+                    bhi       ReturnParsedId ; finish conversion there
+                    suba      #'0'      ; reduce ASCII to a binary digit
+                    sta       DigitCounter,u ; retain units remaining for this digit
+                    ldd       #0        ; initialize this digit's contribution
+AddDigitPlace       tst       DigitCounter,u ; has digit times place been accumulated?
+                    beq       AccumulateIdDigit ; merge the completed contribution
+                    addd      DecimalPlace,u ; add one unit of the current place
+                    dec       DigitCounter,u ; consume one unit from the digit
+                    bra       AddDigitPlace ; finish digit multiplication
+AccumulateIdDigit   addd      ParsedAliasId,u ; include lower-order digits
+                    std       ParsedAliasId,u ; retain the running ID value
+                    lda       #10       ; multiply the place value by ten next
+                    sta       DigitCounter,u ; count ten repeated additions
+                    ldd       #0        ; initialize the next-place accumulator
+ScaleIdPlace        tst       DigitCounter,u ; have all ten copies been added?
+                    beq       AdvanceIdPlace ; publish the completed multiplier
+                    addd      DecimalPlace,u ; add another old-place unit
+                    dec       DigitCounter,u ; count down the multiply-by-ten loop
+                    bra       ScaleIdPlace ; continue forming the next place
+AdvanceIdPlace      std       DecimalPlace,u ; move one decimal column left
+                    bra       ParsePreviousDigit ; continue toward the token start
+ReturnParsedId      ldd       ParsedAliasId,u ; return the converted 16-bit user ID
+                    puls      x         ; recover the pointer following the token
+                    puls      pc,y      ; restore Y and return
+* This unreachable byte sequence is valid 6809 code left in the original module.
+* It renders the word at 3,U as five zero-padded decimal digits at X. For each
+* decimal divisor it repeatedly subtracts the divisor and increments the output
+* digit, then restores the final underflow and advances X. No live path calls it.
+UnreferencedDecimalFormatter
+                    fcb       $ED,$43   ; std 3,u: save the value to format
+                    fcb       $86,$30   ; lda #'0': seed an ASCII digit
+                    fcb       $A7,$84   ; sta ,x: initialize ten-thousands
+                    fcb       $A7,$01   ; sta 1,x: initialize thousands
+                    fcb       $A7,$02   ; sta 2,x: initialize hundreds
+                    fcb       $A7,$03   ; sta 3,x: initialize tens
+                    fcb       $A7,$04   ; sta 4,x: initialize units
+                    fcb       $CC,$27,$10 ; ldd #10000: select ten-thousands
+                    fcb       $ED,$47   ; std 7,u: publish the divisor
+                    fcb       $EC,$43   ; ldd 3,u: recover the remainder
+                    fcb       $17,$00,$29 ; lbsr formatter digit loop
+                    fcb       $CC,$03,$E8 ; ldd #1000: select thousands
+                    fcb       $ED,$47   ; std 7,u: publish the divisor
+                    fcb       $EC,$43   ; ldd 3,u: recover the remainder
+                    fcb       $8D,$20   ; bsr formatter digit loop
+                    fcb       $CC,$00,$64 ; ldd #100: select hundreds
+                    fcb       $ED,$47   ; std 7,u: publish the divisor
+                    fcb       $EC,$43   ; ldd 3,u: recover the remainder
+                    fcb       $8D,$17   ; bsr formatter digit loop
+                    fcb       $CC,$00,$0A ; ldd #10: select tens
+                    fcb       $ED,$47   ; std 7,u: publish the divisor
+                    fcb       $EC,$43   ; ldd 3,u: recover the remainder
+                    fcb       $8D,$0E   ; bsr formatter digit loop
+                    fcb       $CC,$00,$01 ; ldd #1: select units
+                    fcb       $ED,$47   ; std 7,u: publish the divisor
+                    fcb       $EC,$43   ; ldd 3,u: recover the remainder
+                    fcb       $8D,$05   ; bsr formatter digit loop
+                    fcb       $86,$0D   ; lda #C$CR: terminate the digits
+                    fcb       $A7,$84   ; sta ,x: append the terminator
+                    fcb       $39       ; rts: return after all five places
+FormatterDigitLoop  fcb       $A3,$47   ; subd 7,u: consume one divisor
+                    fcb       $25,$04   ; bcs restore remainder on underflow
+                    fcb       $6C,$84   ; inc ,x: count another divisor
+                    fcb       $20,$F8   ; bra formatter digit loop
+                    fcb       $E3,$47   ; addd 7,u: undo the underflow
+                    fcb       $ED,$43   ; std 3,u: save remainder for next place
+                    fcb       $30,$01   ; leax 1,x: select the next digit
+                    fcb       $39       ; rts: process the next divisor
+* Valid alias records always contain digits after the comma. On a malformed
+* comma-then-CR record, this original path bypasses the saved-Y epilogue; the
+* resulting stack imbalance appears to be a latent defect in the shipped code.
+ReturnZeroId        ldd       #0        ; return zero when no decimal token is present
+                    rts                 ; follow the original malformed-record exit
+
+                    emod                ; emit the OS-9 module CRC and trailer
 eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+                    end                 ; end the assembly source

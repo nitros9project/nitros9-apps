@@ -1,17 +1,19 @@
 **********************************************************************
 * BBS.conf.who - OS-9 Level 2 BBS command
 *
-* Syntax: BBS.conf.who
-* Purpose: List users currently registered in the shared conference module.
-* Reads Conf.dat without joining the conference.
+* syntax: BBS.conf.who
+* purpose: list users registered in the shared conference module.
+* Conf.dat holds twenty 3-byte participant records. Each occupied record
+* contains the OS-9 user ID plus one; zero marks a vacated slot and $FFFF
+* marks the unused end of the compact table.
 *
-* Edt/Rev  YYYY/MM/DD  Modified by
-* Comment
+* edt/rev  YYYY/MM/DD  Modified by
+* comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
-* Annotated source and normalized comments.
+* annotated source and normalized comments.
 *          2026/07/21  Codex
-* Refined command annotations and normalized formatting.
+* decoded the conference roster and alias-resolution logic.
 **********************************************************************
 
                     nam       BBS.conf.who
@@ -21,202 +23,219 @@
                     use       defsfile
                   ENDC
 
-tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
-atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+tylg                set       Prgrm+Objct ; executable object module
+atrv                set       ReEnt+rev ; reentrant module with revision encoded below
+rev                 set       $01       ; original module revision
 
-                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
+                    mod       eom,name,tylg,atrv,start,size ; declare the OS-9 module header and entry point
 
-WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkByte_003        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_004        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_002        rmb       2         ; reserve 2 byte(s) in the module workspace
-dataddr             rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_003        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkBuffer_001      rmb       200       ; reserve 200 byte(s) in the module workspace
-WorkByte_005        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_002      rmb       599       ; reserve 599 byte(s) in the module workspace
-size                equ       .         ; define the assembly-time value for size
+AliasPath           rmb       1         ; open path to /dd/bbs/BBS.alias
+DigitCounter        rmb       1         ; repeated-add counter for decimal conversion
+TargetAliasId       rmb       2         ; participant ID after removing the stored plus-one bias
+ParsedAliasId       rmb       2         ; numeric ID converted from an alias-file record
+DecimalPlace        rmb       2         ; decimal multiplier built as 1, 10, 100, and so on
+LinkedModuleAddress rmb       2         ; linked module pointer required by f$unlink
+ConferenceData      rmb       2         ; execution/data address of Conf.dat's shared bytes
+AliasRecord         rmb       200       ; one name,ID line read from BBS.alias
+DisplayName         rmb       600       ; alias name copied without its numeric suffix
+size                equ       .         ; total per-process workspace size
 
-name                fcs       /BBS.conf.who/ ; store an OS-9 high-bit-terminated string
-confdat             fcc       "Conf.dat" ; store literal character data
-                    fcb       $0D       ; store byte data
-bbsalias            fcc       "/dd/bbs/BBS.alias" ; store literal character data
-                    fcb       $0D       ; store byte data
-noone               fcc       "No one is in conference" ; store literal character data
-                    fcb       $0D       ; store byte data
-these               fcc       "These people are in conference" ; store literal character data
-                    fcb       $0D       ; store byte data
-line                fcc       "------------------------------" ; store literal character data
-                    fcb       $0D       ; store byte data
+name                fcs       /BBS.conf.who/ ; os-9 module name
+ConfDataName        fcc       "Conf.dat" ; shared conference data module
+                    fcb       C$CR      ; terminate the module name
+AliasFilename       fcc       "/dd/bbs/BBS.alias" ; system-wide name-to-user-ID map
+                    fcb       C$CR      ; terminate the path name
+EmptyMessage        fcc       "No one is in conference" ; shown when Conf.dat is not linked
+                    fcb       C$CR      ; terminate the status line
+RosterHeading       fcc       "These people are in conference" ; active-conference heading
+                    fcb       C$CR      ; terminate the heading line
+RosterDivider       fcc       "------------------------------" ; visual separator
+                    fcb       C$CR      ; terminate the divider line
 
-start               leax      >confdat,pc ; form the address >confdat,pc in x
-                    lda       #65       ; set a to the constant 65
-                    pshs      u         ; save u on the stack
-                    os9       F$Link    ; link to Conf.dat
-                    lbcs      Branch_001 ; branch if conference empty
-                    tfr       u,d       ; move module offset to D
-                    puls      u         ; restore u from the stack
-                    std       dataddr,u ; save module offset
-                    sty       WorkWord_003,u ; store y at WorkWord_003,u
-                    leax      >these,pc ; form the address >these,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >line,pc  ; form the address >line,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    ldx       WorkWord_003,u ; load x from WorkWord_003,u
-Branch_002          ldd       ,x++      ; load d from ,x++
-                    cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    beq       Branch_003 ; branch when the values are equal or the result is zero; target Branch_003
-                    leax      $01,x     ; form the address $01,x in x
-                    cmpd      #0        ; compare d with #0 and set the condition codes
-                    beq       Branch_002 ; branch when the values are equal or the result is zero; target Branch_002
-                    pshs      x         ; save x on the stack
-                    subd      #1        ; subtract from d using #1
-                    lbsr      Routine_001 ; call subroutine Routine_001
-                    puls      x         ; restore x from the stack
-                    bra       Branch_002 ; continue execution at Branch_002
-Branch_003          clrb                ; clear b to zero and set the condition codes
-                    pshs      u         ; save u on the stack
-                    ldu       dataddr,u ; load u from dataddr,u
-                    os9       F$UnLink  ; release the linked module at U
-                    puls      u         ; restore u from the stack
-                    clrb                ; clear b to zero and set the condition codes
-                    os9       F$Exit    ; terminate the process with status B
-Branch_001          leax      >noone,pc ; form the address >noone,pc in x
-                    lda       #1        ; set a to the constant 1
-                    ldy       #200      ; set y to the constant 200
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    clrb                ; clear b to zero and set the condition codes
-                    os9       F$Exit    ; terminate the process with status B
-Routine_001         std       WorkWord_001,u ; store d at WorkWord_001,u
-                    leax      >bbsalias,pc ; form the address >bbsalias,pc in x
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      Branch_004 ; branch when carry reports an error or unsigned underflow; target Branch_004
-                    sta       WorkByte_001,u ; store a at WorkByte_001,u
-Branch_005          leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    lbcs      Branch_004 ; branch when carry reports an error or unsigned underflow; target Branch_004
-Branch_006          lda       ,x+       ; load a from ,x+
-                    cmpa      #44       ; compare a with #44 and set the condition codes
-                    bne       Branch_006 ; branch when the values differ or the result is nonzero; target Branch_006
-                    lbsr      Routine_002 ; call subroutine Routine_002
-                    cmpd      WorkWord_001,u ; compare d with WorkWord_001,u and set the condition codes
-                    bne       Branch_005 ; branch when the values differ or the result is nonzero; target Branch_005
-                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-                    leay      >WorkByte_005,u ; form the address >WorkByte_005,u in y
-Branch_007          lda       ,x+       ; load a from ,x+
-                    cmpa      #44       ; compare a with #44 and set the condition codes
-                    beq       Branch_008 ; branch when the values are equal or the result is zero; target Branch_008
-                    sta       ,y+       ; store a at ,y+
-                    bra       Branch_007 ; continue execution at Branch_007
-Branch_008          lda       #13       ; set a to the constant 13
-                    sta       ,y        ; store a at ,y
-                    leax      >WorkByte_005,u ; form the address >WorkByte_005,u in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    rts                 ; return to the caller
-Routine_002         pshs      y         ; save y on the stack
-Branch_009          lda       ,x+       ; load a from ,x+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    lbeq      Branch_010 ; branch when the values are equal or the result is zero; target Branch_010
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       Branch_009 ; branch when carry reports an error or unsigned underflow; target Branch_009
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       Branch_009 ; branch when the unsigned value is higher; target Branch_009
-                    leax      -$01,x    ; form the address -$01,x in x
-Branch_011          lda       ,x+       ; load a from ,x+
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       Branch_012 ; branch when carry reports an error or unsigned underflow; target Branch_012
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       Branch_012 ; branch when the unsigned value is higher; target Branch_012
-                    bra       Branch_011 ; continue execution at Branch_011
-Branch_012          pshs      x         ; save x on the stack
-                    leax      -$01,x    ; form the address -$01,x in x
-                    clr       WorkByte_003,u ; clear WorkByte_003,u to zero and set the condition codes
-                    clr       WorkByte_004,u ; clear WorkByte_004,u to zero and set the condition codes
-                    ldd       #1        ; set d to the constant 1
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-Branch_013          lda       ,-x       ; load a from ,-x
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       Branch_014 ; branch when carry reports an error or unsigned underflow; target Branch_014
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       Branch_014 ; branch when the unsigned value is higher; target Branch_014
-                    suba      #48       ; subtract from a using #48
-                    sta       WorkByte_002,u ; store a at WorkByte_002,u
-                    ldd       #0        ; set d to the constant 0
-Branch_015          tst       WorkByte_002,u ; set condition codes from WorkByte_002,u without changing it
-                    beq       Branch_016 ; branch when the values are equal or the result is zero; target Branch_016
-                    addd      WorkWord_002,u ; add to d using WorkWord_002,u
-                    dec       WorkByte_002,u ; decrement the value at WorkByte_002,u
-                    bra       Branch_015 ; continue execution at Branch_015
-Branch_016          addd      WorkByte_003,u ; add to d using WorkByte_003,u
-                    std       WorkByte_003,u ; store d at WorkByte_003,u
-                    lda       #10       ; set a to the constant 10
-                    sta       WorkByte_002,u ; store a at WorkByte_002,u
-                    ldd       #0        ; set d to the constant 0
-Branch_017          tst       WorkByte_002,u ; set condition codes from WorkByte_002,u without changing it
-                    beq       Branch_018 ; branch when the values are equal or the result is zero; target Branch_018
-                    addd      WorkWord_002,u ; add to d using WorkWord_002,u
-                    dec       WorkByte_002,u ; decrement the value at WorkByte_002,u
-                    bra       Branch_017 ; continue execution at Branch_017
-Branch_018          std       WorkWord_002,u ; store d at WorkWord_002,u
-                    bra       Branch_013 ; continue execution at Branch_013
-Branch_014          ldd       WorkByte_003,u ; load d from WorkByte_003,u
-                    puls      x         ; restore x from the stack
-                    puls      pc,y      ; restore pc,y and return to the caller
+start               leax      >ConfDataName,pc ; select the shared data module
+                    lda       #65       ; require a data/object module
+                    pshs      u         ; preserve this process's workspace pointer
+                    os9       F$Link    ; access the conference state if it exists
+                    lbcs      ReportEmptyConference ; an unlinked module means nobody has joined
+                    tfr       u,d       ; retain the module pointer used by F$UnLink
+                    puls      u         ; recover this process's workspace pointer
+                    std       LinkedModuleAddress,u ; remember the linked module header
+                    sty       ConferenceData,u ; remember the shared data-area address
+                    leax      >RosterHeading,pc ; introduce the active roster
+                    ldy       #200      ; allow I$WritLn to locate its CR
+                    lda       #1        ; target standard output
+                    os9       I$WritLn  ; print the roster heading
+                    leax      >RosterDivider,pc ; select the visual separator
+                    ldy       #200      ; allow I$WritLn to locate its CR
+                    os9       I$WritLn  ; underline the heading
+                    ldx       ConferenceData,u ; begin with participant slot zero
 
-unused              std       WorkByte_003,u ; store d at WorkByte_003,u
-                    lda       #48       ; set a to the constant 48
-                    sta       ,x        ; store a at ,x
-                    sta       $01,x     ; store a at $01,x
-                    sta       $02,x     ; store a at $02,x
-                    sta       $03,x     ; store a at $03,x
-                    sta       $04,x     ; store a at $04,x
-                    ldd       #10000    ; set d to the constant 10000
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    ldd       WorkByte_003,u ; load d from WorkByte_003,u
-                    lbsr      Routine_003 ; call subroutine Routine_003
-                    ldd       #1000     ; set d to the constant 1000
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    ldd       WorkByte_003,u ; load d from WorkByte_003,u
-                    bsr       Routine_003 ; call subroutine Routine_003
-                    ldd       #100      ; set d to the constant 100
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    ldd       WorkByte_003,u ; load d from WorkByte_003,u
-                    bsr       Routine_003 ; call subroutine Routine_003
-                    ldd       #10       ; set d to the constant 10
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    ldd       WorkByte_003,u ; load d from WorkByte_003,u
-                    bsr       Routine_003 ; call subroutine Routine_003
-                    ldd       #1        ; set d to the constant 1
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    ldd       WorkByte_003,u ; load d from WorkByte_003,u
-                    bsr       Routine_003 ; call subroutine Routine_003
-                    lda       #13       ; set a to the constant 13
-                    sta       ,x        ; store a at ,x
-                    rts                 ; return to the caller
-Routine_003         subd      WorkWord_002,u ; subtract from d using WorkWord_002,u
-                    bcs       Branch_019 ; branch when carry reports an error or unsigned underflow; target Branch_019
-                    inc       ,x        ; increment the value at ,x
-                    bra       Routine_003 ; continue execution at Routine_003
-Branch_019          addd      WorkWord_002,u ; add to d using WorkWord_002,u
-                    std       WorkByte_003,u ; store d at WorkByte_003,u
-                    leax      $01,x     ; form the address $01,x in x
-                    rts                 ; return to the caller
-Branch_010          lda       #1        ; set a to the constant 1
-                    bra       Branch_004 ; continue execution at Branch_004
-                    fcb       $5F       ; store byte data
-Branch_004          os9       F$Exit    ; terminate the process with status B
+* Participant records are {biased user ID word, notification byte}. The first
+* untouched $FFFF record terminates the roster; zero records are vacated holes.
+ScanParticipant     ldd       ,x++      ; fetch the stored user ID and advance past it
+                    cmpd      #-1       ; is this the first never-used slot?
+                    beq       FinishRoster ; stop at the compact table terminator
+                    leax      1,x       ; skip this participant's notification byte
+                    cmpd      #0        ; has this slot been vacated?
+                    beq       ScanParticipant ; ignore holes left by departing users
+                    pshs      x         ; preserve the next participant slot
+                    subd      #1        ; recover the actual OS-9 user ID
+                    lbsr      PrintAliasForId ; resolve and print this participant
+                    puls      x         ; recover the next participant slot
+                    bra       ScanParticipant ; continue through the roster
 
-                    emod      ;         emit the OS-9 module CRC and trailer
+FinishRoster        clrb                ; prepare a successful status
+                    pshs      u         ; preserve the workspace while unlinking
+                    ldu       LinkedModuleAddress,u ; select the Conf.dat module header
+                    os9       F$UnLink  ; release this process's link to shared state
+                    puls      u         ; recover the workspace pointer
+                    clrb                ; report successful completion
+                    os9       F$Exit    ; return to the invoking process
+
+ReportEmptyConference
+                    leax      >EmptyMessage,pc ; explain why no roster is available
+                    lda       #1        ; target standard output
+                    ldy       #200      ; allow I$WritLn to locate its CR
+                    os9       I$WritLn  ; report that no conference exists
+                    clrb                ; treat an empty conference as success
+                    os9       F$Exit    ; return to the invoking process
+
+* Resolve D through BBS.alias. Records use "display name,numeric user ID".
+* The original routine opens a fresh path for each participant and relies on
+* process exit to close those paths.
+PrintAliasForId     std       TargetAliasId,u ; retain the participant ID during file reads
+                    leax      >AliasFilename,pc ; select the alias database
+                    lda       #READ.    ; request sequential read access
+                    os9       I$Open    ; open a fresh alias-file path
+                    lbcs      ExitWithStatus ; abort the listing if the database is unavailable
+                    sta       AliasPath,u ; retain the path number
+
+ReadNextAlias       leax      AliasRecord,u ; receive one mapping record
+                    ldy       #200      ; bound the read by the available buffer
+                    lda       AliasPath,u ; select the alias-file path
+                    os9       I$ReadLn  ; fetch the next name,ID line
+                    lbcs      ExitWithStatus ; abort on eof or an I/O error
+FindAliasComma      lda       ,x+       ; scan through the display name
+                    cmpa      #','      ; has the numeric suffix begun?
+                    bne       FindAliasComma ; continue to the field separator
+                    lbsr      ParseDecimalId ; convert the numeric suffix at X
+                    cmpd      TargetAliasId,u ; does this record identify the participant?
+                    bne       ReadNextAlias ; continue through the alias database
+                    leax      AliasRecord,u ; return to the display-name field
+                    leay      >DisplayName,u ; build a CR-terminated output line
+CopyDisplayName     lda       ,x+       ; fetch the next name character
+                    cmpa      #','      ; has the numeric suffix been reached?
+                    beq       TerminateDisplayName ; finish the printable name
+                    sta       ,y+       ; append the character to the output buffer
+                    bra       CopyDisplayName ; continue through the name field
+TerminateDisplayName
+                    lda       #C$CR     ; terminate the copied display name
+                    sta       ,y        ; make it suitable for I$WritLn
+                    leax      >DisplayName,u ; select the resolved participant name
+                    ldy       #200      ; allow I$WritLn to locate its CR
+                    lda       #1        ; target standard output
+                    os9       I$WritLn  ; add the participant to the roster
+                    rts                 ; resume scanning shared participant slots
+
+* Convert the first decimal token at or after X. The parser scans to the token's
+* end, walks its digits backward, and forms the value with repeated addition.
+ParseDecimalId      pshs      y         ; preserve the caller's Y register
+FindFirstDigit      lda       ,x+       ; scan toward a numeric alias ID
+                    cmpa      #C$CR     ; does the record contain no decimal token?
+                    lbeq      RejectMissingId ; reject the malformed alias record
+                    cmpa      #'0'      ; skip bytes below the decimal range
+                    bcs       FindFirstDigit ; continue past separators
+                    cmpa      #'9'      ; skip bytes above the decimal range
+                    bhi       FindFirstDigit ; continue past separators
+                    leax      -1,x      ; return to the token's first digit
+FindIdEnd           lda       ,x+       ; scan across the decimal token
+                    cmpa      #'0'      ; bytes below zero delimit the token
+                    bcs       ConvertIdBackward ; begin conversion at the end
+                    cmpa      #'9'      ; bytes above nine also delimit it
+                    bhi       ConvertIdBackward ; begin conversion at the end
+                    bra       FindIdEnd ; continue through the digit run
+ConvertIdBackward   pshs      x         ; retain the pointer following the token
+                    leax      -1,x      ; select its rightmost digit
+                    clr       ParsedAliasId,u ; clear the high result byte
+                    clr       ParsedAliasId+1,u ; clear the low result byte
+                    ldd       #1        ; seed the rightmost decimal place as units
+                    std       DecimalPlace,u ; retain the current place multiplier
+ParsePreviousDigit  lda       ,-x       ; fetch one digit while moving left
+                    cmpa      #'0'      ; a lower delimiter precedes the token
+                    bcs       ReturnParsedId ; finish conversion there
+                    cmpa      #'9'      ; an upper delimiter also precedes the token
+                    bhi       ReturnParsedId ; finish conversion there
+                    suba      #'0'      ; reduce ASCII to a binary digit
+                    sta       DigitCounter,u ; retain units remaining for this digit
+                    ldd       #0        ; initialize this digit's contribution
+AddDigitPlace       tst       DigitCounter,u ; has digit times place been accumulated?
+                    beq       AccumulateIdDigit ; merge the completed contribution
+                    addd      DecimalPlace,u ; add one unit of the current place
+                    dec       DigitCounter,u ; consume one unit from the digit
+                    bra       AddDigitPlace ; finish digit multiplication
+AccumulateIdDigit   addd      ParsedAliasId,u ; include lower-order digits
+                    std       ParsedAliasId,u ; retain the running ID value
+                    lda       #10       ; multiply the place value by ten next
+                    sta       DigitCounter,u ; count ten repeated additions
+                    ldd       #0        ; initialize the next-place accumulator
+ScaleIdPlace        tst       DigitCounter,u ; have all ten copies been added?
+                    beq       AdvanceIdPlace ; publish the completed multiplier
+                    addd      DecimalPlace,u ; add another old-place unit
+                    dec       DigitCounter,u ; count down the multiply-by-ten loop
+                    bra       ScaleIdPlace ; continue forming the next place
+AdvanceIdPlace      std       DecimalPlace,u ; move one decimal column left
+                    bra       ParsePreviousDigit ; continue toward the token start
+ReturnParsedId      ldd       ParsedAliasId,u ; return the converted 16-bit user ID
+                    puls      x         ; recover the pointer following the token
+                    puls      pc,y      ; restore Y and return
+
+* This unreferenced formatter converts D to five zero-padded digits at X. It is
+* intact in the shipped module but no live path calls it.
+UnusedDecimalFormatter
+                    std       ParsedAliasId,u ; retain the value as a changing remainder
+                    lda       #'0'      ; seed all five output positions with zero
+                    sta       ,x        ; initialize ten-thousands
+                    sta       1,x       ; initialize thousands
+                    sta       2,x       ; initialize hundreds
+                    sta       3,x       ; initialize tens
+                    sta       4,x       ; initialize units
+                    ldd       #10000    ; select the ten-thousands divisor
+                    std       DecimalPlace,u ; publish the divisor
+                    ldd       ParsedAliasId,u ; recover the current remainder
+                    lbsr      FormatOneDigit ; consume ten-thousands
+                    ldd       #1000     ; select the thousands divisor
+                    std       DecimalPlace,u ; publish the divisor
+                    ldd       ParsedAliasId,u ; recover the current remainder
+                    bsr       FormatOneDigit ; consume thousands
+                    ldd       #100      ; select the hundreds divisor
+                    std       DecimalPlace,u ; publish the divisor
+                    ldd       ParsedAliasId,u ; recover the current remainder
+                    bsr       FormatOneDigit ; consume hundreds
+                    ldd       #10       ; select the tens divisor
+                    std       DecimalPlace,u ; publish the divisor
+                    ldd       ParsedAliasId,u ; recover the current remainder
+                    bsr       FormatOneDigit ; consume tens
+                    ldd       #1        ; select the units divisor
+                    std       DecimalPlace,u ; publish the divisor
+                    ldd       ParsedAliasId,u ; recover the current remainder
+                    bsr       FormatOneDigit ; consume units
+                    lda       #C$CR     ; terminate the five-digit result
+                    sta       ,x        ; make the result suitable for I$WritLn
+                    rts                 ; return after all five places
+FormatOneDigit      subd      DecimalPlace,u ; consume one unit of this place
+                    bcs       SaveDigitRemainder ; stop when the subtraction underflows
+                    inc       ,x        ; count another unit in the ASCII digit
+                    bra       FormatOneDigit ; continue until the divisor no longer fits
+SaveDigitRemainder  addd      DecimalPlace,u ; undo the final underflow
+                    std       ParsedAliasId,u ; carry the remainder into the next place
+                    leax      1,x       ; select the next output digit
+                    rts                 ; resume the fixed sequence of divisors
+
+RejectMissingId     lda       #1        ; preserve the original malformed-record status
+                    bra       ExitWithStatus ; abort instead of accepting a missing ID
+                    fcb       $5F       ; unreachable CLRB opcode retained from the original
+ExitWithStatus      os9       F$Exit    ; return status B from the failing OS-9 call
+
+                    emod                ; emit the OS-9 module CRC and trailer
 eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+                    end                 ; end the assembly source

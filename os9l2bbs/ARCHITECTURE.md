@@ -289,15 +289,34 @@ FIRQ masked, then sleep one tick at a time until the other process clears it.
 
 Conference mode is a small multi-process shared-memory service:
 
-- `BBS.conf` enters conference mode and exchanges characters with the shared
-  conference data module.
-- `BBS.conf.who` lists conference participants.
+- `BBS.conf` enters conference mode, registers the caller, and polls both the
+  keyboard and shared state without blocking.
+- `BBS.conf.who` walks the same participant table and resolves user IDs through
+  `BBS.alias` without joining the conference.
 - `BBS.who` lists callers currently online.
 - `BBS.page` signals another caller or the sysop.
 
-Shared-module fields in these commands must be documented as synchronization
-flags, process IDs, character slots, or participant records—not as anonymous
-workspace offsets.
+`Conf.dat` requests 400 bytes of shared storage. Its first 60 bytes are twenty
+three-byte participant records: a 16-bit user ID plus one, followed by a
+notification flag. `$FFFF` marks the never-used end of the compact roster;
+zero marks a slot vacated by a departing process. Adding one to every OS-9
+user ID keeps zero available even for user zero. The flag is zero when the
+latest message is unread and one after that participant displays it.
+
+The shared message begins at offset `$003C`. A posting process copies 255 bytes
+from its local workspace: the 200-byte message buffer followed immediately by
+the handle buffer. Thus the handle appears at shared offset `$0104`. It then
+clears every participant flag. Each conference process notices its cleared
+flag, prints the handle and message, sets its flag back to one, and redraws any
+partially typed local line. This is cooperative polling rather than a queued
+chat protocol: the shared module holds only the most recently posted message,
+so a sufficiently fast second post can overwrite one that a slow participant
+has not yet displayed.
+
+CTRL-Z removes the caller's roster slot and unlinks `Conf.dat`. The installed
+signal handler performs the same cleanup on interruption. CTRL-X forks
+`BBS.conf.who`, waits for the roster display to finish, and then resumes the
+conference loop.
 
 ## ANSI tools
 
