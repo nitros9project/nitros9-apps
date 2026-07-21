@@ -12,6 +12,8 @@
 * annotated source and normalized comments.
 *          2026/07/21  Codex
 * decoded authentication, session launch, userlog, and time accounting.
+*          2026/07/21  Codex
+* initialize interactive terminal modes and preserve echo across password entry.
 **********************************************************************
 
                     nam       BBS.login
@@ -23,7 +25,7 @@
 
 tylg                set       Prgrm+Objct ; executable object module
 atrv                set       ReEnt+rev ; reentrant module with revision encoded below
-rev                 set       $01       ; original module revision
+rev                 set       $02       ; restore inherited echo state after password entry
 
                     mod       eom,name,tylg,atrv,start,size ; declare the OS-9 module header and entry point
 
@@ -72,6 +74,7 @@ CurrentDate         rmb       3         ; current year, month, and day from F$Ti
 CurrentHour         rmb       1         ; current hour from F$Time
 CurrentMinute       rmb       1         ; current minute from F$Time
 CurrentSecond       rmb       1         ; current second from F$Time
+SavedEchoOption     rmb       1         ; inherited PD.EKO value restored after password entry
 TerminalOptions     rmb       32        ; terminal SS.Opt packet used to toggle input echo
 LineBuffer          rmb       200       ; shared MOTD/EOTD and BBS.users record buffer
 UsernameBuffer      rmb       200       ; entered caller name
@@ -167,6 +170,7 @@ StorePrinterPath    sta       PrinterPath,u ; remember whether /P can be used
                     os9       F$SUser   ; gain access to protected BBS files
                     lbcs      ExitWithStatus ; abort if privilege cannot be established
                     clr       FailedAttempts,u ; begin with no rejected credentials
+                    lbsr      InitializeTerminalInput ; configure the final stdin selected by the caller
 
                     leax      >MotdFilename,pc ; select the optional message of the day
                     lda       #READ.    ; request sequential text access
@@ -582,12 +586,30 @@ LaunchConfiguredCommand
                     lbcs      ExitWithStatus ; propagate launch failure
                     os9       F$Wait    ; keep login alive for session accounting
                     lbra      CommandFinished ; restore privilege and close the session
+InitializeTerminalInput
+                    leax      <TerminalOptions,u ; select the local option buffer
+                    clra                ; use standard input
+                    clrb                ; request the terminal option packet
+                    os9       I$GetStt  ; copy the current terminal settings
+                    bcs       InitializeTerminalDone ; leave non-SCF input unchanged
+                    leax      -$20,x    ; recover the beginning of the returned packet
+                    lda       #1        ; enable interactive input behavior
+                    sta       <$0024,x  ; make entered characters visible
+                    sta       <$0025,x  ; advance a line after an echoed carriage return
+                    leax      <TerminalOptions,u ; submit the modified option packet
+                    clra                ; update standard input
+                    clrb                ; select terminal options
+                    os9       I$SetStt  ; install echo and automatic linefeed
+InitializeTerminalDone
+                    rts                 ; continue even when stdin is not an SCF path
 DisableInputEcho
                     leax      <TerminalOptions,u ; select the local option buffer
                     clra                ; use standard input
                     clrb                ; request the terminal option packet
                     os9       I$GetStt  ; copy the current terminal settings
                     leax      -$20,x    ; recover the beginning of the returned packet
+                    lda       <$0024,x  ; preserve the inherited keyboard echo value
+                    sta       <SavedEchoOption,u ; retain it across password collection
                     clr       <$0024,x  ; suppress echo while the password is entered
                     leax      <TerminalOptions,u ; submit the modified option packet
                     clra                ; update standard input
@@ -600,8 +622,8 @@ EnableInputEcho
                     clrb                ; request the terminal option packet
                     os9       I$GetStt  ; preserve every option except echo
                     leax      -$20,x    ; recover the beginning of the returned packet
-                    lda       #1        ; choose the enabled value
-                    sta       <$0024,x  ; restore keyboard echo
+                    lda       <SavedEchoOption,u ; recover the pre-password echo value
+                    sta       <$0024,x  ; restore the inherited keyboard echo mode
                     leax      <TerminalOptions,u ; submit the modified option packet
                     clra                ; update standard input
                     clrb                ; select terminal options

@@ -12,6 +12,8 @@
 * annotated source and normalized comments.
 *          2026/07/21  Codex
 * refined command annotations and normalized formatting.
+*          2026/07/21  Codex
+* enable echo and automatic linefeed on the menu's redirected standard input.
 **********************************************************************
 
 *
@@ -58,7 +60,7 @@
 
 tylg                set       Prgrm+Objct
 atrv                set       ReEnt+rev
-rev                 set       $01
+rev                 set       $02
 
 CommandVerbFirst    equ       1         ; first verb character after the record's leading separator
 CommandVerbSecond   equ       2         ; second verb character in CHM or EX
@@ -109,6 +111,7 @@ CommandRecordTable  rmb       3200      ; 40 command records of 80 bytes each
 PromptPrefix        rmb       2         ; lf/cr prefix immediately before the prompt buffer
 PromptBuffer        rmb       80        ; 80-byte prompt line from the command-definition terminator
 MenuImage           rmb       4450      ; storage for the in-memory menu text and trailing spare bytes
+TerminalOptions     rmb       32        ; terminal SS.Opt packet kept last to preserve direct-page workspace offsets
 size                equ       .
 
 name                fcs       /menu/ ; os-9 module name followed by the original copyright payload
@@ -139,6 +142,7 @@ MonthLengths        fcb       31,28,31,30,31,30 ; january through june; leap yea
                     fcb       31,31,30,31,30,31 ; july through december
 * preserve the startup parameter bounds while F$ID temporarily returns IDs in X and Y.
 start               pshs      u,y,x,d   ; protect the parameter pointer, limit, and data pointer
+                    lbsr      InitializeTerminalInput ; enable echo on the stdin selected by </1
                     os9       F$ID      ; obtain the caller's OS-9 user ID in Y
                     sty       <CallerUserId,u ; retain the ID used by time and access policy
                     puls      u,y,x,d   ; recover the untouched startup register set
@@ -400,7 +404,7 @@ CheckSessionTime    tst       <UnlimitedSession,u ; decide whether a deadline wa
                     ldb       #6        ; compare all six date/time fields lexicographically
                     leax      <CurrentDate,u ; scan current year through second
                     leay      <DeadlineDate,u ; scan the normalized deadline in parallel
-CompareDeadlineFields lda     ,x+       ; fetch the next current-time component
+CompareDeadlineFields lda       ,x+       ; fetch the next current-time component
                     cmpa      ,y+       ; order it against the corresponding deadline component
                     lbhi      SessionExpired ; a later first difference means time has expired
                     bcs       CheckWarningWindow ; a current field below its deadline cannot yet be expired
@@ -567,7 +571,7 @@ CopySubmenuMenuName lda       ,x+       ; consume the next menu-path byte
                     lda       #C$CR     ; convert that separator to an OS-9 terminator
                     sta       -1,y      ; finish the replacement menu pathname
                     leay      <CommandFilename,u ; overwrite the definition pathname next
-CopySubmenuCommandName lda     ,x+       ; consume the next definition-path byte
+CopySubmenuCommandName lda       ,x+       ; consume the next definition-path byte
                     sta       ,y+       ; append it to CommandFilename
                     cmpa      #C$CR     ; retain the command record's final terminator
                     bne       CopySubmenuCommandName ; copy through the complete pathname
@@ -583,10 +587,30 @@ ShowUsage           leax      >UsageMessage,pc ; select the two-line invocation 
                     clrb                ; treat malformed invocation as a clean exit
 * common fatal exit: B already contains the OS-9 error status when applicable.
 ExitWithStatus      os9       F$Exit    ; return status B to the invoking process
+
+* configure the standard-input path that the shell supplied to Menu.  This is
+* especially important for `</1` on DriveWire /N paths, whose fresh path
+* descriptor otherwise has echo and automatic linefeed disabled.
+InitializeTerminalInput
+                    leax      >TerminalOptions,u ; select the local terminal-option packet
+                    clra                ; select standard input
+                    clrb                ; request SS.Opt terminal options
+                    os9       I$GetStt  ; copy the current path options into the packet
+                    bcs       InitializeTerminalDone ; tolerate input paths that are not SCF devices
+                    lda       #1        ; select the enabled value for both options
+                    sta       PD.EKO-PD.OPT,x ; make the typed menu selection visible
+                    sta       PD.ALF-PD.OPT,x ; add linefeed after an echoed carriage return
+                    leax      >TerminalOptions,u ; resubmit the modified option packet
+                    clra                ; update standard input
+                    clrb                ; select SS.Opt terminal options
+                    os9       I$SetStt  ; install the interactive input settings
+InitializeTerminalDone
+                    rts                 ; continue even if stdin cannot accept terminal options
+
 * parse the first decimal digit run in the six-byte access prefix.
 * the reverse pass accumulates digit * place into a 16-bit result; carry is not accepted.
 ParsePriority       pshs      y         ; preserve the caller's access-record cursor
-FindFirstPriorityDigit lda     ,x+       ; scan for the first decimal digit
+FindFirstPriorityDigit lda       ,x+       ; scan for the first decimal digit
                     cmpa      #C$CR     ; reject a prefix that ends before any digit
                     lbeq      InvalidPriority ; report a priority prefix containing no decimal digit
                     cmpa      #'0'      ; skip bytes below the decimal range
@@ -594,13 +618,13 @@ FindFirstPriorityDigit lda     ,x+       ; scan for the first decimal digit
                     cmpa      #'9'      ; skip bytes above the decimal range
                     bhi       FindFirstPriorityDigit ; continue within the fixed-width prefix
                     leax      -1,x      ; include this first digit in the run scan
-FindPriorityDigitEnd lda      ,x+       ; advance through the contiguous decimal run
+FindPriorityDigitEnd lda       ,x+       ; advance through the contiguous decimal run
                     cmpa      #'0'      ; a lower byte marks its end
                     bcs       InitializePriorityParse ; begin conversion after the last digit in the run
                     cmpa      #'9'      ; a higher byte also marks its end
                     bhi       InitializePriorityParse ; begin conversion after the digit run
                     bra       FindPriorityDigitEnd ; consume another decimal digit
-InitializePriorityParse pshs x         ; preserve the source position following the threshold
+InitializePriorityParse pshs      x         ; preserve the source position following the threshold
                     leax      -1,x      ; prepare for predecrement reverse reads
                     clr       PriorityValue,u ; clear the high byte of the 16-bit conversion result
                     clr       PriorityValue+1,u ; clear the low byte of the 16-bit conversion result
@@ -614,7 +638,7 @@ ParsePriorityDigit  lda       ,-x       ; walk the digit run from right to left
                     suba      #'0'      ; convert ASCII to a binary digit
                     sta       DecimalCounter,u ; use the digit value as a repeated-add counter
                     ldd       #0        ; start this digit's weighted contribution at zero
-MultiplyDigitByPlace tst      DecimalCounter,u ; test whether every digit unit has been added
+MultiplyDigitByPlace tst       DecimalCounter,u ; test whether every digit unit has been added
                     beq       AccumulatePriorityDigit ; add the finished digit contribution to the result
                     addd      DecimalPlace,u ; add one copy of the current place value
                     dec       DecimalCounter,u ; count one multiplication-by-addition step
