@@ -83,14 +83,21 @@ the report code are:
 | ---: | ---: | --- |
 | 0 | 2 | OS-9 user ID |
 | 2 | 2 | times called |
-| 4 | 6 | fields not displayed by `BBS.stat` |
+| 4 | 6 | current session login year, month, day, hour, minute, and second |
 | 10 | 2 | messages left |
 | 12 | 2 | messages read |
 | 14 | 2 | files downloaded |
 | 16 | 2 | files uploaded |
-| 18 | 6 | last-login year, month, day, hour, minute, and second |
-| 24 | 2 | current-login duration value, omitted when zero |
-| 26 | 6 | fields not displayed by `BBS.stat` |
+| 18 | 6 | most recent logout year, month, day, hour, minute, and second |
+| 24 | 2 | remaining minutes in the current daily allowance |
+| 26 | 6 | reserved; initialized to zero by `BBS.login` |
+
+At login, `BBS.login` compares the previous logout date at offset 18 with the
+new session date at offset 4. A different date resets the balance at offset 24
+to the limit configured in `BBS.users`; the same date retains the stored
+balance. Zero denotes unlimited access, while one is the persistent exhausted
+sentinel. At logout, elapsed whole minutes are subtracted and a nonpositive
+result is clamped to one.
 
 The original date renderer spells the year as `19YY`; this is preserved
 behavior, not a modern interpretation added by the reconstruction.
