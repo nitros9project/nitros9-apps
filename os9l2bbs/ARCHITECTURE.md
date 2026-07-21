@@ -73,6 +73,13 @@ and sysop functions without placing access policy inside every command.
 it when attributing or addressing posts. The manual specifically notes that
 posting failures commonly result from a missing or inconsistent alias file.
 
+`BBS.validate` is the sysop-side account activation tool. It constructs an
+uppercase `BBS.users` line as `name,password,program,user number,time limit`
+and a parallel `bbs.alias` line as `alias,user number`. The entered user number
+is copied into both records. The proposed authentication line is displayed for
+confirmation, and neither record is appended until the operator answers `Y`.
+If either database is absent, only OS-9 user zero may create it.
+
 `BBS.userstats` stores per-user usage statistics. BBS.login and the message,
 mail, upload, and download commands update it. `BBS.stat` scans it as a stream
 of 32-byte records keyed by OS-9 user ID. Ordinary callers see their own

@@ -21,214 +21,223 @@
                     use       defsfile
                   ENDC
 
-tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
-atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+tylg                set       Prgrm+Objct ; executable object module
+atrv                set       ReEnt+rev ; reentrant module with revision below
+rev                 set       $01       ; original module revision
 
-                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
+                    mod       eom,name,tylg,atrv,start,size ; declare header, entry point, and workspace
 
-WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_003        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkBuffer_001      rmb       80        ; reserve 80 byte(s) in the module workspace
-WorkByte_004        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_002      rmb       479       ; reserve 479 byte(s) in the module workspace
-size                equ       .         ; define the assembly-time value for size
+UsersPath           rmb       1         ; update path for BBS.users
+AliasPath           rmb       1         ; update path for bbs.alias
+ConfirmationKey     rmb       1         ; one-byte Y/N response
+AliasNumberEnd      rmb       2         ; insertion point for the shared user number
+UsersRecord         rmb       80        ; beginning of the assembled BBS.users line
+AliasRecord         rmb       1         ; alias line begins 80 bytes after UsersRecord
+RecordWorkspaceTail rmb       479       ; shared tail for the two variable-length records
+size                equ       .         ; total process workspace size
 
-name                fcs       /BBS.validate/ ; store an OS-9 high-bit-terminated string
-Text_001            fcc       "Enter new user's name:=====>" ; store literal character data
-Text_002            fcc       "Enter new user's password:=>" ; store literal character data
-Text_003            fcc       "Enter new user's program:==>" ; store literal character data
-Text_004            fcc       "Enter new user's number:===>" ; store literal character data
-Text_005            fcc       "Enter new user's time limit>" ; store literal character data
-Text_006            fcc       "Enter new user's alias:====>" ; store literal character data
-Data_001            fcb       $0A       ; store byte data
-                    fcc       "New BBS.users line will read as follows:" ; store literal character data
-                    fcb       $0D       ; store byte data
-Data_002            fcb       $0D       ; store byte data
-                    fcb       $0A       ; store byte data
-                    fcc       "Is this line correct? (Y/N):" ; store literal character data
-Text_007            fcc       "BBS.users" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_008            fcc       "/dd/bbs/bbs.alias" ; store literal character data
-                    fcb       $0D       ; store byte data
-Data_003            fcb       $0D       ; store byte data
-                    fcb       $0A       ; store byte data
-start               leax      >Text_007,pc ; form the address >Text_007,pc in x
-                    lda       #3        ; set a to the constant 3
-                    os9       I$Open    ; open the path at X using access mode A
-                    bcc       Branch_001 ; branch when carry is clear; target Branch_001
-                    cmpb      #216      ; compare b with #216 and set the condition codes
-                    lbne      Branch_002 ; branch when the values differ or the result is nonzero; target Branch_002
-                    os9       F$ID      ; retrieve the current process and user IDs
-                    ldb       #214      ; set b to the constant 214
-                    cmpy      #0        ; compare y with #0 and set the condition codes
-                    lbne      Branch_002 ; branch when the values differ or the result is nonzero; target Branch_002
-                    ldb       #3        ; set b to the constant 3
-                    os9       I$Create  ; create the path at X with mode A and attributes B
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-Branch_001          sta       WorkByte_001,u ; store a at WorkByte_001,u
-                    leax      >Text_008,pc ; form the address >Text_008,pc in x
-                    lda       #3        ; set a to the constant 3
-                    os9       I$Open    ; open the path at X using access mode A
-                    bcc       Branch_003 ; branch when carry is clear; target Branch_003
-                    cmpb      #216      ; compare b with #216 and set the condition codes
-                    lbne      Branch_002 ; branch when the values differ or the result is nonzero; target Branch_002
-                    os9       F$ID      ; retrieve the current process and user IDs
-                    ldb       #214      ; set b to the constant 214
-                    cmpy      #0        ; compare y with #0 and set the condition codes
-                    lbne      Branch_002 ; branch when the values differ or the result is nonzero; target Branch_002
-                    ldb       #11       ; set b to the constant 11
-                    os9       I$Create  ; create the path at X with mode A and attributes B
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-Branch_003          sta       WorkByte_002,u ; store a at WorkByte_002,u
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    ldb       #2        ; set b to the constant 2
-                    pshs      u         ; save u on the stack
-                    os9       I$GetStt  ; query status code B for path A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    puls      u         ; restore u from the stack
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    ldb       #2        ; set b to the constant 2
-                    pshs      u         ; save u on the stack
-                    os9       I$GetStt  ; query status code B for path A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    puls      u         ; restore u from the stack
-Branch_004          leax      >Text_001,pc ; form the address >Text_001,pc in x
-                    ldy       #28       ; set y to the constant 28
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-                    clra                ; clear a to zero and set the condition codes
-                    ldy       #80       ; set y to the constant 80
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    pshs      x         ; save x on the stack
-Branch_005          lda       ,x        ; load a from ,x
-                    cmpa      #97       ; compare a with #97 and set the condition codes
-                    bcs       Branch_006 ; branch when carry reports an error or unsigned underflow; target Branch_006
-                    anda      #223      ; mask a using #223
-Branch_006          sta       ,x+       ; store a at ,x+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    bne       Branch_005 ; branch when the values differ or the result is nonzero; target Branch_005
-                    puls      x         ; restore x from the stack
-                    tfr       y,d       ; copy the register values specified by y,d
-                    leax      d,x       ; form the address d,x in x
-                    lda       #44       ; set a to the constant 44
-                    sta       -$01,x    ; store a at -$01,x
-                    pshs      x         ; save x on the stack
-                    leax      >Text_002,pc ; form the address >Text_002,pc in x
-                    ldy       #28       ; set y to the constant 28
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    puls      x         ; restore x from the stack
-                    ldy       #80       ; set y to the constant 80
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    pshs      x         ; save x on the stack
-Branch_007          lda       ,x        ; load a from ,x
-                    cmpa      #97       ; compare a with #97 and set the condition codes
-                    bcs       Branch_008 ; branch when carry reports an error or unsigned underflow; target Branch_008
-                    anda      #223      ; mask a using #223
-Branch_008          sta       ,x+       ; store a at ,x+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    bne       Branch_007 ; branch when the values differ or the result is nonzero; target Branch_007
-                    puls      x         ; restore x from the stack
-                    tfr       y,d       ; copy the register values specified by y,d
-                    leax      d,x       ; form the address d,x in x
-                    lda       #44       ; set a to the constant 44
-                    sta       -$01,x    ; store a at -$01,x
-                    pshs      x         ; save x on the stack
-                    leax      >Text_003,pc ; form the address >Text_003,pc in x
-                    ldy       #28       ; set y to the constant 28
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    puls      x         ; restore x from the stack
-                    clra                ; clear a to zero and set the condition codes
-                    ldy       #80       ; set y to the constant 80
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    tfr       y,d       ; copy the register values specified by y,d
-                    leax      d,x       ; form the address d,x in x
-                    lda       #44       ; set a to the constant 44
-                    sta       -$01,x    ; store a at -$01,x
-                    pshs      x         ; save x on the stack
-                    leax      >Text_006,pc ; form the address >Text_006,pc in x
-                    ldy       #28       ; set y to the constant 28
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      <WorkByte_004,u ; form the address <WorkByte_004,u in x
-                    ldy       #80       ; set y to the constant 80
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    tfr       y,d       ; copy the register values specified by y,d
-                    leax      d,x       ; form the address d,x in x
-                    lda       #44       ; set a to the constant 44
-                    sta       -$01,x    ; store a at -$01,x
-                    stx       WorkWord_001,u ; store x at WorkWord_001,u
-                    leax      >Text_004,pc ; form the address >Text_004,pc in x
-                    ldy       #28       ; set y to the constant 28
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    puls      x         ; restore x from the stack
-                    ldy       #80       ; set y to the constant 80
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    ldy       WorkWord_001,u ; load y from WorkWord_001,u
-Branch_009          lda       ,x+       ; load a from ,x+
-                    sta       ,y+       ; store a at ,y+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    bne       Branch_009 ; branch when the values differ or the result is nonzero; target Branch_009
-                    lda       #44       ; set a to the constant 44
-                    sta       -$01,x    ; store a at -$01,x
-                    pshs      x         ; save x on the stack
-                    leax      >Text_005,pc ; form the address >Text_005,pc in x
-                    ldy       #28       ; set y to the constant 28
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    puls      x         ; restore x from the stack
-                    ldy       #80       ; set y to the constant 80
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    leax      >Data_001,pc ; form the address >Data_001,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-                    ldy       #200      ; set y to the constant 200
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >Data_002,pc ; form the address >Data_002,pc in x
-                    ldy       #30       ; set y to the constant 30
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      WorkByte_003,u ; form the address WorkByte_003,u in x
-                    ldy       #1        ; set y to the constant 1
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    leax      >Data_003,pc ; form the address >Data_003,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lda       WorkByte_003,u ; load a from WorkByte_003,u
-                    anda      #223      ; mask a using #223
-                    cmpa      #89       ; compare a with #89 and set the condition codes
-                    lbne      Branch_004 ; branch when the values differ or the result is nonzero; target Branch_004
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-                    ldy       #81       ; set y to the constant 81
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    leax      <WorkByte_004,u ; form the address <WorkByte_004,u in x
-                    ldy       #81       ; set y to the constant 81
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    clrb                ; clear b to zero and set the condition codes
-Branch_002          os9       F$Exit    ; terminate the process with status B
+name                fcs       /BBS.validate/ ; module name exposed to OS-9
+NamePrompt          fcc       "Enter new user's name:=====>" ; fixed-width field prompt
+PasswordPrompt      fcc       "Enter new user's password:=>" ; fixed-width field prompt
+ProgramPrompt       fcc       "Enter new user's program:==>" ; fixed-width field prompt
+UserNumberPrompt    fcc       "Enter new user's number:===>" ; fixed-width field prompt
+TimeLimitPrompt     fcc       "Enter new user's time limit>" ; fixed-width field prompt
+AliasPrompt         fcc       "Enter new user's alias:====>" ; fixed-width field prompt
+PreviewHeading      fcb       C$LF      ; separate the proposed record from entry
+                    fcc       "New BBS.users line will read as follows:" ; preview explanation
+                    fcb       C$CR      ; terminate the heading
+ConfirmationPrompt  fcb       C$CR      ; finish the previewed record line
+                    fcb       C$LF      ; begin the confirmation question
+                    fcc       "Is this line correct? (Y/N):" ; request explicit approval
+UsersFilename       fcc       "BBS.users" ; authentication database in the current directory
+                    fcb       C$CR      ; terminate the pathname
+AliasFilename       fcc       "/dd/bbs/bbs.alias" ; system-wide display-name map
+                    fcb       C$CR      ; terminate the pathname
+ResponseNewline     fcb       C$CR      ; move past the single-key response
+                    fcb       C$LF      ; advance the terminal display
+start               leax      >UsersFilename,pc ; locate the account database
+                    lda       #UPDAT.   ; require append-capable access
+                    os9       I$Open    ; use the existing BBS.users when present
+                    bcc       UsersFileReady
+                    cmpb      #E$PNNF   ; create only when the file is absent
+                    lbne      ExitWithStatus ; preserve any other open error
+                    os9       F$ID      ; creation is restricted to the sysop
+                    ldb       #E$FNA    ; prepare a meaningful non-sysop status
+                    cmpy      #0        ; user zero owns the BBS databases
+                    lbne      ExitWithStatus
+                    ldb       #3        ; owner read/write attributes
+                    os9       I$Create  ; initialize an empty BBS.users
+                    lbcs      ExitWithStatus ; report creation failure
+UsersFileReady      sta       UsersPath,u ; retain the account stream
+                    leax      >AliasFilename,pc ; locate the alias database
+                    lda       #UPDAT.   ; require append-capable access
+                    os9       I$Open    ; use the existing bbs.alias when present
+                    bcc       AliasFileReady
+                    cmpb      #E$PNNF   ; create only when the file is absent
+                    lbne      ExitWithStatus ; preserve any other open error
+                    os9       F$ID      ; creation is restricted to the sysop
+                    ldb       #E$FNA    ; prepare a meaningful non-sysop status
+                    cmpy      #0        ; user zero owns the BBS databases
+                    lbne      ExitWithStatus
+                    ldb       #11       ; owner read/write and public read attributes
+                    os9       I$Create  ; initialize an empty alias database
+                    lbcs      ExitWithStatus ; report creation failure
+AliasFileReady      sta       AliasPath,u ; retain the alias stream
 
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+* Position both update streams at end-of-file before collecting input.  SS.Size
+* returns the 32-bit length in X:U, which I$Seek consumes directly.
+                    lda       UsersPath,u ; select BBS.users
+                    ldb       #SS.Size  ; request its append offset
+                    pshs      u         ; free U for the low position word
+                    os9       I$GetStt  ; obtain the current file length
+                    lbcs      ExitWithStatus
+                    os9       I$Seek    ; establish the account append position
+                    lbcs      ExitWithStatus
+                    puls      u         ; recover the workspace pointer
+                    lda       AliasPath,u ; select bbs.alias
+                    ldb       #SS.Size  ; request its append offset
+                    pshs      u         ; free U for the low position word
+                    os9       I$GetStt  ; obtain the current file length
+                    lbcs      ExitWithStatus
+                    os9       I$Seek    ; establish the alias append position
+                    lbcs      ExitWithStatus
+                    puls      u         ; recover the workspace pointer
+PromptForAccount    leax      >NamePrompt,pc ; begin a fresh candidate record
+                    ldy       #28       ; every field prompt is 28 bytes
+                    lda       #1        ; display it on standard output
+                    os9       I$Write
+                    leax      UsersRecord,u ; write the name at the record start
+                    clra                ; read from standard input
+                    ldy       #80       ; cap this field at one input line
+                    os9       I$ReadLn  ; retain the returned byte count in Y
+                    pshs      x         ; preserve the field's starting address
+FoldNameLoop        lda       ,x        ; inspect the next name byte
+                    cmpa      #'a       ; bytes below lowercase need no folding
+                    bcs       StoreNameByte
+                    anda      #$DF      ; normalize lowercase ASCII for login matching
+StoreNameByte       sta       ,x+       ; replace the byte and advance
+                    cmpa      #C$CR     ; process through the line terminator
+                    bne       FoldNameLoop
+                    puls      x         ; recover the name's starting address
+                    tfr       y,d       ; use its actual input length
+                    leax      d,x       ; advance to the byte after the name
+                    lda       #','      ; account records use comma-delimited fields
+                    sta       -1,x      ; replace the name's carriage return
+                    pshs      x         ; retain the next free record byte
+
+                    leax      >PasswordPrompt,pc ; request the account password
+                    ldy       #28       ; write the fixed-width prompt
+                    lda       #1        ; display it on standard output
+                    os9       I$Write
+                    puls      x         ; append after the name delimiter
+                    ldy       #80       ; cap this field at one input line
+                    clra                ; read from standard input
+                    os9       I$ReadLn  ; append password and carriage return
+                    pshs      x         ; preserve the field's starting address
+FoldPasswordLoop    lda       ,x        ; inspect the next password byte
+                    cmpa      #'a       ; bytes below lowercase need no folding
+                    bcs       StorePasswordByte
+                    anda      #$DF      ; match BBS.login's uppercase comparison form
+StorePasswordByte   sta       ,x+       ; replace the byte and advance
+                    cmpa      #C$CR     ; process through the line terminator
+                    bne       FoldPasswordLoop
+                    puls      x         ; recover the password's start
+                    tfr       y,d       ; use its actual input length
+                    leax      d,x       ; advance to the next free record byte
+                    lda       #','      ; delimit the password field
+                    sta       -1,x      ; replace its carriage return
+                    pshs      x         ; retain the next free account byte
+                    leax      >ProgramPrompt,pc ; request the login command or script
+                    ldy       #28       ; write the fixed-width prompt
+                    lda       #1        ; display it on standard output
+                    os9       I$Write
+                    puls      x         ; append after the password delimiter
+                    clra                ; read from standard input
+                    ldy       #80       ; cap this field at one input line
+                    os9       I$ReadLn  ; append the configured program
+                    tfr       y,d       ; use its actual input length
+                    leax      d,x       ; advance to the next free account byte
+                    lda       #','      ; delimit the program field
+                    sta       -1,x      ; replace its carriage return
+                    pshs      x         ; retain the account insertion point
+
+                    leax      >AliasPrompt,pc ; collect the independent display name
+                    ldy       #28       ; write the fixed-width prompt
+                    lda       #1        ; display it on standard output
+                    os9       I$Write
+                    leax      <AliasRecord,u ; begin the bbs.alias record
+                    ldy       #80       ; cap the alias at one input line
+                    clra                ; read from standard input
+                    os9       I$ReadLn  ; store alias and carriage return
+                    tfr       y,d       ; use its actual input length
+                    leax      d,x       ; advance beyond the alias
+                    lda       #','      ; alias records use alias,user-number
+                    sta       -1,x      ; replace the alias carriage return
+                    stx       AliasNumberEnd,u ; remember where its number belongs
+
+                    leax      >UserNumberPrompt,pc ; request the shared OS-9 user ID
+                    ldy       #28       ; write the fixed-width prompt
+                    lda       #1        ; display it on standard output
+                    os9       I$Write
+                    puls      x         ; append the number to BBS.users
+                    ldy       #80       ; cap the numeric field at one input line
+                    clra                ; read from standard input
+                    os9       I$ReadLn  ; retain the carriage return for alias output
+                    ldy       AliasNumberEnd,u ; append the same number after alias comma
+CopyUserNumberToAlias
+                    lda       ,x+       ; copy the next number byte
+                    sta       ,y+       ; append it to the alias record
+                    cmpa      #C$CR     ; include the terminating carriage return
+                    bne       CopyUserNumberToAlias
+                    lda       #','      ; authentication records have one final optional field
+                    sta       -1,x      ; replace its user-number terminator
+                    pshs      x         ; retain the time-limit insertion point
+
+                    leax      >TimeLimitPrompt,pc ; request daily minutes or zero
+                    ldy       #28       ; write the fixed-width prompt
+                    lda       #1        ; display it on standard output
+                    os9       I$Write
+                    puls      x         ; append after the user-number delimiter
+                    ldy       #80       ; cap the final field at one input line
+                    clra                ; read from standard input
+                    os9       I$ReadLn  ; leave its CR as the record terminator
+                    leax      >PreviewHeading,pc ; introduce the proposed account line
+                    ldy       #200      ; let I$WritLn find the embedded terminator
+                    lda       #1        ; display it on standard output
+                    os9       I$WritLn
+                    leax      UsersRecord,u ; show exactly what BBS.login will parse
+                    ldy       #200      ; bound the variable-length record preview
+                    os9       I$WritLn
+                    leax      >ConfirmationPrompt,pc ; request approval without a trailing CR
+                    ldy       #30       ; write the complete fixed prompt
+                    lda       #1        ; display it on standard output
+                    os9       I$Write
+                    leax      ConfirmationKey,u ; receive one decision character
+                    ldy       #1        ; do not wait for a complete line
+                    clra                ; read from standard input
+                    os9       I$Read
+                    leax      >ResponseNewline,pc ; move output beyond the response
+                    ldy       #1        ; line output stops on the first carriage return
+                    lda       #1        ; target standard output
+                    os9       I$WritLn
+                    lda       ConfirmationKey,u ; normalize the operator's answer
+                    anda      #$DF      ; accept lowercase as uppercase
+                    cmpa      #'Y       ; only an explicit yes commits the records
+                    lbne      PromptForAccount ; discard both buffers and start over
+
+                    lda       UsersPath,u ; append to the authentication database
+                    leax      UsersRecord,u ; select the approved account line
+                    ldy       #81       ; bound the write beyond its expected maximum
+                    os9       I$WritLn  ; stop at the time-limit carriage return
+                    lbcs      ExitWithStatus ; report a partial account update
+                    lda       AliasPath,u ; append to the alias database
+                    leax      <AliasRecord,u ; select alias,user-number
+                    ldy       #81       ; bound the write beyond its expected maximum
+                    os9       I$WritLn  ; stop at the copied number's carriage return
+                    lbcs      ExitWithStatus ; report a partial alias update
+                    clrb                ; both related records were accepted
+ExitWithStatus      os9       F$Exit    ; return B as the process status
+
+                    emod                ; emit the OS-9 module CRC and trailer
+eom                 equ       *         ; mark the module end for the size expression
+                    end                 ; end the assembly source
