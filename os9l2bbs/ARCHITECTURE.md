@@ -278,6 +278,15 @@ protocol checksum/CRC, list record, description text, or keyword text.
 the chat process, signals it, links to its shared module data, and relays
 characters until the operator exits with Alt-X.
 
+The shared chat mailbox is embedded at offsets two and three from the
+`BBS.chat` execution address: a ready flag followed by one character. `Answer`
+discovers the correct process by scanning process descriptors, using
+`F$CpyMem` with each process's DAT image to copy its module header and name,
+and comparing that name with `BBS.chat`. After sending the private answer
+signal, it links the module and uses the execution address returned in `Y` as
+the mailbox base. Both directions test and publish the ready byte with IRQ and
+FIRQ masked, then sleep one tick at a time until the other process clears it.
+
 Conference mode is a small multi-process shared-memory service:
 
 - `BBS.conf` enters conference mode and exchanges characters with the shared

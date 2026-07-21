@@ -1,17 +1,17 @@
 **********************************************************************
 * Answer - OS-9 Level 2 BBS command
 *
-* Syntax: Answer
-* Purpose: Attach the sysop to a pending BBS.chat request and relay both character streams.
-* Coordination: locates/signals BBS.chat and uses its shared one-character mailbox.
+* syntax: Answer
+* purpose: attach the sysop to a pending BBS.chat request and relay both streams.
+* coordination: discovers BBS.chat by process module name and links its shared mailbox.
 *
-* Edt/Rev  YYYY/MM/DD  Modified by
-* Comment
+* edt/rev  YYYY/MM/DD  Modified by
+* comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
-* Annotated source and normalized comments.
+* annotated source and normalized comments.
 *          2026/07/21  Codex
-* Refined command annotations and normalized formatting.
+* refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       answer
@@ -21,189 +21,195 @@
                     use       defsfile
                   ENDC
 
-tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
-atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+tylg                set       Prgrm+Objct ; executable object module
+atrv                set       ReEnt+rev ; reentrant module with revision encoded below
+rev                 set       $01       ; original module revision
 
-                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
+                    mod       eom,name,tylg,atrv,start,size ; declare the OS-9 module header and entry point
 
-ChatId              rmb       4         ; BBS.chat process ID followed by private scratch bytes
-ReadBuf             rmb       1         ; single operator keystroke read from standard input
-InputPath           rmb       1         ; caller input path closed when the chat session ends
-ProcId              rmb       5         ; process ID being tested plus descriptor-copy scratch
-memtop              rmb       2         ; top of memory supplied by the OS-9 program loader
+ChatPid             rmb       1         ; process ID of the discovered BBS.chat instance
+ChatPidReserved     rmb       3         ; unused tail of the original four-byte allocation
+OperatorByte        rmb       1         ; single sysop keystroke read from standard input
+ChatInputPath       rmb       1         ; zero-initialized path closed when chat ends
+CandidatePid        rmb       1         ; process ID currently being examined
+CandidateScratch    rmb       4         ; unused tail of the original five-byte allocation
+OriginalArguments   rmb       2         ; preserved but otherwise unused command-line pointer
 ChatMailbox         rmb       2         ; pointer to BBS.chat shared ready/character fields
-ProcDesc            rmb       512       ; buffer populated by F$GPrDsc for process discovery
-ProcBuf             rmb       1         ; copied module header/name used to identify BBS.chat
-ProcessScratch      rmb       431       ; remainder of the process descriptor/name workspace
-size                equ       .         ; define the assembly-time value for size
+ProcessDescriptor   rmb       512       ; buffer populated by F$GPrDsc during discovery
+CopiedModuleBuffer  rmb       432       ; remote module header followed by its copied name
+size                equ       .         ; total per-process workspace size
 
-name                fcs       /answer/ ; store an OS-9 high-bit-terminated string
-                    fcc       "Copyright (C) 1988By Keith Alphonso" ; store literal character data
-                    fcc       "Licenced to Alpha Software Technologies" ; store literal character data
-                    fcc       "All rights reserved" ; store literal character data
-                    fcb       $EC       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $EA       ; store byte data
-                    fcb       $F5       ; store byte data
-                    fcb       $E9       ; store byte data
-                    fcb       $A0       ; store byte data
-                    fcb       $E2       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $F1       ; store byte data
-                    fcb       $E9       ; store byte data
-                    fcb       $F0       ; store byte data
-                    fcb       $EF       ; store byte data
-                    fcb       $F4       ; store byte data
-                    fcb       $F0       ; store byte data
-Answer              fcc       "Answering call..." ; store literal character data
-                    fcc       "Press <ALT><X> when finished." ; store literal character data
-                    fcb       $0D       ; store byte data
-lf_cr               fcb       $0A       ; store byte data
-                    fcb       $0D       ; store byte data
-BBS_Chat            fcs       "BBS.chat" ; store an OS-9 high-bit-terminated string
-NoChat              fcc       "Sorry, no one has requested to chat!" ; store literal character data
-                    fcb       $0D       ; store byte data
-Line                fcc       "----------------------------------------------------------------" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcc       "/t2" ; store literal character data
-                    fcb       $0D       ; store byte data
+name                fcs       /answer/  ; os-9 module name
+                    fcc       "Copyright (C) 1988By Keith Alphonso" ; original embedded notice
+                    fcc       "Licenced to Alpha Software Technologies" ; original licensee text
+                    fcc       "All rights reserved" ; original rights statement
+LicensePayload      fcb       $EC       ; opaque high-bit-set licensing payload
+                    fcb       $E6       ; preserve licensing payload byte two
+                    fcb       $EA       ; preserve licensing payload byte three
+                    fcb       $F5       ; preserve licensing payload byte four
+                    fcb       $E9       ; preserve licensing payload byte five
+                    fcb       $A0       ; preserve licensing payload byte six
+                    fcb       $E2       ; preserve licensing payload byte seven
+                    fcb       $ED       ; preserve licensing payload byte eight
+                    fcb       $F1       ; preserve licensing payload byte nine
+                    fcb       $E9       ; preserve licensing payload byte ten
+                    fcb       $F0       ; preserve licensing payload byte eleven
+                    fcb       $EF       ; preserve licensing payload byte twelve
+                    fcb       $F4       ; preserve licensing payload byte thirteen
+                    fcb       $F0       ; preserve the original payload terminator
+AnsweringMessage    fcc       "Answering call..." ; sysop-side connection status
+                    fcc       "Press <ALT><X> when finished." ; operator exit instruction
+                    fcb       C$CR      ; terminate the combined status line
+LineFeed            fcb       C$LF      ; lf appended after each relayed CR
+                    fcb       C$CR      ; unused adjacent CR preserved from the original
+ChatModuleName      fcs       "BBS.chat" ; high-bit-terminated discovery and link name
+NoChatMessage       fcc       "Sorry, no one has requested to chat!" ; no-process response
+                    fcb       C$CR      ; terminate the response
+ChatDivider         fcc       "----------------------------------------------------------------" ; visual relay separator
+                    fcb       C$CR      ; terminate the divider
+UnusedDeviceName    fcc       "/t2"     ; preserved but unreferenced serial-device text
+                    fcb       C$CR      ; terminate the unused path name
 
-start               stx       memtop,u  ; store x at memtop,u
-                    lda       #2        ; set a to the constant 2
-                    sta       ProcId,u  ; store a at ProcId,u
+ChatAnswerSignal    equ       129       ; private signal interpreted by BBS.chat as sysop arrival
+MailboxReadyOffset  equ       2         ; ready byte located after BBS.chat's entry branch
+MailboxCharOffset   equ       3         ; shared character immediately following ready byte
+AltXCharacter       equ       248       ; coco keyboard code used to end the sysop relay
 
-* Check all process descriptors until we find BBS_Chat
-ProcLoop            lda       ProcId,u  ; load a from ProcId,u
+start               stx       OriginalArguments,u ; retain the unused parameter pointer
+                    lda       #2        ; process IDs zero and one are not caller commands
+                    sta       CandidatePid,u ; begin discovery with process two
+
+* scan active process descriptors and copy each process's module name from its
+* DAT image until the high-bit-terminated name matches BBS.chat.
+ScanProcesses       lda       CandidatePid,u ; select the process being examined
                     lbeq      NoChatProcess ; process IDs wrapped without finding BBS.chat
-                    leax      ProcDesc,u ; point to process descriptor buffer
-                    os9       F$GPrDsc  ; get the process descriptor
-                    bcs       NextProc  ; process does not exist, so skip it
-                    leay      <$0040,x  ; point to P$DATImg
-                    tfr       y,d       ; put P$DATImg in D
-                    ldx       <$0011,x  ; get the P$Modul offset
-                    ldy       #9        ; gonna copy 9 bytes
-                    pshs      u         ; save a copy of U
-                    leau      >ProcBuf,u ; point to the buffer
-                    os9       F$CpyMem  ; copy the module header
-                    lbcs      ErrExit   ; exit on error
-                    pshs      d         ; save the DAT image pointer
-                    ldd       ReadBuf,u ; get the M$Name offset
-                    leax      d,x       ; point to the buffer
-                    puls      d         ; get the DAT image pointer
-                    ldy       #32       ; gonna copy 32 bytes
-                    os9       F$CpyMem  ; copy the module name
-                    lbcs      ErrExit   ; exit on error
-                    puls      u         ; restore U
+                    leax      ProcessDescriptor,u ; receive the candidate descriptor
+                    os9       F$GPrDsc  ; inspect process A
+                    bcs       AdvanceProcess ; nonexistent IDs have no module name
+                    leay      <P$DATImg,x ; locate the descriptor's DAT image
+                    tfr       y,d       ; supply that image pointer to F$CpyMem
+                    ldx       <$0011,x  ; select the process module's logical offset
+                    ldy       #9        ; copy enough header bytes to include M$Name
+                    pshs      u         ; preserve Answer's workspace pointer
+                    leau      >CopiedModuleBuffer,u ; receive the remote module header
+                    os9       F$CpyMem  ; copy nine bytes from the candidate process
+                    lbcs      ExitWithStatus ; propagate a cross-process copy failure
+                    pshs      d         ; preserve the candidate DAT image pointer
+                    ldd       M$Name,u  ; read the copied module-name offset
+                    leax      d,x       ; select that name within the remote module
+                    puls      d         ; restore the DAT image for the second copy
+                    ldy       #32       ; allow up to 32 bytes for the module name
+                    os9       F$CpyMem  ; copy the candidate's high-bit-terminated name
+                    lbcs      ExitWithStatus ; propagate a name-copy failure
+                    puls      u         ; recover Answer's workspace pointer
 
-* Have we found BBS_Chat yet?
-                    leax      >ProcBuf,u ; form the address >ProcBuf,u in x
-                    leay      >BBS_Chat,pc ; form the address >BBS_Chat,pc in y
+                    leax      >CopiedModuleBuffer,u ; select the copied candidate name
+                    leay      >ChatModuleName,pc ; select the expected module name
 
-CmpNames            lda       ,x+       ; load a from ,x+
-                    cmpa      ,y+       ; compare a with ,y+ and set the condition codes
-                    bne       NextProc  ; this isn't BBS_Chat, try again
-                    tsta                ; set condition codes from a without changing it
-                    bpl       CmpNames  ; names match so far, try next char
+CompareModuleNames  lda       ,x+       ; fetch the next candidate name byte
+                    cmpa      ,y+       ; require the expected byte at the same position
+                    bne       AdvanceProcess ; reject the first mismatch
+                    tsta                ; test the OS-9 high-bit name terminator
+                    bpl       CompareModuleNames ; continue through ordinary characters
 
-                    lda       ProcId,u  ; load a from ProcId,u
-                    sta       ChatId,u  ; store a at ChatId,u
-                    bra       ChatSignl ; found BBS_Chat, so exit loop
+                    lda       CandidatePid,u ; recover the matching process ID
+                    sta       ChatPid,u ; retain it for signalling and shutdown
+                    bra       SignalChatProcess ; notify BBS.chat that the sysop answered
 
-NextProc            inc       ProcId,u  ; increment the value at ProcId,u
-                    bra       ProcLoop  ; continue execution at ProcLoop
+AdvanceProcess      inc       CandidatePid,u ; inspect the next one-byte process ID
+                    bra       ScanProcesses ; continue until a match or wraparound
 
-ChatSignl           lda       ChatId,u  ; get BBS_Chat process Id
-                    ldb       #129      ; signal code
-                    os9       F$Send    ; send $81 signal to BBS_Chat
+SignalChatProcess   lda       ChatPid,u ; address the discovered BBS.chat process
+                    ldb       #ChatAnswerSignal ; select its private answer notification
+                    os9       F$Send    ; wake BBS.chat and clear its waiting flag
                     bcc       BeginChatRelay ; bbs.chat accepted the sysop-answer signal
-                    ldx       #1        ; bbs_Chat has signal pending...
-                    os9       F$Sleep   ; ... so sleep a bit ...
-                    bra       ChatSignl ; ... and try again
+                    ldx       #1        ; wait while another signal remains pending
+                    os9       F$Sleep   ; allow BBS.chat to run its intercept handler
+                    bra       SignalChatProcess ; retry until OS-9 accepts the signal
 
 * Write "answering call..."
-BeginChatRelay      leax      >Answer,pc ; tell the sysop that the shared chat is active
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
+BeginChatRelay      leax      >AnsweringMessage,pc ; select the operator instructions
+                    ldy       #200      ; allow I$WritLn to locate their CR
+                    lda       #1        ; target standard output
+                    os9       I$WritLn  ; announce the active relay
 
 * Write a line of dashes
-                    leax      >Line,pc  ; form the address >Line,pc in x
-                    ldy       #65       ; set y to the constant 65
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
+                    leax      >ChatDivider,pc ; select the 64-character separator
+                    ldy       #65       ; include its terminating CR
+                    lda       #1        ; target standard output
+                    os9       I$WritLn  ; separate instructions from chat text
 
 * Link to BBS_Chat
-                    leax      >BBS_Chat,pc ; form the address >BBS_Chat,pc in x
-                    lda       #17       ; set a to the constant 17
-                    pshs      u         ; save u on the stack
-                    os9       F$Link    ; link the module named at X
-                    lbcs      ErrExit   ; exit on error
+                    leax      >ChatModuleName,pc ; select BBS.chat by name
+                    lda       #Prgrm+Objct ; require a 6809 executable module
+                    pshs      u         ; preserve Answer's workspace during F$Link
+                    os9       F$Link    ; obtain the linked module's execution address in Y
+                    lbcs      ExitWithStatus ; propagate a module-link failure
 
-                    puls      u         ; restore u from the stack
-                    sty       ChatMailbox,u ; retain the shared ready flag/character mailbox
+                    puls      u         ; recover Answer's workspace pointer
+                    sty       ChatMailbox,u ; retain BBS.chat's entry/mailbox base
 
 * Relay whichever side has a character ready.  The caller side deposits a
 * character in shared offset 3 and raises the ready byte at offset 2.  The
 * sysop side is standard input and is polled with SS.Ready.
 PollChatInputs      clra                ; select the sysop's standard input path
-                    ldb       #1        ; request SS.Ready without blocking
+                    ldb       #SS.Ready ; request a nonblocking readiness test
                     os9       I$GetStt  ; test whether the sysop typed a character
                     bcc       ReadOperatorKey ; consume the pending operator keystroke
                     ldx       ChatMailbox,u ; inspect the caller-to-sysop mailbox instead
-                    tst       $02,x     ; caller has raised this byte when offset 3 is valid
+                    tst       MailboxReadyOffset,x ; caller raised this when the character is valid
                     beq       PollChatInputs ; neither endpoint has input yet
 
 WriteCallerChar     pshs      x         ; preserve the shared mailbox base across I$Write
-                    leax      $03,x     ; point X at the caller's deposited character
+                    leax      MailboxCharOffset,x ; point X at the caller's deposited character
                     ldy       #1        ; relay exactly one mailbox character
                     lda       #1        ; send it to the sysop's standard output
                     os9       I$Write   ; display the caller character locally
                     puls      x         ; recover the mailbox base needed for acknowledgement
-                    lda       $03,x     ; retain the relayed character for CR handling
-                    cmpa      #13       ; os-9 text output needs an LF paired with caller CR
+                    lda       MailboxCharOffset,x ; retain the byte for newline handling
+                    cmpa      #C$CR     ; os-9 text output needs an LF paired with caller CR
                     bne       AcknowledgeCallerChar ; ordinary characters need no translation
 
 * Write LF after each CR
-                    pshs      x         ; save x on the stack
-                    leax      >lf_cr,pc ; form the address >lf_cr,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    puls      x         ; restore x from the stack
+                    pshs      x         ; preserve the shared mailbox pointer
+                    leax      >LineFeed,pc ; select the LF byte
+                    ldy       #1        ; append exactly one byte
+                    lda       #1        ; target standard output
+                    os9       I$Write   ; complete the local newline
+                    puls      x         ; recover the shared mailbox pointer
 
-AcknowledgeCallerChar clr       $02,x     ; release the mailbox slot back to BBS.chat
+AcknowledgeCallerChar clr       MailboxReadyOffset,x ; release the slot back to BBS.chat
                     bra       PollChatInputs ; service the next ready endpoint
 
-ReadOperatorKey     leax      ReadBuf,u ; receive the pending sysop keystroke here
+ReadOperatorKey     leax      OperatorByte,u ; receive the pending sysop keystroke
                     ldy       #1        ; consume one key selected by SS.Ready
                     os9       I$Read    ; read without waiting because readiness was confirmed
-                    lbcs      ErrExit   ; propagate an input-path failure to OS-9
+                    lbcs      ExitWithStatus ; propagate an input-path failure
                     lda       ,x        ; obtain the operator key for routing/translation
-                    cmpa      #248      ; alt-X is the documented end-chat command
+                    cmpa      #AltXCharacter ; alt-X is the documented end-chat command
                     beq       EndChatSession ; notify BBS.chat and return to the sysop menu
-                    cmpa      #13       ; mirror a local newline before forwarding CR
+                    cmpa      #C$CR     ; mirror a local newline before forwarding CR
                     bne       QueueOperatorChar ; forward other keys unchanged
 
 * Write LF after each CR
-                    leax      >lf_cr,pc ; form the address >lf_cr,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write LF
+                    leax      >LineFeed,pc ; select the LF byte
+                    ldy       #1        ; append exactly one byte
+                    lda       #1        ; target standard output
+                    os9       I$Write   ; complete the local newline
 
-                    lda       #13       ; put the CR back in A
+                    lda       #C$CR     ; restore the caller-bound CR after writing LF
 QueueOperatorChar   ldx       ChatMailbox,u ; address the sysop-to-caller mailbox
-                    pshs      cc        ; save cc on the stack
-                    orcc      #80       ; set selected condition-code bits using #80
-                    tst       $02,x     ; set condition codes from $02,x without changing it
+                    pshs      cc        ; preserve the operator's interrupt state
+                    orcc      #IntMasks ; make mailbox test-and-set atomic
+                    tst       MailboxReadyOffset,x ; is another character already pending?
                     bne       CallerCharPending ; do not overwrite an unconsumed caller character
-                    sta       $03,x     ; store a at $03,x
-                    lda       #1        ; set a to the constant 1
-                    sta       $02,x     ; store a at $02,x
-                    puls      cc        ; restore cc from the stack
+                    sta       MailboxCharOffset,x ; deposit the operator character
+                    lda       #1        ; mark that character ready
+                    sta       MailboxReadyOffset,x ; publish the mailbox contents
+                    puls      cc        ; restore interrupt masks
 
 * Wait for something to reset the flag at 2,X
-WaitForChatConsume  lda       $02,x     ; bbs.chat clears ready after sending the key remotely
+WaitForChatConsume  lda       MailboxReadyOffset,x ; has BBS.chat consumed the key?
                     lbeq      PollChatInputs ; resume polling once the mailbox is free
                     pshs      x         ; preserve the mailbox pointer during cooperative sleep
                     ldx       #1        ; yield for one tick instead of busy-spinning
@@ -214,25 +220,25 @@ WaitForChatConsume  lda       $02,x     ; bbs.chat clears ready after sending th
 CallerCharPending   puls      cc        ; restore interrupt state without altering the mailbox
                     lbra      WriteCallerChar ; service the existing caller character first
 
-EndChatSession      lda       InputPath,u ; close the caller-side input path used by this helper
+EndChatSession      lda       ChatInputPath,u ; select the zero-initialized input path
                     os9       I$Close   ; release the chat input path before signalling shutdown
-                    lda       ChatId,u  ; address the BBS.chat process discovered at startup
-                    ldb       #2        ; signal 2 tells BBS.chat that the sysop has disconnected
+                    lda       ChatPid,u ; address the BBS.chat process discovered at startup
+                    ldb       #S$Abort  ; signal two tells BBS.chat the sysop disconnected
                     os9       F$Send    ; wake/terminate the caller-side chat handler
                     ldx       #60       ; allow one second for BBS.chat to finish cleanly
                     os9       F$Sleep   ; avoid racing the shared module teardown
                     bra       Exit      ; report successful completion to the invoking menu
 
-NoChatProcess       leax      >NoChat,pc ; explain why Answer cannot establish a relay
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    ldb       #1        ; set b to the constant 1
-                    bra       ErrExit   ; continue execution at ErrExit
+NoChatProcess       leax      >NoChatMessage,pc ; select the no-request response
+                    ldy       #200      ; allow I$WritLn to locate its CR
+                    lda       #1        ; target standard output
+                    os9       I$WritLn  ; explain why no relay can be established
+                    ldb       #1        ; return the original not-found status
+                    bra       ExitWithStatus ; finish without scanning again
 
-Exit                clrb                ; clear b to zero and set the condition codes
-ErrExit             os9       F$Exit    ; terminate the process with status B
+Exit                clrb                ; report a normal operator-ended chat
+ExitWithStatus      os9       F$Exit    ; return status B to the invoking process
 
-                    emod      ;         emit the OS-9 module CRC and trailer
+                    emod                ; append the OS-9 module CRC placeholder and trailer
 eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+                    end                 ; finish this assembly unit

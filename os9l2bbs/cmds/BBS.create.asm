@@ -77,7 +77,7 @@ start               leax      >IndexFilename,pc ; select the index pathname
                     os9       I$Close   ; flush and release the index path
                     lbcs      Exit      ; preserve a close error as the exit status
 
-                    clrb                ; report success; OS-9 reclaims the body path at exit
+                    clrb                ; report success; os-9 reclaims the body path at exit
 Exit                os9       F$Exit    ; return status B to the invoking shell
 
                     emod                ; append the OS-9 module CRC placeholder and trailer

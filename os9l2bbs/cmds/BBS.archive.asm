@@ -76,7 +76,7 @@ MessageDay          rmb       1         ; day byte from the index record
 MessageHour         rmb       1         ; hour byte from the index record
 MessageMinute       rmb       1         ; minute byte from the index record
 MessageSecond       rmb       1         ; second byte retained but not printed
-AuthorUserId        rmb       2         ; OS-9 user ID of the author, used by BBS.delete ownership checks
+AuthorUserId        rmb       2         ; os-9 user ID of the author, used by BBS.delete ownership checks
 RecipientUserId     rmb       2         ; recipient ID, or $FFFF for all users
 ArchiveFilename     rmb       200       ; optional archive pathname entered by the operator
 AliasRecord         rmb       400       ; line buffer used while resolving recipient IDs to aliases
@@ -274,7 +274,7 @@ RewriteCurrentIndexEntry os9   I$Seek    ; return to the start of the current re
                     os9       I$Write   ; no-op with an error when archive output is disabled
                     leax      >AuthorName,u ; select the record's 20-byte author field
                     ldy       #200      ; stop at the field's embedded CR
-                    lda       <ArchivePath,u ; restore the optional archive path
+                    lda       <ArchivePath ; restore the optional path through OS-9's direct page
                     os9       I$WritLn  ; append the author's display name
                     lbcs      Exit      ; preserve the original failure behavior for path $FF
                     leax      >ToLabel,pc ; select the recipient heading
