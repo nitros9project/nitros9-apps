@@ -14,7 +14,7 @@ for operator instructions.
 | `BBS.login` | `BBS.login` | Displays `motd`, authenticates a `BBS.users` record, updates `userlog` and `BBS.userstats`, adopts the configured OS-9 user ID, runs the configured program/script, and displays `eotd`. |
 | `Monitor` | `Monitor` | Watches carrier detect and terminates the caller's process tree after a hangup. Normally started by `Tsmon`. |
 | `Menu` | `Menu <menu-file> <command-file>` | Displays a menu, validates any `>NNNNN` priority prefix, and dispatches the selected OS-9 command line. |
-| `New_user` | `New_user` | Collects the fields in `new_user_form`, writes the pending validation files, and shows `new_user_message`. It does not directly grant an account. |
+| `New_user` | `New_user <pending-user-log>` | Legacy compiled registration form. It collects name, city, state, phone, alias, and password, previews them, and appends a labeled request to the named log. The shipped `runbbs_new` uses `BBS.form` instead. |
 | `BBS.validate` | `BBS.validate` | Reviews pending user information and adds an accepted account to `BBS.users`; used from the sysop menu. |
 | `BBS.stat` | `BBS.stat` | Displays usage accumulated in `/dd/bbs/BBS.userstats`. |
 | `BBS.build` | `BBS.build <file>` | Interactive line editor used to create a text file; the same editing model is reused by posting commands. |

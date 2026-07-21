@@ -12,6 +12,8 @@
 * Annotated source and normalized comments.
 *          2026/07/21  Codex
 * Refined command annotations and normalized formatting.
+*          2026/07/21  Codex
+* Decoded the registration application and separated linked runtime support.
 **********************************************************************
 
                     nam       New_user
@@ -26,6 +28,17 @@ atrv                set       ReEnt+rev ; set assembly-time module attribute atr
 rev                 set       $01       ; set assembly-time module attribute rev
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
+
+* the compiler keeps its global/runtime state relative to Y.  The registration
+* application owns six consecutive 80-byte input fields at the end of that area.
+RuntimeInputStream  equ       $001B     ; standard-input stream descriptor
+RuntimeErrorCode    equ       $01AD     ; last library or OS-9 error code
+ApplicantName       equ       $01AF     ; caller's real name
+ApplicantCity       equ       $01FF     ; caller's city
+ApplicantState      equ       $024F     ; caller's state
+ApplicantPhone      equ       $029F     ; caller's telephone number
+ApplicantAlias      equ       $02EF     ; requested BBS alias
+ApplicantPassword   equ       $033F     ; requested BBS password
 
 WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
 WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
@@ -143,16 +156,16 @@ Branch_008          leax      >WorkWord_006,u ; form the address >WorkWord_006,u
                     pshs      d         ; save d on the stack
                     leay      WorkByte_001,u ; form the address WorkByte_001,u in y
                     bsr       Routine_003 ; call subroutine Routine_003
-                    lbsr      Routine_004 ; call subroutine Routine_004
+                    lbsr      RegistrationMain ; call subroutine RegistrationMain
                     clr       ,-s       ; clear ,-s to zero and set the condition codes
                     clr       ,-s       ; clear ,-s to zero and set the condition codes
-                    lbsr      Routine_005 ; call subroutine Routine_005
+                    lbsr      ExitProcess ; call subroutine ExitProcess
 Routine_003         leax      >$03AB,y  ; form the address >$03AB,y in x
                     stx       >$01A9,y  ; store x at >$01A9,y
                     sts       >$019D,y  ; store s at >$019D,y
                     sts       >$01AB,y  ; store s at >$01AB,y
                     ldd       #-126     ; set d to the constant -126
-Routine_006         leax      d,s       ; form the address d,s in x
+CheckStackSpace     leax      d,s       ; form the address d,s in x
                     cmpx      >$01AB,y  ; compare x with >$01AB,y and set the condition codes
                     bcc       Branch_018 ; branch when carry is clear; target Branch_018
                     cmpx      >$01A9,y  ; compare x with >$01A9,y and set the condition codes
@@ -194,315 +207,319 @@ Branch_020          ldd       ,y++      ; load d from ,y++
                     bne       Branch_020 ; branch when the values differ or the result is nonzero; target Branch_020
                     leas      $04,s     ; adjust the system stack pointer
                     rts                 ; return to the caller
-Routine_004         pshs      u         ; save u on the stack
-                    ldd       #-77      ; set d to the constant -77
-                    lbsr      Routine_006 ; call subroutine Routine_006
-                    leas      -$03,s    ; adjust the system stack pointer
-                    leax      >Data_002,pc ; form the address >Data_002,pc in x
-                    pshs      x         ; save x on the stack
-                    ldx       $0B,s     ; load x from the current stack frame at $0B,s
-                    ldd       $02,x     ; load d from $02,x
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_008 ; call subroutine Routine_008
-                    leas      $04,s     ; adjust the system stack pointer
-                    std       $01,s     ; store d in the current stack frame at $01,s
-                    bne       Branch_021 ; branch when the values differ or the result is nonzero; target Branch_021
-                    ldd       >$01AD,y  ; load d from >$01AD,y
-                    pshs      d         ; save d on the stack
-                    leax      >Text_002,pc ; form the address >Text_002,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_009 ; call subroutine Routine_009
-                    leas      $04,s     ; adjust the system stack pointer
-Branch_021          ldd       #78       ; set d to the constant 78
-                    lbra      Branch_022 ; continue execution at Branch_022
-Branch_023          leax      >Data_003,pc ; form the address >Data_003,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >Text_003,pc ; form the address >Text_003,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >Text_004,pc ; form the address >Text_004,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >Text_005,pc ; form the address >Text_005,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >Text_006,pc ; form the address >Text_006,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >$01AF,y  ; form the address >$01AF,y in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_011 ; call subroutine Routine_011
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >Text_007,pc ; form the address >Text_007,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >$01FF,y  ; form the address >$01FF,y in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_011 ; call subroutine Routine_011
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >Text_008,pc ; form the address >Text_008,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >$024F,y  ; form the address >$024F,y in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_011 ; call subroutine Routine_011
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >Text_009,pc ; form the address >Text_009,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >$029F,y  ; form the address >$029F,y in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_011 ; call subroutine Routine_011
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >Text_010,pc ; form the address >Text_010,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >$02EF,y  ; form the address >$02EF,y in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_011 ; call subroutine Routine_011
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >Text_011,pc ; form the address >Text_011,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >$033F,y  ; form the address >$033F,y in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_011 ; call subroutine Routine_011
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >$02EF,y  ; form the address >$02EF,y in x
-                    pshs      x         ; save x on the stack
-                    leax      >$01AF,y  ; form the address >$01AF,y in x
-                    pshs      x         ; save x on the stack
-                    leax      >Data_004,pc ; form the address >Data_004,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $06,s     ; adjust the system stack pointer
-                    leax      >$024F,y  ; form the address >$024F,y in x
-                    pshs      x         ; save x on the stack
-                    leax      >$01FF,y  ; form the address >$01FF,y in x
-                    pshs      x         ; save x on the stack
-                    leax      >Text_012,pc ; form the address >Text_012,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $06,s     ; adjust the system stack pointer
-                    leax      >$029F,y  ; form the address >$029F,y in x
-                    pshs      x         ; save x on the stack
-                    leax      >Text_013,pc ; form the address >Text_013,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $04,s     ; adjust the system stack pointer
-                    leax      >$033F,y  ; form the address >$033F,y in x
-                    pshs      x         ; save x on the stack
-                    leax      >Text_014,pc ; form the address >Text_014,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $04,s     ; adjust the system stack pointer
-                    leax      >Text_015,pc ; form the address >Text_015,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >$001B,y  ; form the address >$001B,y in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_012 ; call subroutine Routine_012
-                    leas      $02,s     ; adjust the system stack pointer
-                    ldd       #1        ; set d to the constant 1
-                    pshs      d         ; save d on the stack
-                    leax      $02,s     ; form the address $02,s in x
-                    pshs      x         ; save x on the stack
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_013 ; call subroutine Routine_013
-                    leas      $06,s     ; adjust the system stack pointer
-                    ldb       ,s        ; load b from the current stack frame at ,s
-                    clra                ; clear a to zero and set the condition codes
-                    andb      #223      ; mask b using #223
-Branch_022          stb       ,s        ; store b in the current stack frame at ,s
-                    ldb       ,s        ; load b from the current stack frame at ,s
-                    cmpb      #89       ; compare b with #89 and set the condition codes
-                    lbne      Branch_023 ; branch when the values differ or the result is nonzero; target Branch_023
-                    leax      >Data_005,pc ; form the address >Data_005,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $02,s     ; adjust the system stack pointer
-                    leax      >Text_016,pc ; form the address >Text_016,pc in x
-                    pshs      x         ; save x on the stack
-                    ldd       $03,s     ; load d from the current stack frame at $03,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_014 ; call subroutine Routine_014
-                    leas      $04,s     ; adjust the system stack pointer
-                    leax      >Text_017,pc ; form the address >Text_017,pc in x
-                    pshs      x         ; save x on the stack
-                    ldd       $03,s     ; load d from the current stack frame at $03,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_014 ; call subroutine Routine_014
-                    leas      $04,s     ; adjust the system stack pointer
-                    leax      >$01AF,y  ; form the address >$01AF,y in x
-                    pshs      x         ; save x on the stack
-                    leax      >Text_018,pc ; form the address >Text_018,pc in x
-                    pshs      x         ; save x on the stack
-                    ldd       $05,s     ; load d from the current stack frame at $05,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_014 ; call subroutine Routine_014
-                    leas      $06,s     ; adjust the system stack pointer
-                    leax      >$01FF,y  ; form the address >$01FF,y in x
-                    pshs      x         ; save x on the stack
-                    leax      >Text_019,pc ; form the address >Text_019,pc in x
-                    pshs      x         ; save x on the stack
-                    ldd       $05,s     ; load d from the current stack frame at $05,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_014 ; call subroutine Routine_014
-                    leas      $06,s     ; adjust the system stack pointer
-                    leax      >$024F,y  ; form the address >$024F,y in x
-                    pshs      x         ; save x on the stack
-                    leax      >Text_020,pc ; form the address >Text_020,pc in x
-                    pshs      x         ; save x on the stack
-                    ldd       $05,s     ; load d from the current stack frame at $05,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_014 ; call subroutine Routine_014
-                    leas      $06,s     ; adjust the system stack pointer
-                    leax      >$029F,y  ; form the address >$029F,y in x
-                    pshs      x         ; save x on the stack
-                    leax      >Text_021,pc ; form the address >Text_021,pc in x
-                    pshs      x         ; save x on the stack
-                    ldd       $05,s     ; load d from the current stack frame at $05,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_014 ; call subroutine Routine_014
-                    leas      $06,s     ; adjust the system stack pointer
-                    leax      >$02EF,y  ; form the address >$02EF,y in x
-                    pshs      x         ; save x on the stack
-                    leax      >Text_022,pc ; form the address >Text_022,pc in x
-                    pshs      x         ; save x on the stack
-                    ldd       $05,s     ; load d from the current stack frame at $05,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_014 ; call subroutine Routine_014
-                    leas      $06,s     ; adjust the system stack pointer
-                    leax      >$033F,y  ; form the address >$033F,y in x
-                    pshs      x         ; save x on the stack
-                    leax      >Text_023,pc ; form the address >Text_023,pc in x
-                    pshs      x         ; save x on the stack
-                    ldd       $05,s     ; load d from the current stack frame at $05,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_014 ; call subroutine Routine_014
-                    leas      $06,s     ; adjust the system stack pointer
-                    leax      >Data_006,pc ; form the address >Data_006,pc in x
-                    pshs      x         ; save x on the stack
-                    ldd       $03,s     ; load d from the current stack frame at $03,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_014 ; call subroutine Routine_014
-                    leas      $04,s     ; adjust the system stack pointer
-                    leax      >Text_024,pc ; form the address >Text_024,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $02,s     ; adjust the system stack pointer
-                    leas      $03,s     ; adjust the system stack pointer
-                    puls      pc,u      ; restore pc,u and return to the caller
-Routine_009         pshs      u         ; save u on the stack
-                    ldd       #-72      ; set d to the constant -72
-                    lbsr      Routine_006 ; call subroutine Routine_006
-                    ldd       $04,s     ; load d from the current stack frame at $04,s
-                    pshs      d         ; save d on the stack
-                    leax      >Data_007,pc ; form the address >Data_007,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $04,s     ; adjust the system stack pointer
-                    ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_005 ; call subroutine Routine_005
-                    leas      $02,s     ; adjust the system stack pointer
-                    puls      pc,u      ; restore pc,u and return to the caller
-Data_002            fcb       $61       ; store byte data
-                    fcb       $00       ; store byte data
-Text_002            fcc       "Cannot open file" ; store literal character data
-                    fcb       $00       ; store byte data
-Data_003            fcb       $0D       ; store byte data
-                    fcc       "To be validated on this system you must enter the following information" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_003            fcc       "Please enter the information as correctly as possible" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_004            fcc       "any false information will result in your not being validated" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_005            fcc       "-------------------------------------------------------------------------" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_006            fcc       "Enter your name:==============>" ; store literal character data
-                    fcb       $00       ; store byte data
-Text_007            fcc       "Enter your city:==============>" ; store literal character data
-                    fcb       $00       ; store byte data
-Text_008            fcc       "Enter your state:=============>" ; store literal character data
-                    fcb       $00       ; store byte data
-Text_009            fcc       "Enter your phone #:===========>" ; store literal character data
-                    fcb       $00       ; store byte data
-Text_010            fcc       "Enter your alias (if any):====>" ; store literal character data
-                    fcb       $00       ; store byte data
-Text_011            fcc       "Enter your desired password:==>" ; store literal character data
-                    fcb       $00       ; store byte data
-Data_004            fcb       $0D       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcc       "You are %s alias %s" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_012            fcc       "Calling from %s, %s" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_013            fcc       "Phone #%s" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_014            fcc       "Password:%s" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_015            fcc       "Is this information correct?" ; store literal character data
-                    fcb       $00       ; store byte data
-Data_005            fcb       $0D       ; store byte data
-                    fcc       "One moment please..." ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_016            fcc       "New user log" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_017            fcc       "-----------------------------------------------------" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_018            fcc       "User name       :%s" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_019            fcc       "City            :%s" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_020            fcc       "State           :%s" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_021            fcc       "Phone #         :%s" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_022            fcc       "Desired alias   :%s" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_023            fcc       "Desired password:%s" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Data_006            fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_024            fcc       "Thank you, the sysop will validate you as soon as possible." ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Data_007            fcb       $25       ; store byte data
-                    fcb       $73       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
+RegistrationMain
+stk_confirmation    equ       0         ; normalized Y/N response after local allocation
+stk_log_stream      equ       1         ; append stream pointer after local allocation
+stk_saved_u         equ       3         ; caller's U after local allocation
+                    pshs      u         ; preserve the caller frame while the registration program runs
+                    ldd       #-77      ; require enough stack headroom for the application frame
+                    lbsr      CheckStackSpace ; reject a stack that cannot hold the form workflow
+                    leas      -$03,s    ; allocate confirmation byte and output-stream pointer
+                    leax      >AppendMode,pc ; select append mode so prior requests remain intact
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    ldx       $0B,s     ; recover the compiler argv vector
+                    ldd       $02,x     ; select argv[1], the pending-user log pathname
+                    pshs      d         ; pass the current value as a word-sized argument
+                    lbsr      OpenFileStream ; open the caller-supplied log for append
+                    leas      $04,s     ; discard two word-sized library arguments
+                    std       $01,s     ; retain the stream pointer in the local frame
+                    bne       RegistrationFileReady ; continue only with a valid stream
+                    ldd       >RuntimeErrorCode,y ; recover the library error associated with the failed open
+                    pshs      d         ; pass the current value as a word-sized argument
+                    leax      >CannotOpenMessage,pc ; select the human-readable failure reason
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      AbortCannotOpen ; print the diagnostic and terminate with the saved error
+                    leas      $04,s     ; discard two word-sized library arguments
+RegistrationFileReady ldd       #78       ; seed a non-Y answer so the form runs at least once
+                    lbra      NormalizeConfirmation ; enter the common confirmation test
+CollectRegistration leax      >RegistrationIntro,pc ; select the registration requirements heading
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >AccuracyPrompt,pc ; select the request for accurate caller information
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >FalseInfoWarning,pc ; select the validation warning shown before the form
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >FormDivider,pc ; select the visual separator before the entry fields
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >NamePrompt,pc ; select the real-name prompt
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >ApplicantName,y ; select the real-name field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      ReadInputLine ; collect a NUL-terminated response in the selected field
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >CityPrompt,pc ; select the city prompt
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >ApplicantCity,y ; select the city field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      ReadInputLine ; collect a NUL-terminated response in the selected field
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >StatePrompt,pc ; select the state prompt
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >ApplicantState,y ; select the state field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      ReadInputLine ; collect a NUL-terminated response in the selected field
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >PhonePrompt,pc ; select the telephone prompt
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >ApplicantPhone,y ; select the telephone field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      ReadInputLine ; collect a NUL-terminated response in the selected field
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >AliasPrompt,pc ; select the requested-alias prompt
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >ApplicantAlias,y ; select the requested-alias field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      ReadInputLine ; collect a NUL-terminated response in the selected field
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >PasswordPrompt,pc ; select the requested-password prompt
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >ApplicantPassword,y ; select the requested-password field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      ReadInputLine ; collect a NUL-terminated response in the selected field
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >ApplicantAlias,y ; select the requested-alias field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    leax      >ApplicantName,y ; select the real-name field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    leax      >RegistrationSummaryFormat,pc ; select the name and alias preview format
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $06,s     ; discard three word-sized library arguments
+                    leax      >ApplicantState,y ; select the state field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    leax      >ApplicantCity,y ; select the city field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    leax      >LocationSummaryFormat,pc ; select the city and state preview format
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $06,s     ; discard three word-sized library arguments
+                    leax      >ApplicantPhone,y ; select the telephone field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    leax      >PhoneSummaryFormat,pc ; select the telephone preview format
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $04,s     ; discard two word-sized library arguments
+                    leax      >ApplicantPassword,y ; select the requested-password field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    leax      >PasswordSummaryFormat,pc ; select the password preview format
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $04,s     ; discard two word-sized library arguments
+                    leax      >ConfirmationPrompt,pc ; select the confirmation question
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >RuntimeInputStream,y ; select the standard-input stream
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      FlushStream ; flush pending terminal output before reading one byte
+                    leas      $02,s     ; discard one word-sized library argument
+                    ldd       #1        ; request exactly one confirmation character
+                    pshs      d         ; pass the current value as a word-sized argument
+                    leax      $02,s     ; address the local confirmation byte
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    clra                ; form standard-input path zero for the raw read
+                    clrb                ; form standard-input path zero for the raw read
+                    pshs      d         ; pass the current value as a word-sized argument
+                    lbsr      ReadBytes ; read the single confirmation byte without waiting for a line
+                    leas      $06,s     ; discard three word-sized library arguments
+                    ldb       ,s        ; recover the confirmation character
+                    clra                ; form standard-input path zero for the raw read
+                    andb      #223      ; fold a lowercase response to uppercase
+NormalizeConfirmation stb       ,s        ; store the normalized confirmation in the local frame
+                    ldb       ,s        ; recover the confirmation character
+                    cmpb      #89       ; accept only an explicit Y
+                    lbne      CollectRegistration ; repeat the entire form after any other response
+                    leax      >SavingMessage,pc ; select the saving-status message
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $02,s     ; discard one word-sized library argument
+                    leax      >LogHeading,pc ; select the pending-user record heading
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    ldd       $03,s     ; recover the log stream beneath temporary arguments
+                    pshs      d         ; pass the current value as a word-sized argument
+                    lbsr      WriteFormattedStream ; append the selected labeled line to the pending-user log
+                    leas      $04,s     ; discard two word-sized library arguments
+                    leax      >LogDivider,pc ; select the pending-user record separator
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    ldd       $03,s     ; recover the log stream beneath temporary arguments
+                    pshs      d         ; pass the current value as a word-sized argument
+                    lbsr      WriteFormattedStream ; append the selected labeled line to the pending-user log
+                    leas      $04,s     ; discard two word-sized library arguments
+                    leax      >ApplicantName,y ; select the real-name field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    leax      >LogNameFormat,pc ; select the real-name record format
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    ldd       $05,s     ; recover the log stream beneath temporary arguments
+                    pshs      d         ; pass the current value as a word-sized argument
+                    lbsr      WriteFormattedStream ; append the selected labeled line to the pending-user log
+                    leas      $06,s     ; discard three word-sized library arguments
+                    leax      >ApplicantCity,y ; select the city field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    leax      >LogCityFormat,pc ; select the city record format
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    ldd       $05,s     ; recover the log stream beneath temporary arguments
+                    pshs      d         ; pass the current value as a word-sized argument
+                    lbsr      WriteFormattedStream ; append the selected labeled line to the pending-user log
+                    leas      $06,s     ; discard three word-sized library arguments
+                    leax      >ApplicantState,y ; select the state field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    leax      >LogStateFormat,pc ; select the state record format
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    ldd       $05,s     ; recover the log stream beneath temporary arguments
+                    pshs      d         ; pass the current value as a word-sized argument
+                    lbsr      WriteFormattedStream ; append the selected labeled line to the pending-user log
+                    leas      $06,s     ; discard three word-sized library arguments
+                    leax      >ApplicantPhone,y ; select the telephone field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    leax      >LogPhoneFormat,pc ; select the telephone record format
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    ldd       $05,s     ; recover the log stream beneath temporary arguments
+                    pshs      d         ; pass the current value as a word-sized argument
+                    lbsr      WriteFormattedStream ; append the selected labeled line to the pending-user log
+                    leas      $06,s     ; discard three word-sized library arguments
+                    leax      >ApplicantAlias,y ; select the requested-alias field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    leax      >LogAliasFormat,pc ; select the alias record format
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    ldd       $05,s     ; recover the log stream beneath temporary arguments
+                    pshs      d         ; pass the current value as a word-sized argument
+                    lbsr      WriteFormattedStream ; append the selected labeled line to the pending-user log
+                    leas      $06,s     ; discard three word-sized library arguments
+                    leax      >ApplicantPassword,y ; select the requested-password field
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    leax      >LogPasswordFormat,pc ; select the password record format
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    ldd       $05,s     ; recover the log stream beneath temporary arguments
+                    pshs      d         ; pass the current value as a word-sized argument
+                    lbsr      WriteFormattedStream ; append the selected labeled line to the pending-user log
+                    leas      $06,s     ; discard three word-sized library arguments
+                    leax      >LogBlankLine,pc ; select the record-ending blank line
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    ldd       $03,s     ; recover the log stream beneath temporary arguments
+                    pshs      d         ; pass the current value as a word-sized argument
+                    lbsr      WriteFormattedStream ; append the selected labeled line to the pending-user log
+                    leas      $04,s     ; discard two word-sized library arguments
+                    leax      >ThankYouMessage,pc ; select the completion notice
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $02,s     ; discard one word-sized library argument
+                    leas      $03,s     ; release the application locals
+                    puls      pc,u      ; restore the caller frame and return
+AbortCannotOpen     pshs      u         ; preserve the caller frame for fatal error reporting
+                    ldd       #-72      ; require stack headroom for formatted error output
+                    lbsr      CheckStackSpace ; reject a stack that cannot hold the form workflow
+                    ldd       $04,s     ; recover the diagnostic string argument
+                    pshs      d         ; pass the current value as a word-sized argument
+                    leax      >StringLineFormat,pc ; select the single-string diagnostic format
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; render the selected prompt, message, or preview
+                    leas      $04,s     ; discard two word-sized library arguments
+                    ldd       $06,s     ; recover the saved error status
+                    pshs      d         ; pass the current value as a word-sized argument
+                    lbsr      ExitProcess ; terminate with the open failure status
+                    leas      $02,s     ; discard one word-sized library argument
+                    puls      pc,u      ; restore the caller frame and return
+AppendMode          fcb       $61       ; ascii "a" selects append mode
+                    fcb       $00       ; terminate the compiler-runtime C string
+CannotOpenMessage   fcc       "Cannot open file" ; file-open failure text
+                    fcb       $00       ; terminate the compiler-runtime C string
+RegistrationIntro   fcb       $0D       ; embed a carriage return in the formatted output
+                    fcc       "To be validated on this system you must enter the following information" ; registration introduction
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+AccuracyPrompt      fcc       "Please enter the information as correctly as possible" ; accuracy reminder
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+FalseInfoWarning    fcc       "any false information will result in your not being validated" ; validation warning
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+FormDivider         fcc       "-------------------------------------------------------------------------" ; form separator
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+NamePrompt          fcc       "Enter your name:==============>" ; real-name prompt
+                    fcb       $00       ; terminate the compiler-runtime C string
+CityPrompt          fcc       "Enter your city:==============>" ; city prompt
+                    fcb       $00       ; terminate the compiler-runtime C string
+StatePrompt         fcc       "Enter your state:=============>" ; state prompt
+                    fcb       $00       ; terminate the compiler-runtime C string
+PhonePrompt         fcc       "Enter your phone #:===========>" ; telephone prompt
+                    fcb       $00       ; terminate the compiler-runtime C string
+AliasPrompt         fcc       "Enter your alias (if any):====>" ; alias prompt
+                    fcb       $00       ; terminate the compiler-runtime C string
+PasswordPrompt      fcc       "Enter your desired password:==>" ; password prompt
+                    fcb       $00       ; terminate the compiler-runtime C string
+RegistrationSummaryFormat fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcc       "You are %s alias %s" ; name/alias preview format
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+LocationSummaryFormat fcc       "Calling from %s, %s" ; city/state preview format
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+PhoneSummaryFormat  fcc       "Phone #%s" ; telephone preview format
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+PasswordSummaryFormat fcc       "Password:%s" ; password preview format
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+ConfirmationPrompt  fcc       "Is this information correct?" ; confirmation question
+                    fcb       $00       ; terminate the compiler-runtime C string
+SavingMessage       fcb       $0D       ; embed a carriage return in the formatted output
+                    fcc       "One moment please..." ; saving-status text
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+LogHeading          fcc       "New user log" ; pending-user record heading
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+LogDivider          fcc       "-----------------------------------------------------" ; pending-user record separator
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+LogNameFormat       fcc       "User name       :%s" ; real-name log format
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+LogCityFormat       fcc       "City            :%s" ; city log format
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+LogStateFormat      fcc       "State           :%s" ; state log format
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+LogPhoneFormat      fcc       "Phone #         :%s" ; telephone log format
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+LogAliasFormat      fcc       "Desired alias   :%s" ; alias log format
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+LogPasswordFormat   fcc       "Desired password:%s" ; password log format
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+LogBlankLine        fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+ThankYouMessage     fcc       "Thank you, the sysop will validate you as soon as possible." ; registration completion text
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
+StringLineFormat    fcb       $25       ; begin the %s conversion
+                    fcb       $73       ; complete the %s conversion
+                    fcb       $0D       ; embed a carriage return in the formatted output
+                    fcb       $00       ; terminate the compiler-runtime C string
 Routine_015         pshs      u         ; save u on the stack
                     leau      >$000E,y  ; form the workspace or data address >$000E,y in u
 Branch_024          ldd       WorkWord_003,u ; load d from WorkWord_003,u
@@ -515,7 +532,7 @@ Branch_024          ldd       WorkWord_003,u ; load d from WorkWord_003,u
                     cmpx      ,s++      ; compare x with ,s++ and set the condition codes
                     bhi       Branch_024 ; branch when the unsigned value is higher; target Branch_024
                     ldd       #200      ; set d to the constant 200
-                    std       >$01AD,y  ; store d at >$01AD,y
+                    std       >RuntimeErrorCode,y ; store d at >RuntimeErrorCode,y
                     lbra      Branch_026 ; continue execution at Branch_026
                     fcb       $35       ; store byte data
                     fcb       $C0       ; store byte data
@@ -636,7 +653,7 @@ Branch_048          leas      $04,s     ; adjust the system stack pointer
                     bra       Branch_047 ; continue execution at Branch_047
 Branch_041          leas      -$04,x    ; adjust the system stack pointer
 Branch_050          ldd       #203      ; set d to the constant 203
-                    std       >$01AD,y  ; store d at >$01AD,y
+                    std       >RuntimeErrorCode,y ; store d at >RuntimeErrorCode,y
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     bra       Branch_051 ; continue execution at Branch_051
@@ -665,7 +682,7 @@ Branch_051          leas      $04,s     ; adjust the system stack pointer
                     fcb       $16       ; store byte data
                     fcb       $00       ; store byte data
                     fcc       "K" ; store literal character data
-Routine_008         pshs      u         ; save u on the stack
+OpenFileStream      pshs      u         ; save u on the stack
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     pshs      d         ; save d on the stack
                     ldd       $06,s     ; load d from the current stack frame at $06,s
@@ -722,7 +739,7 @@ Branch_054          pshs      d         ; save d on the stack
                     lbsr      Routine_016 ; call subroutine Routine_016
                     leas      $06,s     ; adjust the system stack pointer
 Branch_053          puls      pc,u      ; restore pc,u and return to the caller
-Routine_011         pshs      u,d       ; save u,d on the stack
+ReadInputLine       pshs      u,d       ; save u,d on the stack
                     ldu       $06,s     ; load u from the current stack frame at $06,s
                     bra       Branch_055 ; continue execution at Branch_055
 Branch_056          ldd       ,s        ; load d from the current stack frame at ,s
@@ -811,14 +828,14 @@ Branch_059          leas      $02,s     ; adjust the system stack pointer
                     fcb       $EC       ; store byte data
                     fcc       "h2d5" ; store literal character data
                     fcb       $C0       ; store byte data
-Routine_010         pshs      u         ; save u on the stack
-                    leax      >$001B,y  ; form the address >$001B,y in x
+PrintFormatted      pshs      u         ; save u on the stack
+                    leax      >RuntimeInputStream,y ; form the address >RuntimeInputStream,y in x
                     stx       >$038F,y  ; store x at >$038F,y
                     leax      $06,s     ; form the address $06,s in x
                     pshs      x         ; save x on the stack
                     ldd       $06,s     ; load d from the current stack frame at $06,s
                     bra       Branch_060 ; continue execution at Branch_060
-Routine_014         pshs      u         ; save u on the stack
+WriteFormattedStream pshs      u         ; save u on the stack
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     std       >$038F,y  ; store d at >$038F,y
                     leax      $08,s     ; form the address $08,s in x
@@ -1637,7 +1654,7 @@ Branch_136          ldd       WorkWord_003,u ; load d from WorkWord_003,u
                     andb      #2        ; mask b using #2
                     beq       Branch_137 ; branch when the values are equal or the result is zero; target Branch_137
                     pshs      u         ; save u on the stack
-                    bsr       Routine_012 ; call subroutine Routine_012
+                    bsr       FlushStream ; call subroutine FlushStream
                     leas      $02,s     ; adjust the system stack pointer
                     bra       Branch_138 ; continue execution at Branch_138
 Branch_137          clra                ; clear a to zero and set the condition codes
@@ -1652,7 +1669,7 @@ Branch_138          std       ,s        ; store d in the current stack frame at 
                     std       WorkWord_003,u ; store d at WorkWord_003,u
                     ldd       ,s        ; load d from the current stack frame at ,s
                     bra       Branch_134 ; continue execution at Branch_134
-Routine_012         pshs      u         ; save u on the stack
+FlushStream         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
                     beq       Branch_139 ; branch when the values are equal or the result is zero; target Branch_139
                     ldd       WorkWord_003,u ; load d from WorkWord_003,u
@@ -1912,9 +1929,9 @@ Branch_155          leax      >$000E,y  ; form the address >$000E,y in x
                     clra                ; clear a to zero and set the condition codes
                     andb      #64       ; mask b using #64
                     beq       Branch_157 ; branch when the values are equal or the result is zero; target Branch_157
-                    leax      >$001B,y  ; form the address >$001B,y in x
+                    leax      >RuntimeInputStream,y ; form the address >RuntimeInputStream,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      Routine_012 ; call subroutine Routine_012
+                    lbsr      FlushStream ; call subroutine FlushStream
                     leas      $02,s     ; adjust the system stack pointer
 Branch_157          ldd       WorkWord_003,u ; load d from WorkWord_003,u
                     clra                ; clear a to zero and set the condition codes
@@ -1932,7 +1949,7 @@ Branch_157          ldd       WorkWord_003,u ; load d from WorkWord_003,u
                     beq       Branch_159 ; branch when the values are equal or the result is zero; target Branch_159
                     leax      >Data_009,pc ; form the address >Data_009,pc in x
                     bra       Branch_160 ; continue execution at Branch_160
-Branch_159          leax      >Routine_013,pc ; form the address >Routine_013,pc in x
+Branch_159          leax      >ReadBytes,pc ; form the address >ReadBytes,pc in x
 Branch_160          tfr       x,d       ; copy the register values specified by x,d
                     tfr       d,x       ; copy the register values specified by d,x
                     jsr       ,x        ; call subroutine ,x
@@ -1944,7 +1961,7 @@ Branch_158          ldd       #1        ; set d to the constant 1
                     pshs      x         ; save x on the stack
                     ldd       WorkWord_004,u ; load d from WorkWord_004,u
                     pshs      d         ; save d on the stack
-                    lbsr      Routine_013 ; call subroutine Routine_013
+                    lbsr      ReadBytes ; call subroutine ReadBytes
 Branch_161          leas      $06,s     ; adjust the system stack pointer
                     std       ,s        ; store d in the current stack frame at ,s
                     ldd       ,s        ; load d from the current stack frame at ,s
@@ -2399,7 +2416,7 @@ Branch_191          cmpb      #218      ; compare b with #218 and set the condit
                     fcb       $1F       ; store byte data
                     fcb       $89       ; store byte data
                     fcc       "O9" ; store literal character data
-Routine_013         pshs      y         ; save y on the stack
+ReadBytes           pshs      y         ; save y on the stack
                     ldx       $06,s     ; load x from the current stack frame at $06,s
                     lda       $05,s     ; load a from the current stack frame at $05,s
                     ldy       $08,s     ; load y from the current stack frame at $08,s
@@ -2459,7 +2476,7 @@ Branch_197          cmpd      #1        ; compare d with #1 and set the conditio
                     beq       Branch_200 ; branch when the values are equal or the result is zero; target Branch_200
                     ldb       #247      ; set b to the constant 247
 Branch_201          clra                ; clear a to zero and set the condition codes
-                    std       >$01AD,y  ; store d at >$01AD,y
+                    std       >RuntimeErrorCode,y ; store d at >RuntimeErrorCode,y
                     ldd       #-1       ; set d to the constant -1
                     leax      >$01A1,y  ; form the address >$01A1,y in x
                     std       ,x        ; store d at ,x
@@ -2590,14 +2607,14 @@ Branch_204          ldd       >$01A9,y  ; load d from >$01A9,y
 Branch_202          ldd       #-1       ; set d to the constant -1
                     rts                 ; return to the caller
 Branch_188          clra                ; clear a to zero and set the condition codes
-                    std       >$01AD,y  ; store d at >$01AD,y
+                    std       >RuntimeErrorCode,y ; store d at >RuntimeErrorCode,y
                     ldd       #-1       ; set d to the constant -1
                     rts                 ; return to the caller
 Branch_190          bcs       Branch_188 ; branch when carry reports an error or unsigned underflow; target Branch_188
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     rts                 ; return to the caller
-Routine_005         lbsr      Code_001  ; call subroutine Code_001
+ExitProcess         lbsr      Code_001  ; call subroutine Code_001
                     lbsr      Routine_034 ; call subroutine Routine_034
 Routine_007         ldd       $02,s     ; load d from the current stack frame at $02,s
                     os9       F$Exit    ; terminate the process with status B
@@ -2914,6 +2931,6 @@ Data_001            fcb       $00       ; store byte data
                     fcc       "New_user" ; store literal character data
                     fcb       $00       ; store byte data
 
-                    emod      ;         emit the OS-9 module CRC and trailer
+                    emod                ; emit the OS-9 module CRC and trailer
 eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+                    end                 ; end the assembly source

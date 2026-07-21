@@ -80,6 +80,14 @@ is copied into both records. The proposed authentication line is displayed for
 confirmation, and neither record is appended until the operator answers `Y`.
 If either database is absent, only OS-9 user zero may create it.
 
+The standalone `New_user` module is a separate, compiler-generated legacy form.
+Its first argument names an append-only pending-user log. It collects six
+80-byte strings—real name, city, state, telephone number, requested alias, and
+requested password—previews them, and appends a labeled report after a `Y`
+confirmation. The installed `runbbs_new` script does not invoke this module;
+it displays `new_user_message` and runs `BBS.form New_user_form New_user_log`
+instead.
+
 `BBS.userstats` stores per-user usage statistics. BBS.login and the message,
 mail, upload, and download commands update it. `BBS.stat` scans it as a stream
 of 32-byte records keyed by OS-9 user ID. Ordinary callers see their own
