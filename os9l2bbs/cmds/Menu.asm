@@ -13,7 +13,7 @@
 *          2026/07/21  Codex
 * refined command annotations and normalized formatting.
 *          2026/07/21  Codex
-* enable echo and automatic linefeed on the menu's redirected standard input.
+* enable echo and automatic linefeed on redirected interactive input.
 **********************************************************************
 
 *
@@ -111,7 +111,7 @@ CommandRecordTable  rmb       3200      ; 40 command records of 80 bytes each
 PromptPrefix        rmb       2         ; lf/cr prefix immediately before the prompt buffer
 PromptBuffer        rmb       80        ; 80-byte prompt line from the command-definition terminator
 MenuImage           rmb       4450      ; storage for the in-memory menu text and trailing spare bytes
-TerminalOptions     rmb       32        ; terminal SS.Opt packet kept last to preserve direct-page workspace offsets
+TerminalOptions     rmb       32        ; SS.Opt packet kept last to preserve existing workspace offsets
 size                equ       .
 
 name                fcs       /menu/ ; os-9 module name followed by the original copyright payload
@@ -141,8 +141,8 @@ SessionWarningMessage fcc       "WARNING!!  You have only a few minutes left onl
 MonthLengths        fcb       31,28,31,30,31,30 ; january through june; leap years are not handled
                     fcb       31,31,30,31,30,31 ; july through december
 * preserve the startup parameter bounds while F$ID temporarily returns IDs in X and Y.
-start               pshs      u,y,x,d   ; protect the parameter pointer, limit, and data pointer
-                    lbsr      InitializeTerminalInput ; enable echo on the stdin selected by </1
+start               lbsr      InitializeTerminalInput ; configure the stdin supplied by Shellplus </1
+                    pshs      u,y,x,d   ; protect the parameter pointer, limit, and data pointer
                     os9       F$ID      ; obtain the caller's OS-9 user ID in Y
                     sty       <CallerUserId,u ; retain the ID used by time and access policy
                     puls      u,y,x,d   ; recover the untouched startup register set
@@ -588,24 +588,23 @@ ShowUsage           leax      >UsageMessage,pc ; select the two-line invocation 
 * common fatal exit: B already contains the OS-9 error status when applicable.
 ExitWithStatus      os9       F$Exit    ; return status B to the invoking process
 
-* configure the standard-input path that the shell supplied to Menu.  This is
-* especially important for `</1` on DriveWire /N paths, whose fresh path
-* descriptor otherwise has echo and automatic linefeed disabled.
+* Enable the SCF behavior required by Menu and by commands forked from it.
 InitializeTerminalInput
+                    pshs      y,x,d     ; preserve the caller's startup registers
                     leax      >TerminalOptions,u ; select the local terminal-option packet
                     clra                ; select standard input
                     clrb                ; request SS.Opt terminal options
                     os9       I$GetStt  ; copy the current path options into the packet
-                    bcs       InitializeTerminalDone ; tolerate input paths that are not SCF devices
+                    bcs       InitializeTerminalDone ; tolerate stdin paths that are not SCF devices
                     lda       #1        ; select the enabled value for both options
-                    sta       PD.EKO-PD.OPT,x ; make the typed menu selection visible
-                    sta       PD.ALF-PD.OPT,x ; add linefeed after an echoed carriage return
-                    leax      >TerminalOptions,u ; resubmit the modified option packet
+                    sta       PD.EKO-PD.OPT,x ; make typed menu selections visible
+                    sta       PD.ALF-PD.OPT,x ; advance after echoed carriage returns
+                    leax      >TerminalOptions,u ; resubmit the modified packet
                     clra                ; update standard input
                     clrb                ; select SS.Opt terminal options
                     os9       I$SetStt  ; install the interactive input settings
 InitializeTerminalDone
-                    rts                 ; continue even if stdin cannot accept terminal options
+                    puls      pc,y,x,d  ; restore the caller and continue
 
 * parse the first decimal digit run in the six-byte access prefix.
 * the reverse pass accumulates digit * place into a 16-bit result; carry is not accepted.

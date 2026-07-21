@@ -12,6 +12,8 @@
 * Annotated source and normalized comments.
 *          2026/07/21  Codex
 * Refined command annotations and normalized formatting.
+*          2026/07/21  Codex
+* Enabled echo and automatic linefeed on redirected interactive input.
 **********************************************************************
 
                     nam       BBS.build
@@ -23,7 +25,7 @@
 
 tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
 atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+rev                 set       $02       ; interactive terminal-options revision
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
@@ -44,6 +46,7 @@ WorkBuffer_002      rmb       80        ; reserve 80 byte(s) in the module works
 WorkBuffer_003      rmb       32        ; reserve 32 byte(s) in the module workspace
 WorkByte_008        rmb       1         ; reserve 1 byte(s) in the module workspace
 WorkBuffer_004      rmb       8199      ; reserve 8199 byte(s) in the module workspace
+TerminalOptions     rmb       32        ; SS.Opt packet kept last to preserve existing workspace offsets
 size                equ       .         ; define the assembly-time value for size
 
 name                fcs       /BBS.build/ ; store an OS-9 high-bit-terminated string
@@ -83,7 +86,8 @@ Data_004            fcb       $08       ; store byte data
                     fcb       $20       ; store byte data
                     fcb       $08       ; store byte data
 
-start               stx       WorkWord_002,u ; store x at WorkWord_002,u
+start               lbsr      InitializeTerminalInput ; configure the stdin supplied by Shellplus </1
+                    stx       WorkWord_002,u ; store x at WorkWord_002,u
                     lda       #2        ; set a to the constant 2
                     ldb       #27       ; set b to the constant 27
                     os9       I$Create  ; create the path at X with mode A and attributes B
@@ -546,6 +550,24 @@ Branch_039          addd      WorkWord_004,u ; add to d using WorkWord_004,u
 
 Branch_030          ldd       #-1       ; set d to the constant -1
                     puls      pc,y      ; restore pc,y and return to the caller
+
+* Enable the SCF behavior required by the interactive line editor.
+InitializeTerminalInput
+                    pshs      y,x,d     ; preserve the caller's startup registers
+                    leax      >TerminalOptions,u ; select the local terminal-option packet
+                    clra                ; select standard input
+                    clrb                ; request SS.Opt terminal options
+                    os9       I$GetStt  ; copy the current path options into the packet
+                    bcs       InitializeTerminalDone ; tolerate stdin paths that are not SCF devices
+                    lda       #1        ; select the enabled value for both options
+                    sta       PD.EKO-PD.OPT,x ; make typed editor input visible
+                    sta       PD.ALF-PD.OPT,x ; advance after echoed carriage returns
+                    leax      >TerminalOptions,u ; resubmit the modified packet
+                    clra                ; update standard input
+                    clrb                ; select SS.Opt terminal options
+                    os9       I$SetStt  ; install the interactive input settings
+InitializeTerminalDone
+                    puls      pc,y,x,d  ; restore the caller and continue
 
                     emod      ;         emit the OS-9 module CRC and trailer
 eom                 equ       *         ; define the assembly-time value for eom

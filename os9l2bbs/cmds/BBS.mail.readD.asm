@@ -12,6 +12,8 @@
 * Annotated source and normalized comments.
 *          2026/07/21  Codex
 * Refined command annotations and normalized formatting.
+*          2026/07/21  Codex
+* Enabled echo and automatic linefeed on redirected interactive input.
 **********************************************************************
 
                     nam       BBS.mail.readD
@@ -23,7 +25,7 @@
 
 tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
 atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+rev                 set       $02       ; interactive terminal-options revision
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
@@ -60,6 +62,7 @@ WorkBuffer_009      rmb       6         ; reserve 6 byte(s) in the module worksp
 WorkBuffer_010      rmb       62        ; reserve 62 byte(s) in the module workspace
 WorkByte_018        rmb       1         ; reserve 1 byte(s) in the module workspace
 WorkBuffer_011      rmb       139       ; reserve 139 byte(s) in the module workspace
+TerminalOptions     rmb       32        ; SS.Opt packet kept last to preserve existing workspace offsets
 size                equ       .         ; define the assembly-time value for size
 
 name                fcs       /BBS.mail.readD/ ; store an OS-9 high-bit-terminated string
@@ -117,7 +120,8 @@ Text_008            fcc       "Re-Read? (Y/N):" ; store literal character data
 Text_009            fcc       "BBS.mail.delete" ; store literal character data
                     fcb       $0D       ; store byte data
 
-start               os9       F$ID      ; retrieve the current process and user IDs
+start               lbsr      InitializeTerminalInput ; configure the stdin supplied by Shellplus </1
+                    os9       F$ID      ; retrieve the current process and user IDs
                     sty       WorkBuffer_002,u ; store y at WorkBuffer_002,u
                     ldy       #0        ; set y to the constant 0
                     os9       F$SUser   ; change the process user ID to Y
@@ -393,6 +397,24 @@ Branch_023          addd      WorkWord_002,u ; add to d using WorkWord_002,u
                     rts                 ; return to the caller
 Branch_011          ldd       #-1       ; set d to the constant -1
                     puls      pc,y      ; restore pc,y and return to the caller
+
+* Enable the SCF behavior required for interactive mail prompts.
+InitializeTerminalInput
+                    pshs      y,x,d     ; preserve the caller's startup registers
+                    leax      >TerminalOptions,u ; select the local terminal-option packet
+                    clra                ; select standard input
+                    clrb                ; request SS.Opt terminal options
+                    os9       I$GetStt  ; copy the current path options into the packet
+                    bcs       InitializeTerminalDone ; tolerate stdin paths that are not SCF devices
+                    lda       #1        ; select the enabled value for both options
+                    sta       PD.EKO-PD.OPT,x ; make typed responses visible
+                    sta       PD.ALF-PD.OPT,x ; advance after echoed carriage returns
+                    leax      >TerminalOptions,u ; resubmit the modified packet
+                    clra                ; update standard input
+                    clrb                ; select SS.Opt terminal options
+                    os9       I$SetStt  ; install the interactive input settings
+InitializeTerminalDone
+                    puls      pc,y,x,d  ; restore the caller and continue
 
                     emod      ;         emit the OS-9 module CRC and trailer
 eom                 equ       *         ; define the assembly-time value for eom

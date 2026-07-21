@@ -12,6 +12,8 @@
 * annotated source and normalized comments.
 *          2026/07/21  Codex
 * refined command annotations and normalized formatting.
+*          2026/07/21  Codex
+* enabled echo and automatic linefeed on redirected interactive input.
 **********************************************************************
 
                     nam       BBS.Form
@@ -23,7 +25,7 @@
 
 tylg                set       Prgrm+Objct ; executable object module
 atrv                set       ReEnt+rev ; reentrant module with revision encoded below
-rev                 set       $01       ; original module revision
+rev                 set       $02       ; interactive terminal-options revision
 
                     mod       eom,name,tylg,atrv,start,size ; declare the OS-9 module header and entry point
 
@@ -32,9 +34,10 @@ FormPath            rmb       1         ; sequential input path for the form def
 ConfirmationKey     rmb       1         ; one-byte answer to the final correctness question
 FormArgument        rmb       2         ; start of the first command-line pathname
 AnswerCursor        rmb       2         ; next free byte in the assembled prompt/answer record
-ReservedFormWorkspace rmb     400       ; retained gap in the original workspace layout
+ReservedFormWorkspace rmb       400       ; retained gap in the original workspace layout
 AnswersStart        rmb       1         ; first byte of the 7,780-byte response buffer
 AnswerBufferTail    rmb       7779      ; remainder of the response buffer
+TerminalOptions     rmb       32        ; SS.Opt packet kept last to preserve existing workspace offsets
 size                equ       .         ; total per-process workspace size
 
 name                fcs       /BBS.Form/ ; os-9 module name
@@ -44,7 +47,8 @@ ConfirmationPrompt  fcc       "Is all information correct?" ; final review quest
 PromptNewline       fcb       C$LF,C$CR ; move below the one-byte confirmation response
 
 * split the two pathnames in place. X lands on the output pathname after the space.
-start               stx       FormArgument,u ; retain the form-definition pathname
+start               lbsr      InitializeTerminalInput ; configure the stdin supplied by Shellplus </1
+                    stx       FormArgument,u ; retain the form-definition pathname
 FindOutputArgument  lda       ,x+       ; scan the first pathname for its separator
                     cmpa      #C$SPAC   ; recognize the start of argument two
                     bne       FindOutputArgument ; continue through the form pathname
@@ -67,7 +71,7 @@ CreateOutputFile    ldb       #27       ; preserve the original output attribute
                     lbcs      ExitWithStatus ; return creation errors unchanged
                     sta       OutputPath,u ; retain the new results path
 
-OpenFormDefinition ldx       FormArgument,u ; recover the now CR-terminated form pathname
+OpenFormDefinition  ldx       FormArgument,u ; recover the now CR-terminated form pathname
                     lda       #READ.    ; definitions are never modified
                     os9       I$Open    ; open the prompt stream
                     lbcs      ExitWithStatus ; return definition-file errors unchanged
@@ -127,7 +131,7 @@ ConfirmAnswers      leax      >ConfirmationPrompt,pc ; ask whether the assembled
 
 * write exactly the bytes accumulated between AnswersStart and AnswerCursor, then
 * append a visual separator so multiple submissions remain readable.
-AppendCompletedRecord leax    >AnswersStart,u ; select the completed response record
+AppendCompletedRecord leax      >AnswersStart,u ; select the completed response record
                     pshs      x         ; retain its start while calculating its length
                     ldd       AnswerCursor,u ; recover the exclusive end address
                     subd      ,s        ; derive the accumulated byte count
@@ -141,6 +145,24 @@ AppendCompletedRecord leax    >AnswersStart,u ; select the completed response re
                     clrb                ; report successful collection
 ExitWithStatus      os9       F$Exit    ; return status B to the invoking process
 
-                    emod                ; append the OS-9 module CRC placeholder and trailer
+* Enable the SCF behavior required for form answers and confirmation input.
+InitializeTerminalInput
+                    pshs      y,x,d     ; preserve the caller's startup registers
+                    leax      >TerminalOptions,u ; select the local terminal-option packet
+                    clra                ; select standard input
+                    clrb                ; request SS.Opt terminal options
+                    os9       I$GetStt  ; copy the current path options into the packet
+                    bcs       InitializeTerminalDone ; tolerate stdin paths that are not SCF devices
+                    lda       #1        ; select the enabled value for both options
+                    sta       PD.EKO-PD.OPT,x ; make typed form responses visible
+                    sta       PD.ALF-PD.OPT,x ; advance after echoed carriage returns
+                    leax      >TerminalOptions,u ; resubmit the modified packet
+                    clra                ; update standard input
+                    clrb                ; select SS.Opt terminal options
+                    os9       I$SetStt  ; install the interactive input settings
+InitializeTerminalDone
+                    puls      pc,y,x,d  ; restore the caller and continue
+
+                    emod      ;         append the OS-9 module CRC placeholder and trailer
 eom                 equ       *         ; mark the module's end for the header
-                    end                 ; finish this assembly unit
+                    end       ;         finish this assembly unit
