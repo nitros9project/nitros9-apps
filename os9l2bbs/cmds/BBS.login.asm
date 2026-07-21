@@ -1,5 +1,5 @@
 **********************************************************************
-* Login - OS-9 Level 2 BBS command
+* BBS.login - OS-9 Level 2 BBS command
 *
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment
@@ -8,7 +8,7 @@
 * Annotated source and normalized comments.
 **********************************************************************
 
-                    nam       Login
+                    nam       BBS.login
                     ttl       program module
 
                   IFP1
@@ -70,7 +70,7 @@ U0389               rmb       1         ; reserve 1 byte(s) in the module worksp
 U038A               rmb       599       ; reserve 599 byte(s) in the module workspace
 size                equ       .         ; define the assembly-time value for size
 
-name                fcs       /Login/ ; store an OS-9 high-bit-terminated string
+name                fcs       /BBS.login/ ; store an OS-9 high-bit-terminated string
                     fcc       "Copyright (C) 1988By Keith AlphonsoLicenced to Alpha Software TechnologiesAll rights reserved" ; store literal character data
                     fcb       $EC       ; store byte data
                     fcb       $E6       ; store byte data

@@ -48,7 +48,7 @@ name                fcs       /T1mon/ ; store an OS-9 high-bit-terminated string
                     fcb       $EF       ; store byte data
                     fcb       $F4       ; store byte data
                     fcb       $F0       ; store byte data
-L007D               fcc       "Login" ; store literal character data
+L007D               fcc       "BBS.login" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcc       "Monitor" ; store literal character data
                     fcb       $0D       ; store byte data

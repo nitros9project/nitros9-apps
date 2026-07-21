@@ -83,7 +83,8 @@ MenuImageEnd        rmb       2         ; address immediately beyond the loaded 
 PromptLength        rmb       2         ; length of the prompt line read after the slash terminator
 CallerUserId        rmb       2         ; OS-9 user ID returned in Y by F$ID
 MenuBytesRemaining  rmb       2         ; number of loaded menu bytes not yet written
-MenuLoadScratch     rmb       2         ; spare word adjacent to the menu byte count
+UnlimitedSession    rmb       1         ; nonzero when menu prompts must bypass deadline enforcement
+MenuLoadScratch     rmb       1         ; spare byte adjacent to the menu byte count
 UserStatsRecord     rmb       4         ; 32-byte BBS.userstats record begins here
 SessionYear         rmb       1         ; deadline year while the user record is normalized
 SessionMonth        rmb       1         ; deadline month while the user record is normalized
@@ -164,6 +165,8 @@ start               pshs      u,y,x,d   ; preserve the startup parameter and dat
                     os9       F$ID      ; obtain the current process and OS-9 user IDs
                     sty       <CallerUserId,u ; save Y as OS-9 user ID returned in Y by F$ID
                     puls      u,y,x,d   ; restore u,y,x,d
+                    lda       #1        ; default to unlimited if user statistics are absent or unreadable
+                    sta       <UnlimitedSession,u ; enable the explicit deadline bypass until a limit is found
                     ldd       #2573     ; seed the prompt prefix with LF followed by CR ($0A0D)
                     std       >PromptPrefix,u ; save D as LF/CR prefix immediately before the prompt buffer
                     sty       ArgumentEnd,u ; retain the parameter-block end address for bounds checks
@@ -207,7 +210,8 @@ CloseUserStats      lda       UserStatsPath,u ; a = path number for the open BBS
 * Carry overflow through hour/day/month/year and copy the normalized deadline aside.
 CalculateDeadline   ldd       <SessionAllowance,u ; d = user-record tail containing the session-minute allowance
                     cmpd      #0        ; a zero-minute allowance denotes an unrestricted session
-                    lbeq      SetUnlimitedDeadline ; convert a zero allowance into the unlimited-session sentinel
+                    lbeq      ReloadMenuConfig ; retain the explicit unlimited-session state
+                    clr       <UnlimitedSession,u ; enforce the nonzero allowance as a real deadline
                     ldb       <SessionMinute,u ; b = user-record tail; first bytes hold deadline minute/second
                     clra                ; zero the deadline calculation accumulator/state before reuse
                     addd      <SessionAllowance,u ; add user-record tail containing the session-minute allowance while computing deadline calculation
@@ -227,20 +231,17 @@ CarryDeadlineHour   subd      #60       ; retain the minute remainder after carr
                     decb                ; convert the one-based month to a zero-based table index
                     leax      b,x       ; select that month's maximum day
                     cmpa      ,x        ; compare the incremented day with this month's length
-                    bcs       StoreDeadlineDay ; a day below the month limit completes this carry
+                    bls       StoreDeadlineDay ; the month's final valid day does not carry into the next month
                     lda       #1        ; wrap the day to the first of the next month
                     sta       <SessionDay,u ; save A as deadline day while the user record is normalized
                     lda       <SessionMonth,u ; a = deadline month while the user record is normalized
                     inca                ; carry the date into the following month
                     cmpa      #12       ; carry a month beyond December into the next year
-                    blt       StoreDeadlineMonth ; when the signed value is less store the normalized month
+                    bls       StoreDeadlineMonth ; december remains a valid month rather than wrapping early
                     lda       #1        ; wrap the month to January
                     sta       <SessionMonth,u ; save A as deadline month while the user record is normalized
                     lda       <SessionYear,u ; a = deadline year while the user record is normalized
                     inca                ; carry December into the following year
-                    cmpa      #100      ; os-9 stores the year modulo 100
-                    bcs       StoreDeadlineYear ; a two-digit year below 100 needs no wrap
-                    clra                ; zero the deadline calculation accumulator/state before reuse
 StoreDeadlineYear   sta       <SessionYear,u ; save A as deadline year while the user record is normalized
                     bra       ContinueMinuteCarry ; unconditionally finish this time-field carry
 StoreDeadlineMonth  sta       <SessionMonth,u ; save A as deadline month while the user record is normalized
@@ -260,8 +261,6 @@ CopyDeadline        ldb       ,x+       ; b = the next source byte, advancing X
                     deca                ; count down the six deadline bytes
                     bne       CopyDeadline ; while the compared values differ copy the six-byte deadline
                     bra       ReloadMenuConfig ; unconditionally reload the selected menu
-SetUnlimitedDeadline lda       #101      ; place the unrestricted deadline beyond every valid two-digit year
-                    sta       <DeadlineDate,u ; make all future clock comparisons treat the session as unexpired
 * Load or reload the command-definition file and reset all three compiled-table cursors.
 * Submenu selection returns here after replacing both filenames.
 ReloadMenuConfig    leax      >SelectionKeyTable,u ; point X at 40-byte table of uppercase selection keys
@@ -412,9 +411,12 @@ WarnSessionTime     leax      >SessionWarningMessage,pc ; point X at message emi
                     lda       #1        ; write the warning to standard output
                     os9       I$WritLn  ; write one CR-terminated line from X
                     rts                 ; return after completing warning handling
-* Refresh wall-clock time and compare it lexicographically with the six-byte session deadline.
+* Unlimited sessions bypass wall-clock checks entirely.  Limited sessions compare
+* the current clock lexicographically with the six-byte session deadline.
 * Only hour/minute/second differences need the five-minute warning calculation.
-CheckSessionTime    leax      <CurrentDate,u ; point X at current date from F$Time: year, month, day
+CheckSessionTime    tst       <UnlimitedSession,u ; determine whether this caller has a finite daily allowance
+                    lbne      WritePrompt ; never manufacture a deadline for an unlimited caller
+                    leax      <CurrentDate,u ; point X at current date from F$Time: year, month, day
                     os9       F$Time    ; read the six-byte system date and time
                     ldb       #6        ; compare all six date/time fields lexicographically
                     leax      <CurrentDate,u ; point X at current date from F$Time: year, month, day
@@ -467,7 +469,7 @@ BeginKeySearch      lda       ,x        ; a = the byte currently addressed by X
                     clrb                ; start with key-table index zero
 * Search at most 40 compiled key entries; a negative sentinel restarts the time/prompt cycle.
 SearchNextKey       tst       ,x        ; test for the key lookup sentinel without changing the byte
-                    bmi       CheckSessionTime ; when the sentinel/high bit is set recheck the session clock
+                    lbmi      CheckSessionTime ; when the sentinel/high bit is set recheck the session clock
                     cmpa      ,x+       ; compare the requested key and advance to the next compiled entry
                     beq       CheckAccessRule ; authorize the access record at the matching table index
                     incb                ; advance the key-table index used by the parallel tables

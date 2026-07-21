@@ -24,7 +24,7 @@ CMDS	= Ansicode Answer At \
 	Conf.dat \
 	DLD.add DLD.list DLD.read DLD.search DLD.unvalidate DLD.validate \
 	Dloada Dloadx Dloadxc Dloady \
-	Login Makdir Menu Monitor New_user Prompt T1mon Tsmon \
+	BBS.login Makdir Menu Monitor New_user Prompt T1mon Tsmon \
 	Uloada Uloadx Uloadxc Uloady ViewBBS
 
 .PHONY: all clean
@@ -40,4 +40,4 @@ $(DSK): $(CMDS)
 	$(OS9COPY) $(BBSFILES) $@,BBS
 
 clean:
-	$(RM) $(DSK) $(CMDS) *.list *.map
+	$(RM) $(DSK) $(CMDS) Login *.list *.map
