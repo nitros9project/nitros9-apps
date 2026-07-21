@@ -9,9 +9,9 @@
 * Comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
-* Annotated source and normalized comments.
+* annotated source and normalized comments.
 *          2026/07/21  Codex
-* Refined command annotations and normalized formatting.
+* refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       BBS.create
@@ -21,78 +21,65 @@
                     use       defsfile
                   ENDC
 
-tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
-atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+tylg                set       Prgrm+Objct ; executable object module
+atrv                set       ReEnt+rev ; reentrant module with revision encoded below
+rev                 set       $01       ; original module revision
 
-                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
+                    mod       eom,name,tylg,atrv,start,size ; declare the OS-9 module header and entry point
 
-inxpath             rmb       1         ; reserve 1 byte(s) in the module workspace
-msgpath             rmb       1         ; reserve 1 byte(s) in the module workspace
-buffer              rmb       64        ; reserve 64 byte(s) in the module workspace
+IndexPath           rmb       1         ; open path number for the new message index
+MessagePath         rmb       1         ; open path number for the new message-body file
+IndexHeader         rmb       64        ; zero-initialized header block for BBS.msg.inx
 ReservedWorkspace   rmb       200       ; retain the command's original minimum data allocation
-size                equ       .         ; define the assembly-time value for size
+size                equ       .         ; total per-process workspace size
 
-name                fcs       /BBS.create/ ; store an OS-9 high-bit-terminated string
-                    fcc       "Copyright (C) 1988" ; store literal character data
-                    fcc       "By Keith Alphonso" ; store literal character data
-                    fcc       "Licenced to Alpha Software Technologies" ; store literal character data
-                    fcc       "All rights reserved" ; store literal character data
-                    fcb       $EC       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $EA       ; store byte data
-                    fcb       $F5       ; store byte data
-                    fcb       $E9       ; store byte data
-                    fcb       $A0       ; store byte data
-                    fcb       $E2       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $F1       ; store byte data
-                    fcb       $E9       ; store byte data
-                    fcb       $F0       ; store byte data
-                    fcb       $EF       ; store byte data
-                    fcb       $F4       ; store byte data
-                    fcb       $F0       ; store byte data
-msginx              fcc       "BBS.msg.inx" ; store literal character data
-                    fcb       $0D       ; store byte data
-bbsmsg              fcc       "BBS.msg" ; store literal character data
-                    fcb       $0D       ; store byte data
+name                fcs       /BBS.create/ ; os-9 module name
+                    fcc       "Copyright (C) 1988" ; original embedded copyright notice
+                    fcc       "By Keith Alphonso" ; original author credit
+                    fcc       "Licenced to Alpha Software Technologies" ; original publisher credit and spelling
+                    fcc       "All rights reserved" ; original rights notice
+LicensePayload      fcb       $EC,$E6,$EA,$F5,$E9,$A0,$E2 ; opaque high-bit-set licensing payload
+                    fcb       $ED,$F1,$E9,$F0,$EF,$F4,$F0 ; preserved byte-for-byte from the original
+IndexFilename       fcc       "BBS.msg.inx" ; fixed-size message index created in the current directory
+                    fcb       C$CR      ; terminate the OS-9 pathname
+MessageFilename     fcc       "BBS.msg" ; variable-length message-body store created beside the index
+                    fcb       C$CR      ; terminate the OS-9 pathname
 
-* Create BBS.msg.inx
-start               leax      >msginx,pc ; form the address >msginx,pc in x
-                    lda       #11       ; set a to the constant 11
-                    tfr       a,b       ; copy the register values specified by a,b
-                    os9       I$Create  ; create the path at X with mode A and attributes B
-                    lbcs      Exit      ; exit on error
-                    sta       inxpath,u ; store a at inxpath,u
+* create both files before publishing the initial 64-byte index header. The command
+* ignores its parameter pointer, so the shell's current data directory selects where
+* the files are made; the historical "[directory]" syntax is therefore misleading.
+start               leax      >IndexFilename,pc ; select the index pathname
+                    lda       #11       ; preserve the original create mode and share bits
+                    tfr       a,b       ; use the same original byte as file attributes
+                    os9       I$Create  ; create or replace BBS.msg.inx
+                    lbcs      Exit      ; return the create error to the shell
+                    sta       IndexPath,u ; retain the open index path
 
-* Create BBS.msg
-                    leax      >bbsmsg,pc ; form the address >bbsmsg,pc in x
-                    lda       #11       ; set a to the constant 11
-                    tfr       a,b       ; copy the register values specified by a,b
-                    os9       I$Create  ; create the path at X with mode A and attributes B
-                    lbcs      Exit      ; branch when carry reports an error or unsigned underflow; target Exit
-                    sta       msgpath,u ; store a at msgpath,u
+                    leax      >MessageFilename,pc ; select the body-store pathname
+                    lda       #11       ; preserve the original create mode and share bits
+                    tfr       a,b       ; use the same original byte as file attributes
+                    os9       I$Create  ; create or replace BBS.msg
+                    lbcs      Exit      ; return without initializing the index if this fails
+                    sta       MessagePath,u ; retain the body path, although this module never closes it
 
-* Clear the first six bytes
-                    leax      buffer,u  ; form the address buffer,u in x
-                    ldd       #0        ; set d to the constant 0
-                    std       ,x        ; store d at ,x
-                    std       $02,x     ; store d at $02,x
-                    std       $04,x     ; store d at $04,x
+* the first three words are the only header fields explicitly initialized. OS-9 gives
+* a new process zeroed data memory, so the remaining 58 bytes are already clear.
+                    leax      IndexHeader,u ; select the complete header workspace
+                    ldd       #0        ; initialize two header bytes at a time
+                    std       ,x        ; clear the high-message word
+                    std       2,x       ; clear the next reserved header word
+                    std       4,x       ; clear the third header word
 
-* Write the buffer to BBS.msg.inx
-                    lda       inxpath,u ; load a from inxpath,u
-                    ldy       #64       ; set y to the constant 64
-                    os9       I$Write   ; write Y bytes from X to path A
-                    lbcs      Exit      ; branch when carry reports an error or unsigned underflow; target Exit
+                    lda       IndexPath,u ; select BBS.msg.inx
+                    ldy       #64       ; publish one complete header block
+                    os9       I$Write   ; establish the first record at offset 64
+                    lbcs      Exit      ; return an index write error
+                    os9       I$Close   ; flush and release the index path
+                    lbcs      Exit      ; preserve a close error as the exit status
 
-* Close BBS.msg.inx
-                    os9       I$Close   ; close path A
-                    lbcs      Exit      ; branch when carry reports an error or unsigned underflow; target Exit
+                    clrb                ; report success; OS-9 reclaims the body path at exit
+Exit                os9       F$Exit    ; return status B to the invoking shell
 
-                    clrb                ; clear b to zero and set the condition codes
-Exit                os9       F$Exit    ; terminate the process with status B
-
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+                    emod                ; append the OS-9 module CRC placeholder and trailer
+eom                 equ       *         ; mark the module's end for the header
+                    end                 ; finish this assembly unit

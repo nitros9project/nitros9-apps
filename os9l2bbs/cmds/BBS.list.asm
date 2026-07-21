@@ -1,17 +1,17 @@
 **********************************************************************
-* BBS.list - OS-9 Level 2 BBS command
+* bbs.list - OS-9 Level 2 BBS command
 *
-* Syntax: BBS.list <file>
-* Purpose: Display a text file using BBS-friendly terminal output.
-* The file is read sequentially and written to the caller path.
+* syntax: BBS.list <file>
+* purpose: display a text file using BBS-friendly terminal output.
+* the file is read sequentially and written to the caller path.
 *
-* Edt/Rev  YYYY/MM/DD  Modified by
-* Comment
+* edt/rev  YYYY/MM/DD  Modified by
+* comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
-* Annotated source and normalized comments.
+* annotated source and normalized comments.
 *          2026/07/21  Codex
-* Refined command annotations and normalized formatting.
+* refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       BBS.list
@@ -21,50 +21,50 @@
                     use       defsfile
                   ENDC
 
-tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
-atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+tylg                set       Prgrm+Objct ; executable object module
+atrv                set       ReEnt+rev ; reentrant module with revision encoded below
+rev                 set       $01       ; original module revision
 
-                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
+                    mod       eom,name,tylg,atrv,start,size ; declare the OS-9 module header and entry point
 
-InPath              rmb       1         ; reserve 1 byte(s) in the module workspace
-Buffer              rmb       1         ; reserve 1 byte(s) in the module workspace
-ReservedWorkspace   rmb       599       ; retain the command's original minimum data allocation
-size                equ       .         ; define the assembly-time value for size
+InputPath           rmb       1         ; open path number for the listed file
+LineBuffer          rmb       200       ; one terminal-sized CR-delimited input line
+ReservedWorkspace   rmb       400       ; retain the command's original 600-byte data allocation
+size                equ       .         ; total per-process workspace size
 
-name                fcs       /BBS.list/ ; store an OS-9 high-bit-terminated string
+name                fcs       /BBS.list/ ; os-9 module name
 
-start               lda       #1        ; set a to the constant 1
-                    os9       I$Open    ; open the specified file for reading
-                    lbcs      ErrExit   ; exit on error
-                    sta       InPath,u  ; store the input path number
+* x already points at the command-line pathname supplied by OS-9.
+start               lda       #READ.    ; list without modifying the selected file
+                    os9       I$Open    ; open the pathname passed to the module
+                    lbcs      ErrorExit ; return an open failure unchanged
+                    sta       InputPath,u ; retain the sequential input path
 
-* Copy the data in the file to the terminal or console
-CopyLoop            lda       InPath,u  ; get the input path number
-                    leax      Buffer,u  ; form the address Buffer,u in x
-                    ldy       #200      ; set y to the constant 200
-                    os9       I$ReadLn  ; read 200 bytes from the input file
-                    bcs       Exit      ; exit on error
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write the buffer to the output path
+* copy one CR-delimited line at a time, polling for an abort key after every write.
+CopyNextLine        lda       InputPath,u ; select the listed file
+                    leax      LineBuffer,u ; receive the next display line
+                    ldy       #200      ; bound the read by the actual buffer size
+                    os9       I$ReadLn  ; preserve the file's authored line boundaries
+                    bcs       ListingComplete ; eof and read errors both end the original pager
+                    lda       #1        ; target standard output
+                    os9       I$WritLn  ; display the line just read
 
-* Has the user pressed a key on the terminal?
-                    clra                ; clear a to zero and set the condition codes
-                    ldb       #1        ; set b to the constant 1
-                    os9       I$GetStt  ; is data waiting on the terminal?
-                    bcs       CopyLoop  ; no, continue listing to the output path
+                    clra                ; poll standard input
+                    ldb       #SS.Ready ; ask whether the caller has typed ahead
+                    os9       I$GetStt  ; avoid blocking when no abort key is available
+                    bcs       CopyNextLine ; continue immediately while input is idle
 
-* If the user presses SPACE, abort the list
-                    ldy       #1        ; set y to the constant 1
-                    leax      Buffer,u  ; form the address Buffer,u in x
-                    os9       I$Read    ; read a character from the terminal
-                    lda       ,x        ; load a from ,x
-                    cmpa      #32       ; did the user press SPACE?
-                    bne       CopyLoop  ; no, continue the listing
+* consume a pending key so it cannot leak into the next command; space stops listing.
+                    ldy       #1        ; consume exactly the pending byte
+                    leax      LineBuffer,u ; safely reuse the beginning of the line buffer
+                    os9       I$Read    ; remove the key from standard input
+                    lda       ,x        ; inspect the consumed byte
+                    cmpa      #C$SPAC   ; space is the pager's abort convention
+                    bne       CopyNextLine ; discard other keys and continue listing
 
-Exit                clrb                ; clear the error flag
-ErrExit             os9       F$Exit    ; and exit
+ListingComplete     clrb                ; preserve the original successful eof/abort status
+ErrorExit           os9       F$Exit    ; return status B to the invoking process
 
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+                    emod                ; append the OS-9 module CRC placeholder and trailer
+eom                 equ       *         ; mark the module's end for the header
+                    end                 ; finish this assembly unit

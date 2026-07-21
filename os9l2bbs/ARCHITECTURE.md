@@ -73,9 +73,27 @@ and sysop functions without placing access policy inside every command.
 it when attributing or addressing posts. The manual specifically notes that
 posting failures commonly result from a missing or inconsistent alias file.
 
-`BBS.userstats` stores per-user usage statistics. BBS.login and the message, mail,
-upload, and download commands update it. Its fields should be named in source
-according to the operation performed on them rather than their byte offsets.
+`BBS.userstats` stores per-user usage statistics. BBS.login and the message,
+mail, upload, and download commands update it. `BBS.stat` scans it as a stream
+of 32-byte records keyed by OS-9 user ID. Ordinary callers see their own
+record; user zero is prompted for an account number. The fields recovered from
+the report code are:
+
+| Offset | Size | Meaning |
+| ---: | ---: | --- |
+| 0 | 2 | OS-9 user ID |
+| 2 | 2 | times called |
+| 4 | 6 | fields not displayed by `BBS.stat` |
+| 10 | 2 | messages left |
+| 12 | 2 | messages read |
+| 14 | 2 | files downloaded |
+| 16 | 2 | files uploaded |
+| 18 | 6 | last-login year, month, day, hour, minute, and second |
+| 24 | 2 | current-login duration value, omitted when zero |
+| 26 | 6 | fields not displayed by `BBS.stat` |
+
+The original date renderer spells the year as `19YY`; this is preserved
+behavior, not a modern interpretation added by the reconstruction.
 
 ## Menus and scripts
 
@@ -142,9 +160,38 @@ The commands divide responsibilities as follows:
   archive file.
 - `BBS.convert` converts a Release 2.0 message base for Release 3.0.
 
+`BBS.pack` walks the index and body files as parallel streams. For each live
+record it writes the body's new 32-bit packed offset into a rebuilt index and
+copies body lines through the CR-only message terminator. For each tombstone
+it omits both streams, remembers the original message number, and later uses
+that list to renumber saved positions in `BBs.msg.lst`.
+
+The historical scratch names are counterintuitive: `msg.scratch` is the
+rebuilt index and `inx.scratch` is the rebuilt body store. After both outputs
+are complete, the program deletes the originals and renames the scratch files
+by editing their raw 32-byte OS-9 directory entries. Raw directory names use
+bit 7 of the last character as their terminator.
+
 The source annotations should distinguish three different values that are
 easy to confuse: the user-visible message number, an index-record position,
 and a byte offset in `bbs.msg`.
+
+The recovered index layout uses a 64-byte header followed by 64-byte message
+records. The header's first word is the current high message number. Fields
+used consistently by the archive and message commands are:
+
+| Offset | Size | Meaning |
+| ---: | ---: | --- |
+| 0 | 4 | 32-bit byte offset of the body in `bbs.msg`; `$FFFF` in the first word marks a deleted record |
+| 4 | 20 | CR-terminated or fixed-width author display name |
+| 24 | 30 | CR-terminated or fixed-width subject |
+| 54 | 6 | year, month, day, hour, minute, and second bytes |
+| 60 | 2 | author's OS-9 user ID, used to authorize deletion |
+| 62 | 2 | recipient user ID; `$FFFF` means all users |
+
+`BBS.alias` lines are stored as `display name,user number`. Commands replace
+the comma with CR when they need the display name as an OS-9 line, then parse
+the decimal user number following the comma.
 
 ## Private mail
 
@@ -169,6 +216,14 @@ Each download directory contains three related databases:
 - `DLD.lst` - compact file list and validation state.
 - `DLD.dsc` - long descriptions.
 - `DLD.key` - searchable keywords.
+
+`DLD.lst` is a stream of 96-byte records:
+
+| Offset | Size | Meaning |
+| ---: | ---: | --- |
+| 0 | 31 | CR-terminated filename field |
+| 31 | 1 | validation flag; `$FF` is visible and zero is hidden |
+| 32 | 64 | CR-terminated one-line description |
 
 `BBS.upload` and `BBS.download` provide the interactive protocol-selection
 front ends. The protocol-specific commands perform the actual transfer:

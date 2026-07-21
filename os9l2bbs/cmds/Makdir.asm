@@ -1,17 +1,17 @@
 **********************************************************************
 * Makdir - OS-9 Level 2 BBS command
 *
-* Syntax: Makdir <path>
-* Purpose: Create an OS-9 directory for installer compatibility.
-* Thin command wrapper around the directory-creation service.
+* syntax: Makdir <path>
+* purpose: create an OS-9 directory for installer compatibility.
+* thin command wrapper around the directory-creation service.
 *
-* Edt/Rev  YYYY/MM/DD  Modified by
-* Comment
+* edt/rev  YYYY/MM/DD  Modified by
+* comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
-* Annotated source and normalized comments.
+* annotated source and normalized comments.
 *          2026/07/21  Codex
-* Refined command annotations and normalized formatting.
+* refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       Makdir
@@ -21,22 +21,23 @@
                     use       defsfile
                   ENDC
 
-tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
-atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+tylg                set       Prgrm+Objct ; executable object module
+atrv                set       ReEnt+rev ; reentrant module with revision encoded below
+rev                 set       $01       ; original module revision
 
-                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
+                    mod       eom,name,tylg,atrv,start,size ; declare the OS-9 module header and entry point
 
 ReservedWorkspace   rmb       400       ; retain the module's original minimum data allocation
-size                equ       .         ; define the assembly-time value for size
+size                equ       .         ; total per-process workspace size
 
-name                fcs       /Makdir/ ; store an OS-9 high-bit-terminated string
-start               ldb       #63       ; set b to the constant 63
-                    os9       I$MakDir  ; create the directory named at X
+name                fcs       /Makdir/  ; os-9 module name
+* x is the shell-supplied pathname; $3F grants the original public permissions.
+start               ldb       #$3F      ; allow owner and public read/write/execute access
+                    os9       I$MakDir  ; create the requested directory
                     bcs       ExitWithStatus ; return the directory-creation error unchanged
-                    clrb                ; clear b to zero and set the condition codes
-ExitWithStatus      os9       F$Exit    ; return zero on success or the F$MakDir error in B
+                    clrb                ; report success
+ExitWithStatus      os9       F$Exit    ; return zero or the I$MakDir error in B
 
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+                    emod                ; append the OS-9 module CRC placeholder and trailer
+eom                 equ       *         ; mark the module's end for the header
+                    end                 ; finish this assembly unit

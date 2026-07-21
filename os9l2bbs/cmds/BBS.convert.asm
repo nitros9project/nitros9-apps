@@ -9,9 +9,9 @@
 * Comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
-* Annotated source and normalized comments.
+* annotated source and normalized comments.
 *          2026/07/21  Codex
-* Refined command annotations and normalized formatting.
+* refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       BBS.convert
@@ -21,44 +21,46 @@
                     use       defsfile
                   ENDC
 
-tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
-atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+tylg                set       Prgrm+Objct ; executable object module
+atrv                set       ReEnt+rev ; reentrant module with revision encoded below
+rev                 set       $01       ; original module revision
 
-                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
+                    mod       eom,name,tylg,atrv,start,size ; declare the OS-9 module header and entry point
 
-inxpath             rmb       1         ; reserve 1 byte(s) in the module workspace
-buffer              rmb       62        ; reserve 62 byte(s) in the module workspace
+IndexPath           rmb       1         ; update-mode path for the index being converted
+Release2RecordPrefix rmb      62        ; unchanged prefix of one 64-byte pre-3.0 record
 ReservedWorkspace   rmb       400       ; retain the command's original minimum data allocation
-size                equ       .         ; define the assembly-time value for size
+size                equ       .         ; total per-process workspace size
 
-name                fcs       /BBS.convert/ ; store an OS-9 high-bit-terminated string
-Release3IndexMarker fcb       $FF       ; replacement marker written while converting the index
-                    fcb       $FF       ; store byte data
-msginx              fcc       "BBS.msg.inx" ; store literal character data
-                    fcb       $0D       ; store byte data
+name                fcs       /BBS.convert/ ; os-9 module name
+Release3IndexMarker fdb       $FFFF     ; replacement for each record's trailing two-byte field
+IndexFilename       fcc       "BBS.msg.inx" ; index in the shell's current data directory
+                    fcb       C$CR      ; terminate the OS-9 pathname
 
-start               leax      >msginx,pc ; form the address >msginx,pc in x
-                    lda       #3        ; set a to the constant 3
-                    os9       I$Open    ; open BBS.msg.inx
-                    lbcs      ErrExit   ; exit on error
-                    sta       inxpath,u ; save the path
+* both formats use 64-byte records. The first 62 bytes pass untouched through the
+* read buffer; the converter overwrites only the final word with the release 3.0
+* $FFFF marker, then continues at the next 64-byte boundary.
+start               leax      >IndexFilename,pc ; select BBS.msg.inx
+                    lda       #UPDAT.   ; conversion needs one shared read/write cursor
+                    os9       I$Open    ; open the index in place
+                    lbcs      ErrorExit ; return an open failure unchanged
+                    sta       IndexPath,u ; retain the update-mode path
 
-Loop                lda       inxpath,u ; get the path
-                    leax      buffer,u  ; form the address buffer,u in x
-                    ldy       #62       ; set y to the constant 62
-                    os9       I$Read    ; read 62 bytes
-                    lbcs      Exit      ; exit on error/EOF
+ConvertNextRecord   lda       IndexPath,u ; select the index for the next old record
+                    leax      Release2RecordPrefix,u ; receive the unchanged record prefix
+                    ldy       #62       ; advance to the old record's trailing word
+                    os9       I$Read    ; leave the cursor where the replacement belongs
+                    lbcs      ConversionComplete ; eof terminates a successful conversion
 
-                    leax      >Release3IndexMarker,pc ; supply the Release 3 marker byte
-                    ldy       #2        ; set y to the constant 2
-                    lda       inxpath,u ; load a from inxpath,u
-                    os9       I$Write   ; write $FFFF to BBS.msg.inx
-                    bra       Loop      ; repeat for next block
+                    leax      >Release3IndexMarker,pc ; select the new trailing $FFFF field
+                    ldy       #2        ; append exactly one word per old record
+                    lda       IndexPath,u ; restore the shared update path
+                    os9       I$Write   ; replace the old trailing field with $FFFF
+                    bra       ConvertNextRecord ; continue at the next 64-byte record
 
-Exit                clrb                ; clear b to zero and set the condition codes
-ErrExit             os9       F$Exit    ; terminate the process with status B
+ConversionComplete clrb                ; treat eof as normal completion
+ErrorExit           os9       F$Exit    ; return status B to the invoking shell
 
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+                    emod                ; append the OS-9 module CRC placeholder and trailer
+eom                 equ       *         ; mark the module's end for the header
+                    end                 ; finish this assembly unit

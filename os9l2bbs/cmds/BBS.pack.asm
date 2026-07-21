@@ -1,17 +1,17 @@
 **********************************************************************
-* BBS.pack - OS-9 Level 2 BBS command
+* bbs.pack - OS-9 Level 2 BBS command
 *
-* Syntax: BBS.pack <directory>
-* Purpose: Rewrite a message base and discard storage occupied by deleted messages.
-* Rebuilds bbs.msg and bbs.msg.inx as a consistent pair.
+* syntax: BBS.pack [directory]
+* purpose: rewrite a message base and discard storage occupied by deleted messages.
+* rebuilds BBS.msg and BBS.msg.inx as a consistent pair.
 *
-* Edt/Rev  YYYY/MM/DD  Modified by
-* Comment
+* edt/rev  YYYY/MM/DD  Modified by
+* comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
-* Annotated source and normalized comments.
+* annotated source and normalized comments.
 *          2026/07/21  Codex
-* Refined command annotations and normalized formatting.
+* refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       BBS.pack
@@ -21,356 +21,366 @@
                     use       defsfile
                   ENDC
 
-tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
-atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+tylg                set       Prgrm+Objct ; executable object module
+atrv                set       ReEnt+rev ; reentrant module with revision encoded below
+rev                 set       $01       ; original module revision
 
-                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
+                    mod       eom,name,tylg,atrv,start,size ; declare the OS-9 module header and entry point
 
-WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_003        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_004        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_005        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_001      rmb       3         ; reserve 3 byte(s) in the module workspace
-WorkByte_006        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_007        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkByte_008        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_009        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_010        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_011        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_002        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_003        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_004        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkByte_012        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_013        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_002      rmb       32        ; reserve 32 byte(s) in the module workspace
-WorkBuffer_003      rmb       232       ; reserve 232 byte(s) in the module workspace
-WorkWord_005        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_006        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkBuffer_004      rmb       60        ; reserve 60 byte(s) in the module workspace
-WorkBuffer_005      rmb       80        ; reserve 80 byte(s) in the module workspace
-WorkWord_007        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkBuffer_006      rmb       62        ; reserve 62 byte(s) in the module workspace
-WorkByte_014        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_007      rmb       399       ; reserve 399 byte(s) in the module workspace
-size                equ       .         ; define the assembly-time value for size
+OldIndexPath        rmb       1         ; read path for the original BBS.msg.inx
+OldMessagePath      rmb       1         ; read path for the original BBS.msg
+NewIndexPath        rmb       1         ; output path for msg.scratch, the rebuilt index
+NewMessagePath      rmb       1         ; output path for inx.scratch, the rebuilt body store
+MessageListPath     rmb       1         ; update path for optional BBs.msg.lst
+RenameDirectoryPath rmb      1         ; raw update path for the current directory
+RenamePathReserved  rmb       2         ; unused remainder of the original path workspace
+DeletedBeforeCount  rmb       2         ; deleted message numbers at or below a saved position
+CallerUserId        rmb       2         ; original identity restored after privileged packing
+NewBodyOffset       rmb       2         ; high word of the rebuilt body's 32-bit end offset
+NewBodyOffsetLow    rmb       2         ; low word of the rebuilt body's end offset
+MessageListRecord   rmb       2         ; leading word of one four-byte saved-position record
+LastReadMessage     rmb       2         ; message number adjusted after compaction
+DeletedNumberCursor rmb       2         ; next free word in DeletedMessageNumbers
+CurrentMessageNumber rmb      2         ; original index-record number currently being scanned
+DirectoryEntry      rmb       32        ; one raw 32-byte OS-9 directory entry
+DirectoryEntryIndex rmb       1         ; one-based directory slot number during rename scans
+DirectoryScanReserved rmb     231       ; retained tail of the original directory workspace
+IndexHeader         rmb       2         ; packed high message number at header offset 0
+PackedBodyEndHigh   rmb       2         ; rebuilt body EOF high word at header offset 2
+PackedBodyEndLow    rmb       2         ; rebuilt body EOF low word at header offset 4
+IndexHeaderReserved rmb       58        ; remaining bytes of the 64-byte index header
+MessageLine         rmb       80        ; one CR-terminated message-body line
+IndexRecord         rmb       2         ; packed body offset high word at record offset 0
+PackedRecordBodyOffsetLow rmb 2         ; packed body offset low word at record offset 2
+IndexRecordMetadata rmb       60        ; author, subject, timestamp, and user IDs
+DeletedMessageNumbers rmb     400       ; up to 200 original message numbers removed by packing
+size                equ       .         ; total per-process workspace size
 
-name                fcs       /BBS.pack/ ; store an OS-9 high-bit-terminated string
-                    fcc       "Copyright (C) 1988" ; store literal character data
-                    fcc       "By Keith Alphonso" ; store literal character data
-                    fcc       "Licenced to Alpha Software Technologies" ; store literal character data
-                    fcc       "All rights reserved" ; store literal character data
-                    fcb       $EC       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $EA       ; store byte data
-                    fcb       $F5       ; store byte data
-                    fcb       $E9       ; store byte data
-                    fcb       $A0       ; store byte data
-                    fcb       $E2       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $F1       ; store byte data
-                    fcb       $E9       ; store byte data
-                    fcb       $F0       ; store byte data
-                    fcb       $EF       ; store byte data
-                    fcb       $F4       ; store byte data
-                    fcb       $F0       ; store byte data
-Text_001            fcc       "BBS.msg" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_002            fcc       "BBS.msg.inx" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_003            fcc       "BBs.msg.lst" ; store literal character data
-                    fcb       $0D       ; store byte data
-Data_001            fcb       $0A       ; store byte data
-                    fcc       "One moment please..." ; store literal character data
-                    fcb       $0A       ; store byte data
-                    fcb       $0D       ; store byte data
-Text_004            fcc       "msg.scratch" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_005            fcc       "inx.scratch" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_006            fcc       "." ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcc       "Rename" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_007            fcc       "Packing message..." ; store literal character data
-                    fcb       $0D       ; store byte data
+name                fcs       /BBS.pack/ ; os-9 module name
+                    fcc       "Copyright (C) 1988" ; original embedded copyright notice
+                    fcc       "By Keith Alphonso" ; original author credit
+                    fcc       "Licenced to Alpha Software Technologies" ; original publisher credit and spelling
+                    fcc       "All rights reserved" ; original rights notice
+LicensePayload      fcb       $EC,$E6,$EA,$F5,$E9,$A0,$E2 ; opaque high-bit-set licensing payload
+                    fcb       $ED,$F1,$E9,$F0,$EF,$F4,$F0 ; preserved byte-for-byte from the original
+MessageFilename     fcc       "BBS.msg" ; original message-body store
+                    fcb       C$CR      ; terminate the OS-9 pathname
+IndexFilename       fcc       "BBS.msg.inx" ; original fixed-record index
+                    fcb       C$CR      ; terminate the OS-9 pathname
+MessageListFilename fcc       "BBs.msg.lst" ; optional per-user saved-message positions, original case retained
+                    fcb       C$CR      ; terminate the OS-9 pathname
+PleaseWaitMessage   fcb       C$LF      ; begin the progress notice on a fresh line
+                    fcc       "One moment please..." ; packing startup notice
+                    fcb       C$LF,C$CR ; leave a blank line after the notice
+IndexScratchFilename fcc      "msg.scratch" ; temporary rebuilt index despite the historical name
+                    fcb       C$CR      ; terminate the OS-9 pathname
+MessageScratchFilename fcc    "inx.scratch" ; temporary rebuilt body store despite the historical name
+                    fcb       C$CR      ; terminate the OS-9 pathname
+CurrentDirectoryName fcc      "."       ; raw directory opened by the rename helper
+                    fcb       C$CR      ; terminate the pathname
+LegacyRenameText    fcc       "Rename" ; retained unreferenced text from the original module
+                    fcb       C$CR      ; terminate the legacy text
+PackingMessageNotice fcc      "Packing message..." ; shown once for every removed record
+                    fcb       C$CR      ; terminate the status line
 
-start               lda       ,x        ; load a from ,x
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_001 ; branch when the values are equal or the result is zero; target Branch_001
-                    lda       #1        ; set a to the constant 1
-                    os9       I$ChgDir  ; change the current directory to the path at X
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-Branch_001          leax      >WorkByte_014,u ; form the address >WorkByte_014,u in x
-                    stx       <WorkWord_004,u ; store x at <WorkWord_004,u
-                    clr       <WorkByte_012,u ; clear <WorkByte_012,u to zero and set the condition codes
-                    clr       <WorkByte_013,u ; clear <WorkByte_013,u to zero and set the condition codes
-                    os9       F$ID      ; retrieve the current process and user IDs
-                    sty       WorkWord_001,u ; store y at WorkWord_001,u
-                    ldy       #0        ; set y to the constant 0
-                    os9       F$SUser   ; change the process user ID to Y
-                    clr       WorkByte_007,u ; clear WorkByte_007,u to zero and set the condition codes
-                    clr       WorkByte_006,u ; clear WorkByte_006,u to zero and set the condition codes
-                    leax      >Data_001,pc ; form the address >Data_001,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >Text_002,pc ; form the address >Text_002,pc in x
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    sta       WorkByte_001,u ; store a at WorkByte_001,u
-                    leax      >Text_001,pc ; form the address >Text_001,pc in x
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    sta       WorkByte_002,u ; store a at WorkByte_002,u
-                    leax      >Text_004,pc ; form the address >Text_004,pc in x
-                    lda       #2        ; set a to the constant 2
-                    ldb       #11       ; set b to the constant 11
-                    os9       I$Create  ; create the path at X with mode A and attributes B
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    sta       WorkByte_003,u ; store a at WorkByte_003,u
-                    leax      >Text_005,pc ; form the address >Text_005,pc in x
-                    lda       #2        ; set a to the constant 2
-                    ldb       #11       ; set b to the constant 11
-                    os9       I$Create  ; create the path at X with mode A and attributes B
-                    sta       WorkByte_004,u ; store a at WorkByte_004,u
-                    clr       WorkByte_008,u ; clear WorkByte_008,u to zero and set the condition codes
-                    clr       WorkByte_009,u ; clear WorkByte_009,u to zero and set the condition codes
-                    clr       WorkByte_010,u ; clear WorkByte_010,u to zero and set the condition codes
-                    clr       WorkByte_011,u ; clear WorkByte_011,u to zero and set the condition codes
-                    leax      >WorkWord_005,u ; form the address >WorkWord_005,u in x
-                    ldy       #64       ; set y to the constant 64
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    lda       WorkByte_003,u ; load a from WorkByte_003,u
-                    os9       I$Write   ; write Y bytes from X to path A
-Branch_003          ldd       <WorkByte_012,u ; load d from <WorkByte_012,u
-                    addd      #1        ; add to d using #1
-                    std       <WorkByte_012,u ; store d at <WorkByte_012,u
-                    leax      >WorkWord_007,u ; form the address >WorkWord_007,u in x
-                    ldy       #64       ; set y to the constant 64
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    lbcs      Branch_004 ; branch when carry reports an error or unsigned underflow; target Branch_004
-                    cmpy      #64       ; compare y with #64 and set the condition codes
-                    lbne      Branch_004 ; branch when the values differ or the result is nonzero; target Branch_004
-                    ldd       >WorkWord_007,u ; load d from >WorkWord_007,u
-                    cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    beq       Branch_005 ; branch when the values are equal or the result is zero; target Branch_005
-                    ldd       WorkByte_008,u ; load d from WorkByte_008,u
-                    std       >WorkWord_007,u ; store d at >WorkWord_007,u
-                    ldd       WorkByte_010,u ; load d from WorkByte_010,u
-                    std       >WorkBuffer_006,u ; store d at >WorkBuffer_006,u
-                    lda       WorkByte_003,u ; load a from WorkByte_003,u
-                    os9       I$Write   ; write Y bytes from X to path A
-Branch_006          lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    leax      >WorkBuffer_005,u ; form the address >WorkBuffer_005,u in x
-                    ldy       #80       ; set y to the constant 80
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    bcs       Branch_004 ; branch when carry reports an error or unsigned underflow; target Branch_004
-                    lda       WorkByte_004,u ; load a from WorkByte_004,u
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    tfr       y,d       ; copy the register values specified by y,d
-                    addd      WorkByte_010,u ; add to d using WorkByte_010,u
-                    std       WorkByte_010,u ; store d at WorkByte_010,u
-                    bcc       Branch_007 ; branch when carry is clear; target Branch_007
-                    ldd       WorkByte_008,u ; load d from WorkByte_008,u
-                    addd      #1        ; add to d using #1
-                    std       WorkByte_008,u ; store d at WorkByte_008,u
-Branch_007          cmpy      #1        ; compare y with #1 and set the condition codes
-                    bhi       Branch_006 ; branch when the unsigned value is higher; target Branch_006
-                    bra       Branch_003 ; continue execution at Branch_003
-Branch_005          ldx       <WorkWord_004,u ; load x from <WorkWord_004,u
-                    ldd       <WorkByte_012,u ; load d from <WorkByte_012,u
-                    std       ,x++      ; store d at ,x++
-                    stx       <WorkWord_004,u ; store x at <WorkWord_004,u
-                    leax      >Text_007,pc ; form the address >Text_007,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    ldd       >WorkWord_005,u ; load d from >WorkWord_005,u
-                    subd      #1        ; subtract from d using #1
-                    std       >WorkWord_005,u ; store d at >WorkWord_005,u
-Branch_008          lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    leax      >WorkBuffer_005,u ; form the address >WorkBuffer_005,u in x
-                    ldy       #80       ; set y to the constant 80
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    bcs       Branch_004 ; branch when carry reports an error or unsigned underflow; target Branch_004
-                    cmpy      #1        ; compare y with #1 and set the condition codes
-                    bhi       Branch_008 ; branch when the unsigned value is higher; target Branch_008
-                    lbra      Branch_003 ; continue execution at Branch_003
-Branch_004          ldd       WorkByte_008,u ; load d from WorkByte_008,u
-                    std       >WorkWord_006,u ; store d at >WorkWord_006,u
-                    ldd       WorkByte_010,u ; load d from WorkByte_010,u
-                    std       >WorkBuffer_004,u ; store d at >WorkBuffer_004,u
-                    pshs      u         ; save u on the stack
-                    lda       WorkByte_003,u ; load a from WorkByte_003,u
-                    ldx       #0        ; set x to the constant 0
-                    ldu       #0        ; set u to the constant 0
-                    os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    puls      u         ; restore u from the stack
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    leax      >WorkWord_005,u ; form the address >WorkWord_005,u in x
-                    ldy       #64       ; set y to the constant 64
-                    lda       WorkByte_003,u ; load a from WorkByte_003,u
-                    os9       I$Write   ; write Y bytes from X to path A
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    os9       I$Close   ; close path A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    os9       I$Close   ; close path A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    lda       WorkByte_003,u ; load a from WorkByte_003,u
-                    os9       I$Close   ; close path A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    lda       WorkByte_004,u ; load a from WorkByte_004,u
-                    os9       I$Close   ; close path A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    leax      >Text_002,pc ; form the address >Text_002,pc in x
-                    os9       I$Delete  ; delete the path named at X
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    leax      >Text_001,pc ; form the address >Text_001,pc in x
-                    os9       I$Delete  ; delete the path named at X
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    leax      >Text_004,pc ; form the address >Text_004,pc in x
-                    leay      >Text_002,pc ; form the address >Text_002,pc in y
-                    lbsr      Routine_001 ; call subroutine Routine_001
-                    leax      >Text_005,pc ; form the address >Text_005,pc in x
-                    leay      >Text_001,pc ; form the address >Text_001,pc in y
-                    lbsr      Routine_001 ; call subroutine Routine_001
-                    leax      >Text_003,pc ; form the address >Text_003,pc in x
-                    lda       #3        ; set a to the constant 3
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      Branch_009 ; branch when carry reports an error or unsigned underflow; target Branch_009
-                    sta       WorkByte_005,u ; store a at WorkByte_005,u
-Branch_010          lda       WorkByte_005,u ; load a from WorkByte_005,u
-                    leax      <WorkWord_002,u ; form the address <WorkWord_002,u in x
-                    ldy       #4        ; set y to the constant 4
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    lbcs      Branch_009 ; branch when carry reports an error or unsigned underflow; target Branch_009
-                    leax      >WorkByte_014,u ; form the address >WorkByte_014,u in x
-                    clr       WorkByte_007,u ; clear WorkByte_007,u to zero and set the condition codes
-Branch_011          ldd       ,x++      ; load d from ,x++
-                    cmpd      <WorkWord_003,u ; compare d with <WorkWord_003,u and set the condition codes
-                    bhi       Branch_012 ; branch when the unsigned value is higher; target Branch_012
-                    inc       WorkByte_007,u ; increment the value at WorkByte_007,u
-Branch_012          cmpx      <WorkWord_004,u ; compare x with <WorkWord_004,u and set the condition codes
-                    bcs       Branch_011 ; branch when carry reports an error or unsigned underflow; target Branch_011
-                    ldd       <WorkWord_003,u ; load d from <WorkWord_003,u
-                    subd      WorkByte_006,u ; subtract from d using WorkByte_006,u
-                    std       <WorkWord_003,u ; store d at <WorkWord_003,u
-                    lda       WorkByte_005,u ; load a from WorkByte_005,u
-                    ldb       #5        ; set b to the constant 5
-                    pshs      u         ; save u on the stack
-                    os9       I$GetStt  ; query status code B for path A
-                    leau      -$02,u    ; form the workspace or data address -$02,u in u
-                    os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    puls      u         ; restore u from the stack
-                    leax      <WorkWord_003,u ; form the address <WorkWord_003,u in x
-                    ldy       #2        ; set y to the constant 2
-                    os9       I$Write   ; write Y bytes from X to path A
-                    bra       Branch_010 ; continue execution at Branch_010
-Branch_009          clrb                ; clear b to zero and set the condition codes
-Branch_002          pshs      b         ; save b on the stack
-                    ldy       WorkWord_001,u ; load y from WorkWord_001,u
-                    os9       F$SUser   ; change the process user ID to Y
-                    puls      b         ; restore b from the stack
-                    os9       F$Exit    ; terminate the process with status B
-Routine_001         leax      >Text_006,pc ; form the address >Text_006,pc in x
-                    lda       #131      ; set a to the constant 131
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    sta       WorkBuffer_001,u ; store a at WorkBuffer_001,u
-                    clr       <WorkBuffer_003,u ; clear <WorkBuffer_003,u to zero and set the condition codes
-Code_001            pshs      u         ; save u on the stack
-                    lda       <WorkBuffer_003,u ; load a from <WorkBuffer_003,u
-                    inca                ; increment a
-                    sta       <WorkBuffer_003,u ; store a at <WorkBuffer_003,u
-                    ldb       #32       ; set b to the constant 32
-                    mul                 ; multiply a by b and return the product in d
-                    tfr       d,x       ; copy the register values specified by d,x
-                    lda       WorkBuffer_001,u ; load a from WorkBuffer_001,u
-                    ldu       #0        ; set u to the constant 0
-                    exg       x,u       ; exchange the register values specified by x,u
-                    os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    puls      u         ; restore u from the stack
-                    leax      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in x
-                    ldy       #32       ; set y to the constant 32
-                    lda       WorkBuffer_001,u ; load a from WorkBuffer_001,u
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    bcs       Branch_013 ; branch when carry reports an error or unsigned underflow; target Branch_013
-                    leay      >Text_004,pc ; form the address >Text_004,pc in y
-                    leax      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in x
-Branch_014          lda       ,x+       ; load a from ,x+
-                    bmi       Branch_015 ; branch when the result is negative; target Branch_015
-                    cmpa      ,y+       ; compare a with ,y+ and set the condition codes
-                    bne       Branch_016 ; branch when the values differ or the result is nonzero; target Branch_016
-                    bra       Branch_014 ; continue execution at Branch_014
-Branch_016          leax      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in x
-                    leay      >Text_005,pc ; form the address >Text_005,pc in y
-Branch_017          lda       ,x+       ; load a from ,x+
-                    bmi       Branch_018 ; branch when the result is negative; target Branch_018
-                    cmpa      ,y+       ; compare a with ,y+ and set the condition codes
-                    bne       Branch_019 ; branch when the values differ or the result is nonzero; target Branch_019
-                    bra       Branch_017 ; continue execution at Branch_017
-Branch_019          bra       Code_001  ; continue execution at Code_001
-Branch_013          cmpb      #211      ; compare b with #211 and set the condition codes
-                    lbne      Branch_002 ; branch when the values differ or the result is nonzero; target Branch_002
-                    lda       WorkBuffer_001,u ; load a from WorkBuffer_001,u
-                    os9       I$Close   ; close path A
-                    rts                 ; return to the caller
-Branch_015          anda      #127      ; mask a using #127
-                    cmpa      ,y+       ; compare a with ,y+ and set the condition codes
-                    bne       Branch_016 ; branch when the values differ or the result is nonzero; target Branch_016
-                    lda       ,y+       ; load a from ,y+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    bne       Branch_016 ; branch when the values differ or the result is nonzero; target Branch_016
-                    leax      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in x
-                    leay      >Text_002,pc ; form the address >Text_002,pc in y
-                    bra       Branch_020 ; continue execution at Branch_020
-Branch_018          anda      #127      ; mask a using #127
-                    cmpa      ,y+       ; compare a with ,y+ and set the condition codes
-                    bne       Branch_019 ; branch when the values differ or the result is nonzero; target Branch_019
-                    lda       #13       ; set a to the constant 13
-                    cmpa      ,y+       ; compare a with ,y+ and set the condition codes
-                    bne       Branch_019 ; branch when the values differ or the result is nonzero; target Branch_019
-                    leax      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in x
-                    leay      >Text_001,pc ; form the address >Text_001,pc in y
-Branch_020          lda       ,y+       ; load a from ,y+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_021 ; branch when the values are equal or the result is zero; target Branch_021
-                    sta       ,x+       ; store a at ,x+
-                    bra       Branch_020 ; continue execution at Branch_020
-Branch_021          lda       ,-x       ; load a from ,-x
-                    ora       #128      ; set selected bits in a using #128
-                    sta       ,x        ; store a at ,x
-                    lda       <WorkBuffer_003,u ; load a from <WorkBuffer_003,u
-                    ldb       #32       ; set b to the constant 32
-                    mul                 ; multiply a by b and return the product in d
-                    tfr       d,x       ; copy the register values specified by d,x
-                    lda       WorkBuffer_001,u ; load a from WorkBuffer_001,u
-                    ldb       #5        ; set b to the constant 5
-                    pshs      u         ; save u on the stack
-                    ldu       #0        ; set u to the constant 0
-                    exg       x,u       ; exchange the register values specified by x,u
-                    os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    puls      u         ; restore u from the stack
-                    leax      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in x
-                    ldy       #32       ; set y to the constant 32
-                    lda       WorkBuffer_001,u ; load a from WorkBuffer_001,u
-                    os9       I$Write   ; write Y bytes from X to path A
-                    ldb       #211      ; set b to the constant 211
-                    lbra      Branch_013 ; continue execution at Branch_013
-                    fcb       $16       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $40       ; store byte data
+start               lda       ,x        ; inspect the optional board-directory argument
+                    cmpa      #C$CR     ; a bare parameter line keeps the current directory
+                    beq       InitializePack ; skip directory setup when no argument was supplied
+                    lda       #READ.    ; select data-directory mode for I$ChgDir
+                    os9       I$ChgDir  ; make the requested board directory current
+                    lbcs      ExitRestoringUser ; return directory errors unchanged
 
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+* packing requires privileged access because it replaces the live message files and
+* rewrites raw directory entries during the final rename.
+InitializePack      leax      >DeletedMessageNumbers,u ; initialize the removed-number array
+                    stx       <DeletedNumberCursor,u ; no deleted numbers have been recorded yet
+                    clr       <CurrentMessageNumber,u ; clear the scan counter's high byte
+                    clr       <CurrentMessageNumber+1,u ; clear the scan counter's low byte
+                    os9       F$ID      ; obtain the caller's OS-9 user ID in Y
+                    sty       CallerUserId,u ; retain it for credential restoration
+                    ldy       #0        ; select the superuser identity
+                    os9       F$SUser   ; gain replacement and raw-directory access
+                    clr       DeletedBeforeCount+1,u ; initialize the adjustment count's low byte
+                    clr       DeletedBeforeCount,u ; initialize its high byte
+                    leax      >PleaseWaitMessage,pc ; select the startup notice
+                    ldy       #200      ; let I$WritLn stop at its CR
+                    lda       #1        ; target standard output
+                    os9       I$WritLn  ; tell the operator that compaction has begun
+
+* the misleading historical scratch names are crossed: msg.scratch receives the new
+* index, while inx.scratch receives the compacted message bodies.
+                    leax      >IndexFilename,pc ; select the old fixed-record index
+                    lda       #READ.    ; scan without modifying the original
+                    os9       I$Open    ; open BBS.msg.inx
+                    lbcs      ExitRestoringUser ; restore credentials after open failures
+                    sta       OldIndexPath,u ; retain the original index path
+                    leax      >MessageFilename,pc ; select the old body store
+                    lda       #READ.    ; bodies are copied sequentially
+                    os9       I$Open    ; open BBS.msg
+                    lbcs      ExitRestoringUser ; restore credentials after open failures
+                    sta       OldMessagePath,u ; retain the original body path
+                    leax      >IndexScratchFilename,pc ; select msg.scratch
+                    lda       #WRITE.   ; create it as the new index output
+                    ldb       #11       ; preserve the original file-attribute byte
+                    os9       I$Create  ; create or replace the index scratch file
+                    lbcs      ExitRestoringUser ; stop before touching the originals on failure
+                    sta       NewIndexPath,u ; retain the rebuilt-index path
+                    leax      >MessageScratchFilename,pc ; select inx.scratch
+                    lda       #WRITE.   ; create it as the new body output
+                    ldb       #11       ; preserve the original file-attribute byte
+                    os9       I$Create  ; create or replace the body scratch file
+                    sta       NewMessagePath,u ; retain the rebuilt-body path
+
+* initialize the packed body position and copy the old header as a placeholder.
+                    clr       NewBodyOffset,u ; clear body EOF byte zero
+                    clr       NewBodyOffset+1,u ; clear body EOF byte one
+                    clr       NewBodyOffsetLow,u ; clear body EOF byte two
+                    clr       NewBodyOffsetLow+1,u ; clear body EOF byte three
+                    leax      >IndexHeader,u ; receive the complete old index header
+                    ldy       #64       ; preserve its fixed size
+                    lda       OldIndexPath,u ; select the original index
+                    os9       I$Read    ; load header state and high-water mark
+                    lbcs      ExitRestoringUser ; abort on a missing or damaged header
+                    lda       NewIndexPath,u ; select the rebuilt index
+                    os9       I$Write   ; reserve its header at offset zero
+
+* index and body files are parallel streams: every record corresponds to one body
+* terminated by a CR-only line. Live records receive the new packed body offset.
+ReadNextIndexRecord ldd       <CurrentMessageNumber,u ; advance the original record number
+                    addd      #1        ; account for the next record after the header
+                    std       <CurrentMessageNumber,u ; retain it for deletion bookkeeping
+                    leax      >IndexRecord,u ; receive one complete index record
+                    ldy       #64       ; enforce the fixed record boundary
+                    lda       OldIndexPath,u ; select the original index
+                    os9       I$Read    ; fetch the record parallel to the next body
+                    lbcs      FinalizePackedFiles ; eof finishes the compaction pass
+                    cmpy      #64       ; reject a partial trailing record
+                    lbne      FinalizePackedFiles ; finalize only complete records
+                    ldd       >IndexRecord,u ; inspect the body-offset high word
+                    cmpd      #$FFFF    ; recognize the deletion tombstone
+                    beq       SkipDeletedMessage ; omit this record and its body
+                    ldd       NewBodyOffset,u ; fetch the packed body's current high word
+                    std       >IndexRecord,u ; replace the record's old body offset
+                    ldd       NewBodyOffsetLow,u ; fetch the packed body's current low word
+                    std       >PackedRecordBodyOffsetLow,u ; complete the new 32-bit offset
+                    lda       NewIndexPath,u ; select the rebuilt index
+                    os9       I$Write   ; append the relocated live record
+CopyLiveMessageLine lda       OldMessagePath,u ; select the original body stream
+                    leax      >MessageLine,u ; receive one CR-terminated body line
+                    ldy       #80       ; retain the historical physical-line bound
+                    os9       I$ReadLn  ; copy the next line of this live message
+                    bcs       FinalizePackedFiles ; a damaged body ends packing
+                    lda       NewMessagePath,u ; select the rebuilt body stream
+                    os9       I$WritLn  ; append the line verbatim
+                    tfr       y,d       ; convert the written length to offset arithmetic
+                    addd      NewBodyOffsetLow,u ; advance the packed body's low word
+                    std       NewBodyOffsetLow,u ; retain the new low word
+                    bcc       BodyOffsetUpdated ; avoid a high-word update without carry
+                    ldd       NewBodyOffset,u ; recover the packed offset's high word
+                    addd      #1        ; propagate low-word overflow
+                    std       NewBodyOffset,u ; retain the complete 32-bit position
+BodyOffsetUpdated   cmpy      #1        ; a CR-only line terminates one stored message
+                    bhi       CopyLiveMessageLine ; copy the rest of this live body
+                    bra       ReadNextIndexRecord ; relocate the following index record
+
+* remember every removed original message number for BBs.msg.lst correction, reduce
+* the packed high message count, and consume the deleted body without copying it.
+SkipDeletedMessage  ldx       <DeletedNumberCursor,u ; select the next array slot
+                    ldd       <CurrentMessageNumber,u ; fetch the deleted original number
+                    std       ,x++      ; append it to the removal list
+                    stx       <DeletedNumberCursor,u ; preserve the next free slot
+                    leax      >PackingMessageNotice,pc ; select the per-removal notice
+                    ldy       #200      ; let I$WritLn stop at its CR
+                    lda       #1        ; target standard output
+                    os9       I$WritLn  ; report progress for this tombstone
+                    ldd       >IndexHeader,u ; recover the packed high message number
+                    subd      #1        ; one fewer record will survive
+                    std       >IndexHeader,u ; publish the reduced count
+SkipDeletedBodyLine lda       OldMessagePath,u ; select the original body stream
+                    leax      >MessageLine,u ; discard into the shared line buffer
+                    ldy       #80       ; retain the historical physical-line bound
+                    os9       I$ReadLn  ; consume one line without writing it
+                    bcs       FinalizePackedFiles ; a damaged body ends packing
+                    cmpy      #1        ; recognize the CR-only body terminator
+                    bhi       SkipDeletedBodyLine ; discard all remaining message lines
+                    lbra      ReadNextIndexRecord ; inspect the next index record
+* finish the rebuilt header with the packed body EOF, then replace the old pair only
+* after every scratch write has completed.
+FinalizePackedFiles ldd       NewBodyOffset,u ; fetch the rebuilt body's high EOF word
+                    std       >PackedBodyEndHigh,u ; store it at header offset two
+                    ldd       NewBodyOffsetLow,u ; fetch the rebuilt body's low EOF word
+                    std       >PackedBodyEndLow,u ; store it at header offset four
+                    pshs      u         ; protect workspace U while forming offset zero
+                    lda       NewIndexPath,u ; select the rebuilt index
+                    ldx       #0        ; supply zero as the seek high word
+                    ldu       #0        ; supply zero as the seek low word
+                    os9       I$Seek    ; return to the placeholder header
+                    puls      u         ; recover the workspace pointer
+                    lbcs      ExitRestoringUser ; preserve seek errors and restore credentials
+                    leax      >IndexHeader,u ; select the finalized 64-byte header
+                    ldy       #64       ; overwrite exactly its reserved block
+                    lda       NewIndexPath,u ; select the rebuilt index
+                    os9       I$Write   ; publish the reduced count and packed EOF
+
+* close all four streams before deleting the originals. The scratch files are renamed
+* by editing their raw directory entries because this OS-9 environment lacks a rename call.
+                    lda       OldIndexPath,u ; select the original index
+                    os9       I$Close   ; release it before deletion
+                    lbcs      ExitRestoringUser ; preserve close failures
+                    lda       OldMessagePath,u ; select the original body store
+                    os9       I$Close   ; release it before deletion
+                    lbcs      ExitRestoringUser ; preserve close failures
+                    lda       NewIndexPath,u ; select the rebuilt index
+                    os9       I$Close   ; flush and release it before renaming
+                    lbcs      ExitRestoringUser ; preserve close failures
+                    lda       NewMessagePath,u ; select the rebuilt body store
+                    os9       I$Close   ; flush and release it before renaming
+                    lbcs      ExitRestoringUser ; preserve close failures
+                    leax      >IndexFilename,pc ; select the old index pathname
+                    os9       I$Delete  ; remove BBS.msg.inx
+                    lbcs      ExitRestoringUser ; stop if replacement cannot proceed safely
+                    leax      >MessageFilename,pc ; select the old body pathname
+                    os9       I$Delete  ; remove BBS.msg
+                    lbcs      ExitRestoringUser ; stop if replacement cannot proceed safely
+                    leax      >IndexScratchFilename,pc ; identify msg.scratch as the rename source
+                    leay      >IndexFilename,pc ; supply BBS.msg.inx as its replacement name
+                    lbsr      RenameScratchFile ; rewrite the directory entry in place
+                    leax      >MessageScratchFilename,pc ; identify inx.scratch as the source
+                    leay      >MessageFilename,pc ; supply BBS.msg as its replacement name
+                    lbsr      RenameScratchFile ; rewrite the directory entry in place
+
+* if BBs.msg.lst exists, reduce every saved message position by the number of removed
+* original messages at or below it. Each list record is four bytes; only its final word
+* is rewritten.
+                    leax      >MessageListFilename,pc ; select the optional saved-position file
+                    lda       #UPDAT.   ; corrections are performed in place
+                    os9       I$Open    ; open BBs.msg.lst when present
+                    lbcs      FinishListAdjustment ; absence does not make packing fail
+                    sta       MessageListPath,u ; retain the shared read/write path
+AdjustNextListRecord lda      MessageListPath,u ; select the saved-position stream
+                    leax      <MessageListRecord,u ; receive one four-byte record
+                    ldy       #4        ; preserve its fixed record boundary
+                    os9       I$Read    ; load the leading word and last-read message
+                    lbcs      FinishListAdjustment ; eof completes the optional correction pass
+                    leax      >DeletedMessageNumbers,u ; scan removed original numbers from the start
+                    clr       DeletedBeforeCount+1,u ; reset the low byte of the 16-bit count
+CountDeletedBefore  ldd       ,x++      ; fetch the next removed original message number
+                    cmpd      <LastReadMessage,u ; compare it with this user's saved position
+                    bhi       ContinueDeletedCount ; do not count deletions above that position
+                    inc       DeletedBeforeCount+1,u ; account for a deletion at or below it
+ContinueDeletedCount cmpx     <DeletedNumberCursor,u ; test against the array's exclusive end
+                    bcs       CountDeletedBefore ; examine every recorded deletion
+                    ldd       <LastReadMessage,u ; recover the old saved position
+                    subd      DeletedBeforeCount,u ; renumber it for the compacted index
+                    std       <LastReadMessage,u ; retain the corrected value
+                    lda       MessageListPath,u ; select BBs.msg.lst
+                    ldb       #SS.Pos   ; obtain the position after the four-byte record
+                    pshs      u         ; protect workspace U while it holds the low offset word
+                    os9       I$GetStt  ; return the current file position in X:U
+                    leau      -2,u      ; rewind to the record's final word
+                    os9       I$Seek    ; position at LastReadMessage
+                    puls      u         ; recover the workspace pointer
+                    leax      <LastReadMessage,u ; select the corrected word only
+                    ldy       #2        ; preserve the leading list-record word
+                    os9       I$Write   ; replace the saved message position
+                    bra       AdjustNextListRecord ; correct the following user record
+FinishListAdjustment clrb               ; report successful packing even without a list file
+ExitRestoringUser   pshs      b         ; protect the pending exit status
+                    ldy       CallerUserId,u ; recover the original process identity
+                    os9       F$SUser   ; drop temporary superuser privileges
+                    puls      b         ; recover the packing status
+                    os9       F$Exit    ; return it to the invoking process
+* rename both scratch files by scanning raw 32-byte directory entries. OS-9 directory
+* names terminate by setting bit 7 on the final character rather than storing CR.
+* the routine ignores its nominal X/Y arguments and recognizes both scratch names itself.
+RenameScratchFile   leax      >CurrentDirectoryName,pc ; select the current directory
+                    lda       #$83      ; request raw update access to a directory path
+                    os9       I$Open    ; open '.' as a fixed-record stream
+                    lbcs      ExitRestoringUser ; preserve raw-directory open errors
+                    sta       RenameDirectoryPath,u ; retain the directory path
+                    clr       <DirectoryEntryIndex,u ; begin before directory slot one
+ReadNextDirectoryEntry pshs   u         ; protect workspace U while it becomes a seek offset
+                    lda       <DirectoryEntryIndex,u ; recover the current one-byte slot index
+                    inca                ; advance to the next directory entry
+                    sta       <DirectoryEntryIndex,u ; retain the slot being inspected
+                    ldb       #32       ; directory entries occupy 32 bytes
+                    mul                 ; convert the slot index to a byte offset
+                    tfr       d,x       ; stage the 16-bit product for X:U
+                    lda       RenameDirectoryPath,u ; select the raw directory
+                    ldu       #0        ; provide a zero high word before exchanging
+                    exg       x,u       ; place offset zero in X and the product in U
+                    os9       I$Seek    ; position at the selected raw entry
+                    puls      u         ; recover the workspace pointer
+                    leax      <DirectoryEntry,u ; receive the complete entry
+                    ldy       #32       ; preserve the directory record boundary
+                    lda       RenameDirectoryPath,u ; select the raw directory
+                    os9       I$Read    ; load its name and descriptor-sector bytes
+                    bcs       EndDirectoryScan ; eof or error ends this rename invocation
+                    leay      >IndexScratchFilename,pc ; compare against msg.scratch
+                    leax      <DirectoryEntry,u ; begin at the raw entry name
+CompareIndexScratchName lda    ,x+       ; fetch the next high-bit-terminated entry byte
+                    bmi       IndexScratchNameMatched ; validate its final character separately
+                    cmpa      ,y+       ; require the corresponding scratch-name byte
+                    bne       TryMessageScratchName ; fall back to the other scratch name
+                    bra       CompareIndexScratchName ; compare through the name terminator
+TryMessageScratchName leax    <DirectoryEntry,u ; restart at the raw entry name
+                    leay      >MessageScratchFilename,pc ; compare against inx.scratch
+CompareMessageScratchName lda ,x+       ; fetch the next high-bit-terminated entry byte
+                    bmi       MessageScratchNameMatched ; validate its final character separately
+                    cmpa      ,y+       ; require the corresponding scratch-name byte
+                    bne       ContinueDirectoryScan ; unrelated entry; scan the next slot
+                    bra       CompareMessageScratchName ; compare through the name terminator
+ContinueDirectoryScan bra     ReadNextDirectoryEntry ; inspect the following directory slot
+EndDirectoryScan    cmpb      #E$EOF    ; eof is normal after a rename or full scan
+                    lbne      ExitRestoringUser ; preserve other raw-directory errors
+                    lda       RenameDirectoryPath,u ; select the raw directory path
+                    os9       I$Close   ; release it before returning to the packer
+                    rts                 ; finish this rename invocation
+IndexScratchNameMatched anda  #$7F      ; remove the directory end marker for comparison
+                    cmpa      ,y+       ; require the final msg.scratch character
+                    bne       TryMessageScratchName ; reject a shorter prefix match
+                    lda       ,y+       ; inspect the source pathname byte after the match
+                    cmpa      #C$CR     ; require the whole scratch name to end here
+                    bne       TryMessageScratchName ; reject a longer source name
+                    leax      <DirectoryEntry,u ; overwrite the raw name field
+                    leay      >IndexFilename,pc ; rename this entry BBS.msg.inx
+                    bra       CopyReplacementName ; share directory-name encoding
+MessageScratchNameMatched anda #$7F     ; remove the directory end marker for comparison
+                    cmpa      ,y+       ; require the final inx.scratch character
+                    bne       ContinueDirectoryScan ; reject a shorter prefix match
+                    lda       #C$CR     ; compare against the source pathname terminator
+                    cmpa      ,y+       ; require the whole scratch name to end here
+                    bne       ContinueDirectoryScan ; reject a longer source name
+                    leax      <DirectoryEntry,u ; overwrite the raw name field
+                    leay      >MessageFilename,pc ; rename this entry BBS.msg
+CopyReplacementName lda      ,y+       ; fetch the next permanent-name character
+                    cmpa      #C$CR     ; stop before the OS-9 pathname terminator
+                    beq       WriteRenamedEntry ; encode the raw directory terminator
+                    sta       ,x+       ; copy the character into the entry name
+                    bra       CopyReplacementName ; copy the complete replacement name
+WriteRenamedEntry   lda       ,-x       ; recover the final copied name character
+                    ora       #$80      ; set its raw-directory end marker
+                    sta       ,x        ; publish the encoded final character
+                    lda       <DirectoryEntryIndex,u ; recover the matching directory slot
+                    ldb       #32       ; convert it back to a byte offset
+                    mul                 ; form the 16-bit slot position
+                    tfr       d,x       ; stage the low offset word
+                    lda       RenameDirectoryPath,u ; select the raw directory
+                    ldb       #SS.Pos   ; preserve the historical status-code setup
+                    pshs      u         ; protect workspace U while it becomes an offset
+                    ldu       #0        ; provide a zero high word before exchanging
+                    exg       x,u       ; form the 32-bit slot offset in X:U
+                    os9       I$Seek    ; return to the matching entry boundary
+                    lbcs      ExitRestoringUser ; preserve raw-directory seek errors
+                    puls      u         ; recover the workspace pointer
+                    leax      <DirectoryEntry,u ; select the renamed raw entry
+                    ldy       #32       ; rewrite exactly one directory record
+                    lda       RenameDirectoryPath,u ; select the raw directory
+                    os9       I$Write   ; commit the new high-bit-terminated name
+                    ldb       #E$EOF    ; reuse the normal scan-completion path
+                    lbra      EndDirectoryScan ; close the directory and return
+OpaqueTrailer       fcb       $16,$FF,$40 ; unreachable bytes preserved from the original module
+
+                    emod                ; append the OS-9 module CRC placeholder and trailer
+eom                 equ       *         ; mark the module's end for the header
+                    end                 ; finish this assembly unit
