@@ -118,6 +118,15 @@ The command may be `chd`, another `menu`, a BBS executable, an OS-9 script, or
 redirect its standard input back to the caller, normally with `</1`; otherwise
 the command reads its answers from the script file itself.
 
+`Prompt <command-and-arguments> "prompt" [remaining arguments]` provides a
+single interactive substitution inside such a command line. It separates the
+child module name, copies arguments before the quoted prompt into a 600-byte
+buffer, displays the text inside the quotes without adding a newline, and reads
+up to 79 characters from standard input directly into the buffer. It then
+appends the arguments following the closing quote, forks the child with the
+constructed parameter line, and waits for it to finish. If no opening quote is
+present, `Prompt` simply forks the command with its copied arguments unchanged.
+
 The supplied hierarchy is:
 
 ```text
@@ -304,14 +313,39 @@ background colors, and edit/record mode must be named separately.
 
 ## Carrier handling and online viewing
 
-`Tsmon` cycles through supported baud rates until it receives carriage return,
-reports the detected communications parameters, and starts `BBS.login` and
-`Monitor`. It sends the contents of `modem.set` whenever it initializes the
-modem. The manual requires a modem setup string for reliable 2400-baud use.
+`Tsmon [-m] <port>` is the long-running call supervisor. It opens the serial
+device as standard paths zero through two for each call. If `Modem.set` exists,
+it reads its CR-terminated commands and transmits them one byte at a time with
+a five-tick delay between non-CR bytes. It then reads the port's 32-byte SCF
+option block, disables echo, and begins detection at 1200 baud.
 
-`Monitor` watches data-carrier detect. If the caller hangs up without logging
-off, it terminates the caller's process tree so that the next call cannot
-inherit the previous session.
+Detection polls `SS.Ready` every two ticks. A clean carriage return confirms
+the current rate; other decoded bytes move the test between 2400 and 300 baud.
+A failed byte read falls back to 300 baud, while expiration of the 256-poll
+window reapplies the initial 1200-baud setup. Once synchronized, `Tsmon`
+reenables echo and indexes a table with the `PD.BAU` value to report the rate
+and the fixed eight-data-bit, no-parity format. The manual requires a modem
+setup string for reliable 2400-baud use.
+
+For each caller, `Tsmon` forks `BBS.login` and normally a sibling `Monitor`,
+then waits for either to exit. If login ends first, it allows one second for
+orderly shutdown and sends signal zero to `Monitor`; if carrier loss ends
+`Monitor` first, that process clears the login session's descendants. A second
+wait reaps the remaining child before the serial paths are reopened for the
+next call. The `-m` option suppresses the `Monitor` fork.
+
+`Monitor` watches data-carrier detect. It asks path zero for its device name,
+links the corresponding device-descriptor module, obtains the low word of its
+`M$Port` address, and polls bit `$20` in the ACIA status register at port plus
+one. An optional device argument first replaces standard paths zero through
+two with that device.
+
+When carrier is lost, `Monitor` obtains its own parent process (normally
+`Tsmon`), scans process IDs downward, and walks each candidate's parent chain.
+Every descendant of that shared parent is collected except `Monitor` itself.
+It then sends signal zero to each collected process, retrying after one tick
+until OS-9 accepts the termination signal. This clears the caller's entire
+process tree so the next call cannot inherit the previous session.
 
 `T1mon` provides limited support for the CoCo 3 internal serial port at up to
 300 baud. The manual explicitly excludes chat, conference, upload, and

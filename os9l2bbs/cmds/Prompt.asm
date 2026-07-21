@@ -1,17 +1,17 @@
 **********************************************************************
 * Prompt - OS-9 Level 2 BBS command
 *
-* Syntax: Prompt <command> "prompt" [arguments]
-* Purpose: Read one value, insert it into a command line, and execute that command.
-* Provides parameter prompting for menu and script workflows.
+* syntax: Prompt <command-and-arguments> "prompt" [remaining arguments]
+* purpose: read one value, splice it into a child parameter line, and run the command.
+* provides interactive parameter substitution for menu and script workflows.
 *
-* Edt/Rev  YYYY/MM/DD  Modified by
-* Comment
+* edt/rev  YYYY/MM/DD  Modified by
+* comment
 * ------------------------------------------------------------------
 *          2026/07/20  Codex
-* Annotated source and normalized comments.
+* annotated source and normalized comments.
 *          2026/07/21  Codex
-* Refined command annotations and normalized formatting.
+* refined command annotations and normalized formatting.
 **********************************************************************
 
                     nam       Prompt
@@ -21,88 +21,95 @@
                     use       defsfile
                   ENDC
 
-tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
-atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+tylg                set       Prgrm+Objct ; executable object module
+atrv                set       ReEnt+rev ; reentrant module with revision encoded below
+rev                 set       $01       ; original module revision
 
-                    mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
+                    mod       eom,name,tylg,atrv,start,size ; declare the OS-9 module header and entry point
 
-WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_002        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_003        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_004        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_001      rmb       599       ; reserve 599 byte(s) in the module workspace
-size                equ       .         ; define the assembly-time value for size
+ParameterLength     rmb       1         ; byte count passed to F$Fork
+ParameterLengthReserved rmb  1         ; unused second byte of the original word
+PromptTextStart     rmb       2         ; first character inside the quoted prompt
+SuffixStart         rmb       2         ; first command-line byte after the closing quote
+CommandLineStart    rmb       2         ; original module name and argument string
+ParameterBuffer     rmb       600       ; prefix, entered value, suffix, and terminating CR
+size                equ       .         ; total per-process workspace size
 
-name                fcs       /Prompt/ ; store an OS-9 high-bit-terminated string
-start               stx       WorkWord_004,u ; store x at WorkWord_004,u
-Branch_001          lda       ,x+       ; load a from ,x+
-                    cmpa      #32       ; compare a with #32 and set the condition codes
-                    beq       Branch_002 ; branch when the values are equal or the result is zero; target Branch_002
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_002 ; branch when the values are equal or the result is zero; target Branch_002
-                    bra       Branch_001 ; continue execution at Branch_001
-Branch_002          lda       #13       ; set a to the constant 13
-                    sta       -$01,x    ; store a at -$01,x
-                    leay      WorkByte_001,u ; form the address WorkByte_001,u in y
-                    clr       WorkWord_001,u ; clear WorkWord_001,u to zero and set the condition codes
-Branch_003          lda       ,x+       ; load a from ,x+
-                    cmpa      #34       ; compare a with #34 and set the condition codes
-                    beq       Branch_004 ; branch when the values are equal or the result is zero; target Branch_004
-                    sta       ,y+       ; store a at ,y+
-                    inc       WorkWord_001,u ; increment the value at WorkWord_001,u
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    bne       Branch_003 ; branch when the values differ or the result is nonzero; target Branch_003
-                    lbra      Branch_005 ; continue execution at Branch_005
-Branch_004          stx       WorkWord_002,u ; store x at WorkWord_002,u
-                    clrb                ; clear b to zero and set the condition codes
-Branch_006          lda       ,x+       ; load a from ,x+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
-                    cmpa      #34       ; compare a with #34 and set the condition codes
-                    beq       Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
-                    incb                ; increment b
-                    bra       Branch_006 ; continue execution at Branch_006
-Branch_007          stx       WorkWord_003,u ; store x at WorkWord_003,u
-                    ldx       WorkWord_002,u ; load x from WorkWord_002,u
-                    clra                ; clear a to zero and set the condition codes
-                    pshs      y         ; save y on the stack
-                    tfr       d,y       ; copy the register values specified by d,y
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    ldx       ,s        ; load x from the current stack frame at ,s
-                    ldy       #80       ; set y to the constant 80
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    leay      -$01,y    ; form the address -$01,y in y
-                    tfr       y,d       ; copy the register values specified by y,d
-                    puls      y         ; restore y from the stack
-                    leay      d,y       ; form the address d,y in y
-                    addb      WorkWord_001,u ; add to b using WorkWord_001,u
-                    stb       WorkWord_001,u ; store b at WorkWord_001,u
-                    ldx       WorkWord_003,u ; load x from WorkWord_003,u
-Branch_008          lda       ,x+       ; load a from ,x+
-                    sta       ,y+       ; store a at ,y+
-                    inc       WorkWord_001,u ; increment the value at WorkWord_001,u
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    bne       Branch_008 ; branch when the values differ or the result is nonzero; target Branch_008
-Branch_005          ldx       WorkWord_004,u ; load x from WorkWord_004,u
-                    ldb       WorkWord_001,u ; load b from WorkWord_001,u
-                    clra                ; clear a to zero and set the condition codes
-                    tfr       d,y       ; copy the register values specified by d,y
-                    lda       #17       ; set a to the constant 17
-                    ldb       #3        ; set b to the constant 3
-                    pshs      u         ; save u on the stack
-                    leau      WorkByte_001,u ; form the workspace or data address WorkByte_001,u in u
-                    os9       F$Fork    ; spawn the module at X with parameters at U
-                    lbcs      Branch_009 ; branch when carry reports an error or unsigned underflow; target Branch_009
-                    os9       F$Wait    ; wait for a child process to terminate
-                    lbcs      Branch_009 ; branch when carry reports an error or unsigned underflow; target Branch_009
-                    puls      u         ; restore u from the stack
-                    clrb                ; clear b to zero and set the condition codes
-Branch_009          os9       F$Exit    ; terminate the process with status B
+name                fcs       /Prompt/ ; os-9 module name
+start               stx       CommandLineStart,u ; retain the original command-line pointer
+FindCommandEnd      lda       ,x+       ; scan across the child module name
+                    cmpa      #C$SPAC   ; a space separates the module from its arguments
+                    beq       StartParameterCopy ; terminate the module name there
+                    cmpa      #C$CR     ; a command without arguments ends immediately
+                    beq       StartParameterCopy ; launch it with an empty parameter line
+                    bra       FindCommandEnd ; continue through the module name
+StartParameterCopy  lda       #C$CR     ; form the terminator required by F$Fork
+                    sta       -1,x      ; replace the name/argument separator in place
+                    leay      ParameterBuffer,u ; begin assembling the child parameter line
+                    clr       ParameterLength,u ; initialize its one-byte length
 
-                    emod      ;         emit the OS-9 module CRC and trailer
+* copy arguments preceding the opening quote. If no quote exists, the copied line
+* is launched unchanged and no interactive read is performed.
+CopyParameterPrefix lda       ,x+       ; fetch the next argument byte
+                    cmpa      #'"'      ; an opening quote introduces the prompt text
+                    beq       MeasurePromptText ; remember and display the quoted text
+                    sta       ,y+       ; append an ordinary prefix byte
+                    inc       ParameterLength,u ; account for the appended byte
+                    cmpa      #C$CR     ; stop when the original arguments end
+                    bne       CopyParameterPrefix ; continue toward a quote or CR
+                    lbra      LaunchCommand ; fork with the unmodified copied arguments
+
+MeasurePromptText   stx       PromptTextStart,u ; retain the first byte inside the quote
+                    clrb                ; measure the prompt in B
+FindPromptEnd       lda       ,x+       ; scan the quoted display text
+                    cmpa      #C$CR     ; tolerate a missing closing quote
+                    beq       ReadPromptValue ; use all remaining text as the prompt
+                    cmpa      #'"'      ; a closing quote ends the displayed prompt
+                    beq       ReadPromptValue ; preserve the following suffix pointer
+                    incb                ; account for one visible prompt byte
+                    bra       FindPromptEnd ; continue through the quoted text
+
+ReadPromptValue     stx       SuffixStart,u ; retain the arguments following the quote
+                    ldx       PromptTextStart,u ; select the prompt's first character
+                    clra                ; zero-extend its length from B into D
+                    pshs      y         ; preserve the current parameter append cursor
+SavedParameterCursor equ      0         ; saved append cursor at the current stack top
+                    tfr       d,y       ; supply the visible prompt length to I$Write
+                    lda       #1        ; target standard output
+                    os9       I$Write   ; display the prompt without adding a newline
+                    ldx       SavedParameterCursor,s ; enter input directly at the append cursor
+                    ldy       #80       ; accept at most 79 characters plus CR
+                    clra                ; read from standard input
+                    os9       I$ReadLn  ; collect the caller's substituted value
+                    leay      -1,y      ; exclude the input CR from the child arguments
+                    tfr       y,d       ; retain the entered byte count in B
+                    puls      y         ; recover the original append cursor
+                    leay      d,y       ; advance it past the entered value
+                    addb      ParameterLength,u ; include the earlier parameter prefix
+                    stb       ParameterLength,u ; retain the combined length
+                    ldx       SuffixStart,u ; select the arguments after the prompt quote
+CopyParameterSuffix lda       ,x+       ; fetch the next suffix byte
+                    sta       ,y+       ; append it after the entered value
+                    inc       ParameterLength,u ; include it in the child parameter length
+                    cmpa      #C$CR     ; the suffix includes the final terminator
+                    bne       CopyParameterSuffix ; copy through the end of the line
+
+LaunchCommand       ldx       CommandLineStart,u ; select the now-terminated child module name
+                    ldb       ParameterLength,u ; zero-extend the parameter byte count
+                    clra                ; form the 16-bit F$Fork parameter length
+                    tfr       d,y       ; supply that length in Y
+                    lda       #Prgrm+Objct ; require a 6809 executable module
+                    ldb       #3        ; preserve the original three-page memory request
+                    pshs      u         ; preserve this command's workspace pointer
+                    leau      ParameterBuffer,u ; pass the assembled parameter line
+                    os9       F$Fork    ; start the requested child command
+                    lbcs      ExitWithStatus ; propagate fork failures
+                    os9       F$Wait    ; wait for that child to finish
+                    lbcs      ExitWithStatus ; propagate wait failures
+                    puls      u         ; recover this command's workspace pointer
+                    clrb                ; return success after the child exits
+ExitWithStatus      os9       F$Exit    ; return status B to the invoking process
+
+                    emod                ; append the OS-9 module CRC placeholder and trailer
 eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+                    end                 ; finish this assembly unit
