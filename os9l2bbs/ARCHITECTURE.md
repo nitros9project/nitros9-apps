@@ -193,6 +193,12 @@ used consistently by the archive and message commands are:
 the comma with CR when they need the display name as an OS-9 line, then parse
 the decimal user number following the comma.
 
+`BBS.search` performs a case-sensitive streaming substring comparison directly
+against each index record's 30-byte subject field; it never opens `BBS.msg`.
+A blank query therefore matches every record. Deleted records retain their
+index metadata and are shown with the command's deletion banner when their
+stored subject matches.
+
 ## Private mail
 
 The mailroom uses `BBS.mail` and `BBS.mail.inx`. Mail records are addressed to
@@ -200,7 +206,10 @@ a user or alias and are filtered using the authenticated user identity.
 
 - `BBS.mail.post` composes mail with the same line editor used by message
   posting.
-- `BBS.mail.check` reports whether the current user has unread mail.
+- `BBS.mail.check` scans pending index records whose sender ID is the current
+  user, resolves each recipient through `BBS.alias`, and reports mail the
+  recipient has not yet read. Despite its name, it checks the caller's sent
+  mail rather than the caller's incoming mailbox.
 - `BBS.mail.read` reads the current user's mail.
 - `BBS.mail.readD` reads mail and deletes each item after it is handled.
 - `BBS.mail.delete` deletes selected mail.
