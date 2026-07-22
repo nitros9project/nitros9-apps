@@ -12,6 +12,8 @@
 * Annotated source and normalized comments.
 *          2026/07/21  Codex
 * Refined command annotations and normalized formatting.
+*          2026/07/21  Codex
+* Decoded catalog filtering, record fields, and description offsets.
 **********************************************************************
 
                     nam       DLD.read
@@ -27,126 +29,136 @@ rev                 set       $01       ; set assembly-time module attribute rev
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_001      rmb       80        ; reserve 80 byte(s) in the module workspace
-WorkBuffer_002      rmb       27        ; reserve 27 byte(s) in the module workspace
-WorkBuffer_003      rmb       27        ; reserve 27 byte(s) in the module workspace
-WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_002        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkByte_003        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_004        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_004      rmb       463       ; reserve 463 byte(s) in the module workspace
+CatalogPathNum      rmb       1
+DescriptionPathNum  rmb       1
+DescriptionLineBuffer rmb       80
+RequestedFilename   rmb       27
+* one 96-byte DLD.lst record: name, 32-bit DLD.dsc offset, publication flag,
+* and the 64-byte short description
+RecordFilename      rmb       27
+DescriptionOffsetHigh rmb       2
+DescriptionOffsetLow rmb       2
+RecordPublishedFlag rmb       1
+RecordShortDescription rmb       1
+RecordShortDescriptionTail rmb       463       ; first 63 bytes complete the catalog record
 size                equ       .         ; define the assembly-time value for size
 
-name                fcs       /DLD.read/ ; store an OS-9 high-bit-terminated string
-Text_001            fcc       "DLD.lst" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_002            fcc       "DLD.dsc" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_003            fcc       "Enter filename to read:" ; store literal character data
-Text_004            fcc       "Filename not found." ; store literal character data
-                    fcb       $0D       ; store byte data
-Data_001            fcb       $0A       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcc       "Name:" ; store literal character data
-Text_005            fcc       "Desc:" ; store literal character data
-Text_006            fcc       "--------------------------------------------------------------" ; store literal character data
-                    fcb       $0D       ; store byte data
-start               lda       ,x        ; load a from ,x
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_001 ; branch when the values are equal or the result is zero; target Branch_001
-                    lda       #1        ; set a to the constant 1
-                    os9       I$ChgDir  ; change the current directory to the path at X
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-Branch_001          leax      >Text_001,pc ; form the address >Text_001,pc in x
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    sta       WorkByte_001,u ; store a at WorkByte_001,u
-                    leax      >Text_002,pc ; form the address >Text_002,pc in x
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    sta       WorkByte_002,u ; store a at WorkByte_002,u
-Branch_003          leax      >Text_003,pc ; form the address >Text_003,pc in x
-                    ldy       #23       ; set y to the constant 23
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in x
-                    ldy       #27       ; set y to the constant 27
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    lbcs      Branch_003 ; branch when carry reports an error or unsigned underflow; target Branch_003
-                    cmpy      #1        ; compare y with #1 and set the condition codes
-                    lble      Branch_004 ; branch when the signed value is less than or equal; target Branch_004
-Branch_005          lda       ,x        ; load a from ,x
-                    anda      #223      ; mask a using #223
-                    sta       ,x+       ; store a at ,x+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    bne       Branch_005 ; branch when the values differ or the result is nonzero; target Branch_005
-Branch_006          leax      <WorkBuffer_003,u ; form the address <WorkBuffer_003,u in x
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    ldy       #96       ; set y to the constant 96
-                    clrb                ; clear b to zero and set the condition codes
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    lbcs      Branch_007 ; branch when carry reports an error or unsigned underflow; target Branch_007
-                    tst       >WorkByte_003,u ; set condition codes from >WorkByte_003,u without changing it
-                    beq       Branch_006 ; branch when the values are equal or the result is zero; target Branch_006
-                    leay      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in y
-Branch_008          lda       ,y        ; load a from ,y
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_009 ; branch when the values are equal or the result is zero; target Branch_009
-                    lda       ,x+       ; load a from ,x+
-                    anda      #223      ; mask a using #223
-                    cmpa      ,y+       ; compare a with ,y+ and set the condition codes
-                    bne       Branch_006 ; branch when the values differ or the result is nonzero; target Branch_006
-                    bra       Branch_008 ; continue execution at Branch_008
-Branch_007          cmpb      #211      ; compare b with #211 and set the condition codes
-                    lbne      Branch_002 ; branch when the values differ or the result is nonzero; target Branch_002
-                    leax      >Text_004,pc ; form the address >Text_004,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lbra      Branch_004 ; continue execution at Branch_004
-Branch_009          leax      >Data_001,pc ; form the address >Data_001,pc in x
-                    ldy       #7        ; set y to the constant 7
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      <WorkBuffer_003,u ; form the address <WorkBuffer_003,u in x
-                    ldy       #30       ; set y to the constant 30
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >Text_005,pc ; form the address >Text_005,pc in x
-                    ldy       #5        ; set y to the constant 5
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      >WorkByte_004,u ; form the address >WorkByte_004,u in x
-                    ldy       #65       ; set y to the constant 65
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >Text_006,pc ; form the address >Text_006,pc in x
-                    ldy       #65       ; set y to the constant 65
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    ldx       >WorkWord_001,u ; load x from >WorkWord_001,u
-                    pshs      u         ; save u on the stack
-                    ldu       >WorkWord_002,u ; load u from >WorkWord_002,u
-                    os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    puls      u         ; restore u from the stack
-Branch_010          lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-                    ldy       #200      ; set y to the constant 200
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    cmpy      #1        ; compare y with #1 and set the condition codes
-                    bgt       Branch_010 ; branch when the signed value is greater; target Branch_010
-                    leax      >Text_006,pc ; form the address >Text_006,pc in x
-                    ldy       #65       ; set y to the constant 65
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-Branch_004          clrb                ; clear b to zero and set the condition codes
-Branch_002          os9       F$Exit    ; terminate the process with status B
+name                fcs       /DLD.read/ ; publish the command name in the module header
+CatalogPath         fcc       "DLD.lst"
+                    fcb       $0D       ; terminate the catalog pathname
+DescriptionPath     fcc       "DLD.dsc"
+                    fcb       $0D       ; terminate the long-description pathname
+FilenamePrompt      fcc       "Enter filename to read:"
+FilenameNotFoundText fcc       "Filename not found."
+                    fcb       $0D       ; terminate the lookup-failure message
+NameLabel           fcb       $0A
+                    fcb       $0D
+                    fcc       "Name:"
+DescriptionLabel    fcc       "Desc:"
+DisplayRule         fcc       "--------------------------------------------------------------"
+                    fcb       $0D       ; terminate the description separator
+* an optional argument changes the download-library directory before either
+* database is opened; a bare invocation uses the caller's current directory.
+start               lda       ,x        ; inspect the first command-line character
+                    cmpa      #13       ; recognize an empty directory argument
+                    beq       OpenDatabases ; retain the current directory when no path was supplied
+                    lda       #1        ; select the execution directory as the new location
+                    os9       I$ChgDir  ; enter the requested download-library directory
+                    lbcs      ExitWithStatus ; return the directory error unchanged
+OpenDatabases       leax      >CatalogPath,pc ; select the fixed-record catalog
+                    lda       #1        ; request read access
+                    os9       I$Open    ; open DLD.lst for the filename scan
+                    lbcs      ExitWithStatus ; return if the catalog is unavailable
+                    sta       CatalogPathNum,u ; retain the catalog path number
+                    leax      >DescriptionPath,pc ; select the variable-length description file
+                    lda       #1        ; request read access
+                    os9       I$Open    ; open DLD.dsc for the eventual offset lookup
+                    lbcs      ExitWithStatus ; return if descriptions are unavailable
+                    sta       DescriptionPathNum,u ; retain the description path number
 
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+* normalize the requested name once, then compare it only with published
+* 96-byte catalog records.  Catalog names are normalized during comparison.
+PromptFilename      leax      >FilenamePrompt,pc ; prepare the lookup prompt
+                    ldy       #23       ; write exactly the prompt text, which has no CR
+                    lda       #1        ; direct the prompt to the terminal
+                    os9       I$Write   ; leave the cursor ready for the user's response
+                    leax      <RequestedFilename,u ; receive the requested catalog filename
+                    ldy       #27       ; enforce the catalog filename-field limit
+                    clra                ; select standard input
+                    os9       I$ReadLn  ; read the CR-terminated lookup key
+                    lbcs      PromptFilename ; retry after a terminal read error
+                    cmpy      #1        ; treat a CR-only response as cancellation
+                    lble      ExitSuccessfully ; leave quietly when no filename was entered
+UppercaseInputCharacter lda       ,x        ; fetch one byte of the entered filename
+                    anda      #223      ; fold ASCII lowercase letters to uppercase
+                    sta       ,x+       ; replace the byte and advance through the input
+                    cmpa      #13       ; detect the filename terminator
+                    bne       UppercaseInputCharacter ; normalize the complete requested name
+ReadNextCatalogRecord leax      <RecordFilename,u ; receive a record at its filename field
+                    lda       CatalogPathNum,u ; select the fixed-record catalog
+                    ldy       #96       ; request one complete DLD.lst record
+                    clrb                ; clear a stale error before the catalog read
+                    os9       I$Read    ; fetch the next filename and its metadata
+                    lbcs      CatalogScanEnded ; distinguish catalog end from other errors
+                    tst       >RecordPublishedFlag,u ; exclude records not approved for download
+                    beq       ReadNextCatalogRecord ; continue until a published record appears
+                    leay      <RequestedFilename,u ; compare against the normalized lookup key
+CompareFilenameCharacter lda       ,y        ; inspect the next requested-name byte
+                    cmpa      #13       ; a complete requested name establishes a match
+                    beq       DisplayMatchedRecord ; display the selected published record
+                    lda       ,x+       ; fetch the corresponding catalog-name byte
+                    anda      #223      ; make the catalog comparison case-insensitive
+                    cmpa      ,y+       ; require this character to match the request
+                    bne       ReadNextCatalogRecord ; reject the record on its first mismatch
+                    bra       CompareFilenameCharacter ; compare through the requested-name CR
+CatalogScanEnded    cmpb      #211      ; recognize OS-9 end-of-file as an unsuccessful search
+                    lbne      ExitWithStatus ; preserve any actual catalog I/O error
+                    leax      >FilenameNotFoundText,pc ; prepare the normal lookup-failure message
+                    ldy       #200      ; permit the complete CR-terminated text
+                    lda       #1        ; direct the result to the terminal
+                    os9       I$WritLn  ; report that no published filename matched
+                    lbra      ExitSuccessfully ; make a missing name a successful command result
+
+* show the fixed fields, then use the record's 32-bit DLD.dsc offset to stream
+* the long description through its CR-only terminating line.
+DisplayMatchedRecord leax      >NameLabel,pc ; prepare the leading name caption
+                    ldy       #7        ; include its opening line spacing and five-byte label
+                    lda       #1        ; direct record output to the terminal
+                    os9       I$Write   ; print the caption without scanning for CR
+                    leax      <RecordFilename,u ; select the matched record's name field
+                    ldy       #30       ; allow the name field and its terminator
+                    os9       I$WritLn  ; display the catalog filename
+                    leax      >DescriptionLabel,pc ; prepare the short-description caption
+                    ldy       #5        ; write the five-byte caption exactly
+                    os9       I$Write   ; keep the description on the same display line
+                    leax      >RecordShortDescription,u ; select the record's 64-byte summary field
+                    ldy       #65       ; allow the complete summary and its terminator
+                    os9       I$WritLn  ; display the one-line summary
+                    leax      >DisplayRule,pc ; prepare the long-description separator
+                    ldy       #65       ; allow the full separator line
+                    os9       I$WritLn  ; separate fixed metadata from the long text
+                    lda       DescriptionPathNum,u ; select DLD.dsc
+                    ldx       >DescriptionOffsetHigh,u ; load the offset's most-significant word
+                    pshs      u         ; preserve the workspace pointer during the 32-bit seek
+                    ldu       >DescriptionOffsetLow,u ; complete the record-supplied x:u offset
+                    os9       I$Seek    ; position DLD.dsc at this file's long description
+                    puls      u         ; recover the module workspace pointer
+DisplayNextDescriptionLine lda       DescriptionPathNum,u ; continue reading from DLD.dsc
+                    leax      DescriptionLineBuffer,u ; receive one long-description line
+                    ldy       #200      ; retain the original generous read bound
+                    os9       I$ReadLn  ; read through the next carriage return
+                    lbcs      ExitWithStatus ; return a truncated-description error
+                    lda       #1        ; direct the recovered line to the terminal
+                    os9       I$WritLn  ; reproduce the stored description line
+                    cmpy      #1        ; identify the CR-only description terminator
+                    bgt       DisplayNextDescriptionLine ; continue while the line has content
+                    leax      >DisplayRule,pc ; prepare a closing separator
+                    ldy       #65       ; allow the complete rule
+                    lda       #1        ; select terminal output
+                    os9       I$WritLn  ; close the description display
+ExitSuccessfully    clrb                ; report normal cancellation, match, or miss
+ExitWithStatus      os9       F$Exit    ; return the selected status to the caller
+
+                    emod                ; emit the OS-9 module CRC and trailer
+eom                 equ       *         ; mark the module end for the size expression
+                    end                 ; end the assembly source
