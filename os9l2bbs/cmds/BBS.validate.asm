@@ -2,8 +2,13 @@
 * BBS.validate - OS-9 Level 2 BBS command
 *
 * Syntax: BBS.validate
-* Purpose: Review pending new-user data and create an accepted BBS.users record.
-* Sysop workflow over new_user_file/new_user_log and BBS.users.
+* Purpose: Interactively construct and approve a new BBS account.
+* Reads: operator responses from standard input.
+* Writes: /dd/bbs/BBS.users and /dd/bbs/bbs.alias after confirmation.
+* Cooperates: BBS.login consumes the user record; message and mail commands use
+* the alias record.
+* Failure: returns OS-9 file, input, or write errors; only user zero may create
+* either database when it does not already exist.
 *
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment

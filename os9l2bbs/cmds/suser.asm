@@ -3,7 +3,12 @@
 *
 * Syntax: suser <number> [command]
 * Purpose: Adopt an OS-9 user number and run a command or shell.
-* Restricted sysop utility for reproducing another caller access context.
+* Reads: the requested numeric user ID and optional command line.
+* Writes: no persistent files directly.
+* Cooperates: forks the requested command, or the shell when none is supplied,
+* after changing the process identity through the OS-9 Set User service.
+* Failure: rejects malformed user numbers and propagates identity-change,
+* fork, wait, stream, and path errors through the runtime exit status.
 *
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment
@@ -62,39 +67,39 @@ ClearDirectPage     sta       ,u+       ; clear the first workspace page
                     leau      ,x        ; select
                     leax      >$01CB,x  ; select $01 cb
                     pshs      x         ; retain the workspace-clear boundary
-                    leay      >RuntimeInitializerImage,pc ; select data 001
+                    leay      >RuntimeInitializerImage,pc ; address runtime initializer image
                     ldx       ,y++      ; read the next initialized block length
-                    beq       InitializeSecondDataBlock ; select branch 002 when the requested case matches
+                    beq       InitializeSecondDataBlock ; zero result: initialize second data block
                     bsr       CopyInitializerBytes ; expand the described initialized bytes
                     ldu       $02,s     ; recover $02
-InitializeSecondDataBlock leau      >StreamCursor+1,u ; select work byte 002
+InitializeSecondDataBlock leau      >StreamCursor+1,u ; address stream cursor
                     ldx       ,y++      ; read the next initialized block length
-                    beq       ClearRemainingWorkspace ; select branch 003 when the requested case matches
+                    beq       ClearRemainingWorkspace ; zero result: clear remaining workspace
                     bsr       CopyInitializerBytes ; expand the described initialized bytes
                     clra                ; prepare a zero byte and a 256-byte loop count
 ClearRemainingWorkspace cmpu      ,s        ; stop clearing when the workspace end is reached
 CheckWorkspaceClearEnd beq       ApplyCodeRelocations ; begin relocation after all remaining BSS is zeroed
                     sta       ,u+       ; install it in the process workspace
-                    bra       ClearRemainingWorkspace ; continue with branch 003
+                    bra       ClearRemainingWorkspace ; resume clear remaining workspace
 ApplyCodeRelocations ldu       $02,s     ; recover $02
                     ldd       ,y++      ; recover
                     beq       ApplyDataRelocations ; skip an empty code-reference relocation table
                     leax      >0,pc     ; use the module base as the relocation delta
-                    lbsr      ApplyRelocationTable ; invoke routine 002
+                    lbsr      ApplyRelocationTable ; relocate the compiler-generated pointer table
 ApplyDataRelocations ldd       ,y++      ; recover
                     beq       ParseCommandLine ; begin argument parsing when no data relocations remain
-                    leax      StreamCursor,u ; select work byte 001
-                    lbsr      ApplyRelocationTable ; invoke routine 002
+                    leax      StreamCursor,u ; address stream cursor
+                    lbsr      ApplyRelocationTable ; relocate the compiler-generated pointer table
 ParseCommandLine    leas      $04,s     ; release $04,s bytes of stack state
                     puls      x         ; recover the OS-9 parameter length
-                    stx       >StartupParameterLength,u ; retain work word 006
-                    sty       >StartupArgv0Pointer,u ; retain work word 005
-                    ldd       #1        ; initialize work byte 006 to 1
-                    std       >StartupArgcHigh,u ; retain work byte 006
-                    leay      >StartupArgvVectorTail,u ; select work buffer 002
+                    stx       >StartupParameterLength,u ; preserve startup parameter length
+                    sty       >StartupArgv0Pointer,u ; preserve startup argv0 pointer
+                    ldd       #1        ; initialize the related runtime state to 1
+                    std       >StartupArgcHigh,u ; preserve startup argc high
+                    leay      >StartupArgvVectorTail,u ; address startup argv vector tail
                     leax      ,s        ; point at OS-9's CR-terminated parameter text
                     lda       ,x+       ; prime the argument scanner with its first byte
-ParseNextArgument   ldb       >StartupArgumentState,u ; recover work buffer 003
+ParseNextArgument   ldb       >StartupArgumentState,u ; recover startup argument state
                     cmpb      #29       ; reserve the thirtieth argv slot for termination
                     beq       InvokeSuser ; stop parsing at the argument-vector capacity or CR
 SkipArgumentDelimiters cmpa      #13       ; recognize the carriage-return terminator
@@ -137,13 +142,13 @@ ScanBareArgument    cmpa      #13       ; test the current unquoted byte for ter
                     bra       ScanBareArgument ; consume another ordinary argument byte
 TerminateBareArgument clr       -$01,x    ; initialize -$01
                     bra       ParseNextArgument ; look for another argument
-InvokeSuser         leax      >StartupArgv0Pointer,u ; select work word 005
+InvokeSuser         leax      >StartupArgv0Pointer,u ; address startup argv0 pointer
                     pshs      x         ; pass argv through the compiler calling convention
-                    ldd       >StartupArgcHigh,u ; recover work byte 006
+                    ldd       >StartupArgcHigh,u ; recover startup argc high
                     pshs      d         ; pass argc beside argv
-                    leay      StreamCursor,u ; select work byte 001
-                    bsr       InitializeRuntimeBounds ; invoke routine 003
-                    lbsr      SuserMain ; invoke routine 004
+                    leay      StreamCursor,u ; address stream cursor
+                    bsr       InitializeRuntimeBounds ; establish the compiler heap and stack limits
+                    lbsr      SuserMain ; enter the identity-switching command workflow
                     clr       ,-s       ; push a zero process exit status
                     clr       ,-s       ; push a zero process exit status
                     lbsr      ExitProcess ; flush runtime state and terminate successfully
@@ -154,9 +159,9 @@ InitializeRuntimeBounds leax      >$01CB,y  ; select $01 cb
                     ldd       #-126     ; supply failure or frame value -126 to the following operation
 CheckStackSpace     leax      d,s       ; project the requested stack growth below the current S
                     cmpx      >$01AB,y  ; test against $01 ab
-                    bcc       StackSpaceAvailable ; select branch 017 when carry remains clear
+                    bcc       StackSpaceAvailable ; carry clear confirms success: stack space available
                     cmpx      >$01A9,y  ; test against $01 a9
-                    bcs       AbortStackOverflow ; select branch 018 when carry reports an error or underflow
+                    bcs       AbortStackOverflow ; carry reports failure: abort stack overflow
                     stx       >$01AB,y  ; retain $01 ab
 StackSpaceAvailable rts                 ; return with the requested stack range validated
 StackOverflowMessage fcc       "**** STACK OVERFLOW ****"
@@ -168,7 +173,7 @@ AbortStackOverflow  leax      <StackOverflowMessage,pc ; select text 001
                     ldy       #100      ; bound output beyond the fixed message length
                     os9       I$WritLn  ; display the fatal diagnostic through its carriage return
                     clr       ,-s       ; widen the one-byte status to a compiler word
-                    lbsr      ExitWithStackStatus ; invoke routine 007
+                    lbsr      ExitWithStackStatus ; return the saved status through the runtime exit path
                     ldd       >$019D,y  ; recover $019 d
                     subd      >$01AB,y  ; subtract from d using >$01AB,y
                     rts                 ; return to the diagnostic caller
@@ -196,14 +201,14 @@ RelocateNextWord    ldd       ,y++      ; recover
                     rts                 ; return to the startup dispatcher
 SuserMain           pshs      u         ; preserve the caller frame while the registration program runs
                     ldd       #-284     ; supply failure or frame value -284 to the following operation
-                    lbsr      CheckStackSpace ; invoke routine 006
+                    lbsr      CheckStackSpace ; verify that the application frame fits below the heap
                     leas      >$FF34,s  ; release >$FF34,s bytes of stack state
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     stb       ,s        ; store b in the current stack frame at ,s
                     ldd       >$00D0,s  ; recover $00 d0
                     cmpd      #1        ; test against #1
-                    bne       ValidateUserArgument ; select branch 020 when the requested case does not match
+                    bne       ValidateUserArgument ; nonzero result: validate user argument
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass the current value as a word-sized argument
@@ -214,22 +219,22 @@ SuserMain           pshs      u         ; preserve the caller frame while the re
 ValidateUserArgument ldx       >$00D2,s  ; recover $00 d2
                     ldd       $02,x     ; recover $02
                     pshs      d         ; preserve d across the operation
-                    lbsr      ParseUserNumber ; invoke routine 009
+                    lbsr      ParseUserNumber ; convert the requested user number from decimal text
                     leas      $02,s     ; release $02,s bytes of stack state
                     std       >$00CA,s  ; store d in the current stack frame at >$00CA,s
                     pshs      d         ; preserve d across the operation
-                    lbsr      SetProcessUser ; invoke routine 010
+                    lbsr      SetProcessUser ; adopt the requested OS-9 user identity
                     leas      $02,s     ; release $02,s bytes of stack state
                     cmpd      #-1       ; test against #-1
-                    bne       BuildCommandLine ; select branch 021 when the requested case does not match
+                    bne       BuildCommandLine ; nonzero result: build command line
                     ldd       >$01AD,y  ; recover $01 ad
                     pshs      d         ; preserve d across the operation
                     leax      >UserChangeDeniedMessage,pc ; select text 003
                     pshs      x         ; pass the selected pointer through the compiler calling convention
-                    lbsr      AbortCannotOpen ; invoke abort cannot open
+                    lbsr      AbortCannotOpen ; print the open failure and terminate with its runtime status
                     leas      $04,s     ; release $04,s bytes of stack state
 BuildCommandLine    ldd       #2        ; supply 2 as the control, count, or argument value required here
-                    bra       AdvanceCommandArgument ; continue with branch 022
+                    bra       AdvanceCommandArgument ; resume advance command argument
 AppendCommandArgument ldd       >$00C8,s  ; recover $00 c8
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
@@ -239,25 +244,25 @@ AppendCommandArgument ldd       >$00C8,s  ; recover $00 c8
                     pshs      d         ; pass the current value as a word-sized argument
                     leax      $02,s     ; address the local confirmation byte
                     pshs      x         ; pass the selected pointer through the compiler calling convention
-                    lbsr      AppendCString ; invoke routine 011
+                    lbsr      AppendCString ; append the source text at the destination terminator
                     leas      $04,s     ; release $04,s bytes of stack state
-                    leax      >SpaceString,pc ; select data 002
+                    leax      >SpaceString,pc ; address space string
                     pshs      x         ; preserve x across the operation
                     leax      $02,s     ; select $02
                     pshs      x         ; preserve x across the operation
-                    lbsr      AppendCString ; invoke routine 011
+                    lbsr      AppendCString ; append the source text at the destination terminator
                     leas      $04,s     ; release $04,s bytes of stack state
                     ldd       >$00C8,s  ; recover $00 c8
                     addd      #1        ; add to d using #1
 AdvanceCommandArgument std       >$00C8,s  ; store d in the current stack frame at >$00C8,s
                     ldd       >$00C8,s  ; recover $00 c8
                     cmpd      >$00D0,s  ; test against $00 d0
-                    blt       AppendCommandArgument ; continue with branch 023 below the signed limit
-                    leax      >CarriageReturnString,pc ; select data 003
+                    blt       AppendCommandArgument ; signed comparison remains below its limit: append command argument
+                    leax      >CarriageReturnString,pc ; address carriage return string
                     pshs      x         ; preserve x across the operation
                     leax      $02,s     ; select $02
                     pshs      x         ; preserve x across the operation
-                    lbsr      AppendCString ; invoke routine 011
+                    lbsr      AppendCString ; append the source text at the destination terminator
                     leas      $04,s     ; release $04,s bytes of stack state
                     ldd       #3        ; supply 3 as the control, count, or argument value required here
                     pshs      d         ; pass the current value as a word-sized argument
@@ -269,22 +274,22 @@ AdvanceCommandArgument std       >$00C8,s  ; store d in the current stack frame 
                     pshs      x         ; pass the selected pointer through the compiler calling convention
                     leax      $08,s     ; select $08
                     pshs      x         ; pass the selected pointer through the compiler calling convention
-                    lbsr      MeasureCString ; invoke measure cstring
+                    lbsr      MeasureCString ; measure cstring
                     std       ,s        ; store d in the current stack frame at ,s
                     leax      >DefaultShellName,pc ; select text 004
                     pshs      x         ; pass the selected pointer through the compiler calling convention
-                    lbsr      ForkSelectedProgram ; invoke routine 013
+                    lbsr      ForkSelectedProgram ; start the requested command under the adopted identity
                     leas      $0C,s     ; release $0C,s bytes of stack state
                     leas      >$00CC,s  ; release >$00CC,s bytes of stack state
                     puls      pc,u      ; restore the caller frame and return
 AbortCannotOpen     pshs      u         ; preserve the caller frame for fatal error reporting
                     ldd       #-72      ; supply failure or frame value -72 to the following operation
-                    lbsr      CheckStackSpace ; invoke routine 006
+                    lbsr      CheckStackSpace ; verify that the application frame fits below the heap
                     ldd       $04,s     ; recover $04
                     pshs      d         ; pass the current value as a word-sized argument
-                    leax      >StringLineFormat,pc ; select data 004
+                    leax      >StringLineFormat,pc ; address string line format
                     pshs      x         ; pass the selected pointer through the compiler calling convention
-                    lbsr      PrintFormatted ; invoke routine 014
+                    lbsr      PrintFormatted ; render the selected formatted message
                     leas      $04,s     ; release $04,s bytes of stack state
                     ldd       $06,s     ; recover $06
                     pshs      d         ; pass the current value as a word-sized argument
@@ -312,7 +317,7 @@ PrintFormatted      pshs      u         ; preserve the caller's descriptor point
                     leax      $06,s     ; select $06
                     pshs      x         ; preserve x across the operation
                     ldd       $06,s     ; recover $06
-                    bra       InvokeFormatEngine ; continue with invoke format engine
+                    bra       InvokeFormatEngine ; resume invoke format engine
                     fcb       $34
                     fcb       $40
                     fcb       $EC
@@ -326,9 +331,9 @@ PrintFormatted      pshs      u         ; preserve the caller's descriptor point
                     fcb       $EC
                     fcb       $68
 InvokeFormatEngine  pshs      d         ; preserve d across the operation
-                    leax      >EncodedFormatWrapper,pc ; select data 005
+                    leax      >EncodedFormatWrapper,pc ; address encoded format wrapper
                     pshs      x         ; preserve x across the operation
-                    bsr       FormatOutputCore ; invoke format output core
+                    bsr       FormatOutputCore ; format the next conversion into the output stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
                     fcb       $34
@@ -365,9 +370,9 @@ InvokeFormatEngine  pshs      d         ; preserve d across the operation
 FormatOutputCore    pshs      u         ; preserve u across the operation
                     ldu       $06,s     ; recover $06
                     leas      -$0B,s    ; release -$0B,s bytes of stack state
-                    bra       ScanFormatString ; continue with scan format string
+                    bra       ScanFormatString ; resume scan format string
 EmitLiteralFormatByte ldb       $08,s     ; recover $08
-                    lbeq      FinishFormattedOutput ; select finish formatted output when the requested case matches
+                    lbeq      FinishFormattedOutput ; zero result: finish formatted output
                     ldb       $08,s     ; recover $08
                     sex                 ; sign-extend b into d
                     pshs      d         ; preserve d across the operation
@@ -376,7 +381,7 @@ EmitLiteralFormatByte ldb       $08,s     ; recover $08
 ScanFormatString    ldb       ,u+       ; consume the next byte while scan format string
                     stb       $08,s     ; store b in the current stack frame at $08,s
                     cmpb      #37       ; recognize 37 as a meaningful value in this parser state
-                    bne       EmitLiteralFormatByte ; select emit literal format byte when the requested case does not match
+                    bne       EmitLiteralFormatByte ; nonzero result: emit literal format byte
                     ldb       ,u+       ; consume the next byte while scan format string
                     stb       $08,s     ; store b in the current stack frame at $08,s
                     clra                ; select standard input
@@ -385,27 +390,27 @@ ScanFormatString    ldb       ,u+       ; consume the next byte while scan forma
                     std       $06,s     ; store d in the current stack frame at $06,s
                     ldb       $08,s     ; recover $08
                     cmpb      #45       ; recognize 45 as a meaningful value in this parser state
-                    bne       NoLeftJustifyFlag ; select branch 028 when the requested case does not match
+                    bne       NoLeftJustifyFlag ; nonzero result: no left justify flag
                     ldd       #1        ; initialize $01 c5 to 1
                     std       >$01C5,y  ; retain $01 c5
                     ldb       ,u+       ; consume the next byte while scan format string
                     stb       $08,s     ; store b in the current stack frame at $08,s
-                    bra       SelectFormatPadding ; continue with select format padding
+                    bra       SelectFormatPadding ; resume select format padding
 NoLeftJustifyFlag   clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       >$01C5,y  ; retain $01 c5
 SelectFormatPadding ldb       $08,s     ; recover $08
                     cmpb      #48       ; recognize or generate ASCII zero
-                    bne       UseSpacePadding ; select use space padding when the requested case does not match
+                    bne       UseSpacePadding ; nonzero result: use space padding
                     ldd       #48       ; recognize or generate ASCII zero
-                    bra       SaveFormatPadding ; continue with branch 031
+                    bra       SaveFormatPadding ; resume save format padding
 UseSpacePadding     ldd       #32       ; recognize the first printable ASCII value
 SaveFormatPadding   std       >$01C7,y  ; retain $01 c7
-                    bra       ParseFieldWidth ; continue with parse field width
+                    bra       ParseFieldWidth ; resume parse field width
 AccumulateFieldWidth ldd       $06,s     ; recover $06
                     pshs      d         ; preserve d across the operation
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     pshs      d         ; preserve d across the operation
                     ldb       $0A,s     ; recover $0 a
                     sex                 ; sign-extend b into d
@@ -424,14 +429,14 @@ ParseFieldWidth     ldb       $08,s     ; recover $08
                     bne       AccumulateFieldWidth ; repeat accumulate field width until the terminating condition is met
                     ldb       $08,s     ; recover $08
                     cmpb      #46       ; recognize 46 as a meaningful value in this parser state
-                    bne       NoPrecisionSpecified ; select no precision specified when the requested case does not match
+                    bne       NoPrecisionSpecified ; nonzero result: no precision specified
                     ldd       #1        ; initialize $04 to 1
                     std       $04,s     ; store d in the current stack frame at $04,s
-                    bra       ParsePrecisionDigits ; continue with parse precision digits
+                    bra       ParsePrecisionDigits ; resume parse precision digits
 AccumulatePrecision ldd       $02,s     ; recover $02
                     pshs      d         ; preserve d across the operation
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     pshs      d         ; preserve d across the operation
                     ldb       $0A,s     ; recover $0 a
                     sex                 ; sign-extend b into d
@@ -448,14 +453,14 @@ ParsePrecisionDigits ldb       ,u+       ; consume the next byte while parse pre
                     clra                ; select standard input
                     andb      #8        ; mask b using #8
                     bne       AccumulatePrecision ; repeat accumulate precision until the terminating condition is met
-                    bra       DispatchConversion ; continue with dispatch conversion
+                    bra       DispatchConversion ; resume dispatch conversion
 NoPrecisionSpecified clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       $04,s     ; store d in the current stack frame at $04,s
 DispatchConversion  ldb       $08,s     ; recover $08
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; transfer d,x
-                    lbra      MatchConversionType ; continue with match conversion type
+                    lbra      MatchConversionType ; resume match conversion type
 FormatSignedDecimal ldd       $06,s     ; recover $06
                     pshs      d         ; preserve d across the operation
                     ldx       <$0015,s  ; recover $0015
@@ -463,8 +468,8 @@ FormatSignedDecimal ldd       $06,s     ; recover $06
                     stx       <$0015,s  ; store x in the current stack frame at <$0015,s
                     ldd       -$02,x    ; recover -$02
                     pshs      d         ; preserve d across the operation
-                    lbsr      ConvertSignedDecimal ; invoke convert signed decimal
-                    bra       StoreConvertedPointer ; continue with store converted pointer
+                    lbsr      ConvertSignedDecimal ; convert signed decimal
+                    bra       StoreConvertedPointer ; resume store converted pointer
 FormatOctal         ldd       $06,s     ; recover $06
                     pshs      d         ; preserve d across the operation
                     ldx       <$0015,s  ; recover $0015
@@ -472,9 +477,9 @@ FormatOctal         ldd       $06,s     ; recover $06
                     stx       <$0015,s  ; store x in the current stack frame at <$0015,s
                     ldd       -$02,x    ; recover -$02
                     pshs      d         ; preserve d across the operation
-                    lbsr      ConvertOctal ; invoke convert octal
+                    lbsr      ConvertOctal ; convert octal
 StoreConvertedPointer std       ,s        ; store d in the current stack frame at ,s
-                    lbra      WriteConvertedField ; continue with write converted field
+                    lbra      WriteConvertedField ; resume write converted field
 FormatHexadecimal   ldd       $06,s     ; recover $06
                     pshs      d         ; preserve d across the operation
                     ldb       $0A,s     ; recover $0 a
@@ -490,8 +495,8 @@ FormatHexadecimal   ldd       $06,s     ; recover $06
                     stx       <$0017,s  ; store x in the current stack frame at <$0017,s
                     ldd       -$02,x    ; recover -$02
                     pshs      d         ; preserve d across the operation
-                    lbsr      ConvertHexadecimal ; invoke routine 019
-                    lbra      RestoreFormatStack ; continue with restore format stack
+                    lbsr      ConvertHexadecimal ; convert the numeric value to hexadecimal text
+                    lbra      RestoreFormatStack ; resume restore format stack
 FormatUnsignedDecimal ldd       $06,s     ; recover $06
                     pshs      d         ; preserve d across the operation
                     ldx       <$0015,s  ; recover $0015
@@ -501,10 +506,10 @@ FormatUnsignedDecimal ldd       $06,s     ; recover $06
                     pshs      d         ; preserve d across the operation
                     leax      >$01B1,y  ; select $01 b1
                     pshs      x         ; preserve x across the operation
-                    lbsr      ConvertUnsignedDecimal ; invoke convert unsigned decimal
-                    lbra      RestoreFormatStack ; continue with restore format stack
+                    lbsr      ConvertUnsignedDecimal ; convert unsigned decimal
+                    lbra      RestoreFormatStack ; resume restore format stack
 FormatFloatingValue ldd       $04,s     ; recover $04
-                    bne       ConvertFloatingValue ; select convert floating value when the requested case does not match
+                    bne       ConvertFloatingValue ; nonzero result: convert floating value
                     ldd       #6        ; initialize $02 to 6
                     std       $02,s     ; store d in the current stack frame at $02,s
 ConvertFloatingValue ldd       $06,s     ; recover $06
@@ -516,26 +521,26 @@ ConvertFloatingValue ldd       $06,s     ; recover $06
                     ldb       $0E,s     ; recover $0 e
                     sex                 ; sign-extend b into d
                     pshs      d         ; preserve d across the operation
-                    lbsr      ReturnEmptyString ; invoke return empty string
+                    lbsr      ReturnEmptyString ; return empty string
                     leas      $06,s     ; release $06,s bytes of stack state
-                    lbra      PassConvertedField ; continue with pass converted field
+                    lbra      PassConvertedField ; resume pass converted field
 FormatCharacterValue ldx       <$0013,s  ; recover $0013
                     leax      $02,x     ; select $02
                     stx       <$0013,s  ; store x in the current stack frame at <$0013,s
                     ldd       -$02,x    ; recover -$02
-                    lbra      EmitScalarValue ; continue with emit scalar value
+                    lbra      EmitScalarValue ; resume emit scalar value
 FormatStringValue   ldx       <$0013,s  ; recover $0013
                     leax      $02,x     ; select $02
                     stx       <$0013,s  ; store x in the current stack frame at <$0013,s
                     ldd       -$02,x    ; recover -$02
                     std       $09,s     ; store d in the current stack frame at $09,s
                     ldd       $04,s     ; recover $04
-                    beq       StringWidthReady ; select string width ready when the requested case matches
+                    beq       StringWidthReady ; zero result: string width ready
                     ldd       $09,s     ; recover $09
                     std       $04,s     ; store d in the current stack frame at $04,s
-                    bra       MeasureBoundedString ; continue with measure bounded string
+                    bra       MeasureBoundedString ; resume measure bounded string
 CountStringByte     ldb       [<$09,s]  ; recover [<$09
-                    beq       EmitFormattedField ; select emit formatted field when the requested case matches
+                    beq       EmitFormattedField ; zero result: emit formatted field
                     ldd       $09,s     ; recover $09
                     addd      #1        ; add to d using #1
                     std       $09,s     ; store d in the current stack frame at $09,s
@@ -543,7 +548,7 @@ MeasureBoundedString ldd       $02,s     ; recover $02
                     addd      #-1       ; add to d using #-1
                     std       $02,s     ; store d in the current stack frame at $02,s
                     subd      #-1       ; subtract from d using #-1
-                    bne       CountStringByte ; select count string byte when the requested case does not match
+                    bne       CountStringByte ; nonzero result: count string byte
 EmitFormattedField  ldd       $06,s     ; recover $06
                     pshs      d         ; preserve d across the operation
                     ldd       $0B,s     ; recover $0 b
@@ -553,16 +558,16 @@ EmitFormattedField  ldd       $06,s     ; recover $06
                     pshs      d         ; preserve d across the operation
                     ldd       <$0015,s  ; recover $0015
                     pshs      d         ; preserve d across the operation
-                    lbsr      WritePaddedField ; invoke write padded field
+                    lbsr      WritePaddedField ; write padded field
                     leas      $08,s     ; release $08,s bytes of stack state
-                    bra       ResumeFormatScan ; continue with resume format scan
+                    bra       ResumeFormatScan ; resume resume format scan
 StringWidthReady    ldd       $06,s     ; recover $06
                     pshs      d         ; preserve d across the operation
                     ldd       $0B,s     ; recover $0 b
-                    bra       PassConvertedField ; continue with pass converted field
+                    bra       PassConvertedField ; resume pass converted field
 AcceptLongModifier  ldb       ,u+       ; consume the next byte while accept long modifier
                     stb       $08,s     ; store b in the current stack frame at $08,s
-                    bra       FormatLongValue ; continue with format long value
+                    bra       FormatLongValue ; resume format long value
                     fcb       $32
                     fcb       $15
 FormatLongValue     ldd       $06,s     ; recover $06
@@ -572,67 +577,67 @@ FormatLongValue     ldd       $06,s     ; recover $06
                     ldb       $0C,s     ; recover $0 c
                     sex                 ; sign-extend b into d
                     pshs      d         ; preserve d across the operation
-                    lbsr      SelectIntegerArgument ; invoke select integer argument
+                    lbsr      SelectIntegerArgument ; select integer argument
 RestoreFormatStack  leas      $04,s     ; release $04,s bytes of stack state
 PassConvertedField  pshs      d         ; preserve d across the operation
 WriteConvertedField ldd       <$0013,s  ; recover $0013
                     pshs      d         ; preserve d across the operation
-                    lbsr      WritePaddedString ; invoke write padded string
+                    lbsr      WritePaddedString ; write padded string
                     leas      $06,s     ; release $06,s bytes of stack state
-ResumeFormatScan    lbra      ScanFormatString ; continue with scan format string
+ResumeFormatScan    lbra      ScanFormatString ; resume scan format string
 EmitUnknownSpecifier ldb       $08,s     ; recover $08
                     sex                 ; sign-extend b into d
 EmitScalarValue     pshs      d         ; preserve d across the operation
                     jsr       [<$11,s]  ; emit the next field byte through the caller-selected callback
                     leas      $02,s     ; release $02,s bytes of stack state
-                    lbra      ScanFormatString ; continue with scan format string
+                    lbra      ScanFormatString ; resume scan format string
 MatchConversionType cmpx      #100      ; test against #100
-                    lbeq      FormatSignedDecimal ; select format signed decimal when the requested case matches
+                    lbeq      FormatSignedDecimal ; zero result: format signed decimal
                     cmpx      #111      ; test against #111
-                    lbeq      FormatOctal ; select format octal when the requested case matches
+                    lbeq      FormatOctal ; zero result: format octal
                     cmpx      #120      ; test against #120
-                    lbeq      FormatHexadecimal ; select format hexadecimal when the requested case matches
+                    lbeq      FormatHexadecimal ; zero result: format hexadecimal
                     cmpx      #88       ; test against #88
-                    lbeq      FormatHexadecimal ; select format hexadecimal when the requested case matches
+                    lbeq      FormatHexadecimal ; zero result: format hexadecimal
                     cmpx      #117      ; test against #117
-                    lbeq      FormatUnsignedDecimal ; select format unsigned decimal when the requested case matches
+                    lbeq      FormatUnsignedDecimal ; zero result: format unsigned decimal
                     cmpx      #102      ; test against #102
-                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    lbeq      FormatFloatingValue ; zero result: format floating value
                     cmpx      #101      ; test against #101
-                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    lbeq      FormatFloatingValue ; zero result: format floating value
                     cmpx      #103      ; test against #103
-                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    lbeq      FormatFloatingValue ; zero result: format floating value
                     cmpx      #69       ; test against #69
-                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    lbeq      FormatFloatingValue ; zero result: format floating value
                     cmpx      #71       ; test against #71
-                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    lbeq      FormatFloatingValue ; zero result: format floating value
                     cmpx      #99       ; test against #99
-                    lbeq      FormatCharacterValue ; select format character value when the requested case matches
+                    lbeq      FormatCharacterValue ; zero result: format character value
                     cmpx      #115      ; test against #115
-                    lbeq      FormatStringValue ; select format string value when the requested case matches
+                    lbeq      FormatStringValue ; zero result: format string value
                     cmpx      #108      ; test against #108
-                    lbeq      AcceptLongModifier ; select accept long modifier when the requested case matches
-                    bra       EmitUnknownSpecifier ; continue with emit unknown specifier
+                    lbeq      AcceptLongModifier ; zero result: accept long modifier
+                    bra       EmitUnknownSpecifier ; resume emit unknown specifier
 FinishFormattedOutput leas      $0B,s     ; release $0B,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
 ConvertSignedDecimal pshs      u,d       ; save u,d on the stack
                     leax      >$01B1,y  ; select $01 b1
                     stx       ,s        ; store x in the current stack frame at ,s
                     ldd       $06,s     ; recover $06
-                    bge       ConvertSignedMagnitude ; continue with convert signed magnitude at or above the signed limit
+                    bge       ConvertSignedMagnitude ; signed comparison reached its upper case: convert signed magnitude
                     ldd       $06,s     ; recover $06
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
                     std       $06,s     ; store d in the current stack frame at $06,s
-                    bge       PrefixMinusSign ; continue with prefix minus sign at or above the signed limit
+                    bge       PrefixMinusSign ; signed comparison reached its upper case: prefix minus sign
                     leax      >MinimumSignedText,pc ; select text 005
                     pshs      x         ; preserve x across the operation
                     leax      >$01B1,y  ; select $01 b1
                     pshs      x         ; preserve x across the operation
-                    lbsr      CopyCString ; invoke copy cstring
+                    lbsr      CopyCString ; copy cstring
                     leas      $04,s     ; release $04,s bytes of stack state
-                    lbra      ReturnConversionBuffer ; continue with branch 062
+                    lbra      ReturnConversionBuffer ; resume return conversion buffer
 PrefixMinusSign     ldd       #45       ; initialize  to 45
                     ldx       ,s        ; recover
                     leax      $01,x     ; select $01
@@ -642,9 +647,9 @@ ConvertSignedMagnitude ldd       $06,s     ; recover $06
                     pshs      d         ; preserve d across the operation
                     ldd       $02,s     ; recover $02
                     pshs      d         ; preserve d across the operation
-                    bsr       ConvertUnsignedDecimal ; invoke convert unsigned decimal
+                    bsr       ConvertUnsignedDecimal ; convert unsigned decimal
                     leas      $04,s     ; release $04,s bytes of stack state
-                    lbra      ReturnNumericBuffer ; continue with branch 063
+                    lbra      ReturnNumericBuffer ; resume return numeric buffer
 ConvertUnsignedDecimal pshs      u,y,x,d   ; save u,y,x,d on the stack
                     ldu       $0A,s     ; recover $0 a
                     clra                ; select standard input
@@ -653,7 +658,7 @@ ConvertUnsignedDecimal pshs      u,y,x,d   ; save u,y,x,d on the stack
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       ,s        ; store d in the current stack frame at ,s
-                    bra       NormalizeDecimalRange ; continue with normalize decimal range
+                    bra       NormalizeDecimalRange ; resume normalize decimal range
 IncreaseDecimalDigitCount ldd       ,s        ; recover
                     addd      #1        ; add to d using #1
                     std       ,s        ; store d in the current stack frame at ,s
@@ -661,26 +666,26 @@ IncreaseDecimalDigitCount ldd       ,s        ; recover
                     subd      >$0001,y  ; subtract from d using >$0001,y
                     std       $0C,s     ; store d in the current stack frame at $0C,s
 NormalizeDecimalRange ldd       $0C,s     ; recover $0 c
-                    blt       IncreaseDecimalDigitCount ; continue with increase decimal digit count below the signed limit
+                    blt       IncreaseDecimalDigitCount ; signed comparison remains below its limit: increase decimal digit count
                     leax      >$0001,y  ; select $0001
                     stx       $04,s     ; store x in the current stack frame at $04,s
-                    bra       EmitDecimalDigits ; continue with emit decimal digits
+                    bra       EmitDecimalDigits ; resume emit decimal digits
 AdvanceDecimalDigit ldd       ,s        ; recover
                     addd      #1        ; add to d using #1
                     std       ,s        ; store d in the current stack frame at ,s
 SubtractDecimalPlace ldd       $0C,s     ; recover $0 c
                     subd      [<$04,s]  ; subtract from d using [<$04,s]
                     std       $0C,s     ; store d in the current stack frame at $0C,s
-                    bge       AdvanceDecimalDigit ; continue with advance decimal digit at or above the signed limit
+                    bge       AdvanceDecimalDigit ; signed comparison reached its upper case: advance decimal digit
                     ldd       $0C,s     ; recover $0 c
                     addd      [<$04,s]  ; add to d using [<$04,s]
                     std       $0C,s     ; store d in the current stack frame at $0C,s
                     ldd       ,s        ; recover
-                    beq       MarkDecimalStarted ; select mark decimal started when the requested case matches
+                    beq       MarkDecimalStarted ; zero result: mark decimal started
                     ldd       #1        ; initialize $02 to 1
                     std       $02,s     ; store d in the current stack frame at $02,s
 MarkDecimalStarted  ldd       $02,s     ; recover $02
-                    beq       AdvanceDecimalDivisor ; select advance decimal divisor when the requested case matches
+                    beq       AdvanceDecimalDivisor ; zero result: advance decimal divisor
                     ldd       ,s        ; recover
                     addd      #48       ; add to d using #48
                     stb       ,u+       ; retain
@@ -692,13 +697,13 @@ AdvanceDecimalDivisor clra                ; select standard input
                     std       $04,s     ; store d in the current stack frame at $04,s
 EmitDecimalDigits   ldd       $04,s     ; recover $04
                     cmpd      >$0009,y  ; test against $0009
-                    bne       SubtractDecimalPlace ; select subtract decimal place when the requested case does not match
+                    bne       SubtractDecimalPlace ; nonzero result: subtract decimal place
                     ldd       $0C,s     ; recover $0 c
                     addd      #48       ; add to d using #48
                     stb       ,u+       ; retain
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    stb       StreamCursor,u ; retain work byte 001
+                    stb       StreamCursor,u ; preserve stream cursor
                     ldd       $0A,s     ; recover $0 a
                     leas      $06,s     ; release $06,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
@@ -719,9 +724,9 @@ ExtractOctalDigit   ldd       $06,s     ; recover $06
                     lsra                ; shift a right logically
                     rorb                ; rotate b right through carry
                     std       $06,s     ; store d in the current stack frame at $06,s
-                    bne       ExtractOctalDigit ; select extract octal digit when the requested case does not match
-                    bra       ReverseOctalDigits ; continue with reverse octal digits
-CopyOctalDigit      ldb       StreamCursor,u ; recover work byte 001
+                    bne       ExtractOctalDigit ; nonzero result: extract octal digit
+                    bra       ReverseOctalDigits ; resume reverse octal digits
+CopyOctalDigit      ldb       StreamCursor,u ; recover stream cursor
                     ldx       ,s        ; recover
                     leax      $01,x     ; select $01
                     stx       ,s        ; store x in the current stack frame at ,s
@@ -751,12 +756,12 @@ ExtractHexDigit     ldd       $08,s     ; recover $08
                     cmpd      #9        ; test against #9
                     ble       UseNumericHexDigit ; continue at UseNumericHexDigit when the signed value is at or below the limit
                     ldd       $0C,s     ; recover $0 c
-                    beq       UseLowercaseHexBase ; select use lowercase hex base when the requested case matches
+                    beq       UseLowercaseHexBase ; zero result: use lowercase hex base
                     ldd       #65       ; supply 65 as the control, count, or argument value required here
-                    bra       AdjustHexAlphabeticDigit ; continue with adjust hex alphabetic digit
+                    bra       AdjustHexAlphabeticDigit ; resume adjust hex alphabetic digit
 UseLowercaseHexBase ldd       #97       ; supply 97 as the control, count, or argument value required here
 AdjustHexAlphabeticDigit addd      #-10      ; add to d using #-10
-                    bra       StoreHexDigit ; continue with store hex digit
+                    bra       StoreHexDigit ; resume store hex digit
 UseNumericHexDigit  ldd       #48       ; recognize or generate ASCII zero
 StoreHexDigit       addd      ,s++      ; add to d using ,s++
                     stb       ,u+       ; retain
@@ -771,9 +776,9 @@ StoreHexDigit       addd      ,s++      ; add to d using ,s++
                     rorb                ; rotate b right through carry
                     anda      #15       ; mask a using #15
                     std       $08,s     ; store d in the current stack frame at $08,s
-                    bne       ExtractHexDigit ; select extract hex digit when the requested case does not match
-                    bra       ReverseHexDigits ; continue with reverse hex digits
-CopyHexDigit        ldb       StreamCursor,u ; recover work byte 001
+                    bne       ExtractHexDigit ; nonzero result: extract hex digit
+                    bra       ReverseHexDigits ; resume reverse hex digits
+CopyHexDigit        ldb       StreamCursor,u ; recover stream cursor
                     ldx       $02,s     ; recover $02
                     leax      $01,x     ; select $01
                     stx       $02,s     ; store x in the current stack frame at $02,s
@@ -788,15 +793,15 @@ ReverseHexDigits    leau      -$01,u    ; select -$01
                     stb       [<$02,s]  ; store b in the current stack frame at [<$02,s]
                     leax      >$01B1,y  ; select $01 b1
                     tfr       x,d       ; transfer x,d
-                    lbra      ReturnFormattedBuffer ; continue with return formatted buffer
+                    lbra      ReturnFormattedBuffer ; resume return formatted buffer
 WritePaddedField    pshs      u         ; preserve u across the operation
                     ldu       $06,s     ; recover $06
                     ldd       $0A,s     ; recover $0 a
                     subd      $08,s     ; subtract from d using $08,s
                     std       $0A,s     ; store d in the current stack frame at $0A,s
                     ldd       >$01C5,y  ; recover $01 c5
-                    bne       EmitFieldBytes ; select emit field bytes when the requested case does not match
-                    bra       EmitLeadingPadding ; continue with emit leading padding
+                    bne       EmitFieldBytes ; nonzero result: emit field bytes
+                    bra       EmitLeadingPadding ; resume emit leading padding
 EmitLeadingPadByte  ldd       >$01C7,y  ; recover $01 c7
                     pshs      d         ; preserve d across the operation
                     jsr       [<$06,s]  ; emit the next field byte through the caller-selected callback
@@ -806,7 +811,7 @@ EmitLeadingPadding  ldd       $0A,s     ; recover $0 a
                     std       $0A,s     ; store d in the current stack frame at $0A,s
                     subd      #-1       ; subtract from d using #-1
                     bgt       EmitLeadingPadByte ; continue at EmitLeadingPadByte when the signed value is above the limit
-                    bra       EmitFieldBytes ; continue with emit field bytes
+                    bra       EmitFieldBytes ; resume emit field bytes
 EmitNextFieldByte   ldb       ,u+       ; consume the next byte while emit next field byte
                     sex                 ; sign-extend b into d
                     pshs      d         ; preserve d across the operation
@@ -816,10 +821,10 @@ EmitFieldBytes      ldd       $08,s     ; recover $08
                     addd      #-1       ; add to d using #-1
                     std       $08,s     ; store d in the current stack frame at $08,s
                     subd      #-1       ; subtract from d using #-1
-                    bne       EmitNextFieldByte ; select emit next field byte when the requested case does not match
+                    bne       EmitNextFieldByte ; nonzero result: emit next field byte
                     ldd       >$01C5,y  ; recover $01 c5
-                    beq       ReturnPaddedField ; select return padded field when the requested case matches
-                    bra       EmitTrailingPadding ; continue with emit trailing padding
+                    beq       ReturnPaddedField ; zero result: return padded field
+                    bra       EmitTrailingPadding ; resume emit trailing padding
 EmitTrailingPadByte ldd       >$01C7,y  ; recover $01 c7
                     pshs      d         ; preserve d across the operation
                     jsr       [<$06,s]  ; emit the next field byte through the caller-selected callback
@@ -835,7 +840,7 @@ WritePaddedString   pshs      u         ; preserve u across the operation
                     ldd       $08,s     ; recover $08
                     pshs      d         ; preserve d across the operation
                     pshs      u         ; preserve u across the operation
-                    lbsr      MeasureCString ; invoke measure cstring
+                    lbsr      MeasureCString ; measure cstring
                     leas      $02,s     ; release $02,s bytes of stack state
                     nega                ; negate a
                     negb                ; negate b
@@ -843,8 +848,8 @@ WritePaddedString   pshs      u         ; preserve u across the operation
                     addd      ,s++      ; add to d using ,s++
                     std       $08,s     ; store d in the current stack frame at $08,s
                     ldd       >$01C5,y  ; recover $01 c5
-                    bne       EmitStringBytes ; select emit string bytes when the requested case does not match
-                    bra       EmitStringLeadingPadding ; continue with emit string leading padding
+                    bne       EmitStringBytes ; nonzero result: emit string bytes
+                    bra       EmitStringLeadingPadding ; resume emit string leading padding
 EmitStringLeadingPadByte ldd       >$01C7,y  ; recover $01 c7
                     pshs      d         ; preserve d across the operation
                     jsr       [<$06,s]  ; emit the next field byte through the caller-selected callback
@@ -854,17 +859,17 @@ EmitStringLeadingPadding ldd       $08,s     ; recover $08
                     std       $08,s     ; store d in the current stack frame at $08,s
                     subd      #-1       ; subtract from d using #-1
                     bgt       EmitStringLeadingPadByte ; continue at EmitStringLeadingPadByte when the signed value is above the limit
-                    bra       EmitStringBytes ; continue with emit string bytes
+                    bra       EmitStringBytes ; resume emit string bytes
 EmitNextStringByte  ldb       ,u+       ; consume the next byte while emit next string byte
                     sex                 ; sign-extend b into d
                     pshs      d         ; preserve d across the operation
                     jsr       [<$06,s]  ; emit the next field byte through the caller-selected callback
                     leas      $02,s     ; release $02,s bytes of stack state
-EmitStringBytes     ldb       StreamCursor,u ; recover work byte 001
-                    bne       EmitNextStringByte ; select emit next string byte when the requested case does not match
+EmitStringBytes     ldb       StreamCursor,u ; recover stream cursor
+                    bne       EmitNextStringByte ; nonzero result: emit next string byte
                     ldd       >$01C5,y  ; recover $01 c5
-                    beq       ReturnPaddedString ; select return padded string when the requested case matches
-                    bra       EmitStringTrailingPadding ; continue with emit string trailing padding
+                    beq       ReturnPaddedString ; zero result: return padded string
+                    bra       EmitStringTrailingPadding ; resume emit string trailing padding
 EmitStringTrailingPadByte ldd       >$01C7,y  ; recover $01 c7
                     pshs      d         ; preserve d across the operation
                     jsr       [<$06,s]  ; emit the next field byte through the caller-selected callback
@@ -1113,158 +1118,158 @@ CloseAllStreams     pshs      u,d       ; preserve U and allocate a word-sized s
                     clra                ; initialize the slot index to zero
                     clrb                ; complete the zero slot index
                     std       ,s        ; retain the index in the local stack word
-                    bra       CheckNextStreamSlot ; continue with branch 096
+                    bra       CheckNextStreamSlot ; resume check next stream slot
 CloseNextStreamSlot tfr       u,d       ; pass the current descriptor address
-                    leau      RuntimeDescriptorTableRemainder,u ; select work buffer 001
+                    leau      RuntimeDescriptorTableRemainder,u ; address runtime descriptor table remainder
                     pshs      d         ; pass the descriptor being closed
-                    bsr       CloseStream ; invoke routine 027
+                    bsr       CloseStream ; flush and release the selected stream
                     leas      $02,s     ; release $02,s bytes of stack state
 CheckNextStreamSlot ldd       ,s        ; recover
                     addd      #1        ; prepare the following index
                     std       ,s        ; retain it for the next iteration
                     subd      #1        ; restore the index being tested now
                     cmpd      #16       ; test against #16
-                    blt       CloseNextStreamSlot ; continue with branch 097 below the signed limit
+                    blt       CloseNextStreamSlot ; signed comparison remains below its limit: close next stream slot
                     lbra      StreamOperationDone ; return through the shared stream epilogue
 CloseStream         pshs      u         ; preserve the caller's descriptor register
                     ldu       $04,s     ; recover $04
                     leas      -$02,s    ; release -$02,s bytes of stack state
                     cmpu      #0        ; detect a null runtime allocation result
                     beq       RejectCloseRequest ; a null pointer cannot be closed
-                    ldd       StreamFlags,u ; recover work word 003
+                    ldd       StreamFlags,u ; recover stream flags
                     bne       CloseActiveStream ; nonzero flags identify an occupied slot
 RejectCloseRequest  ldd       #-1       ; supply failure or frame value -1 to the following operation
                     lbra      StreamOperationDone ; unwind the local result word
-CloseActiveStream   ldd       StreamFlags,u ; recover work word 003
+CloseActiveStream   ldd       StreamFlags,u ; recover stream flags
                     clra                ; inspect only low-byte access flags
                     andb      #2        ; mask b using #2
                     beq       SkipCloseFlush ; read-only streams have no pending output
                     pshs      u         ; flush pending output before releasing the path
-                    bsr       FlushStream ; invoke routine 028
+                    bsr       FlushStream ; commit any pending stream output
                     leas      $02,s     ; release $02,s bytes of stack state
-                    bra       CloseUnderlyingPath ; continue with branch 102
+                    bra       CloseUnderlyingPath ; resume close underlying path
 SkipCloseFlush      clra                ; prepare a successful zero result
                     clrb                ; a read-only stream has no write error to report
 CloseUnderlyingPath std       ,s        ; preserve the flush result across I$Close
-                    ldd       StreamPath,u ; recover work byte 003
+                    ldd       StreamPath,u ; recover stream path
                     pshs      d         ; release the underlying OS-9 path
-                    lbsr      ClosePath ; invoke routine 029
+                    lbsr      ClosePath ; release the selected OS-9 path
                     leas      $02,s     ; release $02,s bytes of stack state
                     clra                ; clear the descriptor flags as a word
                     clrb                ; mark the table entry inactive
-                    std       StreamFlags,u ; retain work word 003
+                    std       StreamFlags,u ; preserve stream flags
                     ldd       ,s        ; recover
                     bra       StreamOperationDone ; return the saved flush result
 FlushStream         pshs      u         ; preserve the caller's descriptor register
                     ldu       $04,s     ; recover $04
-                    beq       RejectFlushRequest ; select branch 103 when the requested case matches
-                    ldd       StreamFlags,u ; recover work word 003
+                    beq       RejectFlushRequest ; zero result: reject flush request
+                    ldd       StreamFlags,u ; recover stream flags
                     clra                ; ignore high-byte orientation state
                     andb      #34       ; mask b using #34
                     cmpd      #2        ; test against #2
-                    beq       PrepareStreamFlush ; select branch 104 when the requested case matches
+                    beq       PrepareStreamFlush ; zero result: prepare stream flush
 RejectFlushRequest  ldd       #-1       ; supply failure or frame value -1 to the following operation
                     puls      pc,u      ; reject null, read-only, or failed streams
-PrepareStreamFlush  ldd       StreamFlags,u ; recover work word 003
+PrepareStreamFlush  ldd       StreamFlags,u ; recover stream flags
                     anda      #128      ; mask a using #128
                     clrb                ; form a word-sized initialization test
                     std       -$02,s    ; use the compiler spill slot only for the flag test
-                    bne       FlushAssignedBuffer ; select branch 105 when the requested case does not match
+                    bne       FlushAssignedBuffer ; nonzero result: flush assigned buffer
                     pshs      u         ; pass the descriptor to lazy initialization
-                    lbsr      InitializeStreamBuffer ; invoke routine 030
+                    lbsr      InitializeStreamBuffer ; attach a buffer suited to the underlying path
                     leas      $02,s     ; release $02,s bytes of stack state
 FlushAssignedBuffer pshs      u         ; pass the prepared descriptor to the buffer flusher
-                    bsr       FlushBufferedStream ; invoke routine 031
+                    bsr       FlushBufferedStream ; commit buffered bytes to the underlying path
 StreamOperationDone leas      $02,s     ; release $02,s bytes of stack state
                     puls      pc,u      ; restore U and return the operation status
 FlushBufferedStream pshs      u         ; preserve the caller's descriptor register
                     ldu       $04,s     ; recover $04
                     leas      -$04,s    ; release -$04,s bytes of stack state
-                    ldd       StreamFlags,u ; recover work word 003
+                    ldd       StreamFlags,u ; recover stream flags
                     anda      #1        ; mask a using #1
                     clrb                ; complete the word-sized orientation test
                     std       -$02,s    ; spill the test value below the compiler frame
-                    bne       ComputePendingOutput ; select branch 106 when the requested case does not match
-                    ldd       StreamCursor,u ; recover work byte 001
-                    cmpd      StreamBufferEnd,u ; test against work word 002
-                    beq       ComputePendingOutput ; select branch 106 when the requested case matches
+                    bne       ComputePendingOutput ; nonzero result: compute pending output
+                    ldd       StreamCursor,u ; recover stream cursor
+                    cmpd      StreamBufferEnd,u ; compare against stream buffer end
+                    beq       ComputePendingOutput ; zero result: compute pending output
                     clra                ; build a zero position-query argument
                     clrb                ; complete the zero word
                     pshs      d         ; request the runtime's current logical position
                     pshs      u         ; pass the descriptor to the position hook
-                    lbsr      NoOpStreamPositionHook ; invoke routine 032
+                    lbsr      NoOpStreamPositionHook ; preserve the runtime stream-position hook contract
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       $02,x     ; recover $02
                     pshs      d         ; pass the returned low position word
                     ldd       ,x        ; recover
                     pshs      d         ; pass the returned high position word
-                    ldd       StreamPath,u ; recover work byte 003
+                    ldd       StreamPath,u ; recover stream path
                     pshs      d         ; pass the path number
-                    lbsr      SeekPath  ; invoke routine 033
+                    lbsr      SeekPath  ; move the selected path to the computed file position
                     leas      $08,s     ; release $08,s bytes of stack state
-ComputePendingOutput ldd       StreamCursor,u ; recover work byte 001
+ComputePendingOutput ldd       StreamCursor,u ; recover stream cursor
                     subd      StreamBufferStart,u ; subtract from d using StreamBufferStart,u
                     std       $02,s     ; retain the number of buffered bytes
                     lbeq      ResetFlushedStream ; nothing has been accumulated
-                    ldd       StreamFlags,u ; recover work word 003
+                    ldd       StreamFlags,u ; recover stream flags
                     anda      #1        ; mask a using #1
                     clrb                ; form the word-sized orientation test
                     std       -$02,s    ; preserve it in the compiler spill slot
                     lbeq      ResetFlushedStream ; discard cached input rather than writing it
-                    ldd       StreamFlags,u ; recover work word 003
+                    ldd       StreamFlags,u ; recover stream flags
                     clra                ; inspect only low-byte buffering flags
                     andb      #64       ; mask b using #64
                     beq       WriteBlockBuffer ; ordinary buffers use one bulk write
-                    ldd       StreamBufferStart,u ; recover work word 001
+                    ldd       StreamBufferStart,u ; recover stream buffer start
                     bra       UpdateWriteCursor ; seed the line-write cursor
 WriteNextLineFragment ldd       $02,s     ; recover $02
                     pshs      d         ; pass the remaining byte count
-                    ldd       StreamCursor,u ; recover work byte 001
+                    ldd       StreamCursor,u ; recover stream cursor
                     pshs      d         ; pass the first unwritten byte
-                    ldd       StreamPath,u ; recover work byte 003
+                    ldd       StreamPath,u ; recover stream path
                     pshs      d         ; pass it to the line-write wrapper
-                    lbsr      WriteLineBytes ; invoke routine 034
+                    lbsr      WriteLineBytes ; write through the next carriage return
                     leas      $06,s     ; release $06,s bytes of stack state
                     std       ,s        ; retain the number written or -1
                     cmpd      #-1       ; test against #-1
-                    bne       AdvanceAfterLineWrite ; select branch 111 when the requested case does not match
+                    bne       AdvanceAfterLineWrite ; nonzero result: advance after line write
                     leax      $04,s     ; preserve the compiler's error-frame restoration
-                    bra       RestoreFailedWriteFrame ; continue with branch 112
+                    bra       RestoreFailedWriteFrame ; resume restore failed write frame
 AdvanceAfterLineWrite ldd       $02,s     ; recover $02
                     subd      ,s        ; remove the completed portion from the remainder
                     std       $02,s     ; retain the reduced count
-                    ldd       StreamCursor,u ; recover work byte 001
+                    ldd       StreamCursor,u ; recover stream cursor
                     addd      ,s        ; advance to the next unwritten byte
-UpdateWriteCursor   std       StreamCursor,u ; retain work byte 001
+UpdateWriteCursor   std       StreamCursor,u ; preserve stream cursor
                     ldd       $02,s     ; recover $02
-                    bne       WriteNextLineFragment ; select branch 110 when the requested case does not match
+                    bne       WriteNextLineFragment ; nonzero result: write next line fragment
                     bra       ResetFlushedStream ; all line fragments reached OS-9
 WriteBlockBuffer    ldd       $02,s     ; recover $02
                     pshs      d         ; write the entire pending block in one call
-                    ldd       StreamBufferStart,u ; recover work word 001
+                    ldd       StreamBufferStart,u ; recover stream buffer start
                     pshs      d         ; pass the source address
-                    ldd       StreamPath,u ; recover work byte 003
+                    ldd       StreamPath,u ; recover stream path
                     pshs      d         ; pass the path number
-                    lbsr      WriteBytes ; invoke routine 035
+                    lbsr      WriteBytes ; write the prepared byte range to its stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     cmpd      $02,s     ; test against $02
                     beq       ResetFlushedStream ; accept only a complete block write
-                    bra       MarkStreamWriteError ; continue with branch 113
+                    bra       MarkStreamWriteError ; resume mark stream write error
 RestoreFailedWriteFrame leas      -$04,x    ; release -$04,x bytes of stack state
-MarkStreamWriteError ldd       StreamFlags,u ; recover work word 003
+MarkStreamWriteError ldd       StreamFlags,u ; recover stream flags
                     orb       #32       ; set selected bits in b using #32
-                    std       StreamFlags,u ; retain work word 003
-                    ldd       StreamBufferEnd,u ; recover work word 002
-                    std       StreamCursor,u ; retain work byte 001
-                    ldd       #-1       ; initialize work word 003 to -1
+                    std       StreamFlags,u ; preserve stream flags
+                    ldd       StreamBufferEnd,u ; recover stream buffer end
+                    std       StreamCursor,u ; preserve stream cursor
+                    ldd       #-1       ; initialize the related runtime state to -1
                     bra       ReturnFlushStatus ; release locals and return failure
-ResetFlushedStream  ldd       StreamFlags,u ; recover work word 003
+ResetFlushedStream  ldd       StreamFlags,u ; recover stream flags
                     ora       #1        ; set selected bits in a using #1
-                    std       StreamFlags,u ; retain work word 003
-                    ldd       StreamBufferStart,u ; recover work word 001
-                    std       StreamCursor,u ; retain work byte 001
+                    std       StreamFlags,u ; preserve stream flags
+                    ldd       StreamBufferStart,u ; recover stream buffer start
+                    std       StreamCursor,u ; preserve stream cursor
                     addd      StreamBufferSize,u ; add to d using StreamBufferSize,u
-                    std       StreamBufferEnd,u ; retain work word 002
+                    std       StreamBufferEnd,u ; preserve stream buffer end
                     clra                ; prepare a successful zero result
                     clrb                ; report a successful flush
 ReturnFlushStatus   leas      $04,s     ; release $04,s bytes of stack state
@@ -1273,100 +1278,100 @@ NoOpStreamPositionHook pshs      u         ; preserve the calling convention's U
                     puls      pc,u      ; return without disturbing the position pointer
 InitializeStreamBuffer pshs      u         ; preserve the caller's descriptor register
                     ldu       $04,s     ; recover $04
-                    ldd       StreamFlags,u ; recover work word 003
+                    ldd       StreamFlags,u ; recover stream flags
                     clra                ; widen the byte to a positive compiler integer
                     andb      #192      ; mask b using #192
-                    bne       BufferingModeSelected ; select branch 115 when the requested case does not match
+                    bne       BufferingModeSelected ; nonzero result: buffering mode selected
                     leas      -$20,s    ; release -$20,s bytes of stack state
                     leax      ,s        ; point X at its first byte
                     pshs      x         ; pass the option-table destination
-                    ldd       StreamPath,u ; recover work byte 003
+                    ldd       StreamPath,u ; recover stream path
                     pshs      d         ; preserve the status-call argument order
                     clra                ; request base option status code zero
                     clrb                ; complete selector zero
                     pshs      d         ; request the path's base option status
-                    lbsr      GetPathStatus ; invoke routine 036
+                    lbsr      GetPathStatus ; read the requested OS-9 path status
                     leas      $06,s     ; release $06,s bytes of stack state
-                    ldd       StreamFlags,u ; recover work word 003
+                    ldd       StreamFlags,u ; recover stream flags
                     pshs      d         ; preserve existing state during policy selection
                     ldb       $02,s     ; device type zero identifies an SCF-style terminal
-                    bne       SelectFullBuffering ; select branch 116 when the requested case does not match
+                    bne       SelectFullBuffering ; nonzero result: select full buffering
                     ldd       #64       ; supply 64 as the control, count, or argument value required here
-                    bra       SaveBufferingMode ; continue with branch 117
-SelectFullBuffering ldd       #128      ; initialize work word 003 to 128
+                    bra       SaveBufferingMode ; resume save buffering mode
+SelectFullBuffering ldd       #128      ; initialize ldd to 128
 SaveBufferingMode   ora       ,s+       ; set selected bits in a using ,s+
                     orb       ,s+       ; set selected bits in b using ,s+
-                    std       StreamFlags,u ; retain work word 003
+                    std       StreamFlags,u ; preserve stream flags
                     leas      <$0020,s  ; release <$0020,s bytes of stack state
-BufferingModeSelected ldd       StreamFlags,u ; recover work word 003
+BufferingModeSelected ldd       StreamFlags,u ; recover stream flags
                     ora       #128      ; set selected bits in a using #128
-                    std       StreamFlags,u ; retain work word 003
+                    std       StreamFlags,u ; preserve stream flags
                     clra                ; inspect the already-configured storage flags
                     andb      #12       ; mask b using #12
                     beq       ChooseBufferSize ; allocate only when no storage exists
                     puls      pc,u      ; an existing buffer configuration is ready
-ChooseBufferSize    ldd       StreamBufferSize,u ; recover work word 004
-                    bne       EnsureBufferStorage ; select branch 119 when the requested case does not match
-                    ldd       StreamFlags,u ; recover work word 003
+ChooseBufferSize    ldd       StreamBufferSize,u ; recover stream buffer size
+                    bne       EnsureBufferStorage ; nonzero result: ensure buffer storage
+                    ldd       StreamFlags,u ; recover stream flags
                     clra                ; inspect the low-byte line flag
                     andb      #64       ; mask b using #64
-                    beq       ChooseBlockBufferSize ; select branch 120 when the requested case matches
-                    ldd       #128      ; initialize work word 004 to 128
-                    bra       SaveDefaultBufferSize ; continue with branch 121
-ChooseBlockBufferSize ldd       #256      ; initialize work word 004 to 256
-SaveDefaultBufferSize std       StreamBufferSize,u ; retain work word 004
-EnsureBufferStorage ldd       StreamBufferStart,u ; recover work word 001
-                    bne       MarkBufferAvailable ; select branch 122 when the requested case does not match
-                    ldd       StreamBufferSize,u ; recover work word 004
+                    beq       ChooseBlockBufferSize ; zero result: choose block buffer size
+                    ldd       #128      ; initialize the related runtime state to 128
+                    bra       SaveDefaultBufferSize ; resume save default buffer size
+ChooseBlockBufferSize ldd       #256      ; initialize ldd to 256
+SaveDefaultBufferSize std       StreamBufferSize,u ; preserve stream buffer size
+EnsureBufferStorage ldd       StreamBufferStart,u ; recover stream buffer start
+                    bne       MarkBufferAvailable ; nonzero result: mark buffer available
+                    ldd       StreamBufferSize,u ; recover stream buffer size
                     pshs      d         ; pass the allocation size
-                    lbsr      AllocateHeapBytes ; invoke routine 037
+                    lbsr      AllocateHeapBytes ; reserve heap storage for the requested buffer
                     leas      $02,s     ; release $02,s bytes of stack state
-                    std       StreamBufferStart,u ; retain work word 001
+                    std       StreamBufferStart,u ; preserve stream buffer start
                     cmpd      #-1       ; test against #-1
-                    beq       UseFallbackByteBuffer ; select branch 123 when the requested case matches
-MarkBufferAvailable ldd       StreamFlags,u ; recover work word 003
+                    beq       UseFallbackByteBuffer ; zero result: use fallback byte buffer
+MarkBufferAvailable ldd       StreamFlags,u ; recover stream flags
                     orb       #8        ; set selected bits in b using #8
-                    std       StreamFlags,u ; retain work word 003
+                    std       StreamFlags,u ; preserve stream flags
                     bra       ResetBufferWindow ; initialize its empty bounds
-UseFallbackByteBuffer ldd       StreamFlags,u ; recover work word 003
+UseFallbackByteBuffer ldd       StreamFlags,u ; recover stream flags
                     orb       #4        ; set selected bits in b using #4
-                    std       StreamFlags,u ; retain work word 003
-                    leax      StreamPushbackByte,u ; select work byte 005
-                    stx       StreamBufferStart,u ; retain work word 001
-                    ldd       #1        ; initialize work word 004 to 1
-                    std       StreamBufferSize,u ; retain work word 004
-ResetBufferWindow   ldd       StreamBufferStart,u ; recover work word 001
+                    std       StreamFlags,u ; preserve stream flags
+                    leax      StreamPushbackByte,u ; address stream pushback byte
+                    stx       StreamBufferStart,u ; preserve stream buffer start
+                    ldd       #1        ; initialize the related runtime state to 1
+                    std       StreamBufferSize,u ; preserve stream buffer size
+ResetBufferWindow   ldd       StreamBufferStart,u ; recover stream buffer start
                     addd      StreamBufferSize,u ; add to d using StreamBufferSize,u
-                    std       StreamBufferEnd,u ; retain work word 002
-                    std       StreamCursor,u ; retain work byte 001
+                    std       StreamBufferEnd,u ; preserve stream buffer end
+                    std       StreamCursor,u ; preserve stream cursor
                     puls      pc,u      ; restore U with buffering ready
 SelectIntegerArgument pshs      u         ; preserve u across the operation
                     ldb       $05,s     ; recover $05
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; transfer d,x
-                    bra       ClassifyIntegerConversion ; continue with classify integer conversion
+                    bra       ClassifyIntegerConversion ; resume classify integer conversion
 FetchLongIntegerArgument ldd       [<$06,s]  ; recover [<$06
                     addd      #4        ; add to d using #4
                     std       [<$06,s]  ; store d in the current stack frame at [<$06,s]
-                    leax      >EmptyIntegerText,pc ; select data 006
-                    bra       ReturnIntegerArgument ; continue with return integer argument
+                    leax      >EmptyIntegerText,pc ; address empty integer text
+                    bra       ReturnIntegerArgument ; resume return integer argument
 UseByteIntegerArgument ldb       $05,s     ; recover $05
                     stb       >$000C,y  ; retain $000 c
                     leax      >$000B,y  ; select $000 b
 ReturnIntegerArgument tfr       x,d       ; transfer x,d
                     puls      pc,u      ; restore pc,u and return to the caller
 ClassifyIntegerConversion cmpx      #100      ; test against #100
-                    beq       FetchLongIntegerArgument ; select fetch long integer argument when the requested case matches
+                    beq       FetchLongIntegerArgument ; zero result: fetch long integer argument
                     cmpx      #111      ; test against #111
-                    lbeq      FetchLongIntegerArgument ; select fetch long integer argument when the requested case matches
+                    lbeq      FetchLongIntegerArgument ; zero result: fetch long integer argument
                     cmpx      #120      ; test against #120
-                    lbeq      FetchLongIntegerArgument ; select fetch long integer argument when the requested case matches
-                    bra       UseByteIntegerArgument ; continue with use byte integer argument
+                    lbeq      FetchLongIntegerArgument ; zero result: fetch long integer argument
+                    bra       UseByteIntegerArgument ; resume use byte integer argument
                     fcb       $35
                     fcb       $C0
 EmptyIntegerText    fcb       $00
 ReturnEmptyString   pshs      u         ; preserve u across the operation
-                    leax      >EmptyString,pc ; select data 007
+                    leax      >EmptyString,pc ; address empty string
                     tfr       x,d       ; transfer x,d
                     puls      pc,u      ; restore pc,u and return to the caller
 EmptyString         fcb       $00
@@ -1389,7 +1394,7 @@ CopyCStringByte     ldb       ,u+       ; consume the next byte while copy cstri
                     stx       ,s        ; store x in the current stack frame at ,s
                     stb       -$01,x    ; replace the byte just examined in place
                     bne       CopyCStringByte ; repeat copy cstring byte until the terminating condition is met
-                    bra       ReturnCopiedString ; continue with branch 131
+                    bra       ReturnCopiedString ; resume return copied string
 AppendCString       pshs      u         ; preserve u across the operation
                     ldu       $06,s     ; recover $06
                     leas      -$02,s    ; release -$02,s bytes of stack state
@@ -1399,16 +1404,16 @@ FindAppendEnd       ldx       ,s        ; recover
                     leax      $01,x     ; select $01
                     stx       ,s        ; store x in the current stack frame at ,s
                     ldb       -$01,x    ; recover -$01
-                    bne       FindAppendEnd ; select branch 132 when the requested case does not match
+                    bne       FindAppendEnd ; nonzero result: find append end
                     ldd       ,s        ; recover
                     addd      #-1       ; add to d using #-1
                     std       ,s        ; store d in the current stack frame at ,s
-AppendCStringByte   ldb       ,u+       ; consume the next byte while branch 133
+AppendCStringByte   ldb       ,u+       ; consume the next byte in this scan
                     ldx       ,s        ; recover
                     leax      $01,x     ; select $01
                     stx       ,s        ; store x in the current stack frame at ,s
                     stb       -$01,x    ; replace the byte just examined in place
-                    bne       AppendCStringByte ; select branch 133 when the requested case does not match
+                    bne       AppendCStringByte ; nonzero result: append c string byte
 ReturnCopiedString  ldd       $06,s     ; recover $06
                     leas      $02,s     ; release $02,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
@@ -1465,39 +1470,39 @@ ParseUserNumber     pshs      u         ; preserve u across the operation
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       $01,s     ; store d in the current stack frame at $01,s
-SkipLeadingWhitespace ldb       ,u+       ; consume the next byte while branch 134
+SkipLeadingWhitespace ldb       ,u+       ; consume the next byte in this scan
                     stb       ,s        ; store b in the current stack frame at ,s
                     cmpb      #32       ; recognize the first printable ASCII value
-                    beq       SkipLeadingWhitespace ; select branch 134 when the requested case matches
+                    beq       SkipLeadingWhitespace ; zero result: skip leading whitespace
                     ldb       ,s        ; recover
                     cmpb      #9        ; recognize 9 as a meaningful value in this parser state
-                    lbeq      SkipLeadingWhitespace ; select branch 134 when the requested case matches
+                    lbeq      SkipLeadingWhitespace ; zero result: skip leading whitespace
                     ldb       ,s        ; recover
                     cmpb      #45       ; recognize 45 as a meaningful value in this parser state
-                    bne       PositiveNumber ; select branch 135 when the requested case does not match
+                    bne       PositiveNumber ; nonzero result: positive number
                     ldd       #1        ; initialize $03 to 1
-                    bra       SaveNumericSign ; continue with branch 136
+                    bra       SaveNumericSign ; resume save numeric sign
 PositiveNumber      clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
 SaveNumericSign     std       $03,s     ; store d in the current stack frame at $03,s
                     ldb       ,s        ; recover
                     cmpb      #45       ; recognize 45 as a meaningful value in this parser state
-                    beq       ConsumeNumericByte ; select branch 137 when the requested case matches
+                    beq       ConsumeNumericByte ; zero result: consume numeric byte
                     ldb       ,s        ; recover
                     cmpb      #43       ; recognize 43 as a meaningful value in this parser state
-                    bne       TestNumericByte ; select branch 138 when the requested case does not match
-                    bra       ConsumeNumericByte ; continue with branch 137
+                    bne       TestNumericByte ; nonzero result: test numeric byte
+                    bra       ConsumeNumericByte ; resume consume numeric byte
 AccumulateDecimalDigit ldd       $01,s     ; recover $01
                     pshs      d         ; preserve d across the operation
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     pshs      d         ; preserve d across the operation
                     ldb       $02,s     ; recover $02
                     sex                 ; sign-extend b into d
                     addd      ,s++      ; add to d using ,s++
                     addd      #-48      ; add to d using #-48
                     std       $01,s     ; store d in the current stack frame at $01,s
-ConsumeNumericByte  ldb       ,u+       ; consume the next byte while branch 137
+ConsumeNumericByte  ldb       ,u+       ; consume the next byte in this scan
                     stb       ,s        ; store b in the current stack frame at ,s
 TestNumericByte     ldb       ,s        ; recover
                     sex                 ; sign-extend b into d
@@ -1506,14 +1511,14 @@ TestNumericByte     ldb       ,s        ; recover
                     ldb       ,x        ; recover
                     clra                ; select standard input
                     andb      #8        ; mask b using #8
-                    bne       AccumulateDecimalDigit ; select branch 139 when the requested case does not match
+                    bne       AccumulateDecimalDigit ; nonzero result: accumulate decimal digit
                     ldd       $03,s     ; recover $03
-                    beq       ReturnPositiveNumber ; select branch 140 when the requested case matches
+                    beq       ReturnPositiveNumber ; zero result: return positive number
                     ldd       $01,s     ; recover $01
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
-                    bra       ReturnParsedNumber ; continue with branch 141
+                    bra       ReturnParsedNumber ; resume return parsed number
 ReturnPositiveNumber ldd       $01,s     ; recover $01
 ReturnParsedNumber  leas      $05,s     ; release $05,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
@@ -1593,20 +1598,20 @@ GetPathStatus       lda       $05,s     ; select the OS-9 path number
                     ldb       $03,s     ; dispatch on the requested GetStat selector
                     beq       GetStatusIntoBuffer ; selector zero fills an option table at X
                     cmpb      #1        ; selector one returns register-only status
-                    beq       GetRegisterPathStatus ; select branch 146 when the requested case matches
+                    beq       GetRegisterPathStatus ; zero result: get register path status
                     cmpb      #6        ; selector six also needs no result-buffer translation
-                    beq       GetRegisterPathStatus ; select branch 146 when the requested case matches
+                    beq       GetRegisterPathStatus ; zero result: get register path status
                     cmpb      #2        ; recognize 2 as a meaningful value in this parser state
-                    beq       GetLongPathStatus ; select get long path status when the requested case matches
+                    beq       GetLongPathStatus ; zero result: get long path status
                     cmpb      #5        ; recognize 5 as a meaningful value in this parser state
-                    beq       GetLongPathStatus ; select get long path status when the requested case matches
+                    beq       GetLongPathStatus ; zero result: get long path status
                     ldb       #208      ; select status operation 208
-                    lbra      ReturnOsError ; continue with branch 148
+                    lbra      ReturnOsError ; resume return os error
 GetLongPathStatus   pshs      u         ; preserve the compiler workspace register
                     os9       I$GetStt  ; obtain the requested 32-bit value in X:U
-                    bcc       StoreLongStatusResult ; select branch 149 when carry remains clear
+                    bcc       StoreLongStatusResult ; carry clear confirms success: store long status result
                     puls      u         ; restore U before translating the OS-9 error
-                    lbra      ReturnOsError ; continue with branch 148
+                    lbra      ReturnOsError ; resume return os error
 StoreLongStatusResult stx       [<$08,s]  ; store the high word through the shifted result pointer
                     ldx       $08,s     ; recover that result pointer
                     stu       $02,x     ; retain $02
@@ -1615,8 +1620,8 @@ StoreLongStatusResult stx       [<$08,s]  ; store the high word through the shif
                     clrb                ; clear the byte accumulator for counting
                     rts                 ; return the completed result to the caller
 GetStatusIntoBuffer ldx       $06,s     ; supply the caller's option-table buffer
-GetRegisterPathStatus os9       I$GetStt  ; perform the selector-specific status request
-                    lbra      ReturnOsResult ; continue with branch 150
+GetRegisterPathStatus os9       I$GetStt  ; issue the requested selector-specific status call
+                    lbra      ReturnOsResult ; resume return os result
                     fcb       $A6
                     fcb       $65
                     fcb       $E6
@@ -1686,7 +1691,7 @@ GetRegisterPathStatus os9       I$GetStt  ; perform the selector-specific status
                     fcb       $39
 ClosePath           lda       $03,s     ; select the path argument
                     os9       I$Close   ; flush and release the OS-9 path
-                    lbra      ReturnOsResult ; continue with branch 150
+                    lbra      ReturnOsResult ; resume return os result
                     fcb       $AE
                     fcb       $62
                     fcb       $E6
@@ -1828,32 +1833,32 @@ ClosePath           lda       $03,s     ; select the path argument
                     fcb       $DD
 WriteBytes          pshs      y         ; preserve the caller's Y
                     ldy       $08,s     ; recover the transfer length
-                    beq       ReturnWriteCount ; select branch 151 when the requested case matches
+                    beq       ReturnWriteCount ; zero result: return write count
                     lda       $05,s     ; select the OS-9 path number
                     ldx       $06,s     ; select the source buffer
-                    os9       I$Write   ; perform an unstructured byte write
-FinishWrite         bcc       ReturnWriteCount ; select branch 151 when carry remains clear
+                    os9       I$Write   ; write one byte without stream buffering
+FinishWrite         bcc       ReturnWriteCount ; carry clear confirms success: return write count
                     puls      y         ; restore Y before the shared error path
-                    lbra      ReturnOsError ; continue with branch 148
+                    lbra      ReturnOsError ; resume return os error
 ReturnWriteCount    tfr       y,d       ; return the actual transfer count
                     puls      pc,y      ; preserve the flags or register state required by the following operation
 WriteLineBytes      pshs      y         ; preserve the caller's Y
                     ldy       $08,s     ; recover the maximum line length
-                    beq       ReturnWriteCount ; select branch 151 when the requested case matches
+                    beq       ReturnWriteCount ; zero result: return write count
                     lda       $05,s     ; select the OS-9 path number
                     ldx       $06,s     ; select the CR-terminated source line
                     os9       I$WritLn  ; write through the first carriage return
                     bra       FinishWrite ; reuse normal/error result conversion
 SeekPath            pshs      u         ; preserve U for the 32-bit OS-9 offset
                     ldd       $0A,s     ; recover $0 a
-                    bne       SelectSeekOrigin ; select branch 153 when the requested case does not match
+                    bne       SelectSeekOrigin ; nonzero result: select seek origin
                     ldu       #0        ; initialize the pointer or index for this state transition
                     ldx       #0        ; initialize the pointer or index for this state transition
-                    bra       ComputeSeekTarget ; continue with branch 154
+                    bra       ComputeSeekTarget ; resume compute seek target
 SelectSeekOrigin    cmpd      #1        ; test against #1
-                    beq       SeekRelativeCurrent ; select branch 155 when the requested case matches
+                    beq       SeekRelativeCurrent ; zero result: seek relative current
                     cmpd      #2        ; test against #2
-                    beq       SeekRelativeEnd ; select branch 156 when the requested case matches
+                    beq       SeekRelativeEnd ; zero result: seek relative end
                     ldb       #247      ; initialize $01 ad to 247
 ReturnSeekError     clra                ; widen the OS-9 error to a compiler word
                     std       >$01AD,y  ; retain $01 ad
@@ -1865,25 +1870,25 @@ ReturnSeekError     clra                ; widen the OS-9 error to a compiler wor
 SeekRelativeEnd     lda       $05,s     ; select the path number
                     ldb       #2        ; select status operation 2
                     os9       I$GetStt  ; preserve the flags or register state required by the following operation
-                    bcs       ReturnSeekError ; select branch 157 when carry reports an error or underflow
-                    bra       ComputeSeekTarget ; continue with branch 154
+                    bcs       ReturnSeekError ; carry reports failure: return seek error
+                    bra       ComputeSeekTarget ; resume compute seek target
 SeekRelativeCurrent lda       $05,s     ; select the path number
                     ldb       #5        ; select status operation 5
                     os9       I$GetStt  ; preserve the flags or register state required by the following operation
-                    bcs       ReturnSeekError ; select branch 157 when carry reports an error or underflow
+                    bcs       ReturnSeekError ; carry reports failure: return seek error
 ComputeSeekTarget   tfr       u,d       ; begin with the base position's low word
                     addd      $08,s     ; add the requested low offset
                     std       >$01A3,y  ; retain $01 a3
                     tfr       d,u       ; supply it to I$Seek
-                    tfr       x,d       ; continue with the base high word
+                    tfr       x,d       ; resume the base high word
                     adcb      $07,s     ; add with carry to b using $07,s
                     adca      $06,s     ; add with carry to a using $06,s
-                    bmi       ReturnSeekError ; select branch 157 from the preceding condition
+                    bmi       ReturnSeekError ; condition selects return seek error
                     tfr       d,x       ; supply the high word to I$Seek
                     std       >$01A1,y  ; retain $01 a1
                     lda       $05,s     ; select the path number
                     os9       I$Seek    ; commit the calculated X:U position
-                    bcs       ReturnSeekError ; select branch 157 when carry reports an error or underflow
+                    bcs       ReturnSeekError ; carry reports failure: return seek error
                     leax      >$01A1,y  ; select $01 a1
                     puls      pc,u      ; preserve the flags or register state required by the following operation
                     fcb       $EC
@@ -1970,16 +1975,16 @@ ComputeSeekTarget   tfr       u,d       ; begin with the base position's low wor
                     fcb       $86
 AllocateHeapBytes   ldd       $02,s     ; recover $02
                     addd      >$01A9,y  ; add to d using >$01A9,y
-                    bcs       AllocationFailed ; select branch 158 when carry reports an error or underflow
+                    bcs       AllocationFailed ; carry reports failure: allocation failed
                     cmpd      >$01AB,y  ; test against $01 ab
-                    bcc       AllocationFailed ; select branch 158 when carry remains clear
+                    bcc       AllocationFailed ; carry clear confirms success: allocation failed
                     pshs      d         ; retain the proposed heap boundary
                     ldx       >$01A9,y  ; recover $01 a9
                     clra                ; use zero as the allocator's initialization byte
 CheckHeapCollision  cmpx      ,s        ; test against
-                    bcc       CommitHeapEnd ; select branch 160 when carry remains clear
+                    bcc       CommitHeapEnd ; carry clear confirms success: commit heap end
                     sta       ,x+       ; clear one newly allocated byte
-                    bra       CheckHeapCollision ; continue with branch 159
+                    bra       CheckHeapCollision ; resume check heap collision
 CommitHeapEnd       ldd       >$01A9,y  ; recover $01 a9
                     puls      x         ; recover the proposed new boundary
                     stx       >$01A9,y  ; retain $01 a9
@@ -2029,16 +2034,16 @@ AllocationFailed    ldd       #-1       ; supply failure or frame value -1 to th
                     fcb       $88
 ForkSelectedProgram leau      ,s        ; select
                     leas      >$00FF,y  ; release >$00FF,y bytes of stack state
-                    ldx       StreamBufferStart,u ; recover work word 001
-                    ldy       StreamBufferEnd,u ; recover work word 002
-                    lda       StreamPath+1,u ; recover work byte 004
+                    ldx       StreamBufferStart,u ; recover stream buffer start
+                    ldy       StreamBufferEnd,u ; recover stream buffer end
+                    lda       StreamPath+1,u ; recover stream path
                     asla                ; shift a left arithmetically
                     asla                ; shift a left arithmetically
                     asla                ; shift a left arithmetically
                     asla                ; shift a left arithmetically
                     ora       StreamBufferSize,u ; set selected bits in a using StreamBufferSize,u
-                    ldb       RuntimeDescriptorTableRemainder,u ; recover work buffer 001
-                    ldu       StreamFlags,u ; recover work word 003
+                    ldb       RuntimeDescriptorTableRemainder,u ; recover runtime descriptor table remainder
+                    ldu       StreamFlags,u ; recover stream flags
                     os9       F$Chain   ; replace this process with the module at X
                     os9       F$Exit    ; terminate the process with status B
                     fcb       $34
@@ -2083,24 +2088,24 @@ ForkSelectedProgram leau      ,s        ; select
                     fcc       "O9"
 SetUserSystemCall   pshs      y         ; preserve y across the operation
                     os9       F$ID      ; retrieve the current process and user IDs
-                    bcc       SetUserSucceeded ; select branch 161 when carry remains clear
+                    bcc       SetUserSucceeded ; carry clear confirms success: set user succeeded
 ReturnUserError     puls      y         ; restore y
-                    lbra      ReturnOsError ; continue with branch 148
+                    lbra      ReturnOsError ; resume return os error
 SetUserSucceeded    tfr       y,d       ; transfer y,d
                     puls      pc,y      ; restore pc,y and return to the caller
 SetProcessUser      pshs      y         ; preserve y across the operation
-                    bsr       SetUserSystemCall ; invoke routine 038
+                    bsr       SetUserSystemCall ; issue the kernel request that changes user identity
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       TrySetUser ; select branch 163 when the requested case matches
+                    beq       TrySetUser ; zero result: try set user
                     ldb       #214      ; supply 214 as the control, count, or argument value required here
-                    bra       ReturnUserError ; continue with branch 162
+                    bra       ReturnUserError ; resume return user error
 TrySetUser          ldy       $04,s     ; recover $04
                     os9       F$SUser   ; change the process user ID to Y
-                    bcc       ReturnUserSuccess ; select branch 164 when carry remains clear
+                    bcc       ReturnUserSuccess ; carry clear confirms success: return user success
                     cmpb      #208      ; recognize 208 as a meaningful value in this parser state
-                    bne       ReturnUserError ; select branch 162 when the requested case does not match
+                    bne       ReturnUserError ; nonzero result: return user error
                     tfr       y,d       ; transfer y,d
-                    ldy       >CheckWorkspaceClearEnd ; recover code 001
+                    ldy       >CheckWorkspaceClearEnd ; recover the compiler runtime pointer from its relocated code slot
                     std       $09,y     ; retain $09
 ReturnUserSuccess   clra                ; widen OS-9's error byte in B
                     clrb                ; clear the byte accumulator for counting
@@ -2109,12 +2114,12 @@ ReturnOsError       clra                ; select standard input
                     std       >$01AD,y  ; retain $01 ad
                     ldd       #-1       ; supply failure or frame value -1 to the following operation
                     rts                 ; return the completed result to the caller
-ReturnOsResult      bcs       ReturnOsError ; select branch 148 when carry reports an error or underflow
+ReturnOsResult      bcs       ReturnOsError ; carry reports failure: return os error
                     clra                ; select standard input
                     clrb                ; return zero for a successful void-style wrapper
                     rts                 ; return the completed result to the caller
 ExitProcess         lbsr      RunExitHook ; allow a linked application cleanup hook
-                    lbsr      CloseAllStreams ; invoke routine 026
+                    lbsr      CloseAllStreams ; flush and close every active runtime stream
 ExitWithStackStatus ldd       $02,s     ; recover $02
                     os9       F$Exit    ; terminate with its low byte in B
 RunExitHook         rts                 ; default application cleanup hook does nothing

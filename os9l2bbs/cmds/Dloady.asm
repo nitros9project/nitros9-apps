@@ -3,6 +3,11 @@
 *
 * Syntax: Dloady [file]
 * Purpose: Send STX-framed 1K data blocks with checksum or CRC-16 protection.
+* Reads: the selected source file and receiver control bytes from standard input.
+* Writes: framed transfer data to standard output.
+* Cooperates: BBS.download selects this engine for its historical YMODEM choice.
+* Failure: retries NAK or timeout responses, honors control-X cancellation, and
+* returns the saved OS-9 status after closing the source path.
 * Despite its YMODEM name, this module does not construct a block-zero file header.
 *
 * Edt/Rev  YYYY/MM/DD  Modified by
@@ -418,6 +423,6 @@ DecimalDigitComplete addd      DecimalDivisor,u ; undo the subtraction that unde
                     leax      $01,x     ; advance to the following output digit
                     rts                 ; return with d and workspace holding the remainder
 
-                    emod                ; emit the OS-9 module CRC and trailer
+                    emod      ;         emit the OS-9 module CRC and trailer
 eom                 equ       *         ; mark the module end for the size expression
-                    end                 ; end the assembly source
+                    end       ;         end the assembly source

@@ -3,7 +3,12 @@
 *
 * Syntax: Uloady [file]
 * Purpose: Receive 128-byte SOH or 1024-byte STX blocks.
-* Negotiates checksum/CRC validation and handles retry, cancel, and EOT.
+* Reads: framed transfer data from standard input.
+* Writes: accepted payload bytes to the selected destination file.
+* Cooperates: BBS.upload selects this engine for its historical YMODEM choice.
+* Failure: requests retransmission after timeout or validation failure, removes
+* an incomplete destination on cancellation, and returns the saved OS-9 status.
+* Negotiates checksum/CRC validation but does not process YMODEM batch metadata.
 *
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment
@@ -430,6 +435,6 @@ RestoreTerminalOptions leax      >SavedTerminalOptions,u ; point at the pristine
                     os9       I$SetStt  ; restore the caller's terminal configuration
                     rts                 ; return to the selected exit or completion path
 
-                    emod                ; emit the OS-9 module CRC and trailer
+                    emod      ;         emit the OS-9 module CRC and trailer
 eom                 equ       *         ; mark the module end for the size expression
-                    end                 ; end the assembly source
+                    end       ;         end the assembly source

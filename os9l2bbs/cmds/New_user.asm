@@ -1,9 +1,13 @@
 **********************************************************************
 * New_user - OS-9 Level 2 BBS command
 *
-* Syntax: New_user
-* Purpose: Collect a prospective caller registration for later sysop validation.
-* Uses new_user_form/new_user_message and writes pending-user files.
+* Syntax: New_user <pending-user-log>
+* Purpose: Collect a prospective caller registration in an append-only log.
+* Reads: six registration fields and confirmation from standard input.
+* Writes: the caller-supplied pending-user log named by argv[1].
+* Cooperates: this legacy compiled form is separate from the shipped runbbs_new
+* script, which uses BBS.form with New_user_form and New_user_log.
+* Failure: reports and returns the runtime error when the log cannot be opened.
 *
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment

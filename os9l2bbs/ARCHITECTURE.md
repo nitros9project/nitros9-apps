@@ -89,7 +89,8 @@ it displays `new_user_message` and runs `BBS.form New_user_form New_user_log`
 instead.
 
 `BBS.userstats` stores per-user usage statistics. BBS.login and the message,
-mail, upload, and download commands update it. `BBS.stat` scans it as a stream
+upload, and download commands update it; the private-mail commands do not.
+`BBS.stat` scans it as a stream
 of 32-byte records keyed by OS-9 user ID. Ordinary callers see their own
 record; user zero is prompted for an account number. The fields recovered from
 the report code are:
@@ -273,11 +274,16 @@ front ends. The protocol-specific commands perform the actual transfer:
 | `Uloada` | upload | ASCII |
 | `Uloadx` | upload | XMODEM checksum |
 | `Uloadxc` | upload | XMODEM CRC |
-| `Uloady` | upload | YMODEM |
+| `Uloady` | upload | mixed 128-byte/1K XMODEM-family framing, historically called YMODEM |
 | `Dloada` | download | ASCII |
 | `Dloadx` | download | XMODEM checksum |
 | `Dloadxc` | download | XMODEM CRC |
-| `Dloady` | download | YMODEM |
+| `Dloady` | download | 1K XMODEM-family framing, historically called YMODEM |
+
+The `*loady` names and menus use the package's historical YMODEM terminology,
+but these engines do not implement YMODEM batch metadata. `Dloady` begins with
+data block one and never sends a block-zero filename/size header. `Uloady`
+accepts SOH and STX data frames but does not interpret a block-zero header.
 
 Administration and browsing commands are:
 
@@ -430,13 +436,17 @@ calls directly to the serial driver.
 The reconstructed assembly is verified against the preserved binaries. Source
 improvements must not change emitted bytes.
 
-Each command source should provide:
+Each application source should provide:
 
-1. A module header stating command syntax, purpose, persistent files read or
-   written, cooperating commands, and important failure behavior.
+1. A concise module header stating command syntax and purpose. It should also
+   name persistent files, cooperating commands, and important failure behavior
+   when those details apply; irrelevant fields should be omitted rather than
+   filled with boilerplate.
 2. A workspace layout whose names describe stored state.
-3. A short contract above every routine: inputs, outputs, clobbers, persistent
-   effects, and error convention.
+3. A short contract above routines whose register, stack, persistent-effect,
+   or error conventions are not already clear from their name and surrounding
+   explanation. Closely related compiler-runtime helpers may share a subsystem
+   overview instead of repeating identical contracts above every small helper.
 4. Labels that describe decisions and loop roles, such as
    `FindNextMessage`, `WriteIndexRecord`, or `WaitForChatSlot`.
 5. Instruction comments that explain why the instruction is needed in the

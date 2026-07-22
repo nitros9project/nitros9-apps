@@ -2,8 +2,12 @@
 * AnsiEd - OS-9 Level 2 BBS command
 *
 * Syntax: AnsiEd [input] [output]
-* Purpose: Edit the InvokeAnsiEditor screen image while separately recording the ordered ANSI output stream.
-* State: screen/output buffers, cursor and saved cursor, edit/record mode, attributes, and colors.
+* Purpose: Edit the final screen image while separately recording the ordered ANSI output stream.
+* Reads: optional input screen or animation data and interactive editor keys.
+* Writes: optional screen/animation output selected by the operator.
+* Cooperates: OS-9 window path controls and the compiler runtime stream layer.
+* Failure: reports file and path errors in a temporary window before restoring
+* the editor canvas.
 *
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment
@@ -109,7 +113,7 @@ StartupEntry        pshs      y         ; preserve OS-9's parameter length
                     clrb                ; prepare a zero byte and a 256-byte loop count
 ClearDirectPage     sta       ,u+       ; clear the first workspace page
                     decb                ; advance the modulo-256 clear count
-                    bne       ClearDirectPage ; select ClearDirectPage when the requested case does not match
+                    bne       ClearDirectPage ; nonzero result: clear direct page
 
 InitializeWorkspace ldx       ,s        ; recover the original workspace base
                     leau      ,x        ; (tfr x,u)
@@ -123,7 +127,7 @@ InitializeWorkspace ldx       ,s        ; recover the original workspace base
                     ldu       $02,s     ; get beginning address again
 InitializeSecondDataBlock leau      >dpsiz,u  ; point to where non-dp should start
                     ldx       ,y++      ; read the next initialized block length
-                    beq       ClearRemainingWorkspace ; select ClearRemainingWorkspace when the requested case matches
+                    beq       ClearRemainingWorkspace ; zero result: clear remaining workspace
                     bsr       CopyInitializerBytes ; move non-dp data into position
 
 * Clear the bss area - starts where
@@ -132,12 +136,12 @@ InitializeSecondDataBlock leau      >dpsiz,u  ; point to where non-dp should sta
 ClearRemainingWorkspace cmpu      ,s        ; reached the end?
                     beq       ApplyCodeRelocations ; bra if so
                     sta       ,u+       ; install it in the process workspace
-                    bra       ClearRemainingWorkspace ; continue with ClearRemainingWorkspace
+                    bra       ClearRemainingWorkspace ; resume ClearRemainingWorkspace
 
 * now relocate the data-text references
 ApplyCodeRelocations ldu       $02,s     ; restore to data bottom
                     ldd       ,y++      ; get data-text ref. count
-                    beq       ApplyDataRelocations ; select ApplyDataRelocations when the requested case matches
+                    beq       ApplyDataRelocations ; zero result: apply data relocations
                     leax      >0,pc     ; use the module base as the relocation delta
                     lbsr      ApplyRelocationTable ; applyRelocationTable them
 
@@ -145,7 +149,7 @@ ApplyCodeRelocations ldu       $02,s     ; restore to data bottom
 ApplyDataRelocations ldd       ,y++      ; get the count of data refs.
                     beq       ParseCommandLine ; bra if none
                     leax      StreamCursorHigh,u ; u was already pointing there
-                    lbsr      ApplyRelocationTable ; invoke ApplyRelocationTable
+                    lbsr      ApplyRelocationTable ; relocate the compiler-generated pointer table
 
 ParseCommandLine    leas      $04,s     ; reset stack
                     puls      x         ; recover the OS-9 parameter length
@@ -171,9 +175,9 @@ ParseCommandLine    leas      $04,s     ; reset stack
 
 ParseNextArgument   ldb       >StartupArgumentCount,u ; recover StartupArgcHigh 1
                     cmpb      #29       ; reserve the thirtieth StartupArgv0Pointer slot for termination
-                    beq       InvokeAnsiEditor ; select InvokeAnsiEditor when the requested case matches
+                    beq       InvokeAnsiEditor ; a full argv table stops further argument collection
 SkipArgumentDelimiters cmpa      #13       ; is it EOL?
-                    beq       InvokeAnsiEditor ; yes - reached the end of the list
+                    beq       InvokeAnsiEditor ; carriage return ends the OS-9 parameter line
 
                     cmpa      #32       ; treat spaces as argument separators
                     beq       AdvancePastDelimiter ; yes - try another
@@ -193,16 +197,16 @@ ScanQuotedArgument  stx       ,y++      ; record the first byte inside the quote
 
 FindClosingQuote    lda       ,x+       ; consume the next quoted byte
                     cmpa      #13       ; allow CR to terminate an unterminated quote
-                    beq       TerminateQuotedArgument ; select TerminateQuotedArgument when the requested case matches
+                    beq       TerminateQuotedArgument ; zero result: terminate quoted argument
                     cmpa      ,s        ; test for the matching quote character
-                    bne       FindClosingQuote ; select FindClosingQuote when the requested case does not match
+                    bne       FindClosingQuote ; nonzero result: find closing quote
 
 TerminateQuotedArgument puls      b         ; clean stack
                     clr       -$01,x    ; replace the closing delimiter with a C-string NUL
                     cmpa      #13       ; allow CR to terminate an unterminated quote
-                    beq       InvokeAnsiEditor ; select InvokeAnsiEditor when the requested case matches
+                    beq       InvokeAnsiEditor ; an unterminated quote at CR still yields the last argument
                     lda       ,x+       ; prime the argument scanner with its first byte
-                    bra       ParseNextArgument ; continue with ParseNextArgument
+                    bra       ParseNextArgument ; resume ParseNextArgument
 
 RecordPlainArgument leax      -$01,x    ; rewind to include the first unquoted byte
                     stx       ,y++      ; append the argument pointer to StartupArgv0Pointer
@@ -215,9 +219,9 @@ ScanPlainArgument   cmpa      #13       ; test the current unquoted byte for ter
                     cmpa      #32       ; treat spaces as argument separators
                     beq       TerminatePlainArgument ; the end?
                     cmpa      #44       ; also accept commas as argument separators
-                    beq       TerminatePlainArgument ; select TerminatePlainArgument when the requested case matches
+                    beq       TerminatePlainArgument ; zero result: terminate plain argument
                     lda       ,x+       ; prime the argument scanner with its first byte
-                    bra       ScanPlainArgument ; continue with ScanPlainArgument
+                    bra       ScanPlainArgument ; resume ScanPlainArgument
 
 TerminatePlainArgument clr       -$01,x    ; yes - put in the null byte
                     bra       ParseNextArgument ; and look for the next word
@@ -312,29 +316,29 @@ RelocateNextReference ldd       ,y++      ; get the offset
                     leas      $04,s     ; reset the stack
                     rts                 ; return to the startup dispatcher
 
-AnsiEditorMain      pshs      u         ; preserve the caller frame while Quikterm runs
+AnsiEditorMain      pshs      u         ; preserve the compiler caller frame throughout the editor session
                     ldd       #-118     ; prepare constant -118 for the surrounding operation
                     lbsr      _stkcheck ; ensure the C stack has room for this frame
                     leas      <-$22,s   ; allocate <$22,s bytes of stack state
-                    lbsr      InitializeEditorDisplay ; invoke initialize editor display
-                    lbsr      ResetEditorBuffers ; invoke reset editor buffers
+                    lbsr      InitializeEditorDisplay ; initialize editor display
+                    lbsr      ResetEditorBuffers ; reset editor buffers
                     ldd       <$0026,s  ; read the relevant word from the active stack frame
                     cmpd      #1        ; test against #1
                     ble       StartEditorAfterOptionalLoad ; continue at StartEditorAfterOptionalLoad when the signed bound test succeeds
                     ldx       <$0028,s  ; read the relevant word from the active stack frame
                     ldd       $02,x     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      LoadAnsiFile ; invoke load ansi file
+                    lbsr      LoadAnsiFile ; load ansi file
                     leas      $02,s     ; release $02,s bytes of stack state
-StartEditorAfterOptionalLoad lbsr      RunEditorSession ; invoke run editor session
+StartEditorAfterOptionalLoad lbsr      RunEditorSession ; run editor session
                     ldd       <$0026,s  ; read the relevant word from the active stack frame
                     cmpd      #2        ; test against #2
                     ble       PromptForDefaultOutputName ; continue at PromptForDefaultOutputName when the signed bound test succeeds
                     ldx       <$0028,s  ; read the relevant word from the active stack frame
                     ldd       $04,x     ; read the relevant word from the active stack frame
                     pshs      d         ; pass the current value as a word-sized argument
-                    lbsr      SaveAnsiFile ; invoke save ansi file
-                    lbra      FinishEditorMain ; continue with finish editor main
+                    lbsr      SaveAnsiFile ; save ansi file
+                    lbra      FinishEditorMain ; resume finish editor main
 PromptForDefaultOutputName ldd       #4        ; prepare constant 4 for the surrounding operation
                     pshs      d         ; pass the current value as a word-sized argument
                     ldd       #4        ; prepare constant 4 for the surrounding operation
@@ -351,7 +355,7 @@ PromptForDefaultOutputName ldd       #4        ; prepare constant 4 for the surr
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -371,23 +375,23 @@ PromptForDefaultOutputName ldd       #4        ; prepare constant 4 for the surr
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SetTerminalRawMode ; invoke set terminal raw mode
+                    lbsr      SetTerminalRawMode ; set terminal raw mode
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >savprmpt,pc ; select savprmpt
                     pshs      x         ; pass the selected pointer through the compiler calling convention
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >TerminalOutputStream,y ; select terminal output stream
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      FlushStream ; invoke flush stream
+                    lbsr      FlushStream ; commit pending stream output before continuing
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #32       ; recognize the first printable ASCII value
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -396,7 +400,7 @@ PromptForDefaultOutputName ldd       #4        ; prepare constant 4 for the surr
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      readln    ; invoke readln
+                    lbsr      readln    ; collect one operator response line
                     leas      $06,s     ; release $06,s bytes of stack state
                     std       ,s        ; store d in the current stack frame at ,s
                     cmpd      #1        ; test against #1
@@ -406,51 +410,51 @@ PromptForDefaultOutputName ldd       #4        ; prepare constant 4 for the surr
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      $04,s     ; select $04
                     pshs      x         ; pass the selected pointer through the compiler calling convention
-                    lbsr      CopyCString ; invoke copy cstring
+                    lbsr      CopyCString ; copy cstring
                     leas      $04,s     ; release $04,s bytes of stack state
 UseEnteredOutputName leax      $02,s     ; select $02
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      SaveAnsiFile ; invoke save ansi file
+                    lbsr      SaveAnsiFile ; save ansi file
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
 FinishEditorMain    leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      InitializeTerminalDisplay ; invoke initialize terminal display
+                    lbsr      InitializeTerminalDisplay ; initialize terminal display
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >Title,pc ; select title
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >Copyright,pc ; select copyright
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >License,pc ; select license
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >Rights,pc ; select rights
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      PauseForBanner ; invoke pause for banner
+                    lbsr      PauseForBanner ; pause for banner
                     leas      $02,s     ; release $02,s bytes of stack state
                     leas      <$0022,s  ; release <$0022,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
@@ -462,7 +466,7 @@ InitializeEditorDisplay pshs      u         ; preserve the caller data base
                     lbsr      _stkcheck ; ensure the C stack has room for this frame
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -483,7 +487,7 @@ InitializeEditorDisplay pshs      u         ; preserve the caller data base
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
@@ -504,15 +508,15 @@ InitializeEditorDisplay pshs      u         ; preserve the caller data base
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
 
@@ -524,14 +528,14 @@ ResetEditorBuffers  pshs      u         ; preserve the caller data base
                     leas      -$05,s    ; allocate $05,s bytes of stack state
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    lbra      AdvanceScreenColumn ; continue with advance screen column
+                    lbra      AdvanceScreenColumn ; resume advance screen column
 StartScreenRow      clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    bra       AdvanceScreenRow ; continue with advance screen row
+                    bra       AdvanceScreenRow ; resume advance screen row
 ClearNextScreenCell ldd       $01,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #80       ; prepare constant 80 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenCharacters,y ; select screen characters
                     leax      d,x       ; select d
                     ldd       $03,s     ; read the relevant word from the active stack frame
@@ -542,7 +546,7 @@ ClearNextScreenCell ldd       $01,s     ; read the relevant word from the active
                     ldd       $01,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #160      ; prepare constant 160 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenAttributes,y ; select screen attributes
                     leax      d,x       ; select d
                     tfr       x,d       ; transfer x,d
@@ -559,25 +563,25 @@ ClearNextScreenCell ldd       $01,s     ; read the relevant word from the active
 AdvanceScreenRow    std       $01,s     ; retain the stream pointer in the local frame
                     ldd       $01,s     ; read the relevant word from the active stack frame
                     cmpd      #23       ; test against #23
-                    blt       ClearNextScreenCell ; continue with clear next screen cell below the signed limit
+                    blt       ClearNextScreenCell ; signed comparison remains below its limit: clear next screen cell
                     ldd       $03,s     ; read the relevant word from the active stack frame
                     addd      #1        ; add to d using #1
 AdvanceScreenColumn std       $03,s     ; store d in the current stack frame at $03,s
                     ldd       $03,s     ; read the relevant word from the active stack frame
                     cmpd      #80       ; test against #80
-                    lblt      StartScreenRow ; continue with start screen row below the signed limit
+                    lblt      StartScreenRow ; signed comparison remains below its limit: start screen row
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass the current value as a word-sized argument
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; initialize edit mode flag to 1
                     std       >EditModeFlag,y ; retain edit mode flag
-                    lbsr      RenderStatusLine ; invoke render status line
+                    lbsr      RenderStatusLine ; render status line
                     leas      $05,s     ; release $05,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
 
 * Save the ordered output stream, optionally merging pending screen edits so
-* recorded animation is followed by the InvokeAnsiEditor static canvas.
+* recorded animation is followed by the final static canvas.
 SaveAnsiFile        pshs      u         ; preserve the caller data base
                     ldd       #-99      ; prepare constant -99 for the surrounding operation
                     lbsr      _stkcheck ; ensure the C stack has room for this frame
@@ -589,19 +593,19 @@ SaveAnsiFile        pshs      u         ; preserve the caller data base
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       <$0015,s  ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      creat     ; invoke creat
+                    lbsr      creat     ; create the selected output file
                     leas      $04,s     ; release $04,s bytes of stack state
                     std       $0D,s     ; store d in the current stack frame at $0D,s
                     cmpd      #-1       ; test against #-1
-                    bne       OutputFileOpened ; select output file opened when the requested case does not match
+                    bne       OutputFileOpened ; nonzero result: output file opened
                     ldd       >LastIoError,y ; recover last io error
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      >CantOpen1,pc ; select cant open1
                     pshs      x         ; pass the selected pointer through the compiler calling convention
-                    lbsr      ReportEditorError ; invoke report editor error
+                    lbsr      ReportEditorError ; report editor error
                     leas      $04,s     ; release $04,s bytes of stack state
                     ldd       #-1       ; prepare constant -1 for the surrounding operation
-                    lbra      ReturnSaveStatus ; continue with return save status
+                    lbra      ReturnSaveStatus ; resume return save status
 OutputFileOpened    ldd       #4        ; prepare constant 4 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #4        ; prepare constant 4 for the surrounding operation
@@ -618,7 +622,7 @@ OutputFileOpened    ldd       #4        ; prepare constant 4 for the surrounding
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -638,15 +642,15 @@ OutputFileOpened    ldd       #4        ; prepare constant 4 for the surrounding
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >PutScrn,pc ; select put scrn
                     pshs      x         ; pass the selected pointer through the compiler calling convention
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >TerminalOutputStream,y ; select terminal output stream
                     pshs      x         ; pass the selected pointer through the compiler calling convention
@@ -659,25 +663,25 @@ OutputFileOpened    ldd       #4        ; prepare constant 4 for the surrounding
                     clra                ; form standard-input path zero for the raw read
                     clrb                ; form standard-input path zero for the raw read
                     pshs      d         ; pass the current value as a word-sized argument
-                    lbsr      read      ; invoke read
+                    lbsr      read      ; collect the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldb       ,s        ; recover the confirmation character
                     clra                ; form standard-input path zero for the raw read
                     andb      #223      ; mask b using #223
                     cmpd      #78       ; test against #78
-                    beq       SkipPreSaveMerge ; select skip pre save merge when the requested case matches
-                    lbsr      MergeScreenIntoOutput ; invoke merge screen into output
+                    beq       SkipPreSaveMerge ; zero result: skip pre save merge
+                    lbsr      MergeScreenIntoOutput ; merge screen into output
 SkipPreSaveMerge    ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >ClrScrn,pc ; select clr scrn
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >TerminalOutputStream,y ; select terminal output stream
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      FlushStream ; invoke flush stream
+                    lbsr      FlushStream ; commit pending stream output before continuing
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -686,13 +690,13 @@ SkipPreSaveMerge    ldd       #1        ; prepare constant 1 for the surrounding
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      read      ; invoke read
+                    lbsr      read      ; collect the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldb       ,s        ; recover
                     clra                ; select standard input
                     andb      #223      ; mask b using #223
                     cmpd      #89       ; test against #89
-                    bne       SkipClearScreenRecord ; select skip clear screen record when the requested case does not match
+                    bne       SkipClearScreenRecord ; nonzero result: skip clear screen record
                     ldd       #27       ; initialize $01 to 27
                     stb       $01,s     ; store b in the current stack frame at $01,s
                     ldd       #91       ; initialize $02 to 91
@@ -707,15 +711,15 @@ SkipPreSaveMerge    ldd       #1        ; prepare constant 1 for the surrounding
                     pshs      x         ; pass or retain this pointer through the compiler ABI
                     ldd       <$0011,s  ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      write     ; invoke write
+                    lbsr      write     ; commit the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
 SkipClearScreenRecord ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >OutputLength,y ; recover output length
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -723,11 +727,11 @@ SkipClearScreenRecord ldd       #1        ; prepare constant 1 for the surroundi
                     pshs      x         ; pass or retain this pointer through the compiler ABI
                     ldd       <$0011,s  ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      write     ; invoke write
+                    lbsr      write     ; commit the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldd       $0D,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      close     ; invoke close
+                    lbsr      close     ; close the selected runtime stream
                     leas      $02,s     ; release $02,s bytes of stack state
 ReturnSaveStatus    leas      $0F,s     ; release $0F,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
@@ -742,19 +746,19 @@ LoadAnsiFile        pshs      u         ; preserve the caller data base
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       $0A,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      open      ; invoke open
+                    lbsr      open      ; open the selected input file
                     leas      $04,s     ; release $04,s bytes of stack state
                     std       $02,s     ; store d in the current stack frame at $02,s
                     cmpd      #-1       ; test against #-1
-                    bne       ReturnLoadedCharacter ; select return loaded character when the requested case does not match
+                    bne       ReturnLoadedCharacter ; nonzero result: return loaded character
                     ldd       >LastIoError,y ; recover last io error
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      >CantOpen2,pc ; select cant open2
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      ReportEditorError ; invoke report editor error
+                    lbsr      ReportEditorError ; report editor error
                     leas      $04,s     ; release $04,s bytes of stack state
                     ldd       #-1       ; initialize cursor column to -1
-                    lbra      FinishFileLoad ; continue with finish file load
+                    lbra      FinishFileLoad ; resume finish file load
 ReturnLoadedCharacter clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       >CursorColumn,y ; retain cursor column
@@ -792,19 +796,19 @@ ReturnLoadedCharacter clra                ; select standard input
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     leax      >ReadFile,pc ; select read file
                     pshs      x         ; pass the selected pointer through the compiler calling convention
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >TerminalOutputStream,y ; select terminal output stream
                     pshs      x         ; pass the selected pointer through the compiler calling convention
-                    lbsr      FlushStream ; invoke flush stream
+                    lbsr      FlushStream ; commit pending stream output before continuing
                     leas      $02,s     ; release $02,s bytes of stack state
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    bra       NormalizeLoadChoice ; continue with normalize load choice
+                    bra       NormalizeLoadChoice ; resume normalize load choice
 AcceptScreenLoadChoice ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      $03,s     ; select $03
@@ -812,7 +816,7 @@ AcceptScreenLoadChoice ldd       #1        ; prepare constant 1 for the surround
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      read      ; invoke read
+                    lbsr      read      ; collect the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldb       $01,s     ; read the relevant word from the active stack frame
                     clra                ; select standard input
@@ -820,29 +824,29 @@ AcceptScreenLoadChoice ldd       #1        ; prepare constant 1 for the surround
 NormalizeLoadChoice stb       $01,s     ; store b in the current stack frame at $01,s
                     ldb       $01,s     ; read the relevant word from the active stack frame
                     cmpb      #79       ; prepare constant 79 for the surrounding operation
-                    beq       ProcessLoadedByte ; select process loaded byte when the requested case matches
+                    beq       ProcessLoadedByte ; zero result: process loaded byte
                     ldb       $01,s     ; read the relevant word from the active stack frame
                     cmpb      #83       ; prepare constant 83 for the surrounding operation
-                    bne       AcceptScreenLoadChoice ; select accept screen load choice when the requested case does not match
+                    bne       AcceptScreenLoadChoice ; nonzero result: accept screen load choice
 ProcessLoadedByte   ldb       $01,s     ; read the relevant word from the active stack frame
                     cmpb      #83       ; prepare constant 83 for the surrounding operation
-                    bne       SetRecordLoadMode ; select set record load mode when the requested case does not match
+                    bne       SetRecordLoadMode ; nonzero result: set record load mode
                     ldd       #1        ; initialize edit mode flag to 1
-                    bra       StoreLoadMode ; continue with store load mode
+                    bra       StoreLoadMode ; resume store load mode
 SetRecordLoadMode   clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
 StoreLoadMode       std       >EditModeFlag,y ; retain edit mode flag
                     leax      >AddLf,pc ; select add lf
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >TerminalOutputStream,y ; select terminal output stream
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      FlushStream ; invoke flush stream
+                    lbsr      FlushStream ; commit pending stream output before continuing
                     leas      $02,s     ; release $02,s bytes of stack state
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    bra       NormalizeLoadConfirmation ; continue with normalize load confirmation
+                    bra       NormalizeLoadConfirmation ; resume normalize load confirmation
 RepeatLoadConfirmation ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      $02,s     ; select $02
@@ -850,7 +854,7 @@ RepeatLoadConfirmation ldd       #1        ; prepare constant 1 for the surround
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      read      ; invoke read
+                    lbsr      read      ; collect the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldb       ,s        ; recover the confirmation character
                     clra                ; form standard-input path zero for the raw read
@@ -858,16 +862,16 @@ RepeatLoadConfirmation ldd       #1        ; prepare constant 1 for the surround
 NormalizeLoadConfirmation stb       ,s        ; store b in the current stack frame at ,s
                     ldb       ,s        ; recover the confirmation character
                     cmpb      #89       ; accept only an explicit Y
-                    beq       AcceptLoadConfirmation ; select accept load confirmation when the requested case matches
+                    beq       AcceptLoadConfirmation ; zero result: accept load confirmation
                     ldb       ,s        ; recover
                     cmpb      #78       ; prepare constant 78 for the surrounding operation
-                    bne       RepeatLoadConfirmation ; select repeat load confirmation when the requested case does not match
+                    bne       RepeatLoadConfirmation ; nonzero result: repeat load confirmation
 AcceptLoadConfirmation ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
-                    lbra      ContinueFileRead ; continue with continue file read
+                    lbsr      EndEditorWindow ; end editor window
+                    lbra      ContinueFileRead ; resume continue file read
 HandleLoadedByte    ldd       >EditModeFlag,y ; recover edit mode flag
-                    bne       CheckLoadedEscape ; select check loaded escape when the requested case does not match
+                    bne       CheckLoadedEscape ; nonzero result: check loaded escape
                     ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     std       >OutputLength,y ; retain output length
@@ -878,29 +882,29 @@ HandleLoadedByte    ldd       >EditModeFlag,y ; recover edit mode flag
                     stb       ,x        ; retain
                     ldd       >OutputLength,y ; recover output length
                     cmpd      #8192     ; test against #8192
-                    blt       CheckLoadedEscape ; continue with check loaded escape below the signed limit
+                    blt       CheckLoadedEscape ; signed comparison remains below its limit: check loaded escape
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SignalOutputOverflow ; invoke signal output overflow
+                    lbsr      SignalOutputOverflow ; signal output overflow
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >OutputLength,y ; recover output length
                     addd      #-1       ; add to d using #-1
                     std       >OutputLength,y ; retain output length
 CheckLoadedEscape   ldb       $01,s     ; read the relevant word from the active stack frame
                     cmpb      #27       ; prepare constant 27 for the surrounding operation
-                    lbne      ReplayLoadedByte ; select replay loaded byte when the requested case does not match
+                    lbne      ReplayLoadedByte ; nonzero result: replay loaded byte
                     ldd       >StreamBufferEndLow,y ; recover stream buffer end low
-                    lbne      ReplayLoadedByte ; select replay loaded byte when the requested case does not match
+                    lbne      ReplayLoadedByte ; nonzero result: replay loaded byte
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      $03,s     ; select $03
                     pshs      x         ; pass the selected pointer through the compiler calling convention
                     ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass the current value as a word-sized argument
-                    lbsr      read      ; invoke read
+                    lbsr      read      ; collect the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    bne       CheckLoadedCsi ; select check loaded csi when the requested case does not match
+                    bne       CheckLoadedCsi ; nonzero result: check loaded csi
                     ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     std       >OutputLength,y ; retain output length
@@ -911,17 +915,17 @@ CheckLoadedEscape   ldb       $01,s     ; read the relevant word from the active
                     stb       ,x        ; retain
                     ldd       >OutputLength,y ; recover output length
                     cmpd      #8192     ; test against #8192
-                    blt       CheckLoadedCsi ; continue with check loaded csi below the signed limit
+                    blt       CheckLoadedCsi ; signed comparison remains below its limit: check loaded csi
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SignalOutputOverflow ; invoke signal output overflow
+                    lbsr      SignalOutputOverflow ; signal output overflow
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >OutputLength,y ; recover output length
                     addd      #-1       ; add to d using #-1
                     std       >OutputLength,y ; retain output length
 CheckLoadedCsi      ldb       $01,s     ; read the relevant word from the active stack frame
                     cmpb      #91       ; prepare constant 91 for the surrounding operation
-                    bne       ReplayLoadedByte ; select replay loaded byte when the requested case does not match
+                    bne       ReplayLoadedByte ; nonzero result: replay loaded byte
                     ldd       #1        ; initialize stream buffer end low to 1
                     std       >StreamBufferEndLow,y ; retain stream buffer end low
                     ldd       #1        ; prepare constant 1 for the surrounding operation
@@ -930,10 +934,10 @@ CheckLoadedCsi      ldb       $01,s     ; read the relevant word from the active
                     pshs      x         ; pass the selected pointer through the compiler calling convention
                     ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass the current value as a word-sized argument
-                    lbsr      read      ; invoke read
+                    lbsr      read      ; collect the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    bne       ReplayLoadedByte ; select replay loaded byte when the requested case does not match
+                    bne       ReplayLoadedByte ; nonzero result: replay loaded byte
                     ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     std       >OutputLength,y ; retain output length
@@ -944,31 +948,31 @@ CheckLoadedCsi      ldb       $01,s     ; read the relevant word from the active
                     stb       ,x        ; retain
                     ldd       >OutputLength,y ; recover output length
                     cmpd      #8192     ; test against #8192
-                    blt       ReplayLoadedByte ; continue with replay loaded byte below the signed limit
+                    blt       ReplayLoadedByte ; signed comparison remains below its limit: replay loaded byte
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SignalOutputOverflow ; invoke signal output overflow
+                    lbsr      SignalOutputOverflow ; signal output overflow
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >OutputLength,y ; recover output length
                     addd      #-1       ; add to d using #-1
                     std       >OutputLength,y ; retain output length
 ReplayLoadedByte    ldb       ,s        ; recover
                     cmpb      #89       ; prepare constant 89 for the surrounding operation
-                    bne       EmitLoadedByte ; select emit loaded byte when the requested case does not match
+                    bne       EmitLoadedByte ; nonzero result: emit loaded byte
                     ldb       $01,s     ; read the relevant word from the active stack frame
                     cmpb      #13       ; recognize the carriage-return terminator
-                    bne       EmitLoadedByte ; select emit loaded byte when the requested case does not match
+                    bne       EmitLoadedByte ; nonzero result: emit loaded byte
                     ldb       $01,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #10       ; select the line-feed control byte
-                    bra       SubmitLoadedByte ; continue with submit loaded byte
+                    bra       SubmitLoadedByte ; resume submit loaded byte
 EmitLoadedByte      ldb       $01,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
 SubmitLoadedByte    pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
 ContinueFileRead    leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -976,13 +980,13 @@ ContinueFileRead    leas      $02,s     ; release $02,s bytes of stack state
                     pshs      x         ; pass the selected pointer through the compiler calling convention
                     ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass the current value as a word-sized argument
-                    lbsr      read      ; invoke read
+                    lbsr      read      ; collect the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    lbne      HandleLoadedByte ; select handle loaded byte when the requested case does not match
+                    lbne      HandleLoadedByte ; nonzero result: handle loaded byte
                     ldd       $02,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass the current value as a word-sized argument
-                    lbsr      close     ; invoke close
+                    lbsr      close     ; close the selected runtime stream
                     leas      $02,s     ; release $02,s bytes of stack state
 FinishFileLoad      leas      $04,s     ; release $04,s bytes of stack state
                     puls      pc,u      ; restore the caller frame and return
@@ -996,7 +1000,7 @@ RunEditorSession    pshs      u         ; preserve the caller frame for fatal er
                     clra                ; return a null descriptor pointer
                     clrb                ; complete the null return value
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SetTerminalRawMode ; invoke set terminal raw mode
+                    lbsr      SetTerminalRawMode ; set terminal raw mode
                     leas      $02,s     ; release $02,s bytes of stack state
                     clra                ; clear the access-mode high byte
                     clrb                ; begin with no access bits
@@ -1017,17 +1021,17 @@ RunEditorSession    pshs      u         ; preserve the caller frame for fatal er
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
-                    lbra      RefreshEditorDisplay ; continue with refresh editor display
+                    lbra      RefreshEditorDisplay ; resume refresh editor display
 EditorCommandLoop   clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -1047,7 +1051,7 @@ EditorCommandLoop   clra                ; select standard input
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       >CursorRow,y ; recover cursor row
                     addd      #1        ; add to d using #1
@@ -1057,30 +1061,30 @@ EditorCommandLoop   clra                ; select standard input
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      >Status,pc ; select status
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    beq       ShowRecordingMode ; select show recording mode when the requested case matches
+                    beq       ShowRecordingMode ; zero result: show recording mode
                     leax      >Editing,pc ; select editing
-                    bra       PrintModeStatus ; continue with print mode status
+                    bra       PrintModeStatus ; resume print mode status
 ShowRecordingMode   leax      >Recording,pc ; select recording
 PrintModeStatus     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >CursorRow,y ; recover cursor row
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #80       ; prepare constant 80 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenCharacters,y ; select screen characters
                     leax      d,x       ; select d
                     ldd       >CursorColumn,y ; recover cursor column
                     leax      d,x       ; select d
                     ldb       ,x        ; recover
-                    beq       ShowBlankScreenCell ; select show blank screen cell when the requested case matches
+                    beq       ShowBlankScreenCell ; zero result: show blank screen cell
                     ldd       >CursorRow,y ; recover cursor row
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #80       ; prepare constant 80 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenCharacters,y ; select screen characters
                     leax      d,x       ; select d
                     ldd       >CursorColumn,y ; recover cursor column
@@ -1090,81 +1094,81 @@ PrintModeStatus     pshs      x         ; pass or retain this pointer through th
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      >CharDump,pc ; select char dump
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $04,s     ; release $04,s bytes of stack state
-                    bra       PrintAttributeStatus ; continue with print attribute status
+                    bra       PrintAttributeStatus ; resume print attribute status
 ShowBlankScreenCell leax      >Char,pc  ; select char
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
 PrintAttributeStatus leax      >Attrs,pc ; select attrs
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >CurrentAttributes,y ; recover current attributes
                     anda      #1        ; mask a using #1
                     clrb                ; clear the byte accumulator for counting
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       ShowUnderlineOff ; select show underline off when the requested case matches
+                    beq       ShowUnderlineOff ; zero result: show underline off
                     leax      >UnderlineStatusOn,pc ; select underline status on
-                    bra       PrintUnderlineStatus ; continue with print underline status
+                    bra       PrintUnderlineStatus ; resume print underline status
 ShowUnderlineOff    leax      >UnderlineStatusOff,pc ; select underline status off
 PrintUnderlineStatus pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >CurrentAttributes,y ; recover current attributes
                     anda      #2        ; mask a using #2
                     clrb                ; clear the byte accumulator for counting
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       ShowBlinkOff ; select show blink off when the requested case matches
+                    beq       ShowBlinkOff ; zero result: show blink off
                     leax      >BlinkStatusOn,pc ; select blink status on
-                    bra       PrintBlinkStatus ; continue with print blink status
+                    bra       PrintBlinkStatus ; resume print blink status
 ShowBlinkOff        leax      >BlinkStatusOff,pc ; select blink status off
 PrintBlinkStatus    pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >CurrentAttributes,y ; recover current attributes
                     anda      #4        ; mask a using #4
                     clrb                ; clear the byte accumulator for counting
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       ShowReverseOff ; select show reverse off when the requested case matches
+                    beq       ShowReverseOff ; zero result: show reverse off
                     leax      >ReverseStatusOn,pc ; select reverse status on
-                    bra       PrintReverseStatus ; continue with print reverse status
+                    bra       PrintReverseStatus ; resume print reverse status
 ShowReverseOff      leax      >ReverseStatusOff,pc ; select reverse status off
 PrintReverseStatus  pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >CurrentAttributes,y ; recover current attributes
                     anda      #8        ; mask a using #8
                     clrb                ; clear the byte accumulator for counting
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       ShowInvisibleOff ; select show invisible off when the requested case matches
+                    beq       ShowInvisibleOff ; zero result: show invisible off
                     leax      >InvisibleStatusOn,pc ; select invisible status on
-                    bra       PrintInvisibleStatus ; continue with print invisible status
+                    bra       PrintInvisibleStatus ; resume print invisible status
 ShowInvisibleOff    leax      >InvisibleStatusOff,pc ; select invisible status off
 PrintInvisibleStatus pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >CurrentAttributes,y ; recover current attributes
                     anda      #16       ; mask a using #16
                     clrb                ; clear the byte accumulator for counting
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       ShowBoldOff ; select show bold off when the requested case matches
+                    beq       ShowBoldOff ; zero result: show bold off
                     leax      >BoldStatusOn,pc ; select bold status on
-                    bra       PrintBoldStatus ; continue with print bold status
+                    bra       PrintBoldStatus ; resume print bold status
 ShowBoldOff         leax      >BoldStatusOff,pc ; select bold status off
 PrintBoldStatus     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >CurrentAttributes,y ; recover current attributes
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #256      ; prepare constant 256 for the surrounding operation
-                    lbsr      UnsignedRemainder ; invoke unsigned remainder
-                    beq       ShowDefaultColors ; select show default colors when the requested case matches
+                    lbsr      UnsignedRemainder ; unsigned remainder
+                    beq       ShowDefaultColors ; zero result: show default colors
                     ldd       >CurrentAttributes,y ; recover current attributes
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #16       ; prepare constant 16 for the surrounding operation
-                    lbsr      UnsignedRemainder ; invoke unsigned remainder
+                    lbsr      UnsignedRemainder ; unsigned remainder
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
                     leax      >RuntimeDescriptorTail,y ; select runtime descriptor tail
@@ -1176,7 +1180,7 @@ PrintBoldStatus     pshs      x         ; pass or retain this pointer through th
                     andb      #240      ; mask b using #240
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #16       ; prepare constant 16 for the surrounding operation
-                    lbsr      UnsignedQuotient ; invoke unsigned quotient
+                    lbsr      UnsignedQuotient ; unsigned quotient
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
                     leax      >RuntimeDescriptorTail,y ; select runtime descriptor tail
@@ -1185,20 +1189,20 @@ PrintBoldStatus     pshs      x         ; pass or retain this pointer through th
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      >ColorsOn,pc ; select colors on
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $06,s     ; release $06,s bytes of stack state
-                    bra       EnterCommandReadLoop ; continue with enter command read loop
+                    bra       EnterCommandReadLoop ; resume enter command read loop
 ShowDefaultColors   leax      >ColorsBW,pc ; select colors bw
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
 EnterCommandReadLoop leax      >TerminalOutputStream,y ; select terminal output stream
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      FlushStream ; invoke flush stream
+                    lbsr      FlushStream ; commit pending stream output before continuing
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -1207,14 +1211,14 @@ EnterCommandReadLoop leax      >TerminalOutputStream,y ; select terminal output 
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      read      ; invoke read
+                    lbsr      read      ; collect the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldd       #1        ; initialize stream buffer end low to 1
                     std       >StreamBufferEndLow,y ; retain stream buffer end low
                     ldb       <$0023,s  ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; preserve the flags or register state required by the following operation
-                    lbra      DispatchEditorKey ; continue with dispatch editor key
+                    lbra      DispatchEditorKey ; resume dispatch editor key
 RedrawAfterCommand  ldd       #4        ; prepare constant 4 for the surrounding operation
                     pshs      d         ; preserve the flags or register state required by the following operation
                     ldd       #4        ; prepare constant 4 for the surrounding operation
@@ -1231,7 +1235,7 @@ RedrawAfterCommand  ldd       #4        ; prepare constant 4 for the surrounding
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; preserve the flags or register state required by the following operation
@@ -1251,95 +1255,95 @@ RedrawAfterCommand  ldd       #4        ; prepare constant 4 for the surrounding
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >Help,pc  ; select help
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >Line,pc  ; select line
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >AltG,pc  ; select alt g
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >AltR,pc  ; select alt r
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >AltE,pc  ; select alt e
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >AltC,pc  ; select alt c
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >AltN,pc  ; select alt n
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >AltS,pc  ; select alt s
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >AltA,pc  ; select alt a
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >AltP,pc  ; select alt p
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >AltL,pc  ; select alt l
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >AltK,pc  ; select alt k
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >AltZ,pc  ; select alt z
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >AltX,pc  ; select alt x
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >AltQ,pc  ; select alt q
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ReadAltKey ; invoke read alt key
+                    lbsr      ReadAltKey ; read alt key
                     leas      $02,s     ; release $02,s bytes of stack state
 HandleAltCommand    clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ReadPortCharacter ; invoke read port character
+                    lbsr      ReadPortCharacter ; read port character
                     leas      $02,s     ; release $02,s bytes of stack state
                     cmpd      #-1       ; test against #-1
-                    beq       HandleAltCommand ; select handle alt command when the requested case matches
+                    beq       HandleAltCommand ; zero result: handle alt command
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ReadEditorKey ; invoke read editor key
+                    lbsr      ReadEditorKey ; read editor key
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
-                    lbra      FinishCommandAction ; continue with finish command action
+                    lbsr      EndEditorWindow ; end editor window
+                    lbra      FinishCommandAction ; resume finish command action
 HandlePlainCharacter ldd       #4        ; prepare constant 4 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #4        ; prepare constant 4 for the surrounding operation
@@ -1356,7 +1360,7 @@ HandlePlainCharacter ldd       #4        ; prepare constant 4 for the surroundin
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -1376,19 +1380,19 @@ HandlePlainCharacter ldd       #4        ; prepare constant 4 for the surroundin
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >Sure,pc  ; select sure
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >TerminalOutputStream,y ; select terminal output stream
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      FlushStream ; invoke flush stream
+                    lbsr      FlushStream ; commit pending stream output before continuing
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -1397,62 +1401,62 @@ HandlePlainCharacter ldd       #4        ; prepare constant 4 for the surroundin
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      read      ; invoke read
+                    lbsr      read      ; collect the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldb       <$0023,s  ; read the relevant word from the active stack frame
                     clra                ; select standard input
                     andb      #223      ; mask b using #223
                     cmpd      #89       ; test against #89
-                    lbne      RefreshEditorDisplay ; select refresh editor display when the requested case does not match
+                    lbne      RefreshEditorDisplay ; nonzero result: refresh editor display
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      InitializeTerminalDisplay ; invoke initialize terminal display
+                    lbsr      InitializeTerminalDisplay ; initialize terminal display
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >Title2,pc ; select title2
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >CpyRite2,pc ; select cpy rite2
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >License2,pc ; select license2
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >Rights2,pc ; select rights2
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      PauseForBanner ; invoke pause for banner
+                    lbsr      PauseForBanner ; pause for banner
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SetTerminalRawMode ; invoke set terminal raw mode
+                    lbsr      SetTerminalRawMode ; set terminal raw mode
                     leas      $02,s     ; release $02,s bytes of stack state
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      exit      ; invoke exit
-                    lbra      FinishCommandAction ; continue with finish command action
+                    lbsr      exit      ; exit
+                    lbra      FinishCommandAction ; resume finish command action
 PromptForLoadFilename ldd       #4        ; prepare constant 4 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #4        ; prepare constant 4 for the surrounding operation
@@ -1469,7 +1473,7 @@ PromptForLoadFilename ldd       #4        ; prepare constant 4 for the surroundi
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -1489,23 +1493,23 @@ PromptForLoadFilename ldd       #4        ; prepare constant 4 for the surroundi
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SetTerminalRawMode ; invoke set terminal raw mode
+                    lbsr      SetTerminalRawMode ; set terminal raw mode
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >LoadPrompt,pc ; select load prompt
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >TerminalOutputStream,y ; select terminal output stream
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      FlushStream ; invoke flush stream
+                    lbsr      FlushStream ; commit pending stream output before continuing
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #32       ; recognize the first printable ASCII value
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -1514,30 +1518,30 @@ PromptForLoadFilename ldd       #4        ; prepare constant 4 for the surroundi
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      readln    ; invoke readln
+                    lbsr      readln    ; collect one operator response line
                     leas      $06,s     ; release $06,s bytes of stack state
                     std       ,s        ; store d in the current stack frame at ,s
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SetTerminalRawMode ; invoke set terminal raw mode
+                    lbsr      SetTerminalRawMode ; set terminal raw mode
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       ,s        ; recover
                     cmpd      #1        ; test against #1
                     bgt       UseEnteredLoadFilename ; continue at UseEnteredLoadFilename when the signed bound test succeeds
-                    lbra      RefreshEditorDisplay ; continue with refresh editor display
+                    lbra      RefreshEditorDisplay ; resume refresh editor display
 UseEnteredLoadFilename leax      $02,s     ; select $02
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      LoadAnsiFile ; invoke load ansi file
-                    lbra      FinishCommandAction ; continue with finish command action
+                    lbsr      LoadAnsiFile ; load ansi file
+                    lbra      FinishCommandAction ; resume finish command action
 PromptForSaveFilename ldd       #4        ; prepare constant 4 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #4        ; prepare constant 4 for the surrounding operation
@@ -1554,7 +1558,7 @@ PromptForSaveFilename ldd       #4        ; prepare constant 4 for the surroundi
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -1574,23 +1578,23 @@ PromptForSaveFilename ldd       #4        ; prepare constant 4 for the surroundi
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SetTerminalRawMode ; invoke set terminal raw mode
+                    lbsr      SetTerminalRawMode ; set terminal raw mode
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >SavePrompt,pc ; select save prompt
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >TerminalOutputStream,y ; select terminal output stream
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      FlushStream ; invoke flush stream
+                    lbsr      FlushStream ; commit pending stream output before continuing
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #32       ; recognize the first printable ASCII value
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -1599,62 +1603,62 @@ PromptForSaveFilename ldd       #4        ; prepare constant 4 for the surroundi
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      readln    ; invoke readln
+                    lbsr      readln    ; collect one operator response line
                     leas      $06,s     ; release $06,s bytes of stack state
                     std       ,s        ; store d in the current stack frame at ,s
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SetTerminalRawMode ; invoke set terminal raw mode
+                    lbsr      SetTerminalRawMode ; set terminal raw mode
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       ,s        ; recover
                     cmpd      #1        ; test against #1
                     bgt       UseEnteredSaveFilename ; continue at UseEnteredSaveFilename when the signed bound test succeeds
-                    lbra      RefreshEditorDisplay ; continue with refresh editor display
+                    lbra      RefreshEditorDisplay ; resume refresh editor display
 UseEnteredSaveFilename leax      $02,s     ; select $02
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      SaveAnsiFile ; invoke save ansi file
-                    lbra      FinishCommandAction ; continue with finish command action
+                    lbsr      SaveAnsiFile ; save ansi file
+                    lbra      FinishCommandAction ; resume finish command action
 HandleCursorUpKey   ldd       #65       ; prepare constant 65 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      RefreshEditorDisplay ; select refresh editor display when the requested case does not match
+                    lbne      RefreshEditorDisplay ; nonzero result: refresh editor display
                     ldd       #65       ; prepare constant 65 for the surrounding operation
-                    lbra      RecordCursorMotion ; continue with record cursor motion
+                    lbra      RecordCursorMotion ; resume record cursor motion
 HandleCursorDownKey ldd       #66       ; prepare constant 66 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      RefreshEditorDisplay ; select refresh editor display when the requested case does not match
+                    lbne      RefreshEditorDisplay ; nonzero result: refresh editor display
                     ldd       #66       ; prepare constant 66 for the surrounding operation
-                    lbra      RecordCursorMotion ; continue with record cursor motion
+                    lbra      RecordCursorMotion ; resume record cursor motion
 HandleCursorLeftKey ldd       #68       ; prepare constant 68 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      RefreshEditorDisplay ; select refresh editor display when the requested case does not match
+                    lbne      RefreshEditorDisplay ; nonzero result: refresh editor display
                     ldd       #68       ; prepare constant 68 for the surrounding operation
-                    lbra      RecordCursorMotion ; continue with record cursor motion
+                    lbra      RecordCursorMotion ; resume record cursor motion
 HandleCursorRightKey ldd       #67       ; prepare constant 67 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      RefreshEditorDisplay ; select refresh editor display when the requested case does not match
+                    lbne      RefreshEditorDisplay ; nonzero result: refresh editor display
                     ldd       #67       ; prepare constant 67 for the surrounding operation
-                    lbra      RecordCursorMotion ; continue with record cursor motion
+                    lbra      RecordCursorMotion ; resume record cursor motion
 SaveCursorPosition  ldd       #4        ; prepare constant 4 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #4        ; prepare constant 4 for the surrounding operation
@@ -1671,7 +1675,7 @@ SaveCursorPosition  ldd       #4        ; prepare constant 4 for the surrounding
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -1691,36 +1695,36 @@ SaveCursorPosition  ldd       #4        ; prepare constant 4 for the surrounding
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >PosSaved,pc ; select pos saved
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #5        ; prepare constant 5 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      PauseEditorMessage ; invoke pause editor message
+                    lbsr      PauseEditorMessage ; pause editor message
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #115      ; prepare constant 115 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      RefreshEditorDisplay ; select refresh editor display when the requested case does not match
+                    lbne      RefreshEditorDisplay ; nonzero result: refresh editor display
                     ldd       #115      ; prepare constant 115 for the surrounding operation
-                    lbra      RecordCursorMotion ; continue with record cursor motion
+                    lbra      RecordCursorMotion ; resume record cursor motion
 RestoreCursorPosition ldd       #4        ; prepare constant 4 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #4        ; prepare constant 4 for the surrounding operation
@@ -1737,7 +1741,7 @@ RestoreCursorPosition ldd       #4        ; prepare constant 4 for the surroundi
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -1757,66 +1761,66 @@ RestoreCursorPosition ldd       #4        ; prepare constant 4 for the surroundi
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >PosRestrd,pc ; select pos restrd
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #5        ; prepare constant 5 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      PauseEditorMessage ; invoke pause editor message
+                    lbsr      PauseEditorMessage ; pause editor message
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #117      ; prepare constant 117 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      RefreshEditorDisplay ; select refresh editor display when the requested case does not match
+                    lbne      RefreshEditorDisplay ; nonzero result: refresh editor display
                     ldd       #117      ; prepare constant 117 for the surrounding operation
-                    bra       RecordCursorMotion ; continue with record cursor motion
+                    bra       RecordCursorMotion ; resume record cursor motion
 ClearToEndOfLine    ldd       #74       ; prepare constant 74 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      RefreshEditorDisplay ; select refresh editor display when the requested case does not match
+                    lbne      RefreshEditorDisplay ; nonzero result: refresh editor display
                     ldd       #74       ; prepare constant 74 for the surrounding operation
-                    bra       RecordCursorMotion ; continue with record cursor motion
+                    bra       RecordCursorMotion ; resume record cursor motion
 HandleSaveShortcut  ldd       #107      ; prepare constant 107 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      RefreshEditorDisplay ; select refresh editor display when the requested case does not match
+                    lbne      RefreshEditorDisplay ; nonzero result: refresh editor display
                     ldd       #107      ; prepare constant 107 for the surrounding operation
 RecordCursorMotion  pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      RecordCursorCommand ; invoke record cursor command
-                    lbra      FinishCommandAction ; continue with finish command action
-OpenGraphicsMenu    lbsr      GraphicsMenu ; invoke graphics menu
-                    lbra      RefreshEditorDisplay ; continue with refresh editor display
+                    lbsr      RecordCursorCommand ; record cursor command
+                    lbra      FinishCommandAction ; resume finish command action
+OpenGraphicsMenu    lbsr      GraphicsMenu ; graphics menu
+                    lbra      RefreshEditorDisplay ; resume refresh editor display
 CheckSavedCursorColumn ldd       >CursorColumn,y ; recover cursor column
                     cmpd      >SavedCursorColumn,y ; test against saved cursor column
-                    bne       RecordSavedCursorPosition ; select record saved cursor position when the requested case does not match
+                    bne       RecordSavedCursorPosition ; nonzero result: record saved cursor position
                     ldd       >CursorRow,y ; recover cursor row
                     cmpd      >SavedCursorRow,y ; test against saved cursor row
-                    lbeq      CursorAlreadyAtSavedPosition ; select cursor already at saved position when the requested case matches
+                    lbeq      CursorAlreadyAtSavedPosition ; zero result: cursor already at saved position
 RecordSavedCursorPosition ldd       >OutputLength,y ; recover output length
                     addd      #8        ; add to d using #8
                     cmpd      #8192     ; test against #8192
-                    lbge      OutputFullDuringCursorSave ; continue with output full during cursor save at or above the signed limit
+                    lbge      OutputFullDuringCursorSave ; signed comparison reached its upper case: output full during cursor save
                     ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     std       >OutputLength,y ; retain output length
@@ -1844,7 +1848,7 @@ RecordSavedCursorPosition ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      UnsignedQuotient ; invoke unsigned quotient
+                    lbsr      UnsignedQuotient ; unsigned quotient
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
                     ldd       >OutputLength,y ; recover output length
@@ -1858,7 +1862,7 @@ RecordSavedCursorPosition ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      UnsignedRemainder ; invoke unsigned remainder
+                    lbsr      UnsignedRemainder ; unsigned remainder
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
                     ldd       >OutputLength,y ; recover output length
@@ -1880,7 +1884,7 @@ RecordSavedCursorPosition ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      UnsignedQuotient ; invoke unsigned quotient
+                    lbsr      UnsignedQuotient ; unsigned quotient
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
                     ldd       >OutputLength,y ; recover output length
@@ -1894,7 +1898,7 @@ RecordSavedCursorPosition ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      UnsignedRemainder ; invoke unsigned remainder
+                    lbsr      UnsignedRemainder ; unsigned remainder
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
                     ldd       >OutputLength,y ; recover output length
@@ -1905,10 +1909,10 @@ RecordSavedCursorPosition ldd       >OutputLength,y ; recover output length
                     leax      d,x       ; select d
                     ldd       #72       ; initialize  to 72
                     stb       ,x        ; retain
-                    bra       CursorAlreadyAtSavedPosition ; continue with cursor already at saved position
+                    bra       CursorAlreadyAtSavedPosition ; resume cursor already at saved position
 OutputFullDuringCursorSave ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SignalOutputOverflow ; invoke signal output overflow
+                    lbsr      SignalOutputOverflow ; signal output overflow
                     leas      $02,s     ; release $02,s bytes of stack state
 CursorAlreadyAtSavedPosition clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
@@ -1917,10 +1921,10 @@ CursorAlreadyAtSavedPosition clra                ; select standard input
                     std       >SavedCursorColumn,y ; retain saved cursor column
                     ldd       >CursorRow,y ; recover cursor row
                     std       >SavedCursorRow,y ; retain saved cursor row
-                    lbra      RefreshEditorDisplay ; continue with refresh editor display
+                    lbra      RefreshEditorDisplay ; resume refresh editor display
 RecordCursorRowDigits ldd       #1        ; initialize edit mode flag to 1
                     std       >EditModeFlag,y ; retain edit mode flag
-                    lbra      RefreshEditorDisplay ; continue with refresh editor display
+                    lbra      RefreshEditorDisplay ; resume refresh editor display
 RecordCursorColumnDigits ldd       #4        ; prepare constant 4 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #4        ; prepare constant 4 for the surrounding operation
@@ -1937,7 +1941,7 @@ RecordCursorColumnDigits ldd       #4        ; prepare constant 4 for the surrou
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -1957,28 +1961,28 @@ RecordCursorColumnDigits ldd       #4        ; prepare constant 4 for the surrou
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >MovBuff,pc ; select mov buff
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
-                    lbsr      MergeScreenIntoOutput ; invoke merge screen into output
+                    lbsr      MergeScreenIntoOutput ; merge screen into output
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
-                    lbra      FinishCommandAction ; continue with finish command action
+                    lbsr      EndEditorWindow ; end editor window
+                    lbra      FinishCommandAction ; resume finish command action
 SwitchToRecordMode  ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SetTerminalRawMode ; invoke set terminal raw mode
+                    lbsr      SetTerminalRawMode ; set terminal raw mode
                     leas      $02,s     ; release $02,s bytes of stack state
                     leas      <$0024,s  ; release <$0024,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
@@ -1998,7 +2002,7 @@ SwitchToEditMode    ldd       #4        ; prepare constant 4 for the surrounding
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -2018,39 +2022,39 @@ SwitchToEditMode    ldd       #4        ; prepare constant 4 for the surrounding
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >Zap,pc   ; select zap
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >RecBuff,pc ; select rec buff
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >BothBuffs,pc ; select both buffs
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >ScrnChar,pc ; select scrn char
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >RecChar,pc ; select rec char
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >Choose,pc ; select choose
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >TerminalOutputStream,y ; select terminal output stream
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      FlushStream ; invoke flush stream
+                    lbsr      FlushStream ; commit pending stream output before continuing
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -2059,7 +2063,7 @@ SwitchToEditMode    ldd       #4        ; prepare constant 4 for the surrounding
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      read      ; invoke read
+                    lbsr      read      ; collect the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldb       <$0022,s  ; read the relevant word from the active stack frame
                     clra                ; select standard input
@@ -2070,26 +2074,26 @@ SwitchToEditMode    ldd       #4        ; prepare constant 4 for the surrounding
                     stb       <$0023,s  ; store b in the current stack frame at <$0023,s
                     ldb       <$0022,s  ; read the relevant word from the active stack frame
                     cmpb      #83       ; prepare constant 83 for the surrounding operation
-                    beq       ConfirmExitWithoutSave ; select confirm exit without save when the requested case matches
+                    beq       ConfirmExitWithoutSave ; zero result: confirm exit without save
                     ldb       <$0022,s  ; read the relevant word from the active stack frame
                     cmpb      #82       ; prepare constant 82 for the surrounding operation
-                    beq       ConfirmExitWithoutSave ; select confirm exit without save when the requested case matches
+                    beq       ConfirmExitWithoutSave ; zero result: confirm exit without save
                     ldb       <$0022,s  ; read the relevant word from the active stack frame
                     cmpb      #66       ; prepare constant 66 for the surrounding operation
-                    beq       ConfirmExitWithoutSave ; select confirm exit without save when the requested case matches
+                    beq       ConfirmExitWithoutSave ; zero result: confirm exit without save
                     ldb       <$0022,s  ; read the relevant word from the active stack frame
                     cmpb      #68       ; prepare constant 68 for the surrounding operation
-                    beq       ConfirmExitWithoutSave ; select confirm exit without save when the requested case matches
+                    beq       ConfirmExitWithoutSave ; zero result: confirm exit without save
                     ldb       <$0022,s  ; read the relevant word from the active stack frame
                     cmpb      #84       ; prepare constant 84 for the surrounding operation
                     bne       ReadExitConfirmation ; repeat read exit confirmation until the terminating condition is met
 ConfirmExitWithoutSave leax      >Sure2,pc ; select sure2
                     pshs      x         ; pass the selected pointer through the compiler calling convention
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >TerminalOutputStream,y ; select terminal output stream
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      FlushStream ; invoke flush stream
+                    lbsr      FlushStream ; commit pending stream output before continuing
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -2098,26 +2102,26 @@ ConfirmExitWithoutSave leax      >Sure2,pc ; select sure2
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      read      ; invoke read
+                    lbsr      read      ; collect the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
 ReadExitConfirmation ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldb       <$0023,s  ; read the relevant word from the active stack frame
                     clra                ; select standard input
                     andb      #223      ; mask b using #223
                     cmpd      #89       ; test against #89
-                    lbne      RefreshEditorDisplay ; select refresh editor display when the requested case does not match
+                    lbne      RefreshEditorDisplay ; nonzero result: refresh editor display
                     ldb       <$0022,s  ; read the relevant word from the active stack frame
                     clra                ; select standard input
                     andb      #223      ; mask b using #223
                     tfr       d,x       ; transfer d,x
-                    lbra      DispatchAltLetter ; continue with dispatch alt letter
+                    lbra      DispatchAltLetter ; resume dispatch alt letter
 HandleZapCommand    clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       >CurrentAttributes,y ; retain current attributes
@@ -2126,36 +2130,36 @@ HandleZapCommand    clra                ; select standard input
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitForegroundColor ; invoke emit foreground color
+                    lbsr      EmitForegroundColor ; emit foreground color
                     leas      $04,s     ; release $04,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitBackgroundColor ; invoke emit background color
+                    lbsr      EmitBackgroundColor ; emit background color
                     leas      $04,s     ; release $04,s bytes of stack state
-                    lbsr      ResetEditorBuffers ; invoke reset editor buffers
+                    lbsr      ResetEditorBuffers ; reset editor buffers
                     ldd       #74       ; prepare constant 74 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
-                    lbra      FinishZapMenu ; continue with finish zap menu
+                    lbsr      ApplyEditorCharacter ; apply editor character
+                    lbra      FinishZapMenu ; resume finish zap menu
 ZapScreenBuffer     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitForegroundColor ; invoke emit foreground color
+                    lbsr      EmitForegroundColor ; emit foreground color
                     leas      $04,s     ; release $04,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitBackgroundColor ; invoke emit background color
+                    lbsr      EmitBackgroundColor ; emit background color
                     leas      $04,s     ; release $04,s bytes of stack state
-                    lbsr      ResetEditorBuffers ; invoke reset editor buffers
+                    lbsr      ResetEditorBuffers ; reset editor buffers
                     ldd       #74       ; prepare constant 74 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
 ZapOutputBuffer     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
@@ -2163,11 +2167,11 @@ ZapOutputBuffer     clra                ; select standard input
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       >OutputLength,y ; retain output length
-                    lbra      RefreshEditorDisplay ; continue with refresh editor display
+                    lbra      RefreshEditorDisplay ; resume refresh editor display
 ZapBothBuffers      ldd       >CursorColumn,y ; recover cursor column
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #80       ; prepare constant 80 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenCharacters,y ; select screen characters
                     leax      d,x       ; select d
                     ldd       >CursorRow,y ; recover cursor row
@@ -2178,7 +2182,7 @@ ZapBothBuffers      ldd       >CursorColumn,y ; recover cursor column
                     ldd       >CursorColumn,y ; recover cursor column
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #160      ; prepare constant 160 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenAttributes,y ; select screen attributes
                     leax      d,x       ; select d
                     tfr       x,d       ; transfer x,d
@@ -2197,15 +2201,15 @@ ZapBothBuffers      ldd       >CursorColumn,y ; recover cursor column
                     pshs      x         ; pass or retain this pointer through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      write     ; invoke write
+                    lbsr      write     ; commit the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
-                    lbra      RefreshEditorDisplay ; continue with refresh editor display
+                    lbra      RefreshEditorDisplay ; resume refresh editor display
 ZapScreenCharacter  ldd       >OutputLength,y ; recover output length
                     addd      #-1       ; add to d using #-1
                     std       >OutputLength,y ; retain output length
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitAnsiCursorDown ; invoke emit ansi cursor down
+                    lbsr      EmitAnsiCursorDown ; emit ansi cursor down
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -2213,38 +2217,38 @@ ZapScreenCharacter  ldd       >OutputLength,y ; recover output length
                     pshs      x         ; pass or retain this pointer through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      write     ; invoke write
+                    lbsr      write     ; commit the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitAnsiCursorDown ; invoke emit ansi cursor down
+                    lbsr      EmitAnsiCursorDown ; emit ansi cursor down
 FinishZapMenu       leas      $02,s     ; release $02,s bytes of stack state
-                    lbra      RefreshEditorDisplay ; continue with refresh editor display
+                    lbra      RefreshEditorDisplay ; resume refresh editor display
 DispatchAltLetter   cmpx      #83       ; test against #83
-                    lbeq      HandleZapCommand ; select handle zap command when the requested case matches
+                    lbeq      HandleZapCommand ; zero result: handle zap command
                     cmpx      #82       ; test against #82
-                    lbeq      ZapOutputBuffer ; select zap output buffer when the requested case matches
+                    lbeq      ZapOutputBuffer ; zero result: zap output buffer
                     cmpx      #66       ; test against #66
-                    lbeq      ZapScreenBuffer ; select zap screen buffer when the requested case matches
+                    lbeq      ZapScreenBuffer ; zero result: zap screen buffer
                     cmpx      #68       ; test against #68
-                    lbeq      ZapBothBuffers ; select zap both buffers when the requested case matches
+                    lbeq      ZapBothBuffers ; zero result: zap both buffers
                     cmpx      #84       ; test against #84
-                    beq       ZapScreenCharacter ; select zap screen character when the requested case matches
-                    lbra      RefreshEditorDisplay ; continue with refresh editor display
+                    beq       ZapScreenCharacter ; zero result: zap screen character
+                    lbra      RefreshEditorDisplay ; resume refresh editor display
 ZapOutputCharacter  clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       >StreamBufferEndLow,y ; retain stream buffer end low
                     ldb       <$0023,s  ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      RefreshEditorDisplay ; select refresh editor display when the requested case does not match
+                    lbne      RefreshEditorDisplay ; nonzero result: refresh editor display
                     ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     cmpd      #8192     ; test against #8192
-                    bge       RejectUnknownAltCommand ; continue with reject unknown alt command at or above the signed limit
+                    bge       RejectUnknownAltCommand ; signed comparison reached its upper case: reject unknown alt command
                     ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     std       >OutputLength,y ; retain output length
@@ -2253,50 +2257,50 @@ ZapOutputCharacter  clra                ; select standard input
                     leax      d,x       ; select d
                     ldb       <$0023,s  ; read the relevant word from the active stack frame
                     stb       ,x        ; retain
-                    lbra      RefreshEditorDisplay ; continue with refresh editor display
+                    lbra      RefreshEditorDisplay ; resume refresh editor display
 RejectUnknownAltCommand ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SignalOutputOverflow ; invoke signal output overflow
+                    lbsr      SignalOutputOverflow ; signal output overflow
 FinishCommandAction leas      $02,s     ; release $02,s bytes of stack state
-                    lbra      RefreshEditorDisplay ; continue with refresh editor display
+                    lbra      RefreshEditorDisplay ; resume refresh editor display
 DispatchEditorKey   cmpx      #-81      ; test against #-81
-                    lbeq      RedrawAfterCommand ; select redraw after command when the requested case matches
+                    lbeq      RedrawAfterCommand ; zero result: redraw after command
                     cmpx      #-15      ; test against #-15
-                    lbeq      HandlePlainCharacter ; select handle plain character when the requested case matches
+                    lbeq      HandlePlainCharacter ; zero result: handle plain character
                     cmpx      #-20      ; test against #-20
                     lbeq      PromptForLoadFilename ; ask again at prompt for load filename
                     cmpx      #-21      ; test against #-21
                     lbeq      PromptForSaveFilename ; ask again at prompt for save filename
                     cmpx      #12       ; test against #12
-                    lbeq      HandleCursorUpKey ; select handle cursor up key when the requested case matches
+                    lbeq      HandleCursorUpKey ; zero result: handle cursor up key
                     cmpx      #10       ; test against #10
-                    lbeq      HandleCursorDownKey ; select handle cursor down key when the requested case matches
+                    lbeq      HandleCursorDownKey ; zero result: handle cursor down key
                     cmpx      #8        ; test against #8
-                    lbeq      HandleCursorLeftKey ; select handle cursor left key when the requested case matches
+                    lbeq      HandleCursorLeftKey ; zero result: handle cursor left key
                     cmpx      #9        ; test against #9
-                    lbeq      HandleCursorRightKey ; select handle cursor right key when the requested case matches
+                    lbeq      HandleCursorRightKey ; zero result: handle cursor right key
                     cmpx      #-13      ; test against #-13
-                    lbeq      SaveCursorPosition ; select save cursor position when the requested case matches
+                    lbeq      SaveCursorPosition ; zero result: save cursor position
                     cmpx      #-31      ; test against #-31
-                    lbeq      RestoreCursorPosition ; select restore cursor position when the requested case matches
+                    lbeq      RestoreCursorPosition ; zero result: restore cursor position
                     cmpx      #-29      ; test against #-29
-                    lbeq      ClearToEndOfLine ; select clear to end of line when the requested case matches
+                    lbeq      ClearToEndOfLine ; zero result: clear to end of line
                     cmpx      #-18      ; test against #-18
-                    lbeq      HandleSaveShortcut ; select handle save shortcut when the requested case matches
+                    lbeq      HandleSaveShortcut ; zero result: handle save shortcut
                     cmpx      #-25      ; test against #-25
-                    lbeq      OpenGraphicsMenu ; select open graphics menu when the requested case matches
+                    lbeq      OpenGraphicsMenu ; zero result: open graphics menu
                     cmpx      #-14      ; test against #-14
-                    lbeq      CheckSavedCursorColumn ; select check saved cursor column when the requested case matches
+                    lbeq      CheckSavedCursorColumn ; zero result: check saved cursor column
                     cmpx      #-27      ; test against #-27
-                    lbeq      RecordCursorRowDigits ; select record cursor row digits when the requested case matches
+                    lbeq      RecordCursorRowDigits ; zero result: record cursor row digits
                     cmpx      #-16      ; test against #-16
-                    lbeq      RecordCursorColumnDigits ; select record cursor column digits when the requested case matches
+                    lbeq      RecordCursorColumnDigits ; zero result: record cursor column digits
                     cmpx      #-8       ; test against #-8
-                    lbeq      SwitchToRecordMode ; select switch to record mode when the requested case matches
+                    lbeq      SwitchToRecordMode ; zero result: switch to record mode
                     cmpx      #-6       ; test against #-6
-                    lbeq      SwitchToEditMode ; select switch to edit mode when the requested case matches
-                    lbra      ZapOutputCharacter ; continue with zap output character
-RefreshEditorDisplay lbra      EditorCommandLoop ; continue with editor command loop
+                    lbeq      SwitchToEditMode ; zero result: switch to edit mode
+                    lbra      ZapOutputCharacter ; resume zap output character
+RefreshEditorDisplay lbra      EditorCommandLoop ; resume editor command loop
                     leas      <$0024,s  ; release <$0024,s bytes of stack state
                     puls      pc,u      ; preserve the flags or register state required by the following operation
 
@@ -2307,11 +2311,11 @@ GraphicsMenu        pshs      u         ; preserve U while it carries the opened
                     lbsr      _stkcheck ; ensure the C stack has room for this frame
                     leas      -$02,s    ; allocate $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    bne       GraphicsMenuLoop ; select graphics menu loop when the requested case does not match
+                    bne       GraphicsMenuLoop ; nonzero result: graphics menu loop
                     ldd       >OutputLength,y ; recover output length
                     addd      #2        ; add to d using #2
                     cmpd      #8192     ; test against #8192
-                    bge       GraphicsMenuReady ; continue with graphics menu ready at or above the signed limit
+                    bge       GraphicsMenuReady ; signed comparison reached its upper case: graphics menu ready
                     ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     std       >OutputLength,y ; retain output length
@@ -2328,15 +2332,15 @@ GraphicsMenu        pshs      u         ; preserve U while it carries the opened
                     leax      d,x       ; select d
                     ldd       #91       ; initialize  to 91
                     stb       ,x        ; retain
-                    bra       GraphicsMenuLoop ; continue with graphics menu loop
+                    bra       GraphicsMenuLoop ; resume graphics menu loop
 GraphicsMenuReady   ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SignalOutputOverflow ; invoke signal output overflow
+                    lbsr      SignalOutputOverflow ; signal output overflow
                     leas      $02,s     ; release $02,s bytes of stack state
 GraphicsMenuLoop    clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     stb       $01,s     ; store b in the current stack frame at $01,s
-                    lbra      DispatchGraphicsChoice ; continue with dispatch graphics choice
+                    lbra      DispatchGraphicsChoice ; resume dispatch graphics choice
 ShowGraphicsMenu    ldd       #3        ; prepare constant 3 for the surrounding operation
                     pshs      d         ; preserve the flags or register state required by the following operation
                     ldd       #3        ; prepare constant 3 for the surrounding operation
@@ -2353,7 +2357,7 @@ ShowGraphicsMenu    ldd       #3        ; prepare constant 3 for the surrounding
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -2373,63 +2377,63 @@ ShowGraphicsMenu    ldd       #3        ; prepare constant 3 for the surrounding
                     pshs      d         ; pass the supplied or null descriptor
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; preserve the flags or register state required by the following operation
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >SetGraphs,pc ; select set graphs
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >Line2,pc ; select line2
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >RestGraph,pc ; select rest graph
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >BoldOn,pc ; select bold on
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >UndrOn,pc ; select undr on
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >BlnkOn,pc ; select blnk on
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >RevVidOn,pc ; select rev vid on
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >InvisOn,pc ; select invis on
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >SetForClr,pc ; select set for clr
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >SetBckClr,pc ; select set bck clr
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >Done,pc  ; select done
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >SelChoice,pc ; select sel choice
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >TerminalOutputStream,y ; select terminal output stream
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      FlushStream ; invoke flush stream
+                    lbsr      FlushStream ; commit pending stream output before continuing
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -2438,7 +2442,7 @@ ShowGraphicsMenu    ldd       #3        ; prepare constant 3 for the surrounding
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      read      ; invoke read
+                    lbsr      read      ; collect the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldb       $01,s     ; read the relevant word from the active stack frame
                     clra                ; select standard input
@@ -2446,168 +2450,168 @@ ShowGraphicsMenu    ldd       #3        ; prepare constant 3 for the surrounding
                     stb       $01,s     ; store b in the current stack frame at $01,s
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldb       $01,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; transfer d,x
-                    lbra      ReturnFromGraphicsMenu ; continue with return from graphics menu
+                    lbra      ReturnFromGraphicsMenu ; resume return from graphics menu
 ResetGraphicsAttributes ldd       #48       ; recognize or generate ASCII zero
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #59       ; prepare constant 59 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      DispatchGraphicsChoice ; select dispatch graphics choice when the requested case does not match
+                    lbne      DispatchGraphicsChoice ; nonzero result: dispatch graphics choice
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    lbra      ApplyGraphicsChoice ; continue with apply graphics choice
+                    lbra      ApplyGraphicsChoice ; resume apply graphics choice
 EnableBoldChoice    ldd       #49       ; prepare constant 49 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #59       ; prepare constant 59 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      DispatchGraphicsChoice ; select dispatch graphics choice when the requested case does not match
+                    lbne      DispatchGraphicsChoice ; nonzero result: dispatch graphics choice
                     ldd       #1        ; prepare constant 1 for the surrounding operation
-                    lbra      ApplyGraphicsChoice ; continue with apply graphics choice
+                    lbra      ApplyGraphicsChoice ; resume apply graphics choice
 EnableUnderlineChoice ldd       #52       ; prepare constant 52 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #59       ; prepare constant 59 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      DispatchGraphicsChoice ; select dispatch graphics choice when the requested case does not match
+                    lbne      DispatchGraphicsChoice ; nonzero result: dispatch graphics choice
                     ldd       #4        ; prepare constant 4 for the surrounding operation
-                    lbra      ApplyGraphicsChoice ; continue with apply graphics choice
+                    lbra      ApplyGraphicsChoice ; resume apply graphics choice
 EnableBlinkChoice   ldd       #53       ; prepare constant 53 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #59       ; prepare constant 59 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      DispatchGraphicsChoice ; select dispatch graphics choice when the requested case does not match
+                    lbne      DispatchGraphicsChoice ; nonzero result: dispatch graphics choice
                     ldd       #5        ; prepare constant 5 for the surrounding operation
-                    lbra      ApplyGraphicsChoice ; continue with apply graphics choice
+                    lbra      ApplyGraphicsChoice ; resume apply graphics choice
 EnableReverseChoice ldd       #55       ; prepare constant 55 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #59       ; prepare constant 59 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      DispatchGraphicsChoice ; select dispatch graphics choice when the requested case does not match
+                    lbne      DispatchGraphicsChoice ; nonzero result: dispatch graphics choice
                     ldd       #7        ; prepare constant 7 for the surrounding operation
-                    lbra      ApplyGraphicsChoice ; continue with apply graphics choice
+                    lbra      ApplyGraphicsChoice ; resume apply graphics choice
 EnableInvisibleChoice ldd       #56       ; prepare constant 56 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #59       ; prepare constant 59 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      DispatchGraphicsChoice ; select dispatch graphics choice when the requested case does not match
+                    lbne      DispatchGraphicsChoice ; nonzero result: dispatch graphics choice
                     ldd       #8        ; initialize  to 8
-                    lbra      ApplyGraphicsChoice ; continue with apply graphics choice
-ChooseForegroundColor lbsr      ChooseAnsiColor ; invoke choose ansi color
+                    lbra      ApplyGraphicsChoice ; resume apply graphics choice
+ChooseForegroundColor lbsr      ChooseAnsiColor ; choose ansi color
                     stb       ,s        ; store b in the current stack frame at ,s
                     ldd       #51       ; prepare constant 51 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldb       ,s        ; recover
                     sex                 ; sign-extend b into d
                     addd      #48       ; add to d using #48
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #59       ; prepare constant 59 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      DispatchGraphicsChoice ; select dispatch graphics choice when the requested case does not match
+                    lbne      DispatchGraphicsChoice ; nonzero result: dispatch graphics choice
                     ldb       ,s        ; recover
                     sex                 ; sign-extend b into d
                     addd      #30       ; add to d using #30
-                    bra       ApplyGraphicsChoice ; continue with apply graphics choice
-ChooseBackgroundColor lbsr      ChooseAnsiColor ; invoke choose ansi color
+                    bra       ApplyGraphicsChoice ; resume apply graphics choice
+ChooseBackgroundColor lbsr      ChooseAnsiColor ; choose ansi color
                     stb       ,s        ; store b in the current stack frame at ,s
                     ldd       #52       ; prepare constant 52 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldb       ,s        ; recover
                     sex                 ; sign-extend b into d
                     addd      #48       ; add to d using #48
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #59       ; prepare constant 59 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    bne       DispatchGraphicsChoice ; select dispatch graphics choice when the requested case does not match
+                    bne       DispatchGraphicsChoice ; nonzero result: dispatch graphics choice
                     ldb       ,s        ; recover
                     sex                 ; sign-extend b into d
                     addd      #40       ; add to d using #40
 ApplyGraphicsChoice pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      AppendDecimalParameter ; invoke append decimal parameter
+                    lbsr      AppendDecimalParameter ; append decimal parameter
                     leas      $02,s     ; release $02,s bytes of stack state
-                    bra       DispatchGraphicsChoice ; continue with dispatch graphics choice
+                    bra       DispatchGraphicsChoice ; resume dispatch graphics choice
 ReturnFromGraphicsMenu cmpx      #82       ; test against #82
-                    lbeq      ResetGraphicsAttributes ; select reset graphics attributes when the requested case matches
+                    lbeq      ResetGraphicsAttributes ; zero result: reset graphics attributes
                     cmpx      #79       ; test against #79
-                    lbeq      EnableBoldChoice ; select enable bold choice when the requested case matches
+                    lbeq      EnableBoldChoice ; zero result: enable bold choice
                     cmpx      #85       ; test against #85
-                    lbeq      EnableUnderlineChoice ; select enable underline choice when the requested case matches
+                    lbeq      EnableUnderlineChoice ; zero result: enable underline choice
                     cmpx      #76       ; test against #76
-                    lbeq      EnableBlinkChoice ; select enable blink choice when the requested case matches
+                    lbeq      EnableBlinkChoice ; zero result: enable blink choice
                     cmpx      #86       ; test against #86
-                    lbeq      EnableReverseChoice ; select enable reverse choice when the requested case matches
+                    lbeq      EnableReverseChoice ; zero result: enable reverse choice
                     cmpx      #73       ; test against #73
-                    lbeq      EnableInvisibleChoice ; select enable invisible choice when the requested case matches
+                    lbeq      EnableInvisibleChoice ; zero result: enable invisible choice
                     cmpx      #70       ; test against #70
-                    lbeq      ChooseForegroundColor ; select choose foreground color when the requested case matches
+                    lbeq      ChooseForegroundColor ; zero result: choose foreground color
                     cmpx      #66       ; test against #66
-                    lbeq      ChooseBackgroundColor ; select choose background color when the requested case matches
+                    lbeq      ChooseBackgroundColor ; zero result: choose background color
 DispatchGraphicsChoice ldb       $01,s     ; read the relevant word from the active stack frame
                     cmpb      #68       ; prepare constant 68 for the surrounding operation
-                    lbne      ShowGraphicsMenu ; select show graphics menu when the requested case does not match
+                    lbne      ShowGraphicsMenu ; nonzero result: show graphics menu
                     ldd       #109      ; prepare constant 109 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ApplyEditorCharacter ; invoke apply editor character
+                    lbsr      ApplyEditorCharacter ; apply editor character
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >EditModeFlag,y ; recover edit mode flag
-                    lbne      FinishCharacterApplication ; select finish character application when the requested case does not match
+                    lbne      FinishCharacterApplication ; nonzero result: finish character application
                     ldd       >OutputLength,y ; recover output length
                     addd      #-1       ; add to d using #-1
                     leax      >OutputBuffer,y ; select output buffer
                     leax      d,x       ; select d
                     ldd       #109      ; initialize  to 109
                     stb       ,x        ; retain
-                    lbra      FinishCharacterApplication ; continue with finish character application
+                    lbra      FinishCharacterApplication ; resume finish character application
 
 * Translate a foreground or background menu choice through the ANSI color
 * table, then update or record the selected color.
@@ -2631,7 +2635,7 @@ ChooseAnsiColor     pshs      u         ; preserve the caller data base
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -2651,15 +2655,15 @@ ChooseAnsiColor     pshs      u         ; preserve the caller data base
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    lbra      AdvanceAnsiInput ; continue with advance ansi input
+                    lbra      AdvanceAnsiInput ; resume advance ansi input
 HandlePrintableCharacter ldd       $01,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     clra                ; select standard input
@@ -2667,10 +2671,10 @@ HandlePrintableCharacter ldd       $01,s     ; read the relevant word from the a
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DecodeAnsiParameter ; invoke decode ansi parameter
+                    lbsr      DecodeAnsiParameter ; decode ansi parameter
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldd       $01,s     ; read the relevant word from the active stack frame
-                    beq       HandleControlCharacter ; select handle control character when the requested case matches
+                    beq       HandleControlCharacter ; zero result: handle control character
                     ldd       $01,s     ; read the relevant word from the active stack frame
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
@@ -2680,7 +2684,7 @@ HandlePrintableCharacter ldd       $01,s     ; read the relevant word from the a
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitForegroundColor ; invoke emit foreground color
+                    lbsr      EmitForegroundColor ; emit foreground color
                     leas      $04,s     ; release $04,s bytes of stack state
 HandleControlCharacter ldd       $01,s     ; read the relevant word from the active stack frame
                     aslb                ; shift b left arithmetically
@@ -2693,21 +2697,21 @@ HandleControlCharacter ldd       $01,s     ; read the relevant word from the act
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      >NumString,pc ; select num string
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldd       $01,s     ; read the relevant word from the active stack frame
                     addd      #1        ; add to d using #1
 AdvanceAnsiInput    std       $01,s     ; store d in the current stack frame at $01,s
                     ldd       $01,s     ; read the relevant word from the active stack frame
                     cmpd      #8        ; test against #8
-                    lblt      HandlePrintableCharacter ; continue with handle printable character below the signed limit
+                    lblt      HandlePrintableCharacter ; signed comparison remains below its limit: handle printable character
                     leax      >ClrNum,pc ; select clr num
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $02,s     ; release $02,s bytes of stack state
                     leax      >TerminalOutputStream,y ; select terminal output stream
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      FlushStream ; invoke flush stream
+                    lbsr      FlushStream ; commit pending stream output before continuing
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -2716,7 +2720,7 @@ AdvanceAnsiInput    std       $01,s     ; store d in the current stack frame at 
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      read      ; invoke read
+                    lbsr      read      ; collect the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldb       ,s        ; recover
                     sex                 ; sign-extend b into d
@@ -2724,11 +2728,11 @@ AdvanceAnsiInput    std       $01,s     ; store d in the current stack frame at 
                     stb       ,s        ; store b in the current stack frame at ,s
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldb       ,s        ; recover
                     sex                 ; sign-extend b into d
@@ -2743,7 +2747,7 @@ RecordCursorCommand pshs      u         ; preserve the caller data base
                     ldd       >OutputLength,y ; recover output length
                     addd      #3        ; add to d using #3
                     cmpd      #8192     ; test against #8192
-                    lbge      OutputBufferHasRoom ; continue with output buffer has room at or above the signed limit
+                    lbge      OutputBufferHasRoom ; signed comparison reached its upper case: output buffer has room
                     ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     std       >OutputLength,y ; retain output length
@@ -2762,7 +2766,7 @@ RecordCursorCommand pshs      u         ; preserve the caller data base
                     stb       ,x        ; retain
                     ldb       $05,s     ; read the relevant word from the active stack frame
                     cmpb      #74       ; prepare constant 74 for the surrounding operation
-                    bne       AppendRecordedByte ; select append recorded byte when the requested case does not match
+                    bne       AppendRecordedByte ; nonzero result: append recorded byte
                     ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     std       >OutputLength,y ; retain output length
@@ -2779,11 +2783,11 @@ AppendRecordedByte  ldd       >OutputLength,y ; recover output length
                     leax      d,x       ; select d
                     ldb       $05,s     ; read the relevant word from the active stack frame
                     stb       ,x        ; retain
-                    lbra      ReturnCharacterResult ; continue with return character result
+                    lbra      ReturnCharacterResult ; resume return character result
 OutputBufferHasRoom ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SignalOutputOverflow ; invoke signal output overflow
-                    lbra      FinishCharacterApplication ; continue with finish character application
+                    lbsr      SignalOutputOverflow ; signal output overflow
+                    lbra      FinishCharacterApplication ; resume finish character application
 
 * Apply one byte to editor state.  Printable data updates a cell; controls and
 * CSI data drive cursor/parser state; record mode also appends the operation.
@@ -2792,7 +2796,7 @@ ApplyEditorCharacter pshs      u         ; preserve the caller data base
                     lbsr      _stkcheck ; ensure the C stack has room for this frame
                     leas      -$02,s    ; allocate $02,s bytes of stack state
                     ldd       >StreamBufferEndLow,y ; recover stream buffer end low
-                    lbeq      UpdateCursorAfterCharacter ; select update cursor after character when the requested case matches
+                    lbeq      UpdateCursorAfterCharacter ; zero result: update cursor after character
                     ldb       $07,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
                     leax      >LineInputBuffer,y ; select line input buffer
@@ -2800,11 +2804,11 @@ ApplyEditorCharacter pshs      u         ; preserve the caller data base
                     ldb       ,x        ; recover
                     clra                ; select standard input
                     andb      #8        ; mask b using #8
-                    beq       HandleCarriageReturn ; select handle carriage return when the requested case matches
+                    beq       HandleCarriageReturn ; zero result: handle carriage return
                     ldd       >dpsiz,y  ; recover dpsiz
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #5        ; prepare constant 5 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >FilenameBuffer,y ; select filename buffer
                     leax      d,x       ; select d
                     tfr       x,d       ; transfer x,d
@@ -2824,13 +2828,13 @@ HandleCarriageReturn ldb       $07,s     ; read the relevant word from the activ
                     ldb       ,x        ; recover
                     clra                ; select standard input
                     andb      #6        ; mask b using #6
-                    lbeq      HandleLineFeed ; select handle line feed when the requested case matches
+                    lbeq      HandleLineFeed ; zero result: handle line feed
                     ldd       >StreamBufferStartLow,y ; recover stream buffer start low
                     ble       HandleBackspace ; continue at HandleBackspace when the signed bound test succeeds
                     ldd       >dpsiz,y  ; recover dpsiz
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #5        ; prepare constant 5 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >FilenameBuffer,y ; select filename buffer
                     leax      d,x       ; select d
                     ldd       >StreamBufferStartLow,y ; recover stream buffer start low
@@ -2845,14 +2849,14 @@ HandleCarriageReturn ldb       $07,s     ; read the relevant word from the activ
                     ldd       >dpsiz,y  ; recover dpsiz
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #5        ; prepare constant 5 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >FilenameBuffer,y ; select filename buffer
                     leax      d,x       ; select d
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      ScreenCellOffset ; invoke screen cell offset
+                    lbsr      ScreenCellOffset ; screen cell offset
                     leas      $02,s     ; release $02,s bytes of stack state
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
-                    bra       RecordCarriageReturn ; continue with record carriage return
+                    bra       RecordCarriageReturn ; resume record carriage return
 HandleBackspace     ldd       >dpsiz,y  ; recover dpsiz
                     leax      >AnsiParameterCount,y ; select ansi parameter count
                     leax      d,x       ; select d
@@ -2862,7 +2866,7 @@ RecordCarriageReturn ldd       >StreamBufferStartLow,y ; recover stream buffer s
                     bgt       RecordLineFeed ; continue at RecordLineFeed when the signed bound test succeeds
                     ldb       $07,s     ; read the relevant word from the active stack frame
                     cmpb      #109      ; prepare constant 109 for the surrounding operation
-                    beq       RecordBackspace ; select record backspace when the requested case matches
+                    beq       RecordBackspace ; zero result: record backspace
 RecordLineFeed      ldd       >dpsiz,y  ; recover dpsiz
                     addd      #1        ; add to d using #1
                     std       >dpsiz,y  ; retain dpsiz
@@ -2872,17 +2876,17 @@ RecordBackspace     clra                ; select standard input
                     ldb       $07,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ParseAnsiSequence ; invoke parse ansi sequence
+                    lbsr      ParseAnsiSequence ; parse ansi sequence
                     leas      $02,s     ; release $02,s bytes of stack state
 HandleLineFeed      ldb       $07,s     ; read the relevant word from the active stack frame
                     cmpb      #59       ; prepare constant 59 for the surrounding operation
-                    lbne      FinishCharacterApplication ; select finish character application when the requested case does not match
+                    lbne      FinishCharacterApplication ; nonzero result: finish character application
                     ldd       >StreamBufferStartLow,y ; recover stream buffer start low
                     ble       ApplyLineFeed ; continue at ApplyLineFeed when the signed bound test succeeds
                     ldd       >dpsiz,y  ; recover dpsiz
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #5        ; prepare constant 5 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >FilenameBuffer,y ; select filename buffer
                     leax      d,x       ; select d
                     ldd       >StreamBufferStartLow,y ; recover stream buffer start low
@@ -2897,14 +2901,14 @@ HandleLineFeed      ldb       $07,s     ; read the relevant word from the active
                     ldd       >dpsiz,y  ; recover dpsiz
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #5        ; prepare constant 5 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >FilenameBuffer,y ; select filename buffer
                     leax      d,x       ; select d
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      ScreenCellOffset ; invoke screen cell offset
+                    lbsr      ScreenCellOffset ; screen cell offset
                     leas      $02,s     ; release $02,s bytes of stack state
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
-                    bra       ClampCursorAtLastRow ; continue with clamp cursor at last row
+                    bra       ClampCursorAtLastRow ; resume clamp cursor at last row
 ApplyLineFeed       ldd       >dpsiz,y  ; recover dpsiz
                     leax      >AnsiParameterCount,y ; select ansi parameter count
                     leax      d,x       ; select d
@@ -2916,36 +2920,36 @@ ClampCursorAtLastRow ldd       >dpsiz,y  ; recover dpsiz
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       >StreamBufferStartLow,y ; retain stream buffer start low
-                    lbra      FinishCharacterApplication ; continue with finish character application
+                    lbra      FinishCharacterApplication ; resume finish character application
 UpdateCursorAfterCharacter ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      $09,s     ; select $09
                     pshs      x         ; pass or retain this pointer through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      write     ; invoke write
+                    lbsr      write     ; commit the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldb       $07,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; transfer d,x
-                    lbra      DispatchCursorEffect ; continue with dispatch cursor effect
+                    lbra      DispatchCursorEffect ; resume dispatch cursor effect
 HandleCursorDown    ldd       >CursorRow,y ; recover cursor row
                     addd      #1        ; add to d using #1
                     std       >CursorRow,y ; retain cursor row
                     cmpd      #23       ; test against #23
                     lble      FinishCharacterApplication ; continue at FinishCharacterApplication when the signed bound test succeeds
                     ldd       #23       ; prepare constant 23 for the surrounding operation
-                    lbra      FinishCursorEffect ; continue with finish cursor effect
+                    lbra      FinishCursorEffect ; resume finish cursor effect
 ClampCursorDown     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    lbra      StoreCursorColumn ; continue with store cursor column
+                    lbra      StoreCursorColumn ; resume store cursor column
 StoreCursorRow      clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    bra       ClampCursorColumn ; continue with clamp cursor column
+                    bra       ClampCursorColumn ; resume clamp cursor column
 HandleCursorUp      ldd       >CursorRow,y ; recover cursor row
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #80       ; prepare constant 80 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenCharacters,y ; select screen characters
                     leax      d,x       ; select d
                     ldd       >CursorColumn,y ; recover cursor column
@@ -2956,7 +2960,7 @@ HandleCursorUp      ldd       >CursorRow,y ; recover cursor row
                     ldd       >CursorRow,y ; recover cursor row
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #160      ; prepare constant 160 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenAttributes,y ; select screen attributes
                     leax      d,x       ; select d
                     tfr       x,d       ; transfer x,d
@@ -2973,34 +2977,34 @@ HandleCursorUp      ldd       >CursorRow,y ; recover cursor row
 ClampCursorColumn   std       >CursorRow,y ; retain cursor row
                     ldd       >CursorRow,y ; recover cursor row
                     cmpd      #23       ; test against #23
-                    blt       HandleCursorUp ; continue with handle cursor up below the signed limit
+                    blt       HandleCursorUp ; signed comparison remains below its limit: handle cursor up
                     ldd       >CursorColumn,y ; recover cursor column
                     addd      #1        ; add to d using #1
 StoreCursorColumn   std       >CursorColumn,y ; retain cursor column
                     ldd       >CursorColumn,y ; recover cursor column
                     cmpd      #80       ; test against #80
-                    lblt      StoreCursorRow ; continue with store cursor row below the signed limit
+                    lblt      StoreCursorRow ; signed comparison remains below its limit: store cursor row
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       >CursorColumn,y ; retain cursor column
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    lbra      FinishCursorEffect ; continue with finish cursor effect
+                    lbra      FinishCursorEffect ; resume finish cursor effect
 ClampCursorUp       clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       >CursorColumn,y ; retain cursor column
-                    lbra      FinishCharacterApplication ; continue with finish character application
+                    lbra      FinishCharacterApplication ; resume finish character application
 HandleCursorRight   ldb       $07,s     ; read the relevant word from the active stack frame
                     cmpb      #32       ; recognize the first printable ASCII value
-                    bge       RecordRightMotion ; continue with record right motion at or above the signed limit
+                    bge       RecordRightMotion ; signed comparison reached its upper case: record right motion
                     ldb       $07,s     ; read the relevant word from the active stack frame
-                    lbge      FinishCharacterApplication ; continue with finish character application at or above the signed limit
+                    lbge      FinishCharacterApplication ; signed comparison reached its upper case: finish character application
 RecordRightMotion   ldd       >EditModeFlag,y ; recover edit mode flag
-                    beq       AdvanceCursorRight ; select advance cursor right when the requested case matches
+                    beq       AdvanceCursorRight ; zero result: advance cursor right
                     ldd       >CursorRow,y ; recover cursor row
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #80       ; prepare constant 80 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenCharacters,y ; select screen characters
                     leax      d,x       ; select d
                     ldd       >CursorColumn,y ; recover cursor column
@@ -3010,7 +3014,7 @@ RecordRightMotion   ldd       >EditModeFlag,y ; recover edit mode flag
                     ldd       >CursorRow,y ; recover cursor row
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #160      ; prepare constant 160 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenAttributes,y ; select screen attributes
                     leax      d,x       ; select d
                     tfr       x,d       ; transfer x,d
@@ -3026,7 +3030,7 @@ AdvanceCursorRight  ldd       >CursorColumn,y ; recover cursor column
                     addd      #1        ; add to d using #1
                     std       >CursorColumn,y ; retain cursor column
                     cmpd      #80       ; test against #80
-                    blt       FinishCharacterApplication ; continue with finish character application below the signed limit
+                    blt       FinishCharacterApplication ; signed comparison remains below its limit: finish character application
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       >CursorColumn,y ; retain cursor column
@@ -3034,17 +3038,17 @@ AdvanceCursorRight  ldd       >CursorColumn,y ; recover cursor column
                     addd      #1        ; add to d using #1
                     std       >CursorRow,y ; retain cursor row
                     cmpd      #23       ; test against #23
-                    blt       FinishCharacterApplication ; continue with finish character application below the signed limit
+                    blt       FinishCharacterApplication ; signed comparison remains below its limit: finish character application
                     ldd       #22       ; initialize cursor row to 22
 FinishCursorEffect  std       >CursorRow,y ; retain cursor row
-                    bra       FinishCharacterApplication ; continue with finish character application
+                    bra       FinishCharacterApplication ; resume finish character application
 DispatchCursorEffect cmpx      #10       ; test against #10
-                    lbeq      HandleCursorDown ; select handle cursor down when the requested case matches
+                    lbeq      HandleCursorDown ; zero result: handle cursor down
                     cmpx      #12       ; test against #12
-                    lbeq      ClampCursorDown ; select clamp cursor down when the requested case matches
+                    lbeq      ClampCursorDown ; zero result: clamp cursor down
                     cmpx      #13       ; test against #13
-                    lbeq      ClampCursorUp ; select clamp cursor up when the requested case matches
-                    lbra      HandleCursorRight ; continue with handle cursor right
+                    lbeq      ClampCursorUp ; zero result: clamp cursor up
+                    lbra      HandleCursorRight ; resume handle cursor right
 FinishCharacterApplication leas      $02,s     ; release $02,s bytes of stack state
 ReturnCharacterResult puls      pc,u      ; restore pc,u and return to the caller
 
@@ -3060,7 +3064,7 @@ ParseAnsiSequence   pshs      u         ; preserve the caller data base
                     ldb       $0A,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; transfer d,x
-                    lbra      DispatchAnsiFinalByte ; continue with dispatch ansi InvokeAnsiEditor byte
+                    lbra      DispatchAnsiFinalByte ; resume dispatch ansi final byte
 HandleCursorPosition ldb       >AnsiParameterCount,y ; recover ansi parameter count
                     sex                 ; sign-extend b into d
                     addd      #-1       ; add to d using #-1
@@ -3071,7 +3075,7 @@ HandleCursorPosition ldb       >AnsiParameterCount,y ; recover ansi parameter co
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DecodeAnsiParameter ; invoke decode ansi parameter
+                    lbsr      DecodeAnsiParameter ; decode ansi parameter
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldb       >AnsiParameters,y ; recover ansi parameters
                     sex                 ; sign-extend b into d
@@ -3081,18 +3085,18 @@ HandleCursorPosition ldb       >AnsiParameterCount,y ; recover ansi parameter co
                     sex                 ; sign-extend b into d
                     addd      #-1       ; add to d using #-1
                     std       >CursorRow,y ; retain cursor row
-                    lbra      FinishAnsiCommand ; continue with finish ansi command
+                    lbra      FinishAnsiCommand ; resume finish ansi command
 HandleCursorUpSequence clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    bra       UseDefaultUpDistance ; continue with use default up distance
+                    bra       UseDefaultUpDistance ; resume use default up distance
 MoveCursorUp        ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitAnsiCursorRight ; invoke emit ansi cursor right
+                    lbsr      EmitAnsiCursorRight ; emit ansi cursor right
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >CursorRow,y ; recover cursor row
                     addd      #-1       ; add to d using #-1
                     std       >CursorRow,y ; retain cursor row
-                    bge       ClampUpDistance ; continue with clamp up distance at or above the signed limit
+                    bge       ClampUpDistance ; signed comparison reached its upper case: clamp up distance
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       >CursorRow,y ; retain cursor row
@@ -3103,21 +3107,21 @@ UseDefaultUpDistance std       $03,s     ; store d in the current stack frame at
                     sex                 ; sign-extend b into d
                     cmpd      $03,s     ; test against $03
                     bgt       MoveCursorUp ; continue at MoveCursorUp when the signed bound test succeeds
-                    lbra      FinishAnsiCommand ; continue with finish ansi command
+                    lbra      FinishAnsiCommand ; resume finish ansi command
 HandleCursorDownSequence clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    bra       UseDefaultDownDistance ; continue with use default down distance
+                    bra       UseDefaultDownDistance ; resume use default down distance
 MoveCursorDown      ldd       >CursorRow,y ; recover cursor row
                     addd      #1        ; add to d using #1
                     std       >CursorRow,y ; retain cursor row
                     cmpd      #23       ; test against #23
-                    blt       ClampDownDistance ; continue with clamp down distance below the signed limit
+                    blt       ClampDownDistance ; signed comparison remains below its limit: clamp down distance
                     ldd       #22       ; initialize cursor row to 22
                     std       >CursorRow,y ; retain cursor row
-                    bra       StoreDownDistance ; continue with store down distance
+                    bra       StoreDownDistance ; resume store down distance
 ClampDownDistance   ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitAnsiCursorLeft ; invoke emit ansi cursor left
+                    lbsr      EmitAnsiCursorLeft ; emit ansi cursor left
                     leas      $02,s     ; release $02,s bytes of stack state
 StoreDownDistance   ldd       $03,s     ; read the relevant word from the active stack frame
                     addd      #1        ; add to d using #1
@@ -3126,10 +3130,10 @@ UseDefaultDownDistance std       $03,s     ; store d in the current stack frame 
                     sex                 ; sign-extend b into d
                     cmpd      $03,s     ; test against $03
                     bgt       MoveCursorDown ; continue at MoveCursorDown when the signed bound test succeeds
-                    lbra      FinishAnsiCommand ; continue with finish ansi command
+                    lbra      FinishAnsiCommand ; resume finish ansi command
 HandleCursorRightSequence clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    bra       UseDefaultRightDistance ; continue with use default right distance
+                    bra       UseDefaultRightDistance ; resume use default right distance
 MoveCursorRight     ldd       >CursorColumn,y ; recover cursor column
                     addd      #1        ; add to d using #1
                     std       >CursorColumn,y ; retain cursor column
@@ -3137,10 +3141,10 @@ MoveCursorRight     ldd       >CursorColumn,y ; recover cursor column
                     ble       ClampRightDistance ; continue at ClampRightDistance when the signed bound test succeeds
                     ldd       #79       ; initialize cursor column to 79
                     std       >CursorColumn,y ; retain cursor column
-                    bra       StoreRightDistance ; continue with store right distance
+                    bra       StoreRightDistance ; resume store right distance
 ClampRightDistance  ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitAnsiCursorUp ; invoke emit ansi cursor up
+                    lbsr      EmitAnsiCursorUp ; emit ansi cursor up
                     leas      $02,s     ; release $02,s bytes of stack state
 StoreRightDistance  ldd       $03,s     ; read the relevant word from the active stack frame
                     addd      #1        ; add to d using #1
@@ -3149,21 +3153,21 @@ UseDefaultRightDistance std       $03,s     ; store d in the current stack frame
                     sex                 ; sign-extend b into d
                     cmpd      $03,s     ; test against $03
                     bgt       MoveCursorRight ; continue at MoveCursorRight when the signed bound test succeeds
-                    lbra      FinishAnsiCommand ; continue with finish ansi command
+                    lbra      FinishAnsiCommand ; resume finish ansi command
 HandleCursorLeftSequence clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    bra       UseDefaultLeftDistance ; continue with use default left distance
+                    bra       UseDefaultLeftDistance ; resume use default left distance
 MoveCursorLeft      ldd       >CursorColumn,y ; recover cursor column
                     addd      #-1       ; add to d using #-1
                     std       >CursorColumn,y ; retain cursor column
-                    bge       ClampLeftDistance ; continue with clamp left distance at or above the signed limit
+                    bge       ClampLeftDistance ; signed comparison reached its upper case: clamp left distance
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       >CursorColumn,y ; retain cursor column
-                    bra       StoreLeftDistance ; continue with store left distance
+                    bra       StoreLeftDistance ; resume store left distance
 ClampLeftDistance   ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitAnsiCursorDown ; invoke emit ansi cursor down
+                    lbsr      EmitAnsiCursorDown ; emit ansi cursor down
                     leas      $02,s     ; release $02,s bytes of stack state
 StoreLeftDistance   ldd       $03,s     ; read the relevant word from the active stack frame
                     addd      #1        ; add to d using #1
@@ -3172,12 +3176,12 @@ UseDefaultLeftDistance std       $03,s     ; store d in the current stack frame 
                     sex                 ; sign-extend b into d
                     cmpd      $03,s     ; test against $03
                     bgt       MoveCursorLeft ; continue at MoveCursorLeft when the signed bound test succeeds
-                    lbra      FinishAnsiCommand ; continue with finish ansi command
+                    lbra      FinishAnsiCommand ; resume finish ansi command
 SaveAnsiCursor      ldd       >CursorColumn,y ; recover cursor column
                     std       >ForegroundColor,y ; retain foreground color
                     ldd       >CursorRow,y ; recover cursor row
                     std       >BackgroundColor,y ; retain background color
-                    lbra      FinishAnsiCommand ; continue with finish ansi command
+                    lbra      FinishAnsiCommand ; resume finish ansi command
 RestoreAnsiCursor   ldd       >ForegroundColor,y ; recover foreground color
                     std       >CursorColumn,y ; retain cursor column
                     ldd       >BackgroundColor,y ; recover background color
@@ -3187,23 +3191,23 @@ RestoreAnsiCursor   ldd       >ForegroundColor,y ; recover foreground color
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DecodeAnsiParameter ; invoke decode ansi parameter
+                    lbsr      DecodeAnsiParameter ; decode ansi parameter
                     leas      $06,s     ; release $06,s bytes of stack state
-                    lbra      FinishAnsiCommand ; continue with finish ansi command
+                    lbra      FinishAnsiCommand ; resume finish ansi command
 EraseDisplaySequence ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    lbra      AdvanceClearColumn ; continue with advance clear column
+                    lbra      AdvanceClearColumn ; resume advance clear column
 StartClearRow       clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    bra       AdvanceClearRow ; continue with advance clear row
+                    bra       AdvanceClearRow ; resume advance clear row
 ClearScreenCell     ldd       >CursorRow,y ; recover cursor row
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #80       ; prepare constant 80 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenCharacters,y ; select screen characters
                     leax      d,x       ; select d
                     ldd       >CursorColumn,y ; recover cursor column
@@ -3214,7 +3218,7 @@ ClearScreenCell     ldd       >CursorRow,y ; recover cursor row
                     ldd       >CursorRow,y ; recover cursor row
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #160      ; prepare constant 160 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenAttributes,y ; select screen attributes
                     leax      d,x       ; select d
                     tfr       x,d       ; transfer x,d
@@ -3231,28 +3235,28 @@ ClearScreenCell     ldd       >CursorRow,y ; recover cursor row
 AdvanceClearRow     std       >CursorRow,y ; retain cursor row
                     ldd       >CursorRow,y ; recover cursor row
                     cmpd      #23       ; test against #23
-                    blt       ClearScreenCell ; continue with clear screen cell below the signed limit
+                    blt       ClearScreenCell ; signed comparison remains below its limit: clear screen cell
                     ldd       >CursorColumn,y ; recover cursor column
                     addd      #1        ; add to d using #1
 AdvanceClearColumn  std       >CursorColumn,y ; retain cursor column
                     ldd       >CursorColumn,y ; recover cursor column
                     cmpd      #80       ; test against #80
-                    lblt      StartClearRow ; continue with start clear row below the signed limit
+                    lblt      StartClearRow ; signed comparison remains below its limit: start clear row
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       >CursorRow,y ; retain cursor row
                     std       >CursorColumn,y ; retain cursor column
-                    lbra      FinishAnsiCommand ; continue with finish ansi command
+                    lbra      FinishAnsiCommand ; resume finish ansi command
 EraseLineSequence   ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitAnsiCursorHome ; invoke emit ansi cursor home
+                    lbsr      EmitAnsiCursorHome ; emit ansi cursor home
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >CursorColumn,y ; recover cursor column
-                    bra       AdvanceEraseColumn ; continue with advance erase column
+                    bra       AdvanceEraseColumn ; resume advance erase column
 ClearLineCell       ldd       >CursorRow,y ; recover cursor row
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #80       ; prepare constant 80 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenCharacters,y ; select screen characters
                     leax      d,x       ; select d
                     ldd       $03,s     ; read the relevant word from the active stack frame
@@ -3263,7 +3267,7 @@ ClearLineCell       ldd       >CursorRow,y ; recover cursor row
                     ldd       >CursorRow,y ; recover cursor row
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #160      ; prepare constant 160 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenAttributes,y ; select screen attributes
                     leax      d,x       ; select d
                     tfr       x,d       ; transfer x,d
@@ -3281,70 +3285,70 @@ ClearLineCell       ldd       >CursorRow,y ; recover cursor row
 AdvanceEraseColumn  std       $03,s     ; store d in the current stack frame at $03,s
                     ldd       $03,s     ; read the relevant word from the active stack frame
                     cmpd      #80       ; test against #80
-                    blt       ClearLineCell ; continue with clear line cell below the signed limit
-                    lbra      FinishAnsiCommand ; continue with finish ansi command
+                    blt       ClearLineCell ; signed comparison remains below its limit: clear line cell
+                    lbra      FinishAnsiCommand ; resume finish ansi command
 ResetGraphicsSequence clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    lbra      AdvanceSgrParameter ; continue with advance sgr parameter
+                    lbra      AdvanceSgrParameter ; resume advance sgr parameter
 ReadNextSgrParameter ldd       $03,s     ; read the relevant word from the active stack frame
                     leax      >AnsiParameterCount,y ; select ansi parameter count
                     leax      d,x       ; select d
                     ldb       ,x        ; recover
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; transfer d,x
-                    lbra      DispatchSgrParameter ; continue with dispatch sgr parameter
+                    lbra      DispatchSgrParameter ; resume dispatch sgr parameter
 ResetAllGraphics    ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitBackgroundColor ; invoke emit background color
+                    lbsr      EmitBackgroundColor ; emit background color
                     leas      $04,s     ; release $04,s bytes of stack state
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitForegroundColor ; invoke emit foreground color
+                    lbsr      EmitForegroundColor ; emit foreground color
                     leas      $04,s     ; release $04,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EnableUnderlineAttribute ; invoke enable underline attribute
+                    lbsr      EnableUnderlineAttribute ; enable underline attribute
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EnableReverseAttribute ; invoke enable reverse attribute
+                    lbsr      EnableReverseAttribute ; enable reverse attribute
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      PauseForBanner ; invoke pause for banner
+                    lbsr      PauseForBanner ; pause for banner
                     leas      $02,s     ; release $02,s bytes of stack state
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    lbra      StoreUpdatedAttributes ; continue with store updated attributes
+                    lbra      StoreUpdatedAttributes ; resume store updated attributes
 SetBoldBit          ldd       >CurrentAttributes,y ; recover current attributes
                     ora       #16       ; set selected bits in a using #16
-                    lbra      StoreUpdatedAttributes ; continue with store updated attributes
+                    lbra      StoreUpdatedAttributes ; resume store updated attributes
 SetUnderlineBit     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EnableBoldAttribute ; invoke enable bold attribute
+                    lbsr      EnableBoldAttribute ; enable bold attribute
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >CurrentAttributes,y ; recover current attributes
                     ora       #1        ; set selected bits in a using #1
-                    lbra      StoreUpdatedAttributes ; continue with store updated attributes
+                    lbra      StoreUpdatedAttributes ; resume store updated attributes
 SetBlinkBit         ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EnableBlinkAttribute ; invoke enable blink attribute
+                    lbsr      EnableBlinkAttribute ; enable blink attribute
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >CurrentAttributes,y ; recover current attributes
                     ora       #2        ; set selected bits in a using #2
-                    lbra      StoreUpdatedAttributes ; continue with store updated attributes
+                    lbra      StoreUpdatedAttributes ; resume store updated attributes
 SetReverseBit       ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      InitializeTerminalDisplay ; invoke initialize terminal display
+                    lbsr      InitializeTerminalDisplay ; initialize terminal display
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       >CurrentAttributes,y ; recover current attributes
                     ora       #4        ; set selected bits in a using #4
-                    lbra      StoreUpdatedAttributes ; continue with store updated attributes
+                    lbra      StoreUpdatedAttributes ; resume store updated attributes
 SetInvisibleBit     ldd       >CurrentAttributes,y ; recover current attributes
                     clra                ; select standard input
                     andb      #15       ; mask b using #15
@@ -3356,23 +3360,23 @@ SetInvisibleBit     ldd       >CurrentAttributes,y ; recover current attributes
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitForegroundColor ; invoke emit foreground color
+                    lbsr      EmitForegroundColor ; emit foreground color
                     leas      $04,s     ; release $04,s bytes of stack state
                     ldd       >CurrentAttributes,y ; recover current attributes
                     ora       #8        ; set selected bits in a using #8
-                    lbra      StoreUpdatedAttributes ; continue with store updated attributes
+                    lbra      StoreUpdatedAttributes ; resume store updated attributes
 CheckForegroundCode ldd       $03,s     ; read the relevant word from the active stack frame
                     leax      >AnsiParameterCount,y ; select ansi parameter count
                     leax      d,x       ; select d
                     ldb       ,x        ; recover
                     cmpb      #30       ; prepare constant 30 for the surrounding operation
-                    lblt      CheckBackgroundCode ; continue with check background code below the signed limit
+                    lblt      CheckBackgroundCode ; signed comparison remains below its limit: check background code
                     ldd       $03,s     ; read the relevant word from the active stack frame
                     leax      >AnsiParameterCount,y ; select ansi parameter count
                     leax      d,x       ; select d
                     ldb       ,x        ; recover
                     cmpb      #38       ; prepare constant 38 for the surrounding operation
-                    bge       CheckBackgroundCode ; continue with check background code at or above the signed limit
+                    bge       CheckBackgroundCode ; signed comparison reached its upper case: check background code
                     ldd       $03,s     ; read the relevant word from the active stack frame
                     leax      >AnsiParameterCount,y ; select ansi parameter count
                     leax      d,x       ; select d
@@ -3387,7 +3391,7 @@ CheckForegroundCode ldd       $03,s     ; read the relevant word from the active
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitForegroundColor ; invoke emit foreground color
+                    lbsr      EmitForegroundColor ; emit foreground color
                     leas      $04,s     ; release $04,s bytes of stack state
                     ldd       >CurrentAttributes,y ; recover current attributes
                     andb      #15       ; mask b using #15
@@ -3407,19 +3411,19 @@ CheckForegroundCode ldd       $03,s     ; read the relevant word from the active
                     rola                ; rotate a left through carry
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
-                    lbra      MergeColorBits ; continue with merge color bits
+                    lbra      MergeColorBits ; resume merge color bits
 CheckBackgroundCode ldd       $03,s     ; read the relevant word from the active stack frame
                     leax      >AnsiParameterCount,y ; select ansi parameter count
                     leax      d,x       ; select d
                     ldb       ,x        ; recover
                     cmpb      #40       ; prepare constant 40 for the surrounding operation
-                    lblt      NextSgrParameter ; continue with next sgr parameter below the signed limit
+                    lblt      NextSgrParameter ; signed comparison remains below its limit: next sgr parameter
                     ldd       $03,s     ; read the relevant word from the active stack frame
                     leax      >AnsiParameterCount,y ; select ansi parameter count
                     leax      d,x       ; select d
                     ldb       ,x        ; recover
                     cmpb      #48       ; recognize or generate ASCII zero
-                    lbge      NextSgrParameter ; continue with next sgr parameter at or above the signed limit
+                    lbge      NextSgrParameter ; signed comparison reached its upper case: next sgr parameter
                     ldd       $03,s     ; read the relevant word from the active stack frame
                     leax      >AnsiParameterCount,y ; select ansi parameter count
                     leax      d,x       ; select d
@@ -3434,7 +3438,7 @@ CheckBackgroundCode ldd       $03,s     ; read the relevant word from the active
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EmitBackgroundColor ; invoke emit background color
+                    lbsr      EmitBackgroundColor ; emit background color
                     leas      $04,s     ; release $04,s bytes of stack state
                     ldd       >CurrentAttributes,y ; recover current attributes
                     andb      #240      ; mask b using #240
@@ -3449,50 +3453,50 @@ CheckBackgroundCode ldd       $03,s     ; read the relevant word from the active
 MergeColorBits      ora       ,s+       ; set selected bits in a using ,s+
                     orb       ,s+       ; set selected bits in b using ,s+
 StoreUpdatedAttributes std       >CurrentAttributes,y ; retain current attributes
-                    bra       NextSgrParameter ; continue with next sgr parameter
+                    bra       NextSgrParameter ; resume next sgr parameter
 DispatchSgrParameter stx       -$02,s    ; store x in the current stack frame at -$02,s
-                    lbeq      ResetAllGraphics ; select reset all graphics when the requested case matches
+                    lbeq      ResetAllGraphics ; zero result: reset all graphics
                     cmpx      #1        ; test against #1
-                    lbeq      SetBoldBit ; select set bold bit when the requested case matches
+                    lbeq      SetBoldBit ; zero result: set bold bit
                     cmpx      #4        ; test against #4
-                    lbeq      SetUnderlineBit ; select set underline bit when the requested case matches
+                    lbeq      SetUnderlineBit ; zero result: set underline bit
                     cmpx      #5        ; test against #5
-                    lbeq      SetBlinkBit ; select set blink bit when the requested case matches
+                    lbeq      SetBlinkBit ; zero result: set blink bit
                     cmpx      #7        ; test against #7
-                    lbeq      SetReverseBit ; select set reverse bit when the requested case matches
+                    lbeq      SetReverseBit ; zero result: set reverse bit
                     cmpx      #8        ; test against #8
-                    lbeq      SetInvisibleBit ; select set invisible bit when the requested case matches
-                    lbra      CheckForegroundCode ; continue with check foreground code
+                    lbeq      SetInvisibleBit ; zero result: set invisible bit
+                    lbra      CheckForegroundCode ; resume check foreground code
 NextSgrParameter    ldd       $03,s     ; read the relevant word from the active stack frame
                     addd      #1        ; add to d using #1
 AdvanceSgrParameter std       $03,s     ; store d in the current stack frame at $03,s
                     ldd       $03,s     ; read the relevant word from the active stack frame
                     cmpd      >dpsiz,y  ; test against dpsiz
-                    lblt      ReadNextSgrParameter ; continue with read next sgr parameter below the signed limit
-                    bra       FinishAnsiCommand ; continue with finish ansi command
+                    lblt      ReadNextSgrParameter ; signed comparison remains below its limit: read next sgr parameter
+                    bra       FinishAnsiCommand ; resume finish ansi command
 DispatchAnsiFinalByte cmpx      #72       ; test against #72
-                    lbeq      HandleCursorPosition ; select handle cursor position when the requested case matches
+                    lbeq      HandleCursorPosition ; zero result: handle cursor position
                     cmpx      #102      ; test against #102
-                    lbeq      HandleCursorPosition ; select handle cursor position when the requested case matches
+                    lbeq      HandleCursorPosition ; zero result: handle cursor position
                     cmpx      #65       ; test against #65
-                    lbeq      HandleCursorUpSequence ; select handle cursor up sequence when the requested case matches
+                    lbeq      HandleCursorUpSequence ; zero result: handle cursor up sequence
                     cmpx      #66       ; test against #66
-                    lbeq      HandleCursorDownSequence ; select handle cursor down sequence when the requested case matches
+                    lbeq      HandleCursorDownSequence ; zero result: handle cursor down sequence
                     cmpx      #67       ; test against #67
-                    lbeq      HandleCursorRightSequence ; select handle cursor right sequence when the requested case matches
+                    lbeq      HandleCursorRightSequence ; zero result: handle cursor right sequence
                     cmpx      #68       ; test against #68
-                    lbeq      HandleCursorLeftSequence ; select handle cursor left sequence when the requested case matches
+                    lbeq      HandleCursorLeftSequence ; zero result: handle cursor left sequence
                     cmpx      #115      ; test against #115
-                    lbeq      SaveAnsiCursor ; select save ansi cursor when the requested case matches
+                    lbeq      SaveAnsiCursor ; zero result: save ansi cursor
                     cmpx      #117      ; test against #117
-                    lbeq      RestoreAnsiCursor ; select restore ansi cursor when the requested case matches
+                    lbeq      RestoreAnsiCursor ; zero result: restore ansi cursor
                     cmpx      #74       ; test against #74
-                    lbeq      EraseDisplaySequence ; select erase display sequence when the requested case matches
+                    lbeq      EraseDisplaySequence ; zero result: erase display sequence
                     cmpx      #107      ; test against #107
-                    lbeq      EraseLineSequence ; select erase line sequence when the requested case matches
+                    lbeq      EraseLineSequence ; zero result: erase line sequence
                     cmpx      #109      ; test against #109
-                    lbeq      ResetGraphicsSequence ; select reset graphics sequence when the requested case matches
-FinishAnsiCommand   bsr       RenderStatusLine ; invoke render status line
+                    lbeq      ResetGraphicsSequence ; zero result: reset graphics sequence
+FinishAnsiCommand   bsr       RenderStatusLine ; render status line
                     leas      $05,s     ; release $05,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
 
@@ -3504,7 +3508,7 @@ RenderStatusLine    pshs      u         ; preserve the caller data base
                     leas      -$02,s    ; allocate $02,s bytes of stack state
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    bra       StartStatusColumnScan ; continue with start status column scan
+                    bra       StartStatusColumnScan ; resume start status column scan
 RenderNextStatusColumn ldd       ,s        ; recover
                     leax      >AnsiParameterCount,y ; select ansi parameter count
                     leax      d,x       ; select d
@@ -3515,7 +3519,7 @@ RenderNextStatusColumn ldd       ,s        ; recover
 StartStatusColumnScan std       ,s        ; store d in the current stack frame at ,s
                     ldd       ,s        ; recover
                     cmpd      #10       ; test against #10
-                    blt       RenderNextStatusColumn ; continue with render next status column below the signed limit
+                    blt       RenderNextStatusColumn ; signed comparison remains below its limit: render next status column
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       >dpsiz,y  ; retain dpsiz
@@ -3539,30 +3543,30 @@ MergeScreenIntoOutput pshs      u         ; preserve the caller data base
                     std       ,s        ; store d in the current stack frame at ,s
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    lbra      StartScreenRenderRow ; continue with start screen render row
+                    lbra      StartScreenRenderRow ; resume start screen render row
 StartScreenRenderColumn clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
-                    lbra      AdvanceRenderColumn ; continue with advance render column
+                    lbra      AdvanceRenderColumn ; resume advance render column
 RenderOccupiedCell  ldd       $04,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #80       ; prepare constant 80 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenCharacters,y ; select screen characters
                     leax      d,x       ; select d
                     ldd       $06,s     ; read the relevant word from the active stack frame
                     leax      d,x       ; select d
                     ldb       ,x        ; recover
-                    lbeq      RenderCellState ; select render cell state when the requested case matches
+                    lbeq      RenderCellState ; zero result: render cell state
                     ldd       $02,s     ; read the relevant word from the active stack frame
                     cmpd      $06,s     ; test against $06
-                    bne       SkipEmptyScreenCell ; select skip empty screen cell when the requested case does not match
+                    bne       SkipEmptyScreenCell ; nonzero result: skip empty screen cell
                     ldd       ,s        ; recover
                     cmpd      $04,s     ; test against $04
-                    lbeq      EmitCursorMoveForCell ; select emit cursor move for cell when the requested case matches
+                    lbeq      EmitCursorMoveForCell ; zero result: emit cursor move for cell
 SkipEmptyScreenCell ldd       >OutputLength,y ; recover output length
                     addd      #8        ; add to d using #8
                     cmpd      #8192     ; test against #8192
-                    lbge      AppendCursorColumnDigits ; continue with append cursor column digits at or above the signed limit
+                    lbge      AppendCursorColumnDigits ; signed comparison reached its upper case: append cursor column digits
                     ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     std       >OutputLength,y ; retain output length
@@ -3582,7 +3586,7 @@ SkipEmptyScreenCell ldd       >OutputLength,y ; recover output length
                     ldd       $04,s     ; read the relevant word from the active stack frame
                     addd      #1        ; add to d using #1
                     cmpd      #10       ; test against #10
-                    blt       AppendCursorRowDigits ; continue with append cursor row digits below the signed limit
+                    blt       AppendCursorRowDigits ; signed comparison remains below its limit: append cursor row digits
                     ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     std       >OutputLength,y ; retain output length
@@ -3594,7 +3598,7 @@ SkipEmptyScreenCell ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      UnsignedQuotient ; invoke unsigned quotient
+                    lbsr      UnsignedQuotient ; unsigned quotient
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
 AppendCursorRowDigits ldd       >OutputLength,y ; recover output length
@@ -3608,7 +3612,7 @@ AppendCursorRowDigits ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      UnsignedRemainder ; invoke unsigned remainder
+                    lbsr      UnsignedRemainder ; unsigned remainder
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
                     ldd       >OutputLength,y ; recover output length
@@ -3622,7 +3626,7 @@ AppendCursorRowDigits ldd       >OutputLength,y ; recover output length
                     ldd       $06,s     ; read the relevant word from the active stack frame
                     addd      #1        ; add to d using #1
                     cmpd      #10       ; test against #10
-                    blt       AppendCellCharacter ; continue with append cell character below the signed limit
+                    blt       AppendCellCharacter ; signed comparison remains below its limit: append cell character
                     ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     std       >OutputLength,y ; retain output length
@@ -3634,7 +3638,7 @@ AppendCursorRowDigits ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      UnsignedQuotient ; invoke unsigned quotient
+                    lbsr      UnsignedQuotient ; unsigned quotient
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
 AppendCellCharacter ldd       >OutputLength,y ; recover output length
@@ -3648,7 +3652,7 @@ AppendCellCharacter ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      UnsignedRemainder ; invoke unsigned remainder
+                    lbsr      UnsignedRemainder ; unsigned remainder
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
                     ldd       >OutputLength,y ; recover output length
@@ -3663,15 +3667,15 @@ AppendCellCharacter ldd       >OutputLength,y ; recover output length
                     std       $02,s     ; store d in the current stack frame at $02,s
                     ldd       $04,s     ; read the relevant word from the active stack frame
                     std       ,s        ; store d in the current stack frame at ,s
-                    bra       EmitCursorMoveForCell ; continue with emit cursor move for cell
+                    bra       EmitCursorMoveForCell ; resume emit cursor move for cell
 AppendCursorColumnDigits ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SignalOutputOverflow ; invoke signal output overflow
+                    lbsr      SignalOutputOverflow ; signal output overflow
                     leas      $02,s     ; release $02,s bytes of stack state
 EmitCursorMoveForCell ldd       $04,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #160      ; prepare constant 160 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenAttributes,y ; select screen attributes
                     leax      d,x       ; select d
                     tfr       x,d       ; transfer x,d
@@ -3683,11 +3687,11 @@ EmitCursorMoveForCell ldd       $04,s     ; read the relevant word from the acti
                     tfr       d,x       ; transfer d,x
                     ldd       ,x        ; recover
                     cmpd      >CurrentAttributes,y ; test against current attributes
-                    beq       AfterRenderedCharacter ; select after rendered character when the requested case matches
+                    beq       AfterRenderedCharacter ; zero result: after rendered character
                     ldd       $04,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #160      ; prepare constant 160 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenAttributes,y ; select screen attributes
                     leax      d,x       ; select d
                     tfr       x,d       ; transfer x,d
@@ -3699,7 +3703,7 @@ EmitCursorMoveForCell ldd       $04,s     ; read the relevant word from the acti
                     tfr       d,x       ; transfer d,x
                     ldd       ,x        ; recover
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      AppendSgrSequence ; invoke append sgr sequence
+                    lbsr      AppendSgrSequence ; append sgr sequence
                     leas      $02,s     ; release $02,s bytes of stack state
 AfterRenderedCharacter ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
@@ -3711,7 +3715,7 @@ AfterRenderedCharacter ldd       >OutputLength,y ; recover output length
                     ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #80       ; prepare constant 80 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenCharacters,y ; select screen characters
                     leax      d,x       ; select d
                     ldd       $08,s     ; read the relevant word from the active stack frame
@@ -3736,7 +3740,7 @@ ClampNextRenderRow  clra                ; select standard input
 RenderCellState     ldd       $04,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #80       ; prepare constant 80 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenCharacters,y ; select screen characters
                     leax      d,x       ; select d
                     ldd       $06,s     ; read the relevant word from the active stack frame
@@ -3747,7 +3751,7 @@ RenderCellState     ldd       $04,s     ; read the relevant word from the active
                     ldd       $04,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #160      ; prepare constant 160 for the surrounding operation
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     leax      >ScreenAttributes,y ; select screen attributes
                     leax      d,x       ; select d
                     tfr       x,d       ; transfer x,d
@@ -3765,13 +3769,13 @@ RenderCellState     ldd       $04,s     ; read the relevant word from the active
 AdvanceRenderColumn std       $06,s     ; store d in the current stack frame at $06,s
                     ldd       $06,s     ; read the relevant word from the active stack frame
                     cmpd      #80       ; test against #80
-                    lblt      RenderOccupiedCell ; continue with render occupied cell below the signed limit
+                    lblt      RenderOccupiedCell ; signed comparison remains below its limit: render occupied cell
                     ldd       $04,s     ; read the relevant word from the active stack frame
                     addd      #1        ; add to d using #1
 StartScreenRenderRow std       $04,s     ; store d in the current stack frame at $04,s
                     ldd       $04,s     ; read the relevant word from the active stack frame
                     cmpd      #23       ; test against #23
-                    lblt      StartScreenRenderColumn ; continue with start screen render column below the signed limit
+                    lblt      StartScreenRenderColumn ; signed comparison remains below its limit: start screen render column
                     leas      $08,s     ; release $08,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
 
@@ -3783,7 +3787,7 @@ AppendSgrSequence   pshs      u         ; preserve the caller data base
                     ldd       >OutputLength,y ; recover output length
                     addd      #2        ; add to d using #2
                     cmpd      #8192     ; test against #8192
-                    bge       OutputFullBeforeSgr ; continue with output full before sgr at or above the signed limit
+                    bge       OutputFullBeforeSgr ; signed comparison reached its upper case: output full before sgr
                     ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     std       >OutputLength,y ; retain output length
@@ -3800,56 +3804,56 @@ AppendSgrSequence   pshs      u         ; preserve the caller data base
                     leax      d,x       ; select d
                     ldd       #91       ; initialize  to 91
                     stb       ,x        ; retain
-                    bra       BeginSgrParameters ; continue with begin sgr parameters
+                    bra       BeginSgrParameters ; resume begin sgr parameters
 OutputFullBeforeSgr ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SignalOutputOverflow ; invoke signal output overflow
+                    lbsr      SignalOutputOverflow ; signal output overflow
                     leas      $02,s     ; release $02,s bytes of stack state
 BeginSgrParameters  clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      AppendDecimalParameter ; invoke append decimal parameter
+                    lbsr      AppendDecimalParameter ; append decimal parameter
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       $04,s     ; read the relevant word from the active stack frame
                     anda      #16       ; mask a using #16
                     clrb                ; clear the byte accumulator for counting
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       SkipBoldParameter ; select skip bold parameter when the requested case matches
+                    beq       SkipBoldParameter ; zero result: skip bold parameter
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      AppendDecimalParameter ; invoke append decimal parameter
+                    lbsr      AppendDecimalParameter ; append decimal parameter
                     leas      $02,s     ; release $02,s bytes of stack state
 SkipBoldParameter   ldd       $04,s     ; read the relevant word from the active stack frame
                     anda      #1        ; mask a using #1
                     clrb                ; clear the byte accumulator for counting
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       SkipUnderlineParameter ; select skip underline parameter when the requested case matches
+                    beq       SkipUnderlineParameter ; zero result: skip underline parameter
                     ldd       #4        ; prepare constant 4 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      AppendDecimalParameter ; invoke append decimal parameter
+                    lbsr      AppendDecimalParameter ; append decimal parameter
                     leas      $02,s     ; release $02,s bytes of stack state
 SkipUnderlineParameter ldd       $04,s     ; read the relevant word from the active stack frame
                     anda      #2        ; mask a using #2
                     clrb                ; clear the byte accumulator for counting
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       SkipBlinkParameter ; select skip blink parameter when the requested case matches
+                    beq       SkipBlinkParameter ; zero result: skip blink parameter
                     ldd       #5        ; prepare constant 5 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      AppendDecimalParameter ; invoke append decimal parameter
+                    lbsr      AppendDecimalParameter ; append decimal parameter
                     leas      $02,s     ; release $02,s bytes of stack state
 SkipBlinkParameter  ldd       $04,s     ; read the relevant word from the active stack frame
                     anda      #4        ; mask a using #4
                     clrb                ; clear the byte accumulator for counting
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       SkipReverseParameter ; select skip reverse parameter when the requested case matches
+                    beq       SkipReverseParameter ; zero result: skip reverse parameter
                     ldd       #7        ; prepare constant 7 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      AppendDecimalParameter ; invoke append decimal parameter
+                    lbsr      AppendDecimalParameter ; append decimal parameter
                     leas      $02,s     ; release $02,s bytes of stack state
 SkipReverseParameter ldd       $04,s     ; read the relevant word from the active stack frame
                     clra                ; select standard input
                     andb      #240      ; mask b using #240
-                    beq       SkipForegroundParameter ; select skip foreground parameter when the requested case matches
+                    beq       SkipForegroundParameter ; zero result: skip foreground parameter
                     ldd       $04,s     ; read the relevant word from the active stack frame
                     clra                ; select standard input
                     andb      #240      ; mask b using #240
@@ -3863,18 +3867,18 @@ SkipReverseParameter ldd       $04,s     ; read the relevant word from the activ
                     rorb                ; rotate b right through carry
                     addd      #30       ; add to d using #30
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    bsr       AppendDecimalParameter ; invoke append decimal parameter
+                    bsr       AppendDecimalParameter ; append decimal parameter
                     leas      $02,s     ; release $02,s bytes of stack state
 SkipForegroundParameter ldd       $04,s     ; read the relevant word from the active stack frame
                     clra                ; select standard input
                     andb      #15       ; mask b using #15
-                    beq       SkipBackgroundParameter ; select skip background parameter when the requested case matches
+                    beq       SkipBackgroundParameter ; zero result: skip background parameter
                     ldd       $04,s     ; read the relevant word from the active stack frame
                     clra                ; select standard input
                     andb      #15       ; mask b using #15
                     addd      #40       ; add to d using #40
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    bsr       AppendDecimalParameter ; invoke append decimal parameter
+                    bsr       AppendDecimalParameter ; append decimal parameter
                     leas      $02,s     ; release $02,s bytes of stack state
 SkipBackgroundParameter ldd       $04,s     ; read the relevant word from the active stack frame
                     std       >CurrentAttributes,y ; retain current attributes
@@ -3894,10 +3898,10 @@ AppendDecimalParameter pshs      u         ; preserve the caller data base
                     ldd       >OutputLength,y ; recover output length
                     addd      #3        ; add to d using #3
                     cmpd      #8192     ; test against #8192
-                    lbge      OutputFullBeforeNumber ; continue with output full before number at or above the signed limit
+                    lbge      OutputFullBeforeNumber ; signed comparison reached its upper case: output full before number
                     ldd       $04,s     ; read the relevant word from the active stack frame
                     cmpd      #10       ; test against #10
-                    blt       AppendOnesDigit ; continue with append ones digit below the signed limit
+                    blt       AppendOnesDigit ; signed comparison remains below its limit: append ones digit
                     ldd       >OutputLength,y ; recover output length
                     addd      #1        ; add to d using #1
                     std       >OutputLength,y ; retain output length
@@ -3908,7 +3912,7 @@ AppendDecimalParameter pshs      u         ; preserve the caller data base
                     ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      UnsignedQuotient ; invoke unsigned quotient
+                    lbsr      UnsignedQuotient ; unsigned quotient
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
 AppendOnesDigit     ldd       >OutputLength,y ; recover output length
@@ -3921,7 +3925,7 @@ AppendOnesDigit     ldd       >OutputLength,y ; recover output length
                     ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      UnsignedRemainder ; invoke unsigned remainder
+                    lbsr      UnsignedRemainder ; unsigned remainder
                     addd      #48       ; add to d using #48
                     stb       [,s++]    ; store b in the current stack frame at [,s++]
                     ldd       >OutputLength,y ; recover output length
@@ -3932,10 +3936,10 @@ AppendOnesDigit     ldd       >OutputLength,y ; recover output length
                     leax      d,x       ; select d
                     ldd       #59       ; initialize  to 59
                     stb       ,x        ; retain
-                    bra       ReturnFromDecimalAppend ; continue with return from decimal append
+                    bra       ReturnFromDecimalAppend ; resume return from decimal append
 OutputFullBeforeNumber ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SignalOutputOverflow ; invoke signal output overflow
+                    lbsr      SignalOutputOverflow ; signal output overflow
                     leas      $02,s     ; release $02,s bytes of stack state
 ReturnFromDecimalAppend puls      pc,u      ; restore pc,u and return to the caller
 
@@ -3952,7 +3956,7 @@ SetTerminalRawMode  pshs      u         ; preserve the caller data base
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      GetPathStatus ; invoke get path status
+                    lbsr      GetPathStatus ; obtain the requested OS-9 path status
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldb       <$0025,s  ; read the relevant word from the active stack frame
                     stb       $04,s     ; store b in the current stack frame at $04,s
@@ -3964,7 +3968,7 @@ SetTerminalRawMode  pshs      u         ; preserve the caller data base
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SetPathStatus ; invoke routine 012
+                    lbsr      SetPathStatus ; apply the prepared OS-9 path-status request
                     leas      $06,s     ; release $06,s bytes of stack state
                     leas      <$0020,s  ; release <$0020,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
@@ -3991,7 +3995,7 @@ ReportEditorError   pshs      u         ; preserve the transfer-menu frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #2        ; prepare constant 2 for the surrounding operation
                     pshs      d         ; pass the current value as a word-sized argument
@@ -4011,18 +4015,18 @@ ReportEditorError   pshs      u         ; preserve the transfer-menu frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      DefineEditorWindow ; invoke define editor window
+                    lbsr      DefineEditorWindow ; define editor window
                     leas      <$0010,s  ; release <$0010,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ClearEditorScreen ; invoke clear editor screen
+                    lbsr      ClearEditorScreen ; clear editor screen
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       $05,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      MeasureCString ; invoke measure cstring
+                    lbsr      MeasureCString ; measure cstring
                     std       ,s        ; store d in the current stack frame at ,s
                     ldd       #2        ; prepare constant 2 for the surrounding operation
-                    lbsr      UnsignedQuotient ; invoke unsigned quotient
+                    lbsr      UnsignedQuotient ; unsigned quotient
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #19       ; prepare constant 19 for the surrounding operation
                     subd      ,s++      ; subtract from d using ,s++
@@ -4031,19 +4035,19 @@ ReportEditorError   pshs      u         ; preserve the transfer-menu frame
                     pshs      x         ; pass the selected pointer through the compiler calling convention
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass the current value as a word-sized argument
-                    lbsr      write     ; invoke write
+                    lbsr      write     ; commit the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldd       $05,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      >String,pc ; select string
                     pshs      x         ; pass the selected pointer through the compiler calling convention
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $04,s     ; release $04,s bytes of stack state
                     ldd       $07,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      >ErrNum,pc ; select err num
                     pshs      x         ; pass the selected pointer through the compiler calling convention
-                    lbsr      printf    ; invoke printf
+                    lbsr      printf    ; render the prepared formatted text
                     leas      $04,s     ; release $04,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass the current value as a word-sized argument
@@ -4052,15 +4056,15 @@ ReportEditorError   pshs      u         ; preserve the transfer-menu frame
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      read      ; invoke read
+                    lbsr      read      ; collect the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      EndEditorWindow ; invoke end editor window
+                    lbsr      EndEditorWindow ; end editor window
                     leas      $02,s     ; release $02,s bytes of stack state
                     leas      $01,s     ; release $01,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
@@ -4312,7 +4316,7 @@ printf              pshs      u         ; preserve the caller data base
                     leax      $06,s     ; select $06
                     pshs      x         ; pass or retain this pointer through the compiler ABI
                     ldd       $06,s     ; read the relevant word from the active stack frame
-                    bra       InvokeFormatEngine ; continue with invoke format engine
+                    bra       InvokeFormatEngine ; resume invoke format engine
                     pshs      u         ; preserve the caller data base
                     ldd       $04,s     ; read the relevant word from the active stack frame
                     std       >AnsiParserValue,y ; retain ansi parser value
@@ -4322,7 +4326,7 @@ printf              pshs      u         ; preserve the caller data base
 InvokeFormatEngine  pshs      d         ; pass or retain this word through the compiler ABI
                     leax      >FormatSignedValue,pc ; select format signed value
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    bsr       FormatOutputCore ; invoke format output core
+                    bsr       FormatOutputCore ; format the next conversion into the output stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
                     pshs      u         ; preserve the caller data base
@@ -4334,7 +4338,7 @@ InvokeFormatEngine  pshs      d         ; pass or retain this word through the c
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      >FormatPositiveValue,pc ; select format positive value
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    bsr       FormatOutputCore ; invoke format output core
+                    bsr       FormatOutputCore ; format the next conversion into the output stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
@@ -4344,18 +4348,18 @@ InvokeFormatEngine  pshs      d         ; pass or retain this word through the c
 FormatOutputCore    pshs      u         ; preserve the caller while formatting
                     ldu       $06,s     ; read the relevant word from the active stack frame
                     leas      -$0B,s    ; allocate $0B,s bytes of stack state
-                    bra       ScanFormatString ; continue with scan format string
+                    bra       ScanFormatString ; resume scan format string
 EmitLiteralFormatByte ldb       $08,s     ; read the relevant word from the active stack frame
-                    lbeq      FinishFormattedOutput ; select finish formatted output when the requested case matches
+                    lbeq      FinishFormattedOutput ; zero result: finish formatted output
                     ldb       $08,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    jsr       [<$11,s]  ; invoke the callback selected by the runtime descriptor
+                    jsr       [<$11,s]  ; the callback selected by the runtime descriptor
                     leas      $02,s     ; release $02,s bytes of stack state
 ScanFormatString    ldb       ,u+       ; consume the next byte while scan format string
                     stb       $08,s     ; store b in the current stack frame at $08,s
                     cmpb      #37       ; prepare constant 37 for the surrounding operation
-                    bne       EmitLiteralFormatByte ; select emit literal format byte when the requested case does not match
+                    bne       EmitLiteralFormatByte ; nonzero result: emit literal format byte
                     ldb       ,u+       ; consume the next byte while scan format string
                     stb       $08,s     ; store b in the current stack frame at $08,s
                     clra                ; select standard input
@@ -4364,27 +4368,27 @@ ScanFormatString    ldb       ,u+       ; consume the next byte while scan forma
                     std       $06,s     ; store d in the current stack frame at $06,s
                     ldb       $08,s     ; read the relevant word from the active stack frame
                     cmpb      #45       ; prepare constant 45 for the surrounding operation
-                    bne       ReturnFormattedCount ; select return formatted count when the requested case does not match
+                    bne       ReturnFormattedCount ; nonzero result: return formatted count
                     ldd       #1        ; initialize runtime format flags to 1
                     std       >RuntimeFormatFlags,y ; retain runtime format flags
                     ldb       ,u+       ; consume the next byte while scan format string
                     stb       $08,s     ; store b in the current stack frame at $08,s
-                    bra       SelectFormatPadding ; continue with select format padding
+                    bra       SelectFormatPadding ; resume select format padding
 ReturnFormattedCount clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       >RuntimeFormatFlags,y ; retain runtime format flags
 SelectFormatPadding ldb       $08,s     ; read the relevant word from the active stack frame
                     cmpb      #48       ; recognize or generate ASCII zero
-                    bne       UseSpacePadding ; select use space padding when the requested case does not match
+                    bne       UseSpacePadding ; nonzero result: use space padding
                     ldd       #48       ; recognize or generate ASCII zero
-                    bra       SaveFormatWidth ; continue with save format width
+                    bra       SaveFormatWidth ; resume save format width
 UseSpacePadding     ldd       #32       ; recognize the first printable ASCII value
 SaveFormatWidth     std       >RuntimeFormatLength,y ; retain runtime format length
-                    bra       ParseFieldWidth ; continue with parse field width
+                    bra       ParseFieldWidth ; resume parse field width
 AccumulateFieldWidth ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldb       $0A,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
@@ -4403,14 +4407,14 @@ ParseFieldWidth     ldb       $08,s     ; read the relevant word from the active
                     bne       AccumulateFieldWidth ; repeat accumulate field width until the terminating condition is met
                     ldb       $08,s     ; read the relevant word from the active stack frame
                     cmpb      #46       ; prepare constant 46 for the surrounding operation
-                    bne       NoPrecisionSpecified ; select no precision specified when the requested case does not match
+                    bne       NoPrecisionSpecified ; nonzero result: no precision specified
                     ldd       #1        ; initialize $04 to 1
                     std       $04,s     ; store d in the current stack frame at $04,s
-                    bra       ParsePrecisionDigits ; continue with parse precision digits
+                    bra       ParsePrecisionDigits ; resume parse precision digits
 AccumulatePrecision ldd       $02,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldb       $0A,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
@@ -4427,14 +4431,14 @@ ParsePrecisionDigits ldb       ,u+       ; consume the next byte while parse pre
                     clra                ; select standard input
                     andb      #8        ; mask b using #8
                     bne       AccumulatePrecision ; repeat accumulate precision until the terminating condition is met
-                    bra       DispatchConversion ; continue with dispatch conversion
+                    bra       DispatchConversion ; resume dispatch conversion
 NoPrecisionSpecified clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       $04,s     ; store d in the current stack frame at $04,s
 DispatchConversion  ldb       $08,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; transfer d,x
-                    lbra      MatchConversionType ; continue with match conversion type
+                    lbra      MatchConversionType ; resume match conversion type
 FormatSignedDecimal ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldx       <$0015,s  ; read the relevant word from the active stack frame
@@ -4442,8 +4446,8 @@ FormatSignedDecimal ldd       $06,s     ; read the relevant word from the active
                     stx       <$0015,s  ; store x in the current stack frame at <$0015,s
                     ldd       -$02,x    ; recover -$02
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ConvertSignedDecimal ; invoke convert signed decimal
-                    bra       StoreConvertedPointer ; continue with store converted pointer
+                    lbsr      ConvertSignedDecimal ; convert signed decimal
+                    bra       StoreConvertedPointer ; resume store converted pointer
 FormatOctal         ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldx       <$0015,s  ; read the relevant word from the active stack frame
@@ -4451,9 +4455,9 @@ FormatOctal         ldd       $06,s     ; read the relevant word from the active
                     stx       <$0015,s  ; store x in the current stack frame at <$0015,s
                     ldd       -$02,x    ; recover -$02
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ConvertOctal ; invoke convert octal
+                    lbsr      ConvertOctal ; convert octal
 StoreConvertedPointer std       ,s        ; store d in the current stack frame at ,s
-                    lbra      WriteConvertedField ; continue with write converted field
+                    lbra      WriteConvertedField ; resume write converted field
 FormatHexadecimal   ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldb       $0A,s     ; read the relevant word from the active stack frame
@@ -4469,8 +4473,8 @@ FormatHexadecimal   ldd       $06,s     ; read the relevant word from the active
                     stx       <$0017,s  ; store x in the current stack frame at <$0017,s
                     ldd       -$02,x    ; recover -$02
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      FormatSignedMinimum ; invoke format signed minimum
-                    lbra      RestoreFormatStack ; continue with restore format stack
+                    lbsr      FormatSignedMinimum ; format signed minimum
+                    lbra      RestoreFormatStack ; resume restore format stack
 FormatUnsignedDecimal ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldx       <$0015,s  ; read the relevant word from the active stack frame
@@ -4480,10 +4484,10 @@ FormatUnsignedDecimal ldd       $06,s     ; read the relevant word from the acti
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      >DecimalConversionBuffer,y ; select decimal conversion buffer
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      ConvertUnsignedDecimal ; invoke convert unsigned decimal
-                    lbra      RestoreFormatStack ; continue with restore format stack
+                    lbsr      ConvertUnsignedDecimal ; convert unsigned decimal
+                    lbra      RestoreFormatStack ; resume restore format stack
 FormatFloatingValue ldd       $04,s     ; read the relevant word from the active stack frame
-                    bne       ConvertFloatingValue ; select convert floating value when the requested case does not match
+                    bne       ConvertFloatingValue ; nonzero result: convert floating value
                     ldd       #6        ; initialize $02 to 6
                     std       $02,s     ; store d in the current stack frame at $02,s
 ConvertFloatingValue ldd       $06,s     ; read the relevant word from the active stack frame
@@ -4495,26 +4499,26 @@ ConvertFloatingValue ldd       $06,s     ; read the relevant word from the activ
                     ldb       $0E,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ReturnEmptyString ; invoke return empty string
+                    lbsr      ReturnEmptyString ; return empty string
                     leas      $06,s     ; release $06,s bytes of stack state
-                    lbra      PassConvertedField ; continue with pass converted field
+                    lbra      PassConvertedField ; resume pass converted field
 FormatCharacterValue ldx       <$0013,s  ; read the relevant word from the active stack frame
                     leax      $02,x     ; select $02
                     stx       <$0013,s  ; store x in the current stack frame at <$0013,s
                     ldd       -$02,x    ; recover -$02
-                    lbra      EmitScalarValue ; continue with emit scalar value
+                    lbra      EmitScalarValue ; resume emit scalar value
 FormatStringValue   ldx       <$0013,s  ; read the relevant word from the active stack frame
                     leax      $02,x     ; select $02
                     stx       <$0013,s  ; store x in the current stack frame at <$0013,s
                     ldd       -$02,x    ; recover -$02
                     std       $09,s     ; store d in the current stack frame at $09,s
                     ldd       $04,s     ; read the relevant word from the active stack frame
-                    beq       StringWidthReady ; select string width ready when the requested case matches
+                    beq       StringWidthReady ; zero result: string width ready
                     ldd       $09,s     ; read the relevant word from the active stack frame
                     std       $04,s     ; store d in the current stack frame at $04,s
-                    bra       MeasureBoundedString ; continue with measure bounded string
+                    bra       MeasureBoundedString ; resume measure bounded string
 CountStringByte     ldb       [<$09,s]  ; recover [<$09
-                    beq       EmitFormattedField ; select emit formatted field when the requested case matches
+                    beq       EmitFormattedField ; zero result: emit formatted field
                     ldd       $09,s     ; read the relevant word from the active stack frame
                     addd      #1        ; add to d using #1
                     std       $09,s     ; store d in the current stack frame at $09,s
@@ -4522,7 +4526,7 @@ MeasureBoundedString ldd       $02,s     ; read the relevant word from the activ
                     addd      #-1       ; add to d using #-1
                     std       $02,s     ; store d in the current stack frame at $02,s
                     subd      #-1       ; subtract from d using #-1
-                    bne       CountStringByte ; select count string byte when the requested case does not match
+                    bne       CountStringByte ; nonzero result: count string byte
 EmitFormattedField  ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       $0B,s     ; read the relevant word from the active stack frame
@@ -4532,16 +4536,16 @@ EmitFormattedField  ldd       $06,s     ; read the relevant word from the active
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       <$0015,s  ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      WritePaddedField ; invoke write padded field
+                    lbsr      WritePaddedField ; write padded field
                     leas      $08,s     ; release $08,s bytes of stack state
-                    bra       ResumeFormatScan ; continue with resume format scan
+                    bra       ResumeFormatScan ; resume resume format scan
 StringWidthReady    ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       $0B,s     ; read the relevant word from the active stack frame
-                    bra       PassConvertedField ; continue with pass converted field
+                    bra       PassConvertedField ; resume pass converted field
 AcceptLongModifier  ldb       ,u+       ; consume the next byte while accept long modifier
                     stb       $08,s     ; store b in the current stack frame at $08,s
-                    bra       FormatLongValue ; continue with format long value
+                    bra       FormatLongValue ; resume format long value
                     leas      -$0B,x    ; allocate $0B,x bytes of stack state
 FormatLongValue     ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -4550,67 +4554,67 @@ FormatLongValue     ldd       $06,s     ; read the relevant word from the active
                     ldb       $0C,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      SelectIntegerArgument ; invoke select integer argument
+                    lbsr      SelectIntegerArgument ; select integer argument
 RestoreFormatStack  leas      $04,s     ; release $04,s bytes of stack state
 PassConvertedField  pshs      d         ; pass or retain this word through the compiler ABI
 WriteConvertedField ldd       <$0013,s  ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      WritePaddedString ; invoke write padded string
+                    lbsr      WritePaddedString ; write padded string
                     leas      $06,s     ; release $06,s bytes of stack state
-ResumeFormatScan    lbra      ScanFormatString ; continue with scan format string
+ResumeFormatScan    lbra      ScanFormatString ; resume scan format string
 EmitUnknownSpecifier ldb       $08,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
 EmitScalarValue     pshs      d         ; pass or retain this word through the compiler ABI
-                    jsr       [<$11,s]  ; invoke the callback selected by the runtime descriptor
+                    jsr       [<$11,s]  ; the callback selected by the runtime descriptor
                     leas      $02,s     ; release $02,s bytes of stack state
-                    lbra      ScanFormatString ; continue with scan format string
+                    lbra      ScanFormatString ; resume scan format string
 MatchConversionType cmpx      #100      ; test against #100
-                    lbeq      FormatSignedDecimal ; select format signed decimal when the requested case matches
+                    lbeq      FormatSignedDecimal ; zero result: format signed decimal
                     cmpx      #111      ; test against #111
-                    lbeq      FormatOctal ; select format octal when the requested case matches
+                    lbeq      FormatOctal ; zero result: format octal
                     cmpx      #120      ; test against #120
-                    lbeq      FormatHexadecimal ; select format hexadecimal when the requested case matches
+                    lbeq      FormatHexadecimal ; zero result: format hexadecimal
                     cmpx      #88       ; test against #88
-                    lbeq      FormatHexadecimal ; select format hexadecimal when the requested case matches
+                    lbeq      FormatHexadecimal ; zero result: format hexadecimal
                     cmpx      #117      ; test against #117
-                    lbeq      FormatUnsignedDecimal ; select format unsigned decimal when the requested case matches
+                    lbeq      FormatUnsignedDecimal ; zero result: format unsigned decimal
                     cmpx      #102      ; test against #102
-                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    lbeq      FormatFloatingValue ; zero result: format floating value
                     cmpx      #101      ; test against #101
-                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    lbeq      FormatFloatingValue ; zero result: format floating value
                     cmpx      #103      ; test against #103
-                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    lbeq      FormatFloatingValue ; zero result: format floating value
                     cmpx      #69       ; test against #69
-                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    lbeq      FormatFloatingValue ; zero result: format floating value
                     cmpx      #71       ; test against #71
-                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    lbeq      FormatFloatingValue ; zero result: format floating value
                     cmpx      #99       ; test against #99
-                    lbeq      FormatCharacterValue ; select format character value when the requested case matches
+                    lbeq      FormatCharacterValue ; zero result: format character value
                     cmpx      #115      ; test against #115
-                    lbeq      FormatStringValue ; select format string value when the requested case matches
+                    lbeq      FormatStringValue ; zero result: format string value
                     cmpx      #108      ; test against #108
-                    lbeq      AcceptLongModifier ; select accept long modifier when the requested case matches
-                    bra       EmitUnknownSpecifier ; continue with emit unknown specifier
+                    lbeq      AcceptLongModifier ; zero result: accept long modifier
+                    bra       EmitUnknownSpecifier ; resume emit unknown specifier
 FinishFormattedOutput leas      $0B,s     ; release $0B,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
 ConvertSignedDecimal pshs      u,d       ; save u,d on the stack
                     leax      >DecimalConversionBuffer,y ; select decimal conversion buffer
                     stx       ,s        ; store x in the current stack frame at ,s
                     ldd       $06,s     ; read the relevant word from the active stack frame
-                    bge       ConvertSignedMagnitude ; continue with convert signed magnitude at or above the signed limit
+                    bge       ConvertSignedMagnitude ; signed comparison reached its upper case: convert signed magnitude
                     ldd       $06,s     ; read the relevant word from the active stack frame
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
                     std       $06,s     ; store d in the current stack frame at $06,s
-                    bge       PrefixMinusSign ; continue with prefix minus sign at or above the signed limit
+                    bge       PrefixMinusSign ; signed comparison reached its upper case: prefix minus sign
                     leax      >SignedMinimumText,pc ; select signed minimum text
                     pshs      x         ; pass or retain this pointer through the compiler ABI
                     leax      >DecimalConversionBuffer,y ; select decimal conversion buffer
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    lbsr      CopyCString ; invoke copy cstring
+                    lbsr      CopyCString ; copy cstring
                     leas      $04,s     ; release $04,s bytes of stack state
-                    lbra      ReleaseFormatFrame ; continue with release format frame
+                    lbra      ReleaseFormatFrame ; resume release format frame
 PrefixMinusSign     ldd       #45       ; initialize  to 45
                     ldx       ,s        ; recover
                     leax      $01,x     ; select $01
@@ -4620,9 +4624,9 @@ ConvertSignedMagnitude ldd       $06,s     ; read the relevant word from the act
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       $02,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    bsr       ConvertUnsignedDecimal ; invoke convert unsigned decimal
+                    bsr       ConvertUnsignedDecimal ; convert unsigned decimal
                     leas      $04,s     ; release $04,s bytes of stack state
-                    lbra      UseSignedConversionBuffer ; continue with use signed conversion buffer
+                    lbra      UseSignedConversionBuffer ; resume use signed conversion buffer
 ConvertUnsignedDecimal pshs      u,y,x,d   ; save u,y,x,d on the stack
                     ldu       $0A,s     ; read the relevant word from the active stack frame
                     clra                ; select standard input
@@ -4631,7 +4635,7 @@ ConvertUnsignedDecimal pshs      u,y,x,d   ; save u,y,x,d on the stack
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     std       ,s        ; store d in the current stack frame at ,s
-                    bra       SelectFormatArgument ; continue with select format argument
+                    bra       SelectFormatArgument ; resume select format argument
 IncreaseDecimalDigitCount ldd       ,s        ; recover
                     addd      #1        ; add to d using #1
                     std       ,s        ; store d in the current stack frame at ,s
@@ -4639,26 +4643,26 @@ IncreaseDecimalDigitCount ldd       ,s        ; recover
                     subd      >StartupArgumentState,y ; subtract from d using >StartupArgumentState,y
                     std       $0C,s     ; store d in the current stack frame at $0C,s
 SelectFormatArgument ldd       $0C,s     ; read the relevant word from the active stack frame
-                    blt       IncreaseDecimalDigitCount ; continue with increase decimal digit count below the signed limit
+                    blt       IncreaseDecimalDigitCount ; signed comparison remains below its limit: increase decimal digit count
                     leax      >StartupArgumentState,y ; select startup argument state
                     stx       $04,s     ; store x in the current stack frame at $04,s
-                    bra       EmitDecimalDigits ; continue with emit decimal digits
+                    bra       EmitDecimalDigits ; resume emit decimal digits
 AdvanceDecimalDigit ldd       ,s        ; recover
                     addd      #1        ; add to d using #1
                     std       ,s        ; store d in the current stack frame at ,s
 SubtractDecimalPlace ldd       $0C,s     ; read the relevant word from the active stack frame
                     subd      [<$04,s]  ; subtract from d using [<$04,s]
                     std       $0C,s     ; store d in the current stack frame at $0C,s
-                    bge       AdvanceDecimalDigit ; continue with advance decimal digit at or above the signed limit
+                    bge       AdvanceDecimalDigit ; signed comparison reached its upper case: advance decimal digit
                     ldd       $0C,s     ; read the relevant word from the active stack frame
                     addd      [<$04,s]  ; add to d using [<$04,s]
                     std       $0C,s     ; store d in the current stack frame at $0C,s
                     ldd       ,s        ; recover
-                    beq       MarkDecimalStarted ; select mark decimal started when the requested case matches
+                    beq       MarkDecimalStarted ; zero result: mark decimal started
                     ldd       #1        ; initialize $02 to 1
                     std       $02,s     ; store d in the current stack frame at $02,s
 MarkDecimalStarted  ldd       $02,s     ; read the relevant word from the active stack frame
-                    beq       AdvanceDecimalDivisor ; select advance decimal divisor when the requested case matches
+                    beq       AdvanceDecimalDivisor ; zero result: advance decimal divisor
                     ldd       ,s        ; recover
                     addd      #48       ; add to d using #48
                     stb       ,u+       ; retain
@@ -4670,7 +4674,7 @@ AdvanceDecimalDivisor clra                ; select standard input
                     std       $04,s     ; store d in the current stack frame at $04,s
 EmitDecimalDigits   ldd       $04,s     ; read the relevant word from the active stack frame
                     cmpd      >StartupParameterLength,y ; test against startup parameter length
-                    bne       SubtractDecimalPlace ; select subtract decimal place when the requested case does not match
+                    bne       SubtractDecimalPlace ; nonzero result: subtract decimal place
                     ldd       $0C,s     ; read the relevant word from the active stack frame
                     addd      #48       ; add to d using #48
                     stb       ,u+       ; retain
@@ -4697,8 +4701,8 @@ ExtractOctalDigit   ldd       $06,s     ; read the relevant word from the active
                     lsra                ; shift a right logically
                     rorb                ; rotate b right through carry
                     std       $06,s     ; store d in the current stack frame at $06,s
-                    bne       ExtractOctalDigit ; select extract octal digit when the requested case does not match
-                    bra       ReverseOctalDigits ; continue with reverse octal digits
+                    bne       ExtractOctalDigit ; nonzero result: extract octal digit
+                    bra       ReverseOctalDigits ; resume reverse octal digits
 CopyOctalDigit      ldb       StreamCursorHigh,u ; recover stream cursor high
                     ldx       ,s        ; recover
                     leax      $01,x     ; select $01
@@ -4729,12 +4733,12 @@ ExtractHexDigit     ldd       $08,s     ; read the relevant word from the active
                     cmpd      #9        ; test against #9
                     ble       UseNumericHexDigit ; continue at UseNumericHexDigit when the signed bound test succeeds
                     ldd       $0C,s     ; read the relevant word from the active stack frame
-                    beq       UseLowercaseHexBase ; select use lowercase hex base when the requested case matches
+                    beq       UseLowercaseHexBase ; zero result: use lowercase hex base
                     ldd       #65       ; prepare constant 65 for the surrounding operation
-                    bra       AdjustHexAlphabeticDigit ; continue with adjust hex alphabetic digit
+                    bra       AdjustHexAlphabeticDigit ; resume adjust hex alphabetic digit
 UseLowercaseHexBase ldd       #97       ; prepare constant 97 for the surrounding operation
 AdjustHexAlphabeticDigit addd      #-10      ; add to d using #-10
-                    bra       StoreHexDigit ; continue with store hex digit
+                    bra       StoreHexDigit ; resume store hex digit
 UseNumericHexDigit  ldd       #48       ; recognize or generate ASCII zero
 StoreHexDigit       addd      ,s++      ; add to d using ,s++
                     stb       ,u+       ; retain
@@ -4749,8 +4753,8 @@ StoreHexDigit       addd      ,s++      ; add to d using ,s++
                     rorb                ; rotate b right through carry
                     anda      #15       ; mask a using #15
                     std       $08,s     ; store d in the current stack frame at $08,s
-                    bne       ExtractHexDigit ; select extract hex digit when the requested case does not match
-                    bra       ReverseHexDigits ; continue with reverse hex digits
+                    bne       ExtractHexDigit ; nonzero result: extract hex digit
+                    bra       ReverseHexDigits ; resume reverse hex digits
 CopyHexDigit        ldb       StreamCursorHigh,u ; recover stream cursor high
                     ldx       $02,s     ; read the relevant word from the active stack frame
                     leax      $01,x     ; select $01
@@ -4766,41 +4770,41 @@ ReverseHexDigits    leau      -$01,u    ; select -$01
                     stb       [<$02,s]  ; store b in the current stack frame at [<$02,s]
                     leax      >DecimalConversionBuffer,y ; select decimal conversion buffer
                     tfr       x,d       ; transfer x,d
-                    lbra      FinishFieldWriter ; continue with finish field writer
+                    lbra      FinishFieldWriter ; resume finish field writer
 WritePaddedField    pshs      u         ; preserve the caller data base
                     ldu       $06,s     ; read the relevant word from the active stack frame
                     ldd       $0A,s     ; read the relevant word from the active stack frame
                     subd      $08,s     ; subtract from d using $08,s
                     std       $0A,s     ; store d in the current stack frame at $0A,s
                     ldd       >RuntimeFormatFlags,y ; recover runtime format flags
-                    bne       EmitFieldBytes ; select emit field bytes when the requested case does not match
-                    bra       EmitLeadingPadding ; continue with emit leading padding
+                    bne       EmitFieldBytes ; nonzero result: emit field bytes
+                    bra       EmitLeadingPadding ; resume emit leading padding
 ReturnAfterLeadingPad ldd       >RuntimeFormatLength,y ; recover runtime format length
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    jsr       [<$06,s]  ; invoke the callback selected by the runtime descriptor
+                    jsr       [<$06,s]  ; the callback selected by the runtime descriptor
                     leas      $02,s     ; release $02,s bytes of stack state
 EmitLeadingPadding  ldd       $0A,s     ; read the relevant word from the active stack frame
                     addd      #-1       ; add to d using #-1
                     std       $0A,s     ; store d in the current stack frame at $0A,s
                     subd      #-1       ; subtract from d using #-1
                     bgt       ReturnAfterLeadingPad ; continue at ReturnAfterLeadingPad when the signed bound test succeeds
-                    bra       EmitFieldBytes ; continue with emit field bytes
+                    bra       EmitFieldBytes ; resume emit field bytes
 EmitNextFieldByte   ldb       ,u+       ; consume the next byte while emit next field byte
                     sex                 ; sign-extend b into d
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    jsr       [<$06,s]  ; invoke the callback selected by the runtime descriptor
+                    jsr       [<$06,s]  ; the callback selected by the runtime descriptor
                     leas      $02,s     ; release $02,s bytes of stack state
 EmitFieldBytes      ldd       $08,s     ; read the relevant word from the active stack frame
                     addd      #-1       ; add to d using #-1
                     std       $08,s     ; store d in the current stack frame at $08,s
                     subd      #-1       ; subtract from d using #-1
-                    bne       EmitNextFieldByte ; select emit next field byte when the requested case does not match
+                    bne       EmitNextFieldByte ; nonzero result: emit next field byte
                     ldd       >RuntimeFormatFlags,y ; recover runtime format flags
-                    beq       ReturnPaddedField ; select return padded field when the requested case matches
-                    bra       EmitTrailingPadding ; continue with emit trailing padding
+                    beq       ReturnPaddedField ; zero result: return padded field
+                    bra       EmitTrailingPadding ; resume emit trailing padding
 ReturnAfterTrailingPad ldd       >RuntimeFormatLength,y ; recover runtime format length
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    jsr       [<$06,s]  ; invoke the callback selected by the runtime descriptor
+                    jsr       [<$06,s]  ; the callback selected by the runtime descriptor
                     leas      $02,s     ; release $02,s bytes of stack state
 EmitTrailingPadding ldd       $0A,s     ; read the relevant word from the active stack frame
                     addd      #-1       ; add to d using #-1
@@ -4813,7 +4817,7 @@ WritePaddedString   pshs      u         ; preserve the caller data base
                     ldd       $08,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     pshs      u         ; preserve the caller data base
-                    lbsr      MeasureCString ; invoke measure cstring
+                    lbsr      MeasureCString ; measure cstring
                     leas      $02,s     ; release $02,s bytes of stack state
                     nega                ; negate a
                     negb                ; negate b
@@ -4821,31 +4825,31 @@ WritePaddedString   pshs      u         ; preserve the caller data base
                     addd      ,s++      ; add to d using ,s++
                     std       $08,s     ; store d in the current stack frame at $08,s
                     ldd       >RuntimeFormatFlags,y ; recover runtime format flags
-                    bne       EmitStringBytes ; select emit string bytes when the requested case does not match
-                    bra       EmitStringLeadingPadding ; continue with emit string leading padding
+                    bne       EmitStringBytes ; nonzero result: emit string bytes
+                    bra       EmitStringLeadingPadding ; resume emit string leading padding
 ReturnAfterStringLeadingPad ldd       >RuntimeFormatLength,y ; recover runtime format length
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    jsr       [<$06,s]  ; invoke the callback selected by the runtime descriptor
+                    jsr       [<$06,s]  ; the callback selected by the runtime descriptor
                     leas      $02,s     ; release $02,s bytes of stack state
 EmitStringLeadingPadding ldd       $08,s     ; read the relevant word from the active stack frame
                     addd      #-1       ; add to d using #-1
                     std       $08,s     ; store d in the current stack frame at $08,s
                     subd      #-1       ; subtract from d using #-1
                     bgt       ReturnAfterStringLeadingPad ; continue at ReturnAfterStringLeadingPad when the signed bound test succeeds
-                    bra       EmitStringBytes ; continue with emit string bytes
+                    bra       EmitStringBytes ; resume emit string bytes
 EmitNextStringByte  ldb       ,u+       ; consume the next byte while emit next string byte
                     sex                 ; sign-extend b into d
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    jsr       [<$06,s]  ; invoke the callback selected by the runtime descriptor
+                    jsr       [<$06,s]  ; the callback selected by the runtime descriptor
                     leas      $02,s     ; release $02,s bytes of stack state
 EmitStringBytes     ldb       StreamCursorHigh,u ; recover stream cursor high
-                    bne       EmitNextStringByte ; select emit next string byte when the requested case does not match
+                    bne       EmitNextStringByte ; nonzero result: emit next string byte
                     ldd       >RuntimeFormatFlags,y ; recover runtime format flags
-                    beq       ReturnPaddedString ; select return padded string when the requested case matches
-                    bra       EmitStringTrailingPadding ; continue with emit string trailing padding
+                    beq       ReturnPaddedString ; zero result: return padded string
+                    bra       EmitStringTrailingPadding ; resume emit string trailing padding
 ReturnAfterStringTrailingPad ldd       >RuntimeFormatLength,y ; recover runtime format length
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    jsr       [<$06,s]  ; invoke the callback selected by the runtime descriptor
+                    jsr       [<$06,s]  ; the callback selected by the runtime descriptor
                     leas      $02,s     ; release $02,s bytes of stack state
 EmitStringTrailingPadding ldd       $08,s     ; read the relevant word from the active stack frame
                     addd      #-1       ; add to d using #-1
@@ -4858,7 +4862,7 @@ FormatSignedValue   pshs      u         ; preserve the caller data base
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ReadStreamCharacter ; invoke read stream character
+                    lbsr      ReadStreamCharacter ; read stream character
 FinishFieldWriter   leas      $04,s     ; release $04,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
 FormatPositiveValue pshs      u         ; preserve the caller data base
@@ -4876,19 +4880,19 @@ ReadStreamCharacter pshs      u         ; preserve the caller data base
                     anda      #128      ; mask a using #128
                     andb      #34       ; mask b using #34
                     cmpd      #-32766   ; test against #-32766
-                    beq       UseUnbufferedStreamByte ; select use unbuffered stream byte when the requested case matches
+                    beq       UseUnbufferedStreamByte ; zero result: use unbuffered stream byte
                     ldd       StreamFlagsHigh,u ; recover stream flags high
                     clra                ; select standard input
                     andb      #34       ; mask b using #34
                     cmpd      #2        ; test against #2
-                    lbne      RejectFlushRequest ; select reject flush request when the requested case does not match
+                    lbne      RejectFlushRequest ; nonzero result: reject flush request
                     pshs      u         ; preserve the caller data base
-                    lbsr      InitializeStreamBuffer ; invoke initialize stream buffer
+                    lbsr      InitializeStreamBuffer ; attach storage appropriate for the stream mode
                     leas      $02,s     ; release $02,s bytes of stack state
 UseUnbufferedStreamByte ldd       StreamFlagsHigh,u ; recover stream flags high
                     clra                ; select standard input
                     andb      #4        ; mask b using #4
-                    beq       UseBufferedStreamByte ; select use buffered stream byte when the requested case matches
+                    beq       UseBufferedStreamByte ; zero result: use buffered stream byte
                     ldd       #1        ; prepare constant 1 for the surrounding operation
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leax      $07,s     ; select $07
@@ -4898,27 +4902,27 @@ UseUnbufferedStreamByte ldd       StreamFlagsHigh,u ; recover stream flags high
                     ldd       StreamFlagsHigh,u ; recover stream flags high
                     clra                ; select standard input
                     andb      #64       ; mask b using #64
-                    beq       UseWriteCallback ; select use write callback when the requested case matches
+                    beq       UseWriteCallback ; zero result: use write callback
                     leax      >writln,pc ; select writln
-                    bra       SaveWriteCallback ; continue with save write callback
+                    bra       SaveWriteCallback ; resume save write callback
 UseWriteCallback    leax      >write,pc ; select write
 SaveWriteCallback   tfr       x,d       ; transfer x,d
                     tfr       d,x       ; transfer d,x
-                    jsr       ,x        ; invoke the callback selected by the runtime descriptor
+                    jsr       ,x        ; the callback selected by the runtime descriptor
                     leas      $06,s     ; release $06,s bytes of stack state
                     cmpd      #-1       ; test against #-1
-                    bne       ReturnStreamCharacter ; select return stream character when the requested case does not match
+                    bne       ReturnStreamCharacter ; nonzero result: return stream character
                     ldd       StreamFlagsHigh,u ; recover stream flags high
                     orb       #32       ; set selected bits in b using #32
                     std       StreamFlagsHigh,u ; retain stream flags high
-                    lbra      RejectFlushRequest ; continue with reject flush request
+                    lbra      RejectFlushRequest ; resume reject flush request
 UseBufferedStreamByte ldd       StreamFlagsHigh,u ; recover stream flags high
                     anda      #1        ; mask a using #1
                     clrb                ; clear the byte accumulator for counting
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    bne       UseReadCallback ; select use read callback when the requested case does not match
+                    bne       UseReadCallback ; nonzero result: use read callback
                     pshs      u         ; preserve the caller data base
-                    lbsr      FlushBufferedStream ; invoke flush buffered stream
+                    lbsr      FlushBufferedStream ; flush buffered stream
                     leas      $02,s     ; release $02,s bytes of stack state
 UseReadCallback     ldd       StreamCursorHigh,u ; recover stream cursor high
                     addd      #1        ; add to d using #1
@@ -4933,14 +4937,14 @@ UseReadCallback     ldd       StreamCursorHigh,u ; recover stream cursor high
                     ldd       StreamFlagsHigh,u ; recover stream flags high
                     clra                ; select standard input
                     andb      #64       ; mask b using #64
-                    beq       ReturnStreamCharacter ; select return stream character when the requested case matches
+                    beq       ReturnStreamCharacter ; zero result: return stream character
                     ldd       $04,s     ; read the relevant word from the active stack frame
                     cmpd      #13       ; test against #13
-                    bne       ReturnStreamCharacter ; select return stream character when the requested case does not match
+                    bne       ReturnStreamCharacter ; nonzero result: return stream character
 RetryStreamRead     pshs      u         ; preserve the caller data base
-                    lbsr      FlushBufferedStream ; invoke flush buffered stream
+                    lbsr      FlushBufferedStream ; flush buffered stream
                     std       ,s++      ; store d in the current stack frame at ,s++
-                    lbne      RejectFlushRequest ; select reject flush request when the requested case does not match
+                    lbne      RejectFlushRequest ; nonzero result: reject flush request
 ReturnStreamCharacter ldd       $04,s     ; read the relevant word from the active stack frame
                     puls      pc,u      ; restore pc,u and return to the caller
                     pshs      u         ; preserve the caller data base
@@ -4949,32 +4953,32 @@ ReturnStreamCharacter ldd       $04,s     ; read the relevant word from the acti
                     pshs      d         ; pass or retain this word through the compiler ABI
                     pshs      u         ; preserve the caller data base
                     ldd       #8        ; prepare constant 8 for the surrounding operation
-                    lbsr      ClassifyStreamByte ; invoke classify stream byte
+                    lbsr      ClassifyStreamByte ; classify stream byte
                     pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      ReadStreamCharacter ; invoke read stream character
+                    lbsr      ReadStreamCharacter ; read stream character
                     leas      $04,s     ; release $04,s bytes of stack state
                     ldd       $06,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     pshs      u         ; preserve the caller data base
-                    lbsr      ReadStreamCharacter ; invoke read stream character
-                    lbra      ReturnFlushStatus ; continue with return flush status
+                    lbsr      ReadStreamCharacter ; read stream character
+                    lbra      ReturnFlushStatus ; resume return flush status
 DispatchStreamOperation pshs      u,d       ; preserve U and allocate a word-sized slot index
                     leau      >RuntimeIoScratch,y ; select runtime io scratch
                     clra                ; initialize the slot index to zero
                     clrb                ; complete the zero slot index
                     std       ,s        ; retain the index in the local stack word
-                    bra       CheckNextStreamSlot ; continue with branch 096
+                    bra       CheckNextStreamSlot ; resume check next stream slot
 CloseNextStreamSlot tfr       u,d       ; pass the current descriptor address
                     leau      OutputLength,u ; select output length
                     pshs      d         ; pass the descriptor being closed
-                    bsr       CloseStream ; invoke routine 027
+                    bsr       CloseStream ; flush and release the selected stream
                     leas      $02,s     ; release $02,s bytes of stack state
 CheckNextStreamSlot ldd       ,s        ; recover
                     addd      #1        ; prepare the following index
                     std       ,s        ; retain it for the next iteration
                     subd      #1        ; restore the index being tested now
                     cmpd      #16       ; test against #16
-                    blt       CloseNextStreamSlot ; continue with close next stream slot below the signed limit
+                    blt       CloseNextStreamSlot ; signed comparison remains below its limit: close next stream slot
                     lbra      StreamOperationDone ; return through the shared stream epilogue
 CloseStream         pshs      u         ; preserve the caller's descriptor register
                     ldu       $04,s     ; read the relevant word from the active stack frame
@@ -4990,15 +4994,15 @@ CloseActiveStream   ldd       StreamFlagsHigh,u ; recover stream flags high
                     andb      #2        ; mask b using #2
                     beq       SkipCloseFlush ; read-only streams have no pending output
                     pshs      u         ; flush pending output before releasing the path
-                    bsr       FlushStream ; invoke routine 028
+                    bsr       FlushStream ; commit any pending stream output
                     leas      $02,s     ; release $02,s bytes of stack state
-                    bra       CloseUnderlyingPath ; continue with branch 102
+                    bra       CloseUnderlyingPath ; resume close underlying path
 SkipCloseFlush      clra                ; prepare a successful zero result
                     clrb                ; a read-only stream has no write error to report
 CloseUnderlyingPath std       ,s        ; preserve the flush result across I$Close
                     ldd       StreamPathHigh,u ; recover stream path high
                     pshs      d         ; release the underlying OS-9 path
-                    lbsr      close     ; invoke close
+                    lbsr      close     ; close the selected runtime stream
                     leas      $02,s     ; release $02,s bytes of stack state
                     clra                ; clear the descriptor flags as a word
                     clrb                ; mark the table entry inactive
@@ -5007,24 +5011,24 @@ CloseUnderlyingPath std       ,s        ; preserve the flush result across I$Clo
                     bra       StreamOperationDone ; return the saved flush result
 FlushStream         pshs      u         ; preserve the caller's descriptor register
                     ldu       $04,s     ; read the relevant word from the active stack frame
-                    beq       RejectFlushRequest ; select branch 103 when the requested case matches
+                    beq       RejectFlushRequest ; zero result: reject flush request
                     ldd       StreamFlagsHigh,u ; recover stream flags high
                     clra                ; ignore high-byte orientation state
                     andb      #34       ; mask b using #34
                     cmpd      #2        ; test against #2
-                    beq       PrepareStreamFlush ; select branch 104 when the requested case matches
+                    beq       PrepareStreamFlush ; zero result: prepare stream flush
 RejectFlushRequest  ldd       #-1       ; prepare constant -1 for the surrounding operation
                     puls      pc,u      ; reject null, read-only, or failed streams
 PrepareStreamFlush  ldd       StreamFlagsHigh,u ; recover stream flags high
                     anda      #128      ; mask a using #128
                     clrb                ; form a word-sized initialization test
                     std       -$02,s    ; use the compiler spill slot only for the flag test
-                    bne       FlushAssignedBuffer ; select branch 105 when the requested case does not match
+                    bne       FlushAssignedBuffer ; nonzero result: flush assigned buffer
                     pshs      u         ; pass the descriptor to lazy initialization
-                    lbsr      InitializeStreamBuffer ; invoke routine 030
+                    lbsr      InitializeStreamBuffer ; attach a buffer suited to the underlying path
                     leas      $02,s     ; release $02,s bytes of stack state
 FlushAssignedBuffer pshs      u         ; pass the prepared descriptor to the buffer flusher
-                    bsr       FlushBufferedStream ; invoke routine 031
+                    bsr       FlushBufferedStream ; commit buffered bytes to the underlying path
 StreamOperationDone leas      $02,s     ; release $02,s bytes of stack state
                     puls      pc,u      ; restore U and return the operation status
 FlushBufferedStream pshs      u         ; preserve the caller's descriptor register
@@ -5034,15 +5038,15 @@ FlushBufferedStream pshs      u         ; preserve the caller's descriptor regis
                     anda      #1        ; mask a using #1
                     clrb                ; complete the word-sized orientation test
                     std       -$02,s    ; spill the test value below the compiler frame
-                    bne       ComputePendingOutput ; select branch 106 when the requested case does not match
+                    bne       ComputePendingOutput ; nonzero result: compute pending output
                     ldd       StreamCursorHigh,u ; recover stream cursor high
                     cmpd      StreamBufferEndHigh,u ; test against stream buffer end high
-                    beq       ComputePendingOutput ; select branch 106 when the requested case matches
+                    beq       ComputePendingOutput ; zero result: compute pending output
                     clra                ; build a zero position-query argument
                     clrb                ; complete the zero word
                     pshs      d         ; request the runtime's current logical position
                     pshs      u         ; pass the descriptor to the position hook
-                    lbsr      NoOpStreamPositionHook ; invoke routine 032
+                    lbsr      NoOpStreamPositionHook ; preserve the runtime stream-position hook contract
                     leas      $02,s     ; release $02,s bytes of stack state
                     ldd       $02,x     ; read the relevant word from the active stack frame
                     pshs      d         ; pass the returned low position word
@@ -5050,7 +5054,7 @@ FlushBufferedStream pshs      u         ; preserve the caller's descriptor regis
                     pshs      d         ; pass the returned high position word
                     ldd       StreamPathHigh,u ; recover stream path high
                     pshs      d         ; pass the path number
-                    lbsr      SeekPath  ; invoke routine 033
+                    lbsr      SeekPath  ; move the selected path to the computed file position
                     leas      $08,s     ; release $08,s bytes of stack state
 ComputePendingOutput ldd       StreamCursorHigh,u ; recover stream cursor high
                     subd      StreamBufferStartHigh,u ; subtract from d using StreamBufferStartHigh,u
@@ -5073,13 +5077,13 @@ WriteNextLineFragment ldd       $02,s     ; read the relevant word from the acti
                     pshs      d         ; pass the first unwritten byte
                     ldd       StreamPathHigh,u ; recover stream path high
                     pshs      d         ; pass it to the line-write wrapper
-                    lbsr      writln    ; invoke writln
+                    lbsr      writln    ; writln
                     leas      $06,s     ; release $06,s bytes of stack state
                     std       ,s        ; retain the number written or -1
                     cmpd      #-1       ; test against #-1
-                    bne       AdvanceAfterLineWrite ; select branch 111 when the requested case does not match
+                    bne       AdvanceAfterLineWrite ; nonzero result: advance after line write
                     leax      $04,s     ; preserve the compiler's error-frame restoration
-                    bra       RestoreFailedWriteFrame ; continue with branch 112
+                    bra       RestoreFailedWriteFrame ; resume restore failed write frame
 AdvanceAfterLineWrite ldd       $02,s     ; read the relevant word from the active stack frame
                     subd      ,s        ; remove the completed portion from the remainder
                     std       $02,s     ; retain the reduced count
@@ -5087,7 +5091,7 @@ AdvanceAfterLineWrite ldd       $02,s     ; read the relevant word from the acti
                     addd      ,s        ; advance to the next unwritten byte
 UpdateWriteCursor   std       StreamCursorHigh,u ; retain stream cursor high
                     ldd       $02,s     ; read the relevant word from the active stack frame
-                    bne       WriteNextLineFragment ; select branch 110 when the requested case does not match
+                    bne       WriteNextLineFragment ; nonzero result: write next line fragment
                     bra       ResetFlushedStream ; all line fragments reached OS-9
 WriteBlockBuffer    ldd       $02,s     ; read the relevant word from the active stack frame
                     pshs      d         ; write the entire pending block in one call
@@ -5095,11 +5099,11 @@ WriteBlockBuffer    ldd       $02,s     ; read the relevant word from the active
                     pshs      d         ; pass the source address
                     ldd       StreamPathHigh,u ; recover stream path high
                     pshs      d         ; pass the path number
-                    lbsr      write     ; invoke write
+                    lbsr      write     ; commit the requested bytes through the runtime stream
                     leas      $06,s     ; release $06,s bytes of stack state
                     cmpd      $02,s     ; test against $02
                     beq       ResetFlushedStream ; accept only a complete block write
-                    bra       MarkStreamWriteError ; continue with branch 113
+                    bra       MarkStreamWriteError ; resume mark stream write error
 RestoreFailedWriteFrame leas      -$04,x    ; allocate $04,x bytes of stack state
 MarkStreamWriteError ldd       StreamFlagsHigh,u ; recover stream flags high
                     orb       #32       ; set selected bits in b using #32
@@ -5126,7 +5130,7 @@ InitializeStreamBuffer pshs      u         ; preserve the caller data base
                     ldd       StreamFlagsHigh,u ; recover stream flags high
                     clra                ; widen the byte to a positive compiler integer
                     andb      #192      ; mask b using #192
-                    bne       BufferingModeSelected ; select branch 115 when the requested case does not match
+                    bne       BufferingModeSelected ; nonzero result: buffering mode selected
                     leas      -$20,s    ; allocate $20,s bytes of stack state
                     leax      ,s        ; point X at its first byte
                     pshs      x         ; pass the option-table destination
@@ -5135,14 +5139,14 @@ InitializeStreamBuffer pshs      u         ; preserve the caller data base
                     clra                ; request base option status code zero
                     clrb                ; complete selector zero
                     pshs      d         ; request the path's base option status
-                    lbsr      GetPathStatus ; invoke routine 036
+                    lbsr      GetPathStatus ; read the requested OS-9 path status
                     leas      $06,s     ; release $06,s bytes of stack state
                     ldd       StreamFlagsHigh,u ; recover stream flags high
                     pshs      d         ; preserve existing state during policy selection
                     ldb       $02,s     ; device type zero identifies an SCF-style terminal
-                    bne       SelectFullBuffering ; select branch 116 when the requested case does not match
+                    bne       SelectFullBuffering ; nonzero result: select full buffering
                     ldd       #64       ; prepare constant 64 for the surrounding operation
-                    bra       SaveBufferingMode ; continue with branch 117
+                    bra       SaveBufferingMode ; resume save buffering mode
 SelectFullBuffering ldd       #128      ; initialize stream flags high to 128
 SaveBufferingMode   ora       ,s+       ; set selected bits in a using ,s+
                     orb       ,s+       ; set selected bits in b using ,s+
@@ -5156,24 +5160,24 @@ BufferingModeSelected ldd       StreamFlagsHigh,u ; recover stream flags high
                     beq       ChooseBufferSize ; allocate only when no storage exists
                     puls      pc,u      ; an existing buffer configuration is ready
 ChooseBufferSize    ldd       StreamBufferSize,u ; recover stream buffer size
-                    bne       EnsureBufferStorage ; select branch 119 when the requested case does not match
+                    bne       EnsureBufferStorage ; nonzero result: ensure buffer storage
                     ldd       StreamFlagsHigh,u ; recover stream flags high
                     clra                ; inspect the low-byte line flag
                     andb      #64       ; mask b using #64
-                    beq       ChooseBlockBufferSize ; select branch 120 when the requested case matches
+                    beq       ChooseBlockBufferSize ; zero result: choose block buffer size
                     ldd       #128      ; initialize stream buffer size to 128
-                    bra       SaveDefaultBufferSize ; continue with branch 121
+                    bra       SaveDefaultBufferSize ; resume save default buffer size
 ChooseBlockBufferSize ldd       #256      ; initialize stream buffer size to 256
 SaveDefaultBufferSize std       StreamBufferSize,u ; retain stream buffer size
 EnsureBufferStorage ldd       StreamBufferStartHigh,u ; recover stream buffer start high
-                    bne       MarkBufferAvailable ; select branch 122 when the requested case does not match
+                    bne       MarkBufferAvailable ; nonzero result: mark buffer available
                     ldd       StreamBufferSize,u ; recover stream buffer size
                     pshs      d         ; pass the allocation size
-                    lbsr      ExitRuntime ; invoke exit runtime
+                    lbsr      ExitRuntime ; exit runtime
                     leas      $02,s     ; release $02,s bytes of stack state
                     std       StreamBufferStartHigh,u ; retain stream buffer start high
                     cmpd      #-1       ; test against #-1
-                    beq       UseFallbackByteBuffer ; select branch 123 when the requested case matches
+                    beq       UseFallbackByteBuffer ; zero result: use fallback byte buffer
 MarkBufferAvailable ldd       StreamFlagsHigh,u ; recover stream flags high
                     orb       #8        ; set selected bits in b using #8
                     std       StreamFlagsHigh,u ; retain stream flags high
@@ -5194,24 +5198,24 @@ SelectIntegerArgument pshs      u         ; preserve the caller data base
                     ldb       $05,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
                     tfr       d,x       ; transfer d,x
-                    bra       ClassifyIntegerConversion ; continue with classify integer conversion
+                    bra       ClassifyIntegerConversion ; resume classify integer conversion
 FetchLongIntegerArgument ldd       [<$06,s]  ; recover [<$06
                     addd      #4        ; add to d using #4
                     std       [<$06,s]  ; store d in the current stack frame at [<$06,s]
                     leax      >DefaultStreamByte,pc ; select default stream byte
-                    bra       ReturnIntegerArgument ; continue with return integer argument
+                    bra       ReturnIntegerArgument ; resume return integer argument
 UseByteIntegerArgument ldb       $05,s     ; read the relevant word from the active stack frame
                     stb       >RuntimeHeapLimit,y ; retain runtime heap limit
                     leax      >RuntimeErrorCode,y ; select runtime error code
 ReturnIntegerArgument tfr       x,d       ; transfer x,d
                     puls      pc,u      ; restore pc,u and return to the caller
 ClassifyIntegerConversion cmpx      #100      ; test against #100
-                    beq       FetchLongIntegerArgument ; select fetch long integer argument when the requested case matches
+                    beq       FetchLongIntegerArgument ; zero result: fetch long integer argument
                     cmpx      #111      ; test against #111
-                    lbeq      FetchLongIntegerArgument ; select fetch long integer argument when the requested case matches
+                    lbeq      FetchLongIntegerArgument ; zero result: fetch long integer argument
                     cmpx      #120      ; test against #120
-                    lbeq      FetchLongIntegerArgument ; select fetch long integer argument when the requested case matches
-                    bra       UseByteIntegerArgument ; continue with use byte integer argument
+                    lbeq      FetchLongIntegerArgument ; zero result: fetch long integer argument
+                    bra       UseByteIntegerArgument ; resume use byte integer argument
                     puls      pc,u      ; restore pc,u and return to the caller
 DefaultStreamByte   fcb       $00
 ReturnEmptyString   pshs      u         ; preserve the caller data base
@@ -5238,7 +5242,7 @@ CopyCStringByte     ldb       ,u+       ; consume the next byte while copy cstri
                     stx       ,s        ; store x in the current stack frame at ,s
                     stb       -$01,x    ; replace the byte just examined in place
                     bne       CopyCStringByte ; repeat copy cstring byte until the terminating condition is met
-                    bra       ReturnCopiedString ; continue with branch 131
+                    bra       ReturnCopiedString ; resume return copied string
                     pshs      u         ; preserve the caller data base
                     ldu       $06,s     ; read the relevant word from the active stack frame
                     leas      -$02,s    ; allocate $02,s bytes of stack state
@@ -5248,27 +5252,27 @@ FindAppendEnd       ldx       ,s        ; recover
                     leax      $01,x     ; select $01
                     stx       ,s        ; store x in the current stack frame at ,s
                     ldb       -$01,x    ; recover -$01
-                    bne       FindAppendEnd ; select branch 132 when the requested case does not match
+                    bne       FindAppendEnd ; nonzero result: find append end
                     ldd       ,s        ; recover
                     addd      #-1       ; add to d using #-1
                     std       ,s        ; store d in the current stack frame at ,s
-AppendCStringByte   ldb       ,u+       ; consume the next byte while branch 133
+AppendCStringByte   ldb       ,u+       ; consume the next byte in this scan
                     ldx       ,s        ; recover
                     leax      $01,x     ; select $01
                     stx       ,s        ; store x in the current stack frame at ,s
                     stb       -$01,x    ; replace the byte just examined in place
-                    bne       AppendCStringByte ; select branch 133 when the requested case does not match
+                    bne       AppendCStringByte ; nonzero result: append c string byte
 ReturnCopiedString  ldd       $06,s     ; read the relevant word from the active stack frame
                     leas      $02,s     ; release $02,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
                     pshs      u         ; preserve the caller data base
                     ldu       $04,s     ; read the relevant word from the active stack frame
-                    bra       ReadRuntimeFlag ; continue with read runtime flag
+                    bra       ReadRuntimeFlag ; resume read runtime flag
 UseCallerWorkspaceBase ldx       $06,s     ; read the relevant word from the active stack frame
                     leax      $01,x     ; select $01
                     stx       $06,s     ; store x in the current stack frame at $06,s
                     ldb       -$01,x    ; recover -$01
-                    bne       SelectRuntimeDataBase ; select select runtime data base when the requested case does not match
+                    bne       SelectRuntimeDataBase ; nonzero result: select runtime data base
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     puls      pc,u      ; restore pc,u and return to the caller
@@ -5279,7 +5283,7 @@ ReadRuntimeFlag     ldb       StreamCursorHigh,u ; recover stream cursor high
                     ldb       [<$08,s]  ; recover [<$08
                     sex                 ; sign-extend b into d
                     cmpd      ,s++      ; test against
-                    beq       UseCallerWorkspaceBase ; select use caller workspace base when the requested case matches
+                    beq       UseCallerWorkspaceBase ; zero result: use caller workspace base
                     ldb       [<$06,s]  ; recover [<$06
                     sex                 ; sign-extend b into d
                     pshs      d         ; pass or retain this word through the compiler ABI
@@ -5296,36 +5300,36 @@ ScreenCellOffset    pshs      u         ; preserve the caller data base
 SkipLeadingWhitespace ldb       ,u+       ; consume the next byte while skip leading whitespace
                     stb       ,s        ; store b in the current stack frame at ,s
                     cmpb      #32       ; recognize the first printable ASCII value
-                    beq       SkipLeadingWhitespace ; select branch 134 when the requested case matches
+                    beq       SkipLeadingWhitespace ; zero result: skip leading whitespace
                     ldb       ,s        ; recover
                     cmpb      #9        ; prepare constant 9 for the surrounding operation
-                    lbeq      SkipLeadingWhitespace ; select branch 134 when the requested case matches
+                    lbeq      SkipLeadingWhitespace ; zero result: skip leading whitespace
                     ldb       ,s        ; recover
                     cmpb      #45       ; prepare constant 45 for the surrounding operation
-                    bne       PositiveNumber ; select branch 135 when the requested case does not match
+                    bne       PositiveNumber ; nonzero result: positive number
                     ldd       #1        ; initialize $03 to 1
-                    bra       SaveNumericSign ; continue with branch 136
+                    bra       SaveNumericSign ; resume save numeric sign
 PositiveNumber      clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
 SaveNumericSign     std       $03,s     ; store d in the current stack frame at $03,s
                     ldb       ,s        ; recover
                     cmpb      #45       ; prepare constant 45 for the surrounding operation
-                    beq       ConsumeNumericByte ; select branch 137 when the requested case matches
+                    beq       ConsumeNumericByte ; zero result: consume numeric byte
                     ldb       ,s        ; recover
                     cmpb      #43       ; prepare constant 43 for the surrounding operation
-                    bne       TestNumericByte ; select branch 138 when the requested case does not match
-                    bra       ConsumeNumericByte ; continue with branch 137
+                    bne       TestNumericByte ; nonzero result: test numeric byte
+                    bra       ConsumeNumericByte ; resume consume numeric byte
 AccumulateDecimalDigit ldd       $01,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldb       $02,s     ; read the relevant word from the active stack frame
                     sex                 ; sign-extend b into d
                     addd      ,s++      ; add to d using ,s++
                     addd      #-48      ; add to d using #-48
                     std       $01,s     ; store d in the current stack frame at $01,s
-ConsumeNumericByte  ldb       ,u+       ; consume the next byte while branch 137
+ConsumeNumericByte  ldb       ,u+       ; consume the next byte in this scan
                     stb       ,s        ; store b in the current stack frame at ,s
 TestNumericByte     ldb       ,s        ; recover
                     sex                 ; sign-extend b into d
@@ -5334,28 +5338,28 @@ TestNumericByte     ldb       ,s        ; recover
                     ldb       ,x        ; recover
                     clra                ; select standard input
                     andb      #8        ; mask b using #8
-                    bne       AccumulateDecimalDigit ; select branch 139 when the requested case does not match
+                    bne       AccumulateDecimalDigit ; nonzero result: accumulate decimal digit
                     ldd       $03,s     ; read the relevant word from the active stack frame
-                    beq       ReturnPositiveNumber ; select branch 140 when the requested case matches
+                    beq       ReturnPositiveNumber ; zero result: return positive number
                     ldd       $01,s     ; read the relevant word from the active stack frame
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
-                    bra       ReturnParsedNumber ; continue with branch 141
+                    bra       ReturnParsedNumber ; resume return parsed number
 ReturnPositiveNumber ldd       $01,s     ; read the relevant word from the active stack frame
 ReturnParsedNumber  leas      $05,s     ; release $05,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
 PauseEditorMessage  pshs      u         ; preserve the caller data base
                     ldd       $04,s     ; read the relevant word from the active stack frame
-                    beq       AllocateSingleByte ; select allocate single byte when the requested case matches
+                    beq       AllocateSingleByte ; zero result: allocate single byte
                     ldd       $04,s     ; read the relevant word from the active stack frame
                     pshs      d         ; pass or retain this word through the compiler ABI
                     ldd       #10       ; select the line-feed control byte
-                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
-                    bra       PassAllocationSize ; continue with pass allocation size
+                    lbsr      MultiplyUnsignedWords ; form the full-width unsigned product
+                    bra       PassAllocationSize ; resume pass allocation size
 AllocateSingleByte  ldd       #1        ; prepare constant 1 for the surrounding operation
 PassAllocationSize  pshs      d         ; pass or retain this word through the compiler ABI
-                    lbsr      sleep     ; invoke sleep
+                    lbsr      sleep     ; sleep
                     leas      $02,s     ; release $02,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
 MultiplyUnsignedWords tsta                ; set condition codes from a without changing it
@@ -5405,7 +5409,7 @@ AccumulateHighProduct lda       $04,s     ; read the relevant word from the acti
                     clr       >RuntimeFormatPadByte,y ; initialize runtime format pad byte
                     leax      >SignedRemainder,pc ; select signed remainder
                     stx       >RuntimeStreamIndex,y ; retain runtime stream index
-                    bra       RemainderMagnitudeReady ; continue with remainder magnitude ready
+                    bra       RemainderMagnitudeReady ; resume remainder magnitude ready
 UnsignedRemainder   leax      >UnsignedQuotient,pc ; select unsigned quotient
                     stx       >RuntimeStreamIndex,y ; retain runtime stream index
                     clr       >RuntimeFormatPadByte,y ; initialize runtime format pad byte
@@ -5413,36 +5417,36 @@ UnsignedRemainder   leax      >UnsignedQuotient,pc ; select unsigned quotient
                     bpl       RemainderMagnitudeReady ; select remainder magnitude ready from the preceding condition
                     inc       >RuntimeFormatPadByte,y ; increment the value at >RuntimeFormatPadByte,y
 RemainderMagnitudeReady subd      #0        ; subtract from d using #0
-                    bne       DivideNextWord ; select divide next word when the requested case does not match
+                    bne       DivideNextWord ; nonzero result: divide next word
                     puls      x         ; restore x
                     ldd       ,s++      ; recover
                     jmp       ,x        ; dispatch through the selected arithmetic helper
 DivideNextWord      ldx       $02,s     ; read the relevant word from the active stack frame
                     pshs      x         ; pass or retain this pointer through the compiler ABI
-                    jsr       [>$37D0,y] ; invoke the callback selected by the runtime descriptor
+                    jsr       [>$37D0,y] ; the callback selected by the runtime descriptor
                     ldd       ,s        ; recover
                     std       $02,s     ; store d in the current stack frame at $02,s
                     tfr       x,d       ; transfer x,d
                     tst       >RuntimeFormatPadByte,y ; set condition codes from >RuntimeFormatPadByte,y without changing it
-                    beq       ReturnDivisionResult ; select return division result when the requested case matches
+                    beq       ReturnDivisionResult ; zero result: return division result
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
 ReturnDivisionResult std       ,s++      ; store d in the current stack frame at ,s++
                     rts                 ; return to the caller
 SignedRemainder     subd      #0        ; subtract from d using #0
-                    beq       RestoreDivisionDividend ; select restore division dividend when the requested case matches
+                    beq       RestoreDivisionDividend ; zero result: restore division dividend
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leas      -$02,s    ; allocate $02,s bytes of stack state
                     clr       ,s        ; initialize
                     clr       $01,s     ; initialize $01
-                    bra       StartDivisionBitScan ; continue with start division bit scan
+                    bra       StartDivisionBitScan ; resume start division bit scan
 RestoreDivisionDividend puls      d         ; restore d
                     std       ,s        ; store d in the current stack frame at ,s
                     ldd       #45       ; prepare constant 45 for the surrounding operation
-                    lbra      send      ; continue with send
+                    lbra      send      ; resume send
 UnsignedQuotient    subd      #0        ; subtract from d using #0
-                    beq       RestoreDivisionDividend ; select restore division dividend when the requested case matches
+                    beq       RestoreDivisionDividend ; zero result: restore division dividend
                     pshs      d         ; pass or retain this word through the compiler ABI
                     leas      -$02,s    ; allocate $02,s bytes of stack state
                     clr       ,s        ; initialize
@@ -5474,14 +5478,14 @@ SubtractTrialDivisor subd      $02,s     ; subtract from d using $02,s
                     bcc       SetDivisionQuotientBit ; select set division quotient bit when carry remains clear
                     addd      $02,s     ; add to d using $02,s
                     andcc     #254      ; clear selected condition-code bits using #254
-                    bra       RotateDivisionQuotient ; continue with rotate division quotient
+                    bra       RotateDivisionQuotient ; resume rotate division quotient
 SetDivisionQuotientBit orcc      #1        ; set selected condition-code bits using #1
 RotateDivisionQuotient rol       $07,s     ; rotate left through carry the value at $07,s
                     rol       $06,s     ; rotate left through carry the value at $06,s
                     lsr       $02,s     ; shift right logically the value at $02,s
                     ror       $03,s     ; rotate right through carry the value at $03,s
                     dec       ,s        ; consume one
-                    bne       SubtractTrialDivisor ; select subtract trial divisor when the requested case does not match
+                    bne       SubtractTrialDivisor ; nonzero result: subtract trial divisor
                     std       $02,s     ; store d in the current stack frame at $02,s
                     tst       $01,s     ; set condition codes from $01,s without changing it
                     beq       ShiftDivisionDividend ; enter shift division dividend when the terminating condition is met
@@ -5499,14 +5503,14 @@ ShiftDivisionDividend ldx       $04,s     ; read the relevant word from the acti
                     leas      $06,s     ; release $06,s bytes of stack state
                     rts                 ; return to the caller
                     tstb                ; set condition codes from b without changing it
-                    beq       DivisionShiftComplete ; select division shift complete when the requested case matches
+                    beq       DivisionShiftComplete ; zero result: division shift complete
 ShiftDividendRight  asr       $02,s     ; shift right arithmetically the value at $02,s
                     ror       $03,s     ; rotate right through carry the value at $03,s
                     decb                ; decrement b
                     bne       ShiftDividendRight ; repeat shift dividend right until the terminating condition is met
-                    bra       DivisionShiftComplete ; continue with division shift complete
+                    bra       DivisionShiftComplete ; resume division shift complete
 ClassifyStreamByte  tstb                ; set condition codes from b without changing it
-                    beq       DivisionShiftComplete ; select division shift complete when the requested case matches
+                    beq       DivisionShiftComplete ; zero result: division shift complete
 ShiftUnsignedDividend lsr       $02,s     ; shift right logically the value at $02,s
                     ror       $03,s     ; rotate right through carry the value at $03,s
                     decb                ; decrement b
@@ -5519,12 +5523,12 @@ DivisionShiftComplete ldd       $02,s     ; read the relevant word from the acti
                     leas      $04,s     ; release $04,s bytes of stack state
                     rts                 ; return to the caller
                     tstb                ; set condition codes from b without changing it
-                    beq       DivisionShiftComplete ; select division shift complete when the requested case matches
+                    beq       DivisionShiftComplete ; zero result: division shift complete
 ShiftDividendLeft   asl       $03,s     ; shift left the value at $03,s
                     rol       $02,s     ; rotate left through carry the value at $02,s
                     decb                ; decrement b
                     bne       ShiftDividendLeft ; repeat shift dividend left until the terminating condition is met
-                    bra       DivisionShiftComplete ; continue with division shift complete
+                    bra       DivisionShiftComplete ; resume division shift complete
 send                std       >LastIoError,y ; retain last io error
                     pshs      y,b       ; save y,b on the stack
                     os9       F$ID      ; retrieve the current process and user IDs
@@ -5535,13 +5539,13 @@ GetPathStatus       lda       $05,s     ; select the OS-9 path number
                     ldb       $03,s     ; dispatch on the requested GetStat selector
                     beq       GetStatusIntoBuffer ; selector zero fills an option table at X
                     cmpb      #1        ; selector one returns register-only status
-                    beq       GetRegisterPathStatus ; select branch 146 when the requested case matches
+                    beq       GetRegisterPathStatus ; zero result: get register path status
                     cmpb      #6        ; selector six also needs no result-buffer translation
-                    beq       GetRegisterPathStatus ; select branch 146 when the requested case matches
+                    beq       GetRegisterPathStatus ; zero result: get register path status
                     cmpb      #2        ; prepare constant 2 for the surrounding operation
-                    beq       GetLongPathStatus ; select get long path status when the requested case matches
+                    beq       GetLongPathStatus ; zero result: get long path status
                     cmpb      #5        ; prepare constant 5 for the surrounding operation
-                    beq       GetLongPathStatus ; select get long path status when the requested case matches
+                    beq       GetLongPathStatus ; zero result: get long path status
                     ldb       #208      ; select status operation 208
                     lbra      StoreRuntimeError ; continue at store runtime error
 GetLongPathStatus   pshs      u         ; preserve the compiler workspace register
@@ -5558,29 +5562,29 @@ StoreLongStatusResult stx       [<$08,s]  ; store x in the current stack frame a
                     rts                 ; return the completed result to the caller
 GetStatusIntoBuffer ldx       $06,s     ; supply the caller's option-table buffer
 GetRegisterPathStatus os9       I$GetStt  ; query the selected path status
-                    lbra      ReturnOsResult ; continue with branch 150
+                    lbra      ReturnOsResult ; resume return os result
 SetPathStatus       lda       $05,s     ; read the relevant word from the active stack frame
                     ldb       $03,s     ; read the relevant word from the active stack frame
-                    beq       SetOptionBuffer ; select branch 209 when the requested case matches
+                    beq       SetOptionBuffer ; zero result: set option buffer
                     cmpb      #2        ; prepare constant 2 for the surrounding operation
-                    beq       SetLongPathStatus ; select branch 210 when the requested case matches
+                    beq       SetLongPathStatus ; zero result: set long path status
                     ldb       #208      ; select status operation 208
-                    lbra      StoreRuntimeError ; continue with store runtime error
+                    lbra      StoreRuntimeError ; resume store runtime error
 SetOptionBuffer     ldx       $06,s     ; read the relevant word from the active stack frame
                     os9       I$SetStt  ; apply the selected path status operation
-                    lbra      ReturnOsResult ; continue with return os result
+                    lbra      ReturnOsResult ; resume return os result
 SetLongPathStatus   pshs      u         ; preserve the caller data base
                     ldx       $08,s     ; read the relevant word from the active stack frame
                     ldu       $0A,s     ; read the relevant word from the active stack frame
                     os9       I$SetStt  ; apply the selected path status operation
                     puls      u         ; restore u
-                    lbra      ReturnOsResult ; continue with return os result
+                    lbra      ReturnOsResult ; resume return os result
                     ldx       $02,s     ; select the pathname argument
                     lda       $05,s     ; use the low byte of the requested mode
                     os9       I$Open    ; ask OS-9 for a path number
-                    bcs       ReturnExistsResult ; select branch 211 when carry reports an error or underflow
+                    bcs       ReturnExistsResult ; carry reports failure: return exists result
                     os9       I$Close   ; close the selected path
-ReturnExistsResult  lbra      ReturnOsResult ; continue with return os result
+ReturnExistsResult  lbra      ReturnOsResult ; resume return os result
 open                ldx       $02,s     ; read the relevant word from the active stack frame
                     lda       $05,s     ; read the relevant word from the active stack frame
                     os9       I$Open    ; open the selected OS-9 path
@@ -5590,23 +5594,23 @@ open                ldx       $02,s     ; read the relevant word from the active
                     rts                 ; return the completed result to the caller
 close               lda       $03,s     ; select the path argument
                     os9       I$Close   ; flush and release the OS-9 path
-                    lbra      ReturnOsResult ; continue with branch 150
+                    lbra      ReturnOsResult ; resume return os result
                     ldx       $02,s     ; read the relevant word from the active stack frame
                     ldb       $05,s     ; read the relevant word from the active stack frame
                     os9       I$MakDir  ; create the directory named at X
-                    lbra      ReturnOsResult ; continue with branch 150
+                    lbra      ReturnOsResult ; resume return os result
 creat               ldx       $02,s     ; select the pathname argument
                     lda       $05,s     ; recover the compiler open/create mode
                     tfr       a,b       ; derive OS-9 file attributes from that mode
                     andb      #36       ; mask b using #36
                     orb       #11       ; set selected bits in b using #11
                     os9       I$Create  ; create a new file and return its path
-                    bcs       ReopenExistingForTruncate ; select branch 212 when carry reports an error or underflow
+                    bcs       ReopenExistingForTruncate ; carry reports failure: reopen existing for truncate
 ReturnPathNumber    tfr       a,b       ; place the path number in the low result byte
                     clra                ; return it as a positive compiler integer
                     rts                 ; return the completed result to the caller
 ReopenExistingForTruncate cmpb      #218      ; prepare constant 218 for the surrounding operation
-                    lbne      StoreRuntimeError ; select store runtime error when the requested case does not match
+                    lbne      StoreRuntimeError ; nonzero result: store runtime error
                     lda       $05,s     ; recover the original compiler mode
                     bita      #128      ; test selected bits in a using #128
                     lbne      StoreRuntimeError ; an existing directory is not a truncatable file
@@ -5627,7 +5631,7 @@ ReopenExistingForTruncate cmpb      #218      ; prepare constant 218 for the sur
                     lbra      StoreRuntimeError ; continue at store runtime error
                     ldx       $02,s     ; select the pathname to remove
                     os9       I$Delete  ; delete the path named at X
-                    lbra      ReturnOsResult ; continue with return os result
+                    lbra      ReturnOsResult ; resume return os result
                     lda       $03,s     ; read the relevant word from the active stack frame
                     os9       I$Dup     ; duplicate path A into the next free path number
                     lbcs      StoreRuntimeError ; select store runtime error when carry reports an error or underflow
@@ -5639,7 +5643,7 @@ read                pshs      y         ; preserve the caller's Y
                     lda       $05,s     ; select the OS-9 path number
                     ldy       $08,s     ; supply the requested transfer length
                     pshs      y         ; preserve that length across I$Read
-                    os9       I$Read    ; perform an unstructured byte read
+                    os9       I$Read    ; read one byte without stream buffering
 ReadCompleted       bcc       ReadBytesSucceeded ; continue read bytes succeeded while the range test permits it
                     cmpb      #211      ; recognize the OS-9 end-of-file status
                     bne       ReadBytesFailed ; repeat read bytes failed until the terminating condition is met
@@ -5656,13 +5660,13 @@ readln              pshs      y         ; preserve the caller's Y
                     ldy       $08,s     ; recover the transfer length
                     pshs      y         ; preserve y across the operation
                     os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    bra       ReadCompleted ; continue with read completed
+                    bra       ReadCompleted ; resume read completed
 write               pshs      y         ; preserve y across the operation
                     ldy       $08,s     ; recover the transfer length
-                    beq       ReturnWriteCount ; select branch 151 when the requested case matches
+                    beq       ReturnWriteCount ; zero result: return write count
                     lda       $05,s     ; select the OS-9 path number
                     ldx       $06,s     ; select the source buffer
-                    os9       I$Write   ; perform an unstructured byte write
+                    os9       I$Write   ; write one byte without stream buffering
 FinishWrite         bcc       ReturnWriteCount ; select return write count when carry remains clear
                     puls      y         ; restore Y before the shared error path
                     lbra      StoreRuntimeError ; save B and return -1
@@ -5670,21 +5674,21 @@ ReturnWriteCount    tfr       y,d       ; return the actual transfer count
                     puls      pc,y      ; preserve the flags or register state required by the following operation
 writln              pshs      y         ; preserve the caller's Y
                     ldy       $08,s     ; recover the maximum line length
-                    beq       ReturnWriteCount ; select branch 151 when the requested case matches
+                    beq       ReturnWriteCount ; zero result: return write count
                     lda       $05,s     ; select the OS-9 path number
                     ldx       $06,s     ; select the CR-terminated source line
                     os9       I$WritLn  ; write through the first carriage return
                     bra       FinishWrite ; reuse normal/error result conversion
 SeekPath            pshs      u         ; preserve the caller data base
                     ldd       $0A,s     ; read the relevant word from the active stack frame
-                    bne       SelectSeekOrigin ; select branch 153 when the requested case does not match
+                    bne       SelectSeekOrigin ; nonzero result: select seek origin
                     ldu       #0        ; prepare constant 0 for the surrounding operation
                     ldx       #0        ; prepare constant 0 for the surrounding operation
                     bra       ApplySeekOffset ; continue at apply seek offset
 SelectSeekOrigin    cmpd      #1        ; test against #1
-                    beq       SeekRelativeCurrent ; select branch 155 when the requested case matches
+                    beq       SeekRelativeCurrent ; zero result: seek relative current
                     cmpd      #2        ; test against #2
-                    beq       getstat   ; select getstat when the requested case matches
+                    beq       getstat   ; zero result: getstat
                     ldb       #247      ; initialize $01 ad to 247
 SeekFailed          clra                ; widen the OS-9 error to a compiler word
                     std       >LastIoError,y ; retain last io error
@@ -5706,7 +5710,7 @@ ApplySeekOffset     tfr       u,d       ; begin with the base position's low wor
                     addd      $08,s     ; add the requested low offset
                     std       >RuntimeAllocatorState,y ; retain runtime allocator state
                     tfr       d,u       ; supply it to I$Seek
-                    tfr       x,d       ; continue with the base high word
+                    tfr       x,d       ; resume the base high word
                     adcb      $07,s     ; add with carry to b using $07,s
                     adca      $06,s     ; add with carry to a using $06,s
                     bmi       SeekFailed ; select seek failed from the preceding condition
@@ -5721,7 +5725,7 @@ ApplySeekOffset     tfr       u,d       ; begin with the base position's low wor
                     ldx       #0        ; prepare constant 0 for the surrounding operation
                     clrb                ; clear the byte accumulator for counting
                     os9       F$Sleep   ; sleep for the number of ticks in X
-                    lbra      StoreRuntimeError ; continue with store runtime error
+                    lbra      StoreRuntimeError ; resume store runtime error
                     rts                 ; return to the caller
                     pshs      u,y       ; save u,y on the stack
                     ldx       $06,s     ; read the relevant word from the active stack frame
@@ -5799,7 +5803,7 @@ ReturnOsResult      bcs       StoreRuntimeError ; translate a failed OS-9 servic
                     clrb                ; return zero for a successful void-style wrapper
                     rts                 ; return the completed result to the caller
 exit                lbsr      RunExitHook ; allow a linked application cleanup hook
-                    lbsr      DispatchStreamOperation ; invoke dispatch stream operation
+                    lbsr      DispatchStreamOperation ; dispatch stream operation
 _exit               ldd       $02,s     ; read the relevant word from the active stack frame
                     os9       F$Exit    ; terminate with its low byte in B
 RunExitHook         rts                 ; default application cleanup hook does nothing
@@ -5810,16 +5814,16 @@ ReadPortCharacter   lda       $03,s     ; read the relevant word from the active
                     clra                ; select standard input
                     rts                 ; return to the caller
                     ldd       #6944     ; prepare constant 6944 for the surrounding operation
-                    bsr       InvokeEncodedService ; invoke invoke encoded service
+                    bsr       InvokeEncodedService ; call the decoded OS-9 service through its stored address
                     ldb       #9        ; prepare constant 9 for the surrounding operation
                     tst       $05,s     ; set condition codes from $05,s without changing it
                     ble       ExitThroughRuntime ; continue at ExitThroughRuntime when the signed bound test succeeds
                     ldb       #10       ; select the line-feed control byte
-ExitThroughRuntime  lbra      ReturnEncodedServiceResult ; continue with return encoded service result
+ExitThroughRuntime  lbra      ReturnEncodedServiceResult ; resume return encoded service result
 DefineEditorWindow  ldd       #6946     ; prepare constant 6946 for the surrounding operation
-                    bsr       InvokeEncodedService ; invoke invoke encoded service
+                    bsr       InvokeEncodedService ; call the decoded OS-9 service through its stored address
                     ldb       #9        ; initialize  to 9
-                    bra       ExitThroughRuntime ; continue with exit through runtime
+                    bra       ExitThroughRuntime ; resume exit through runtime
 InvokeEncodedService leax      >EncodedServiceAddress,y ; select encoded service address
                     std       ,x++      ; retain
                     lda       $07,s     ; read the relevant word from the active stack frame
@@ -5836,76 +5840,76 @@ InvokeEncodedService leax      >EncodedServiceAddress,y ; select encoded service
                     std       ,x        ; retain
                     rts                 ; return to the caller
                     ldd       #6948     ; prepare constant 6948 for the surrounding operation
-                    bra       SaveEncodedServiceAddress ; continue with save encoded service address
+                    bra       SaveEncodedServiceAddress ; resume save encoded service address
 EndEditorWindow     ldd       #6947     ; initialize encoded service address to 6947
-                    bra       SaveEncodedServiceAddress ; continue with save encoded service address
+                    bra       SaveEncodedServiceAddress ; resume save encoded service address
                     ldd       #6945     ; initialize encoded service address to 6945
 SaveEncodedServiceAddress std       >EncodedServiceAddress,y ; retain encoded service address
                     ldb       #2        ; initialize encoded service address to 2
-                    lbra      ReturnEncodedServiceResult ; continue with return encoded service result
+                    lbra      ReturnEncodedServiceResult ; resume return encoded service result
                     ldd       #6960     ; initialize encoded service address to 6960
                     std       >EncodedServiceAddress,y ; retain encoded service address
                     ldb       #2        ; prepare constant 2 for the surrounding operation
-                    lbra      ReturnEncodedServiceResult ; continue with return encoded service result
+                    lbra      ReturnEncodedServiceResult ; resume return encoded service result
 EmitForegroundColor ldb       #50       ; prepare constant 50 for the surrounding operation
-                    bra       InvokeEncodedEscapeService ; continue with invoke encoded escape service
+                    bra       InvokeEncodedEscapeService ; resume invoke encoded escape service
 EmitBackgroundColor ldb       #51       ; prepare constant 51 for the surrounding operation
-                    bra       InvokeEncodedEscapeService ; continue with invoke encoded escape service
+                    bra       InvokeEncodedEscapeService ; resume invoke encoded escape service
                     ldb       #52       ; initialize encoded service address to 52
-                    bra       InvokeEncodedEscapeService ; continue with invoke encoded escape service
+                    bra       InvokeEncodedEscapeService ; resume invoke encoded escape service
                     ldb       #47       ; initialize encoded service address to 47
 InvokeEncodedEscapeService lda       #27       ; initialize encoded service address to 27
                     std       >EncodedServiceAddress,y ; retain encoded service address
                     ldb       $05,s     ; read the relevant word from the active stack frame
                     stb       >EncodedServiceScratch,y ; retain encoded service scratch
                     ldb       #3        ; prepare constant 3 for the surrounding operation
-                    lbra      ReturnEncodedServiceResult ; continue with return encoded service result
+                    lbra      ReturnEncodedServiceResult ; resume return encoded service result
                     ldb       #1        ; prepare constant 1 for the surrounding operation
-                    bra       SaveEncodedByteService ; continue with save encoded byte service
+                    bra       SaveEncodedByteService ; resume save encoded byte service
                     ldb       #3        ; prepare constant 3 for the surrounding operation
-                    bra       SaveEncodedByteService ; continue with save encoded byte service
+                    bra       SaveEncodedByteService ; resume save encoded byte service
 EmitAnsiCursorHome  ldb       #4        ; prepare constant 4 for the surrounding operation
-                    bra       SaveEncodedByteService ; continue with save encoded byte service
+                    bra       SaveEncodedByteService ; resume save encoded byte service
 ReadAltKey          ldd       #1312     ; prepare constant 1312 for the surrounding operation
-                    bra       SaveEncodedWordService ; continue with save encoded word service
+                    bra       SaveEncodedWordService ; resume save encoded word service
 ReadEditorKey       ldd       #1313     ; prepare constant 1313 for the surrounding operation
-                    bra       SaveEncodedWordService ; continue with save encoded word service
+                    bra       SaveEncodedWordService ; resume save encoded word service
 EmitAnsiCursorUp    ldb       #6        ; prepare constant 6 for the surrounding operation
-                    bra       SaveEncodedByteService ; continue with save encoded byte service
+                    bra       SaveEncodedByteService ; resume save encoded byte service
 SignalOutputOverflow ldb       #7        ; prepare constant 7 for the surrounding operation
-                    bra       SaveEncodedByteService ; continue with save encoded byte service
+                    bra       SaveEncodedByteService ; resume save encoded byte service
 EmitAnsiCursorDown  ldb       #8        ; prepare constant 8 for the surrounding operation
-                    bra       SaveEncodedByteService ; continue with save encoded byte service
+                    bra       SaveEncodedByteService ; resume save encoded byte service
 EmitAnsiCursorRight ldb       #9        ; prepare constant 9 for the surrounding operation
-                    bra       SaveEncodedByteService ; continue with save encoded byte service
+                    bra       SaveEncodedByteService ; resume save encoded byte service
 EmitAnsiCursorLeft  ldb       #10       ; select the line-feed control byte
-                    bra       SaveEncodedByteService ; continue with save encoded byte service
+                    bra       SaveEncodedByteService ; resume save encoded byte service
                     ldb       #11       ; prepare constant 11 for the surrounding operation
-                    bra       SaveEncodedByteService ; continue with save encoded byte service
+                    bra       SaveEncodedByteService ; resume save encoded byte service
 ClearEditorScreen   ldb       #12       ; initialize $02 f8 to 12
-                    bra       SaveEncodedByteService ; continue with save encoded byte service
+                    bra       SaveEncodedByteService ; resume save encoded byte service
                     ldb       #13       ; recognize the carriage-return terminator
 SaveEncodedByteService stb       >EncodedServiceAddress,y ; retain encoded service address
                     ldb       #1        ; prepare constant 1 for the surrounding operation
-                    lbra      ReturnEncodedServiceResult ; continue with return encoded service result
+                    lbra      ReturnEncodedServiceResult ; resume return encoded service result
 InitializeTerminalDisplay ldd       #7968     ; prepare constant 7968 for the surrounding operation
-                    bra       SaveEncodedWordService ; continue with save encoded word service
+                    bra       SaveEncodedWordService ; resume save encoded word service
 PauseForBanner      ldd       #7969     ; prepare constant 7969 for the surrounding operation
-                    bra       SaveEncodedWordService ; continue with save encoded word service
+                    bra       SaveEncodedWordService ; resume save encoded word service
 EnableBoldAttribute ldd       #7970     ; prepare constant 7970 for the surrounding operation
-                    bra       SaveEncodedWordService ; continue with save encoded word service
+                    bra       SaveEncodedWordService ; resume save encoded word service
 EnableUnderlineAttribute ldd       #7971     ; prepare constant 7971 for the surrounding operation
-                    bra       SaveEncodedWordService ; continue with save encoded word service
+                    bra       SaveEncodedWordService ; resume save encoded word service
 EnableBlinkAttribute ldd       #7972     ; prepare constant 7972 for the surrounding operation
-                    bra       SaveEncodedWordService ; continue with save encoded word service
+                    bra       SaveEncodedWordService ; resume save encoded word service
 EnableReverseAttribute ldd       #7973     ; prepare constant 7973 for the surrounding operation
-                    bra       SaveEncodedWordService ; continue with save encoded word service
+                    bra       SaveEncodedWordService ; resume save encoded word service
                     ldd       #7984     ; initialize encoded service address to 7984
-                    bra       SaveEncodedWordService ; continue with save encoded word service
+                    bra       SaveEncodedWordService ; resume save encoded word service
                     ldd       #7985     ; initialize encoded service address to 7985
 SaveEncodedWordService std       >EncodedServiceAddress,y ; retain encoded service address
                     ldb       #2        ; initialize  to 2
-                    lbra      ReturnEncodedServiceResult ; continue with return encoded service result
+                    lbra      ReturnEncodedServiceResult ; resume return encoded service result
 DecodeAnsiParameter leax      >EncodedServiceAddress,y ; select encoded service address
                     ldb       #2        ; initialize  to 2
                     stb       ,x+       ; retain
@@ -5916,7 +5920,7 @@ DecodeAnsiParameter leax      >EncodedServiceAddress,y ; select encoded service 
                     addb      #32       ; add to b using #32
                     stb       ,x+       ; retain
                     ldb       #3        ; prepare constant 3 for the surrounding operation
-                    lbra      ReturnEncodedServiceResult ; continue with return encoded service result
+                    lbra      ReturnEncodedServiceResult ; resume return encoded service result
 ReturnEncodedServiceResult clra                ; select standard input
                     leax      >EncodedServiceAddress,y ; select encoded service address
                     pshs      y         ; preserve y across the operation
@@ -5924,7 +5928,7 @@ ReturnEncodedServiceResult clra                ; select standard input
                     lda       $05,s     ; read the relevant word from the active stack frame
                     os9       I$Write   ; write the requested fixed-size field
                     puls      y         ; restore y
-                    bcs       TerminalControlWriteFailed ; select branch 229 when carry reports an error or underflow
+                    bcs       TerminalControlWriteFailed ; carry reports failure: terminal control write failed
                     clra                ; select standard input
                     clrb                ; clear the byte accumulator for counting
                     rts                 ; return to the caller
