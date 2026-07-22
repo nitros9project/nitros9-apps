@@ -16,6 +16,8 @@
 * Decoded the registration application and separated linked runtime support.
 *          2026/07/21  Codex
 * Decoded compiler startup, relocation, stack guards, and process exit.
+*          2026/07/21  Codex
+* Decoded stream-slot allocation and low-level OS-9 file wrappers.
 **********************************************************************
 
                     nam       New_user
@@ -35,6 +37,8 @@ rev                 set       $01       ; set assembly-time module attribute rev
 * application owns six consecutive 80-byte input fields at the end of that area.
 RuntimeInputStream  equ       $001B     ; standard-input stream descriptor
 RuntimeInitialStack equ       $019D     ; stack pointer captured at process startup
+RuntimeSeekHigh     equ       $01A1     ; high word of the last seek result
+RuntimeSeekLow      equ       $01A3     ; low word of the last seek result
 RuntimeHeapEnd      equ       $01A9     ; first byte unavailable to heap allocation
 RuntimeStackLowWater equ       $01AB     ; deepest stack address validated so far
 RuntimeErrorCode    equ       $01AD     ; last library or OS-9 error code
@@ -527,29 +531,32 @@ StringLineFormat    fcb       $25       ; begin the %s conversion
                     fcb       $73       ; complete the %s conversion
                     fcb       $0D       ; embed a carriage return in the formatted output
                     fcb       $00       ; terminate the compiler-runtime C string
-Routine_015         pshs      u         ; save u on the stack
-                    leau      >$000E,y  ; form the workspace or data address >$000E,y in u
-Branch_024          ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    clra                ; clear a to zero and set the condition codes
-                    andb      #3        ; mask b using #3
-                    lbeq      Branch_025 ; branch when the values are equal or the result is zero; target Branch_025
-                    leau      WorkBuffer_001,u ; form the workspace or data address WorkBuffer_001,u in u
-                    pshs      u         ; save u on the stack
-                    leax      >$00DE,y  ; form the address >$00DE,y in x
-                    cmpx      ,s++      ; compare x with ,s++ and set the condition codes
-                    bhi       Branch_024 ; branch when the unsigned value is higher; target Branch_024
-                    ldd       #200      ; set d to the constant 200
-                    std       >RuntimeErrorCode,y ; store d at >RuntimeErrorCode,y
-                    lbra      Branch_026 ; continue execution at Branch_026
+AllocateStreamSlot
+stk_alloc_saved_u   equ       0         ; caller's U after the entry push
+stk_alloc_return    equ       2         ; caller return address
+                    pshs      u         ; preserve the caller's descriptor pointer
+                    leau      >$000E,y  ; select the first of sixteen stream descriptors
+ScanStreamSlots     ldd       WorkWord_003,u ; inspect this descriptor's state flags
+                    clra                ; isolate its low-byte open/read bits
+                    andb      #3
+                    lbeq      ReturnFreeStreamSlot ; reuse an inactive descriptor
+                    leau      WorkBuffer_001,u ; advance by one descriptor structure
+                    pshs      u         ; compare the candidate with the table end
+                    leax      >$00DE,y  ; point just beyond the final descriptor
+                    cmpx      ,s++
+                    bhi       ScanStreamSlots ; inspect another in-range slot
+                    ldd       #E$PthFul ; report exhaustion of runtime stream slots
+                    std       >RuntimeErrorCode,y
+                    lbra      StreamSetupFailed
                     fcb       $35       ; store byte data
                     fcb       $C0       ; store byte data
 Routine_016         pshs      u         ; save u on the stack
                     ldu       $08,s     ; load u from the current stack frame at $08,s
                     bne       Branch_027 ; branch when the values differ or the result is nonzero; target Branch_027
-                    bsr       Routine_015 ; call subroutine Routine_015
+                    bsr       AllocateStreamSlot ; call subroutine AllocateStreamSlot
                     tfr       d,u       ; copy the register values specified by d,u
 Branch_027          stu       -$02,s    ; store u in the current stack frame at -$02,s
-                    beq       Branch_026 ; branch when the values are equal or the result is zero; target Branch_026
+                    beq       StreamSetupFailed ; branch when the values are equal or the result is zero; target StreamSetupFailed
                     ldd       $04,s     ; load d from the current stack frame at $04,s
                     std       WorkWord_004,u ; store d at WorkWord_004,u
                     ldx       $06,s     ; load x from the current stack frame at $06,s
@@ -581,11 +588,12 @@ Branch_030          std       WorkWord_003,u ; store d at WorkWord_003,u
                     addd      WorkWord_005,u ; add to d using WorkWord_005,u
                     std       WorkWord_002,u ; store d at WorkWord_002,u
                     std       WorkByte_001,u ; store d at WorkByte_001,u
-Branch_025          tfr       u,d       ; copy the register values specified by u,d
-                    puls      pc,u      ; restore pc,u and return to the caller
-Branch_026          clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    puls      pc,u      ; restore pc,u and return to the caller
+ReturnFreeStreamSlot
+                    tfr       u,d       ; return the available descriptor pointer
+                    puls      pc,u
+StreamSetupFailed   clra                ; return a null descriptor pointer
+                    clrb
+                    puls      pc,u
 Routine_017         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
                     leas      -$04,s    ; adjust the system stack pointer
@@ -628,7 +636,7 @@ Branch_045          ldd       ,s        ; load d from the current stack frame at
                     orb       #2        ; set selected bits in b using #2
                     pshs      d         ; save d on the stack
                     pshs      u         ; save u on the stack
-                    lbsr      Routine_018 ; call subroutine Routine_018
+                    lbsr      OpenPath  ; call subroutine OpenPath
                     leas      $04,s     ; adjust the system stack pointer
                     std       $02,s     ; store d in the current stack frame at $02,s
                     cmpd      #-1       ; compare d with #-1 and set the condition codes
@@ -641,20 +649,20 @@ Branch_045          ldd       ,s        ; load d from the current stack frame at
                     pshs      d         ; save d on the stack
                     ldd       $08,s     ; load d from the current stack frame at $08,s
                     pshs      d         ; save d on the stack
-                    lbsr      Routine_019 ; call subroutine Routine_019
+                    lbsr      SeekPath  ; call subroutine SeekPath
                     leas      $08,s     ; adjust the system stack pointer
                     bra       Branch_047 ; continue execution at Branch_047
 Branch_046          ldd       ,s        ; load d from the current stack frame at ,s
                     orb       #2        ; set selected bits in b using #2
                     pshs      d         ; save d on the stack
                     pshs      u         ; save u on the stack
-                    lbsr      Routine_020 ; call subroutine Routine_020
+                    lbsr      CreateOrTruncatePath ; call subroutine CreateOrTruncatePath
                     bra       Branch_048 ; continue execution at Branch_048
 Branch_049          ldd       ,s        ; load d from the current stack frame at ,s
                     orb       #129      ; set selected bits in b using #129
 Branch_044          pshs      d         ; save d on the stack
                     pshs      u         ; save u on the stack
-                    lbsr      Routine_018 ; call subroutine Routine_018
+                    lbsr      OpenPath  ; call subroutine OpenPath
 Branch_048          leas      $04,s     ; adjust the system stack pointer
                     std       $02,s     ; store d in the current stack frame at $02,s
                     bra       Branch_047 ; continue execution at Branch_047
@@ -1676,7 +1684,7 @@ Branch_137          clra                ; clear a to zero and set the condition 
 Branch_138          std       ,s        ; store d in the current stack frame at ,s
                     ldd       WorkWord_004,u ; load d from WorkWord_004,u
                     pshs      d         ; save d on the stack
-                    lbsr      Routine_036 ; call subroutine Routine_036
+                    lbsr      ClosePath ; call subroutine ClosePath
                     leas      $02,s     ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
@@ -1728,7 +1736,7 @@ Routine_038         pshs      u         ; save u on the stack
                     pshs      d         ; save d on the stack
                     ldd       WorkWord_004,u ; load d from WorkWord_004,u
                     pshs      d         ; save d on the stack
-                    lbsr      Routine_019 ; call subroutine Routine_019
+                    lbsr      SeekPath  ; call subroutine SeekPath
                     leas      $08,s     ; adjust the system stack pointer
 Branch_142          ldd       WorkByte_001,u ; load d from WorkByte_001,u
                     subd      WorkWord_001,u ; subtract from d using WorkWord_001,u
@@ -1751,7 +1759,7 @@ Branch_146          ldd       $02,s     ; load d from the current stack frame at
                     pshs      d         ; save d on the stack
                     ldd       WorkWord_004,u ; load d from WorkWord_004,u
                     pshs      d         ; save d on the stack
-                    lbsr      Routine_040 ; call subroutine Routine_040
+                    lbsr      WriteLineBytes ; call subroutine WriteLineBytes
                     leas      $06,s     ; adjust the system stack pointer
                     std       ,s        ; store d in the current stack frame at ,s
                     cmpd      #-1       ; compare d with #-1 and set the condition codes
@@ -1773,7 +1781,7 @@ Branch_144          ldd       $02,s     ; load d from the current stack frame at
                     pshs      d         ; save d on the stack
                     ldd       WorkWord_004,u ; load d from WorkWord_004,u
                     pshs      d         ; save d on the stack
-                    lbsr      Routine_041 ; call subroutine Routine_041
+                    lbsr      WriteBytes ; call subroutine WriteBytes
                     leas      $06,s     ; adjust the system stack pointer
                     cmpd      $02,s     ; compare d with $02,s and set the condition codes
                     beq       Branch_143 ; branch when the values are equal or the result is zero; target Branch_143
@@ -1961,7 +1969,7 @@ Branch_157          ldd       WorkWord_003,u ; load d from WorkWord_003,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #64       ; mask b using #64
                     beq       Branch_159 ; branch when the values are equal or the result is zero; target Branch_159
-                    leax      >Data_009,pc ; form the address >Data_009,pc in x
+                    leax      >ReadLineBytes,pc ; form the address >ReadLineBytes,pc in x
                     bra       Branch_160 ; continue execution at Branch_160
 Branch_159          leax      >ReadBytes,pc ; form the address >ReadBytes,pc in x
 Branch_160          tfr       x,d       ; copy the register values specified by x,d
@@ -2292,12 +2300,12 @@ Routine_043         lda       $05,s     ; load a from the current stack frame at
                     cmpb      #5        ; compare b with #5 and set the condition codes
                     beq       Branch_187 ; branch when the values are equal or the result is zero; target Branch_187
                     ldb       #208      ; set b to the constant 208
-                    lbra      Branch_188 ; continue execution at Branch_188
+                    lbra      StoreRuntimeError ; continue execution at StoreRuntimeError
 Branch_187          pshs      u         ; save u on the stack
                     os9       I$GetStt  ; query status code B for path A
                     bcc       Branch_189 ; branch when carry is clear; target Branch_189
                     puls      u         ; restore u from the stack
-                    lbra      Branch_188 ; continue execution at Branch_188
+                    lbra      StoreRuntimeError ; continue execution at StoreRuntimeError
 Branch_189          stx       [<$08,s]  ; store x in the current stack frame at [<$08,s]
                     ldx       $08,s     ; load x from the current stack frame at $08,s
                     stu       $02,x     ; store u at $02,x
@@ -2307,7 +2315,7 @@ Branch_189          stx       [<$08,s]  ; store x in the current stack frame at 
                     rts                 ; return to the caller
 Branch_185          ldx       $06,s     ; load x from the current stack frame at $06,s
 Branch_186          os9       I$GetStt  ; query status code B for path A
-                    lbra      Branch_190 ; continue execution at Branch_190
+                    lbra      ReturnZeroOnSuccess ; continue execution at ReturnZeroOnSuccess
                     fcb       $A6       ; store byte data
                     fcb       $65       ; store byte data
                     fcb       $E6       ; store byte data
@@ -2360,16 +2368,23 @@ Branch_186          os9       I$GetStt  ; query status code B for path A
                     fcb       $16       ; store byte data
                     fcb       $01       ; store byte data
                     fcb       $CA       ; store byte data
-Routine_018         ldx       $02,s     ; load x from the current stack frame at $02,s
-                    lda       $05,s     ; load a from the current stack frame at $05,s
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      Branch_188 ; branch when carry reports an error or unsigned underflow; target Branch_188
-                    tfr       a,b       ; copy the register values specified by a,b
-                    clra                ; clear a to zero and set the condition codes
-                    rts                 ; return to the caller
-Routine_036         lda       $03,s     ; load a from the current stack frame at $03,s
-                    os9       I$Close   ; close path A
-                    lbra      Branch_190 ; continue execution at Branch_190
+OpenPath
+stk_open_return     equ       0         ; caller return address
+stk_open_name       equ       2         ; pathname pointer
+stk_open_mode       equ       4         ; word-sized access mode; low byte is at +1
+                    ldx       $02,s     ; select the pathname argument
+                    lda       $05,s     ; use the low byte of the requested mode
+                    os9       I$Open    ; ask OS-9 for a path number
+                    lbcs      StoreRuntimeError ; translate an OS-9 error to -1
+                    tfr       a,b       ; place the path number in the low result byte
+                    clra                ; return it as a positive compiler integer
+                    rts
+ClosePath
+stk_close_return    equ       0         ; caller return address
+stk_close_path      equ       2         ; word-sized path number; low byte is at +1
+                    lda       $03,s     ; select the path argument
+                    os9       I$Close   ; flush and release the OS-9 path
+                    lbra      ReturnZeroOnSuccess ; return zero or record the OS-9 error
                     fcb       $AE       ; store byte data
                     fcb       $62       ; store byte data
                     fcb       $E6       ; store byte data
@@ -2380,36 +2395,40 @@ Routine_036         lda       $03,s     ; load a from the current stack frame at
                     fcb       $16       ; store byte data
                     fcb       $01       ; store byte data
                     fcb       $A9       ; store byte data
-Routine_020         ldx       $02,s     ; load x from the current stack frame at $02,s
-                    lda       $05,s     ; load a from the current stack frame at $05,s
-                    tfr       a,b       ; copy the register values specified by a,b
-                    andb      #36       ; mask b using #36
-                    orb       #11       ; set selected bits in b using #11
-                    os9       I$Create  ; create the path at X with mode A and attributes B
-                    bcs       Branch_191 ; branch when carry reports an error or unsigned underflow; target Branch_191
-Branch_192          tfr       a,b       ; copy the register values specified by a,b
-                    clra                ; clear a to zero and set the condition codes
-                    rts                 ; return to the caller
-Branch_191          cmpb      #218      ; compare b with #218 and set the condition codes
-                    lbne      Branch_188 ; branch when the values differ or the result is nonzero; target Branch_188
-                    lda       $05,s     ; load a from the current stack frame at $05,s
-                    bita      #128      ; test selected bits in a using #128
-                    lbne      Branch_188 ; branch when the values differ or the result is nonzero; target Branch_188
-                    anda      #7        ; mask a using #7
-                    ldx       $02,s     ; load x from the current stack frame at $02,s
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      Branch_188 ; branch when carry reports an error or unsigned underflow; target Branch_188
-                    pshs      u,a       ; save u,a on the stack
-                    ldx       #0        ; set x to the constant 0
-                    leau      ,x        ; form the workspace or data address ,x in u
-                    ldb       #2        ; set b to the constant 2
-                    os9       I$SetStt  ; apply status operation B to path A
-                    puls      u,a       ; restore u,a from the stack
-                    bcc       Branch_192 ; branch when carry is clear; target Branch_192
-                    pshs      b         ; save b on the stack
-                    os9       I$Close   ; close path A
-                    puls      b         ; restore b from the stack
-                    lbra      Branch_188 ; continue execution at Branch_188
+CreateOrTruncatePath
+stk_create_return   equ       0         ; caller return address
+stk_create_name     equ       2         ; pathname pointer
+stk_create_mode     equ       4         ; compiler mode bits; low byte is at +1
+                    ldx       $02,s     ; select the pathname argument
+                    lda       $05,s     ; recover the compiler open/create mode
+                    tfr       a,b       ; derive OS-9 file attributes from that mode
+                    andb      #36       ; retain requested write/public attribute bits
+                    orb       #11       ; always grant owner read/write and public read
+                    os9       I$Create  ; create a new file and return its path
+                    bcs       HandleExistingFile ; optionally reopen an existing file
+ReturnPathNumber    tfr       a,b       ; place the path number in the low result byte
+                    clra                ; return it as a positive compiler integer
+                    rts
+HandleExistingFile  cmpb      #E$CEF    ; only "creating existing file" is recoverable
+                    lbne      StoreRuntimeError
+                    lda       $05,s     ; recover the original compiler mode
+                    bita      #$80      ; test its exclusive-create flag
+                    lbne      StoreRuntimeError ; exclusive creation must remain failed
+                    anda      #7        ; reduce it to OS-9 access-mode bits
+                    ldx       $02,s     ; reopen the existing pathname
+                    os9       I$Open
+                    lbcs      StoreRuntimeError
+                    pshs      u,a       ; preserve workspace and returned path
+                    ldx       #0        ; request a new file size of zero
+                    leau      ,x        ; supply the low size word
+                    ldb       #SS.Size  ; truncate through the size status call
+                    os9       I$SetStt
+                    puls      u,a       ; recover workspace and path number
+                    bcc       ReturnPathNumber ; return the truncated stream
+                    pshs      b         ; preserve the truncation error
+                    os9       I$Close   ; do not leak the reopened path
+                    puls      b         ; restore the error for translation
+                    lbra      StoreRuntimeError
                     fcb       $AE       ; store byte data
                     fcb       $62       ; store byte data
                     fcb       $10       ; store byte data
@@ -2430,96 +2449,115 @@ Branch_191          cmpb      #218      ; compare b with #218 and set the condit
                     fcb       $1F       ; store byte data
                     fcb       $89       ; store byte data
                     fcc       "O9" ; store literal character data
-ReadBytes           pshs      y         ; save y on the stack
-                    ldx       $06,s     ; load x from the current stack frame at $06,s
-                    lda       $05,s     ; load a from the current stack frame at $05,s
-                    ldy       $08,s     ; load y from the current stack frame at $08,s
-                    pshs      y         ; save y on the stack
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    bcc       Branch_193 ; branch when carry is clear; target Branch_193
-                    cmpb      #211      ; compare b with #211 and set the condition codes
-                    bne       Branch_194 ; branch when the values differ or the result is nonzero; target Branch_194
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    puls      pc,y,x    ; restore pc,y,x and return to the caller
-Branch_194          puls      y,x       ; restore y,x from the stack
-                    lbra      Branch_188 ; continue execution at Branch_188
-Branch_193          tfr       y,d       ; copy the register values specified by y,d
-                    puls      pc,y,x    ; restore pc,y,x and return to the caller
-Data_009            fcb       $34       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $A6       ; store byte data
-                    fcb       $65       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcc       "h4 " ; store literal character data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $8B       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $DD       ; store byte data
-Routine_041         pshs      y         ; save y on the stack
-                    ldy       $08,s     ; load y from the current stack frame at $08,s
-                    beq       Branch_195 ; branch when the values are equal or the result is zero; target Branch_195
-                    lda       $05,s     ; load a from the current stack frame at $05,s
-                    ldx       $06,s     ; load x from the current stack frame at $06,s
-                    os9       I$Write   ; write Y bytes from X to path A
-Branch_196          bcc       Branch_195 ; branch when carry is clear; target Branch_195
-                    puls      y         ; restore y from the stack
-                    lbra      Branch_188 ; continue execution at Branch_188
-Branch_195          tfr       y,d       ; copy the register values specified by y,d
-                    puls      pc,y      ; restore pc,y and return to the caller
-Routine_040         pshs      y         ; save y on the stack
-                    ldy       $08,s     ; load y from the current stack frame at $08,s
-                    beq       Branch_195 ; branch when the values are equal or the result is zero; target Branch_195
-                    lda       $05,s     ; load a from the current stack frame at $05,s
-                    ldx       $06,s     ; load x from the current stack frame at $06,s
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    bra       Branch_196 ; continue execution at Branch_196
-Routine_019         pshs      u         ; save u on the stack
-                    ldd       $0A,s     ; load d from the current stack frame at $0A,s
-                    bne       Branch_197 ; branch when the values differ or the result is nonzero; target Branch_197
-                    ldu       #0        ; set u to the constant 0
-                    ldx       #0        ; set x to the constant 0
-                    bra       Branch_198 ; continue execution at Branch_198
-Branch_197          cmpd      #1        ; compare d with #1 and set the condition codes
-                    beq       Branch_199 ; branch when the values are equal or the result is zero; target Branch_199
-                    cmpd      #2        ; compare d with #2 and set the condition codes
-                    beq       Branch_200 ; branch when the values are equal or the result is zero; target Branch_200
-                    ldb       #247      ; set b to the constant 247
-Branch_201          clra                ; clear a to zero and set the condition codes
-                    std       >RuntimeErrorCode,y ; store d at >RuntimeErrorCode,y
-                    ldd       #-1       ; set d to the constant -1
-                    leax      >$01A1,y  ; form the address >$01A1,y in x
-                    std       ,x        ; store d at ,x
-                    std       $02,x     ; store d at $02,x
-                    puls      pc,u      ; restore pc,u and return to the caller
-Branch_200          lda       $05,s     ; load a from the current stack frame at $05,s
-                    ldb       #2        ; set b to the constant 2
-                    os9       I$GetStt  ; query status code B for path A
-                    bcs       Branch_201 ; branch when carry reports an error or unsigned underflow; target Branch_201
-                    bra       Branch_198 ; continue execution at Branch_198
-Branch_199          lda       $05,s     ; load a from the current stack frame at $05,s
-                    ldb       #5        ; set b to the constant 5
-                    os9       I$GetStt  ; query status code B for path A
-                    bcs       Branch_201 ; branch when carry reports an error or unsigned underflow; target Branch_201
-Branch_198          tfr       u,d       ; copy the register values specified by u,d
-                    addd      $08,s     ; add to d using $08,s
-                    std       >$01A3,y  ; store d at >$01A3,y
-                    tfr       d,u       ; copy the register values specified by d,u
-                    tfr       x,d       ; copy the register values specified by x,d
-                    adcb      $07,s     ; add with carry to b using $07,s
-                    adca      $06,s     ; add with carry to a using $06,s
-                    bmi       Branch_201 ; branch when the result is negative; target Branch_201
-                    tfr       d,x       ; copy the register values specified by d,x
-                    std       >$01A1,y  ; store d at >$01A1,y
-                    lda       $05,s     ; load a from the current stack frame at $05,s
-                    os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    bcs       Branch_201 ; branch when carry reports an error or unsigned underflow; target Branch_201
-                    leax      >$01A1,y  ; form the address >$01A1,y in x
-                    puls      pc,u      ; restore pc,u and return to the caller
+ReadBytes
+stk_read_saved_y    equ       0         ; caller's Y after the entry push
+stk_read_return     equ       2         ; caller return address
+stk_read_path       equ       4         ; word-sized path; low byte is at +1
+stk_read_buffer     equ       6         ; destination pointer
+stk_read_count      equ       8         ; requested byte count
+                    pshs      y         ; preserve the caller's Y
+                    ldx       $06,s     ; select the destination buffer
+                    lda       $05,s     ; select the OS-9 path number
+                    ldy       $08,s     ; supply the requested transfer length
+                    pshs      y         ; preserve that length across I$Read
+                    os9       I$Read    ; perform an unstructured byte read
+                    bcc       ReadBytesSucceeded
+                    cmpb      #E$EOF    ; expose EOF as a zero-byte read
+                    bne       ReadBytesFailed
+                    clra
+                    clrb                ; return zero rather than -1 for EOF
+                    puls      pc,y,x
+ReadBytesFailed     puls      y,x       ; discard saved length and restore Y
+                    lbra      StoreRuntimeError ; save B and return -1
+ReadBytesSucceeded  tfr       y,d       ; return the actual byte count
+                    puls      pc,y,x
+* encoded companion to ReadBytes using I$ReadLn.  It preserves Y, loads the
+* path/buffer/count arguments, saves the count, and joins ReadBytes' result path.
+ReadLineBytes
+                    fcb       $34,$20   ; push Y
+                    fcb       $A6,$65   ; load the path number into A
+                    fcb       $AE,$66   ; load the destination buffer into X
+                    fcb       $10,$AE,$68 ; load the maximum line length into Y
+                    fcb       $34,$20   ; preserve the requested length
+                    fcb       $10,$3F,$8B ; invoke I$ReadLn
+                    fcb       $20,$DD   ; join the shared read-result handler
+
+WriteBytes
+stk_write_saved_y   equ       0         ; caller's Y after the entry push
+stk_write_return    equ       2         ; caller return address
+stk_write_path      equ       4         ; word-sized path; low byte is at +1
+stk_write_buffer    equ       6         ; source pointer
+stk_write_count     equ       8         ; requested byte count
+                    pshs      y         ; preserve the caller's Y
+                    ldy       $08,s     ; recover the transfer length
+                    beq       ReturnTransferLength ; a zero-length write succeeds immediately
+                    lda       $05,s     ; select the OS-9 path number
+                    ldx       $06,s     ; select the source buffer
+                    os9       I$Write   ; perform an unstructured byte write
+FinishWrite         bcc       ReturnTransferLength ; return the completed byte count
+                    puls      y         ; restore Y before the shared error path
+                    lbra      StoreRuntimeError ; save B and return -1
+ReturnTransferLength
+                    tfr       y,d       ; return the actual transfer count
+                    puls      pc,y
+WriteLineBytes
+                    pshs      y         ; preserve the caller's Y
+                    ldy       $08,s     ; recover the maximum line length
+                    beq       ReturnTransferLength ; a zero-length line write succeeds
+                    lda       $05,s     ; select the OS-9 path number
+                    ldx       $06,s     ; select the CR-terminated source line
+                    os9       I$WritLn  ; write through the first carriage return
+                    bra       FinishWrite ; reuse normal/error result conversion
+SeekPath
+stk_seek_saved_u    equ       0         ; caller's U after the entry push
+stk_seek_return     equ       2         ; caller return address
+stk_seek_path       equ       4         ; word-sized path; low byte is at +1
+stk_seek_high       equ       6         ; signed offset high word
+stk_seek_low        equ       8         ; offset low word
+stk_seek_origin     equ       10        ; zero=start, one=current, two=end
+                    pshs      u         ; preserve U for the 32-bit OS-9 offset
+                    ldd       $0A,s     ; select the requested origin
+                    bne       SeekFromCurrentOrEnd
+                    ldu       #0        ; absolute seeks start from zero
+                    ldx       #0
+                    bra       ApplySeekOffset
+SeekFromCurrentOrEnd
+                    cmpd      #1        ; one requests the current position
+                    beq       SeekFromCurrent
+                    cmpd      #2        ; two requests end-of-file
+                    beq       SeekFromEnd
+                    ldb       #E$Seek   ; original runtime reports an unsupported origin as seek error
+SeekFailed          clra                ; widen the OS-9 error to a compiler word
+                    std       >RuntimeErrorCode,y ; publish the failure status
+                    ldd       #-1       ; represent failure in both result words
+                    leax      >RuntimeSeekHigh,y ; select the shared 32-bit result
+                    std       ,x
+                    std       $02,x
+                    puls      pc,u
+SeekFromEnd         lda       $05,s     ; select the path number
+                    ldb       #SS.Size  ; obtain its 32-bit file length in X:U
+                    os9       I$GetStt
+                    bcs       SeekFailed
+                    bra       ApplySeekOffset
+SeekFromCurrent     lda       $05,s     ; select the path number
+                    ldb       #SS.Pos   ; obtain its current 32-bit position
+                    os9       I$GetStt
+                    bcs       SeekFailed
+ApplySeekOffset     tfr       u,d       ; begin with the base position's low word
+                    addd      $08,s     ; add the requested low offset
+                    std       >RuntimeSeekLow,y ; retain the resulting low word
+                    tfr       d,u       ; supply it to I$Seek
+                    tfr       x,d       ; continue with the base high word
+                    adcb      $07,s     ; propagate carry through the requested high word
+                    adca      $06,s
+                    bmi       SeekFailed ; reject a negative final file position
+                    tfr       d,x       ; supply the high word to I$Seek
+                    std       >RuntimeSeekHigh,y ; publish the complete result
+                    lda       $05,s     ; select the path number
+                    os9       I$Seek    ; commit the calculated X:U position
+                    bcs       SeekFailed
+                    leax      >RuntimeSeekHigh,y ; return a pointer to the 32-bit result
+                    puls      pc,u
                     fcb       $EC       ; store byte data
                     fcb       $A9       ; store byte data
                     fcb       $01       ; store byte data
@@ -2620,14 +2658,15 @@ Branch_204          ldd       >RuntimeHeapEnd,y ; load d from >RuntimeHeapEnd,y
                     rts                 ; return to the caller
 Branch_202          ldd       #-1       ; set d to the constant -1
                     rts                 ; return to the caller
-Branch_188          clra                ; clear a to zero and set the condition codes
-                    std       >RuntimeErrorCode,y ; store d at >RuntimeErrorCode,y
-                    ldd       #-1       ; set d to the constant -1
-                    rts                 ; return to the caller
-Branch_190          bcs       Branch_188 ; branch when carry reports an error or unsigned underflow; target Branch_188
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    rts                 ; return to the caller
+StoreRuntimeError   clra                ; widen OS-9's error byte in B
+                    std       >RuntimeErrorCode,y ; expose it through the compiler runtime
+                    ldd       #-1       ; return the conventional failure value
+                    rts
+ReturnZeroOnSuccess
+                    bcs       StoreRuntimeError ; translate a failed OS-9 service
+                    clra
+                    clrb                ; return zero for a successful void-style wrapper
+                    rts
 ExitProcess         lbsr      RunExitHook ; allow a linked application cleanup hook
                     lbsr      CloseAllStreams ; flush every compiler-managed stream
 ExitWithStackStatus
@@ -2954,5 +2993,5 @@ RuntimeInitializerImage
                     fcb       $00       ; store byte data
 
                     emod                ; emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
+eom                 equ       *         ; mark the module end for the size expression
                     end                 ; end the assembly source
