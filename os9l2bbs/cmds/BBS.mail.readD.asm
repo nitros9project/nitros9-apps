@@ -14,6 +14,8 @@
 * Refined command annotations and normalized formatting.
 *          2026/07/21  Codex
 * Enabled echo and automatic linefeed on redirected interactive input.
+*          2026/07/21  Codex
+* Decoded recipient filtering, reread handling, body offsets, and delete chaining.
 **********************************************************************
 
                     nam       BBS.mail.readD
@@ -29,40 +31,43 @@ rev                 set       $02       ; interactive terminal-options revision
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_003        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_001      rmb       3         ; reserve 3 byte(s) in the module workspace
-WorkByte_004        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_005        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_002        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkBuffer_002      rmb       8         ; reserve 8 byte(s) in the module workspace
-WorkBuffer_003      rmb       3         ; reserve 3 byte(s) in the module workspace
-WorkByte_006        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_004      rmb       13        ; reserve 13 byte(s) in the module workspace
-WorkByte_007        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_008        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_009        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_010        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_011        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_012        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_013        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_014        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_015        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_005      rmb       64        ; reserve 64 byte(s) in the module workspace
-WorkBuffer_006      rmb       80        ; reserve 80 byte(s) in the module workspace
-WorkWord_003        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_004        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkBuffer_007      rmb       20        ; reserve 20 byte(s) in the module workspace
-WorkBuffer_008      rmb       30        ; reserve 30 byte(s) in the module workspace
-WorkByte_016        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_017        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_009      rmb       6         ; reserve 6 byte(s) in the module workspace
-WorkBuffer_010      rmb       62        ; reserve 62 byte(s) in the module workspace
-WorkByte_018        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_011      rmb       139       ; reserve 139 byte(s) in the module workspace
-TerminalOptions     rmb       32        ; SS.Opt packet kept last to preserve existing workspace offsets
+* open paths, conversion scratch, and the logged-in user ID
+IndexPathNum        rmb       1
+BodyPathArea        rmb       2
+DecimalCounter      rmb       1
+MatchedMailCount    rmb       1
+RereadResponse      rmb       3
+ParsedNumber        rmb       1
+ParsedNumberLow     rmb       1
+DecimalPlace        rmb       2
+CallerUserArea      rmb       8
+NumberScratch       rmb       3
+NumberTensCharacter rmb       1
+NumberTailAndGap    rmb       13
+* assembled MM/DD/YY display line
+DateLineMonthTens   rmb       1
+DateLineMonthOnes   rmb       1
+DateLineFirstSlash  rmb       1
+DateLineDayTens     rmb       1
+DateLineDayOnes     rmb       1
+DateLineSecondSlash rmb       1
+DateLineYearTens    rmb       1
+DateLineYearOnes    rmb       1
+DateLineReturn      rmb       1
+* record-zero scratch followed by the selected 64-byte mail index record fields
+MailIndexHeader     rmb       64
+BodyLineBuffer      rmb       80
+BodyOffsetHigh      rmb       2
+BodyOffsetLow       rmb       2
+MailAuthor          rmb       20
+MailSubject         rmb       30
+MailYear            rmb       1
+MailMonth           rmb       1
+MailDayTimeAndAuthorId rmb       6
+RecipientUserIdAndTail rmb       62
+DeleteParameterArea rmb       1
+DeleteParameterRemainder rmb       139
+TerminalOptions     rmb       32        ; ss.opt packet kept last to preserve existing workspace offsets
 size                equ       .         ; define the assembly-time value for size
 
 name                fcs       /BBS.mail.readD/ ; store an OS-9 high-bit-terminated string
@@ -84,266 +89,274 @@ name                fcs       /BBS.mail.readD/ ; store an OS-9 high-bit-terminat
                     fcb       $EF       ; store byte data
                     fcb       $F4       ; store byte data
                     fcb       $F0       ; store byte data
-                    fcc       "High message is #" ; store literal character data
+LegacyHighMessageText fcc       "High message is #" ; retained unreferenced reader prompt
                     fcb       $00       ; store byte data
                     fcb       $11       ; store byte data
-                    fcc       "Enter message #" ; store literal character data
+LegacyMessagePrompt fcc       "Enter message #" ; retained unreferenced reader prompt
                     fcb       $0D       ; store byte data
-                    fcc       ">" ; store literal character data
-Text_001            fcc       "BBS.mail.inx" ; store literal character data
+LegacyInputPrompt   fcc       ">" ; retained unreferenced reader prompt
+MailIndexPath       fcc       "BBS.mail.inx" ; store literal character data
                     fcb       $0D       ; store byte data
-Text_002            fcc       "BBS.mail" ; store literal character data
+MailBodyPath        fcc       "BBS.mail" ; store literal character data
                     fcb       $0D       ; store byte data
                     fcc       "******   DELETED   ******" ; store literal character data
                     fcb       $0D       ; store byte data
-Data_001            fcb       $0A       ; store byte data
+MailHeaderPrefix    fcb       $0A       ; store byte data
                     fcb       $0A       ; store byte data
                     fcc       "From    :" ; store literal character data
-Text_003            fcc       "Left on :" ; store literal character data
-Text_004            fcc       "About   :" ; store literal character data
-Data_002            fcb       $00       ; store byte data
+DateLabel           fcc       "Left on :" ; store literal character data
+SubjectLabel        fcc       "About   :" ; store literal character data
+HeaderLabelLength   fcb       $00       ; store byte data
                     fcb       $09       ; store byte data
-Text_005            fcc       "---------------------------------------------------------------" ; store literal character data
+MailRule            fcc       "---------------------------------------------------------------" ; store literal character data
                     fcb       $0D       ; store byte data
-Data_003            fcb       $0A       ; store byte data
+BlankLine           fcb       $0A       ; store byte data
                     fcb       $0D       ; store byte data
-Data_004            fcb       $0A       ; store byte data
+EndOfMailText       fcb       $0A       ; store byte data
                     fcc       "That's all the mail that was left for you" ; store literal character data
                     fcb       $0D       ; store byte data
-Text_006            fcc       "Sorry, you have no mail" ; store literal character data
+NoMailText          fcc       "Sorry, you have no mail" ; store literal character data
                     fcb       $0D       ; store byte data
-Text_007            fcc       "Checking for mail..." ; store literal character data
+CheckingMailText    fcc       "Checking for mail..." ; store literal character data
                     fcb       $0A       ; store byte data
                     fcb       $0D       ; store byte data
-Text_008            fcc       "Re-Read? (Y/N):" ; store literal character data
+RereadPrompt        fcc       "Re-Read? (Y/N):" ; store literal character data
                     fcb       $0D       ; store byte data
-Text_009            fcc       "BBS.mail.delete" ; store literal character data
+DeleteMailCommand   fcc       "BBS.mail.delete" ; store literal character data
                     fcb       $0D       ; store byte data
 
-start               lbsr      InitializeTerminalInput ; configure the stdin supplied by Shellplus </1
+* scan the mail index sequentially and display only records whose recipient ID
+* matches the caller.  Deleted records use -1 in the body-offset field.
+start               lbsr      InitializeTerminalInput ; configure redirected interactive input
                     os9       F$ID      ; retrieve the current process and user IDs
-                    sty       WorkBuffer_002,u ; store y at WorkBuffer_002,u
+                    sty       CallerUserArea,u ; store y at CallerUserArea,u
                     ldy       #0        ; set y to the constant 0
                     os9       F$SUser   ; change the process user ID to Y
-                    leax      >Text_001,pc ; form the address >Text_001,pc in x
+                    leax      >MailIndexPath,pc ; form the address >MailIndexPath,pc in x
                     lda       #1        ; set a to the constant 1
                     os9       I$Open    ; open the path at X using access mode A
-                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
-                    sta       WorkByte_001,u ; store a at WorkByte_001,u
-                    leax      >Text_002,pc ; form the address >Text_002,pc in x
+                    lbcs      ExitWithStatus ; restore the caller and return the OS-9 status in B
+                    sta       IndexPathNum,u ; store a at IndexPathNum,u
+                    leax      >MailBodyPath,pc ; form the address >MailBodyPath,pc in x
                     lda       #1        ; set a to the constant 1
                     os9       I$Open    ; open the path at X using access mode A
-                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
-                    sta       WorkWord_001,u ; store a at WorkWord_001,u
-                    clr       WorkByte_003,u ; clear WorkByte_003,u to zero and set the condition codes
-                    leax      >Text_007,pc ; form the address >Text_007,pc in x
+                    lbcs      ExitWithStatus ; restore the caller and return the OS-9 status in B
+                    sta       BodyPathArea,u ; store a at BodyPathArea,u
+                    clr       MatchedMailCount,u ; clear MatchedMailCount,u to zero and set the condition codes
+                    leax      >CheckingMailText,pc ; form the address >CheckingMailText,pc in x
                     ldy       #200      ; set y to the constant 200
                     lda       #1        ; set a to the constant 1
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      <WorkBuffer_005,u ; form the address <WorkBuffer_005,u in x
+                    leax      <MailIndexHeader,u ; form the address <MailIndexHeader,u in x
                     ldy       #64       ; set y to the constant 64
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
+                    lda       IndexPathNum,u ; load a from IndexPathNum,u
                     os9       I$Read    ; read up to Y bytes from path A into X
-                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
-Branch_002          leax      >WorkWord_003,u ; form the address >WorkWord_003,u in x
+                    lbcs      ExitWithStatus ; restore the caller and return the OS-9 status in B
+FindNextRecipientMail leax      >BodyOffsetHigh,u ; receive the next 64-byte mail index record
                     ldy       #64       ; set y to the constant 64
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
+                    lda       IndexPathNum,u ; load a from IndexPathNum,u
                     os9       I$Read    ; read up to Y bytes from path A into X
-                    bcs       Branch_003 ; branch when carry reports an error or unsigned underflow; target Branch_003
-                    ldd       >WorkBuffer_010,u ; load d from >WorkBuffer_010,u
-                    cmpd      WorkBuffer_002,u ; compare d with WorkBuffer_002,u and set the condition codes
-                    bne       Branch_002 ; branch when the values differ or the result is nonzero; target Branch_002
-                    bra       Branch_004 ; continue execution at Branch_004
-Branch_003          cmpb      #211      ; compare b with #211 and set the condition codes
-                    lbne      Branch_001 ; branch when the values differ or the result is nonzero; target Branch_001
-                    tst       WorkByte_003,u ; set condition codes from WorkByte_003,u without changing it
-                    beq       Branch_005 ; branch when the values are equal or the result is zero; target Branch_005
-                    leax      >Data_004,pc ; form the address >Data_004,pc in x
+                    bcs       MailScanEnded ; finish when the index reaches end-of-file
+                    ldd       >RecipientUserIdAndTail,u ; load d from >RecipientUserIdAndTail,u
+                    cmpd      CallerUserArea,u ; compare d with CallerUserArea,u and set the condition codes
+                    bne       FindNextRecipientMail ; inspect the next mail index record
+                    bra       DisplayRecipientMail ; continue in the named workflow
+* after at least one matching message, restore the caller and chain directly to
+* BBS.mail.delete; otherwise report that no private mail was found.
+MailScanEnded       cmpb      #211      ; distinguish normal end-of-file from an I/O error
+                    lbne      ExitWithStatus ; restore the caller and return the OS-9 status in B
+                    tst       MatchedMailCount,u ; set condition codes from MatchedMailCount,u without changing it
+                    beq       ReportNoMail ; report an empty recipient scan
+                    leax      >EndOfMailText,pc ; form the address >EndOfMailText,pc in x
                     ldy       #200      ; set y to the constant 200
                     lda       #1        ; set a to the constant 1
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lda       WorkWord_001,u ; load a from WorkWord_001,u
+                    lda       BodyPathArea,u ; load a from BodyPathArea,u
                     os9       I$Close   ; close path A
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
+                    lda       IndexPathNum,u ; load a from IndexPathNum,u
                     os9       I$Close   ; close path A
-                    ldy       WorkBuffer_002,u ; load y from WorkBuffer_002,u
+                    ldy       CallerUserArea,u ; load y from CallerUserArea,u
                     os9       F$SUser   ; change the process user ID to Y
-                    leax      >Text_009,pc ; form the address >Text_009,pc in x
+                    leax      >DeleteMailCommand,pc ; form the address >DeleteMailCommand,pc in x
                     ldy       #1        ; set y to the constant 1
-                    leau      >WorkByte_018,u ; form the workspace or data address >WorkByte_018,u in u
+                    leau      >DeleteParameterArea,u ; form the workspace or data address >DeleteParameterArea,u in u
                     lda       #17       ; set a to the constant 17
                     ldb       #3        ; set b to the constant 3
                     os9       F$Chain   ; replace this process with the module at X
-Branch_005          leax      >Text_006,pc ; form the address >Text_006,pc in x
+ReportNoMail        leax      >NoMailText,pc ; form the address >NoMailText,pc in x
                     ldy       #200      ; set y to the constant 200
                     lda       #1        ; set a to the constant 1
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lbra      Branch_006 ; continue execution at Branch_006
-Branch_004          inc       WorkByte_003,u ; increment the value at WorkByte_003,u
-                    ldd       >WorkWord_003,u ; load d from >WorkWord_003,u
+                    lbra      ExitSuccessfully ; continue in the named workflow
+DisplayRecipientMail inc       MatchedMailCount,u ; remember that deletion should follow this scan
+                    ldd       >BodyOffsetHigh,u ; load d from >BodyOffsetHigh,u
                     cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    lbeq      Branch_002 ; branch when the values are equal or the result is zero; target Branch_002
-                    leax      >Data_001,pc ; form the address >Data_001,pc in x
-                    ldy       >Data_002,pc ; load y from >Data_002,pc
+                    lbeq      FindNextRecipientMail ; inspect the next mail index record
+                    leax      >MailHeaderPrefix,pc ; form the address >MailHeaderPrefix,pc in x
+                    ldy       >HeaderLabelLength,pc ; load y from >HeaderLabelLength,pc
                     leay      $02,y     ; form the address $02,y in y
                     lda       #1        ; set a to the constant 1
                     os9       I$Write   ; write Y bytes from X to path A
-                    leax      >WorkBuffer_007,u ; form the address >WorkBuffer_007,u in x
+                    leax      >MailAuthor,u ; form the address >MailAuthor,u in x
                     ldy       #200      ; set y to the constant 200
                     lda       #1        ; set a to the constant 1
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
-                    leax      >Text_003,pc ; form the address >Text_003,pc in x
-                    ldy       >Data_002,pc ; load y from >Data_002,pc
+                    lbcs      ExitWithStatus ; restore the caller and return the OS-9 status in B
+                    leax      >DateLabel,pc ; form the address >DateLabel,pc in x
+                    ldy       >HeaderLabelLength,pc ; load y from >HeaderLabelLength,pc
                     lda       #1        ; set a to the constant 1
                     os9       I$Write   ; write Y bytes from X to path A
-                    leax      <WorkBuffer_003,u ; form the address <WorkBuffer_003,u in x
-                    ldb       >WorkByte_017,u ; load b from >WorkByte_017,u
+                    leax      <NumberScratch,u ; form the address <NumberScratch,u in x
+                    ldb       >MailMonth,u ; load b from >MailMonth,u
                     clra                ; clear a to zero and set the condition codes
-                    lbsr      Routine_001 ; call subroutine Routine_001
-                    lda       <WorkByte_006,u ; load a from <WorkByte_006,u
-                    sta       <WorkByte_007,u ; store a at <WorkByte_007,u
-                    lda       <WorkBuffer_004,u ; load a from <WorkBuffer_004,u
-                    sta       <WorkByte_008,u ; store a at <WorkByte_008,u
+                    lbsr      FormatDecimalNumber ; format D as a five-column decimal number
+                    lda       <NumberTensCharacter,u ; load a from <NumberTensCharacter,u
+                    sta       <DateLineMonthTens,u ; store a at <DateLineMonthTens,u
+                    lda       <NumberTailAndGap,u ; load a from <NumberTailAndGap,u
+                    sta       <DateLineMonthOnes,u ; store a at <DateLineMonthOnes,u
                     lda       #47       ; set a to the constant 47
-                    sta       <WorkByte_009,u ; store a at <WorkByte_009,u
-                    ldb       >WorkBuffer_009,u ; load b from >WorkBuffer_009,u
+                    sta       <DateLineFirstSlash,u ; store a at <DateLineFirstSlash,u
+                    ldb       >MailDayTimeAndAuthorId,u ; load b from >MailDayTimeAndAuthorId,u
                     clra                ; clear a to zero and set the condition codes
-                    leax      <WorkBuffer_003,u ; form the address <WorkBuffer_003,u in x
-                    lbsr      Routine_001 ; call subroutine Routine_001
-                    lda       <WorkByte_006,u ; load a from <WorkByte_006,u
-                    sta       <WorkByte_010,u ; store a at <WorkByte_010,u
-                    lda       <WorkBuffer_004,u ; load a from <WorkBuffer_004,u
-                    sta       <WorkByte_011,u ; store a at <WorkByte_011,u
+                    leax      <NumberScratch,u ; form the address <NumberScratch,u in x
+                    lbsr      FormatDecimalNumber ; format D as a five-column decimal number
+                    lda       <NumberTensCharacter,u ; load a from <NumberTensCharacter,u
+                    sta       <DateLineDayTens,u ; store a at <DateLineDayTens,u
+                    lda       <NumberTailAndGap,u ; load a from <NumberTailAndGap,u
+                    sta       <DateLineDayOnes,u ; store a at <DateLineDayOnes,u
                     lda       #47       ; set a to the constant 47
-                    sta       <WorkByte_012,u ; store a at <WorkByte_012,u
-                    ldb       >WorkByte_016,u ; load b from >WorkByte_016,u
+                    sta       <DateLineSecondSlash,u ; store a at <DateLineSecondSlash,u
+                    ldb       >MailYear,u ; load b from >MailYear,u
                     clra                ; clear a to zero and set the condition codes
-                    leax      <WorkBuffer_003,u ; form the address <WorkBuffer_003,u in x
-                    lbsr      Routine_001 ; call subroutine Routine_001
-                    lda       <WorkByte_006,u ; load a from <WorkByte_006,u
-                    sta       <WorkByte_013,u ; store a at <WorkByte_013,u
-                    lda       <WorkBuffer_004,u ; load a from <WorkBuffer_004,u
-                    sta       <WorkByte_014,u ; store a at <WorkByte_014,u
+                    leax      <NumberScratch,u ; form the address <NumberScratch,u in x
+                    lbsr      FormatDecimalNumber ; format D as a five-column decimal number
+                    lda       <NumberTensCharacter,u ; load a from <NumberTensCharacter,u
+                    sta       <DateLineYearTens,u ; store a at <DateLineYearTens,u
+                    lda       <NumberTailAndGap,u ; load a from <NumberTailAndGap,u
+                    sta       <DateLineYearOnes,u ; store a at <DateLineYearOnes,u
                     lda       #13       ; set a to the constant 13
-                    sta       <WorkByte_015,u ; store a at <WorkByte_015,u
-                    leax      <WorkByte_007,u ; form the address <WorkByte_007,u in x
-Branch_007          lda       ,x+       ; load a from ,x+
+                    sta       <DateLineReturn,u ; store a at <DateLineReturn,u
+                    leax      <DateLineMonthTens,u ; form the address <DateLineMonthTens,u in x
+SkipDatePadding     lda       ,x+       ; load a from ,x+
                     cmpa      #32       ; compare a with #32 and set the condition codes
-                    beq       Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
+                    beq       SkipDatePadding ; skip another leading space
                     leax      -$01,x    ; form the address -$01,x in x
                     ldy       #200      ; set y to the constant 200
                     lda       #1        ; set a to the constant 1
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
-                    leax      >Text_004,pc ; form the address >Text_004,pc in x
-                    ldy       >Data_002,pc ; load y from >Data_002,pc
+                    lbcs      ExitWithStatus ; restore the caller and return the OS-9 status in B
+                    leax      >SubjectLabel,pc ; form the address >SubjectLabel,pc in x
+                    ldy       >HeaderLabelLength,pc ; load y from >HeaderLabelLength,pc
                     lda       #1        ; set a to the constant 1
                     os9       I$Write   ; write Y bytes from X to path A
-                    leax      >WorkBuffer_008,u ; form the address >WorkBuffer_008,u in x
+                    leax      >MailSubject,u ; form the address >MailSubject,u in x
                     ldy       #30       ; set y to the constant 30
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
-                    bra       Branch_008 ; continue execution at Branch_008
-Branch_008          leax      >Text_005,pc ; form the address >Text_005,pc in x
+                    lbcs      ExitWithStatus ; restore the caller and return the OS-9 status in B
+                    bra       DisplayMailBody ; continue in the named workflow
+* seek through the record's full 32-bit offset and copy body lines until the
+* one-byte terminator.  A Y response repeats the same seek and display.
+DisplayMailBody     leax      >MailRule,pc ; separate the header from the body
                     ldy       #64       ; set y to the constant 64
                     lda       #1        ; set a to the constant 1
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lda       WorkWord_001,u ; load a from WorkWord_001,u
-                    ldx       >WorkWord_003,u ; load x from >WorkWord_003,u
+                    lda       BodyPathArea,u ; load a from BodyPathArea,u
+                    ldx       >BodyOffsetHigh,u ; load x from >BodyOffsetHigh,u
                     pshs      u         ; save u on the stack
-                    ldu       >WorkWord_004,u ; load u from >WorkWord_004,u
+                    ldu       >BodyOffsetLow,u ; load u from >BodyOffsetLow,u
                     os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    lbcs      Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
+                    lbcs      ExitWithStatus ; restore the caller and return the OS-9 status in B
                     puls      u         ; restore u from the stack
-Branch_009          lda       WorkWord_001,u ; load a from WorkWord_001,u
-                    leax      <WorkBuffer_006,u ; form the address <WorkBuffer_006,u in x
+CopyBodyLine        lda       BodyPathArea,u ; load a from BodyPathArea,u
+                    leax      <BodyLineBuffer,u ; form the address <BodyLineBuffer,u in x
                     ldy       #80       ; set y to the constant 80
                     os9       I$ReadLn  ; read a CR-terminated line from path A into X
                     lda       #1        ; set a to the constant 1
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
                     cmpy      #1        ; compare y with #1 and set the condition codes
-                    bhi       Branch_009 ; branch when the unsigned value is higher; target Branch_009
-                    leax      >Text_005,pc ; form the address >Text_005,pc in x
+                    bhi       CopyBodyLine ; copy another nonempty body line
+                    leax      >MailRule,pc ; form the address >MailRule,pc in x
                     ldy       #64       ; set y to the constant 64
                     lda       #1        ; set a to the constant 1
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >Text_008,pc ; form the address >Text_008,pc in x
+                    leax      >RereadPrompt,pc ; form the address >RereadPrompt,pc in x
                     ldy       #200      ; set y to the constant 200
                     lda       #1        ; set a to the constant 1
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
+                    leax      RereadResponse,u ; form the address RereadResponse,u in x
                     ldy       #1        ; set y to the constant 1
                     clra                ; clear a to zero and set the condition codes
                     os9       I$Read    ; read up to Y bytes from path A into X
-                    leax      >Data_003,pc ; form the address >Data_003,pc in x
+                    leax      >BlankLine,pc ; form the address >BlankLine,pc in x
                     ldy       #1        ; set y to the constant 1
                     lda       #1        ; set a to the constant 1
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lda       WorkBuffer_001,u ; load a from WorkBuffer_001,u
+                    lda       RereadResponse,u ; load a from RereadResponse,u
                     cmpa      #121      ; compare a with #121 and set the condition codes
-                    lbeq      Branch_008 ; branch when the values are equal or the result is zero; target Branch_008
+                    lbeq      DisplayMailBody ; reread the same body from its saved offset
                     cmpa      #89       ; compare a with #89 and set the condition codes
-                    lbeq      Branch_008 ; branch when the values are equal or the result is zero; target Branch_008
-                    lbra      Branch_002 ; continue execution at Branch_002
-Branch_006          clrb                ; clear b to zero and set the condition codes
-Branch_001          pshs      b         ; save b on the stack
-                    ldy       WorkBuffer_002,u ; load y from WorkBuffer_002,u
+                    lbeq      DisplayMailBody ; reread the same body from its saved offset
+                    lbra      FindNextRecipientMail ; continue in the named workflow
+ExitSuccessfully    clrb                ; clear b to zero and set the condition codes
+ExitWithStatus      pshs      b         ; save b on the stack
+                    ldy       CallerUserArea,u ; load y from CallerUserArea,u
                     os9       F$SUser   ; change the process user ID to Y
                     puls      b         ; restore b from the stack
                     os9       F$Exit    ; terminate the process with status B
 
-                    pshs      y         ; save y on the stack
-Branch_010          lda       ,x+       ; load a from ,x+
+* retained decimal parser from the generic reader; no live path calls it here.
+ParseDecimalNumber  pshs      y         ; preserve the caller's byte count
+FindFirstDigit      lda       ,x+       ; load a from ,x+
                     cmpa      #13       ; compare a with #13 and set the condition codes
-                    lbeq      Branch_011 ; branch when the values are equal or the result is zero; target Branch_011
+                    lbeq      NoDecimalNumber ; report that no number was present
                     cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       Branch_010 ; branch when carry reports an error or unsigned underflow; target Branch_010
+                    bcs       FindFirstDigit ; keep looking for a decimal digit
                     cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       Branch_010 ; branch when the unsigned value is higher; target Branch_010
+                    bhi       FindFirstDigit ; keep looking for a decimal digit
                     leax      -$01,x    ; form the address -$01,x in x
-Branch_012          lda       ,x+       ; load a from ,x+
+FindDigitRunEnd     lda       ,x+       ; load a from ,x+
                     cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       Branch_013 ; branch when carry reports an error or unsigned underflow; target Branch_013
+                    bcs       AccumulateDigits ; convert the digits from right to left
                     cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       Branch_013 ; branch when the unsigned value is higher; target Branch_013
-                    bra       Branch_012 ; continue execution at Branch_012
-Branch_013          pshs      x         ; save x on the stack
+                    bhi       AccumulateDigits ; convert the digits from right to left
+                    bra       FindDigitRunEnd ; continue in the named workflow
+AccumulateDigits    pshs      x         ; save x on the stack
                     leax      -$01,x    ; form the address -$01,x in x
-                    clr       WorkByte_004,u ; clear WorkByte_004,u to zero and set the condition codes
-                    clr       WorkByte_005,u ; clear WorkByte_005,u to zero and set the condition codes
+                    clr       ParsedNumber,u ; clear ParsedNumber,u to zero and set the condition codes
+                    clr       ParsedNumberLow,u ; clear ParsedNumberLow,u to zero and set the condition codes
                     ldd       #1        ; set d to the constant 1
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-Branch_014          lda       ,-x       ; load a from ,-x
+                    std       DecimalPlace,u ; store d at DecimalPlace,u
+AccumulatePreviousDigit lda       ,-x       ; load a from ,-x
                     cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       Branch_015 ; branch when carry reports an error or unsigned underflow; target Branch_015
+                    bcs       ReturnParsedNumber ; return the accumulated value
                     cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       Branch_015 ; branch when the unsigned value is higher; target Branch_015
+                    bhi       ReturnParsedNumber ; return the accumulated value
                     suba      #48       ; subtract from a using #48
-                    sta       WorkByte_002,u ; store a at WorkByte_002,u
+                    sta       DecimalCounter,u ; store a at DecimalCounter,u
                     ldd       #0        ; set d to the constant 0
-Branch_016          tst       WorkByte_002,u ; set condition codes from WorkByte_002,u without changing it
-                    beq       Branch_017 ; branch when the values are equal or the result is zero; target Branch_017
-                    addd      WorkWord_002,u ; add to d using WorkWord_002,u
-                    dec       WorkByte_002,u ; decrement the value at WorkByte_002,u
-                    bra       Branch_016 ; continue execution at Branch_016
-Branch_017          addd      WorkByte_004,u ; add to d using WorkByte_004,u
-                    std       WorkByte_004,u ; store d at WorkByte_004,u
+AddDigitPlace       tst       DecimalCounter,u ; set condition codes from DecimalCounter,u without changing it
+                    beq       StoreDigitSum ; merge this digit into the result
+                    addd      DecimalPlace,u ; add to d using DecimalPlace,u
+                    dec       DecimalCounter,u ; decrement the value at DecimalCounter,u
+                    bra       AddDigitPlace ; continue in the named workflow
+StoreDigitSum       addd      ParsedNumber,u ; add to d using ParsedNumber,u
+                    std       ParsedNumber,u ; store d at ParsedNumber,u
                     lda       #10       ; set a to the constant 10
-                    sta       WorkByte_002,u ; store a at WorkByte_002,u
+                    sta       DecimalCounter,u ; store a at DecimalCounter,u
                     ldd       #0        ; set d to the constant 0
-Branch_018          tst       WorkByte_002,u ; set condition codes from WorkByte_002,u without changing it
-                    beq       Branch_019 ; branch when the values are equal or the result is zero; target Branch_019
-                    addd      WorkWord_002,u ; add to d using WorkWord_002,u
-                    dec       WorkByte_002,u ; decrement the value at WorkByte_002,u
-                    bra       Branch_018 ; continue execution at Branch_018
-Branch_019          std       WorkWord_002,u ; store d at WorkWord_002,u
-                    bra       Branch_014 ; continue execution at Branch_014
-Branch_015          ldd       WorkByte_004,u ; load d from WorkByte_004,u
+MultiplyPlaceByTen  tst       DecimalCounter,u ; set condition codes from DecimalCounter,u without changing it
+                    beq       UseNextDecimalPlace ; use the next power of ten
+                    addd      DecimalPlace,u ; add to d using DecimalPlace,u
+                    dec       DecimalCounter,u ; decrement the value at DecimalCounter,u
+                    bra       MultiplyPlaceByTen ; continue in the named workflow
+UseNextDecimalPlace std       DecimalPlace,u ; store d at DecimalPlace,u
+                    bra       AccumulatePreviousDigit ; continue in the named workflow
+ReturnParsedNumber  ldd       ParsedNumber,u ; load d from ParsedNumber,u
                     puls      x         ; restore x from the stack
                     puls      pc,y      ; restore pc,y and return to the caller
-Routine_001         pshs      x         ; save x on the stack
-                    std       WorkByte_004,u ; store d at WorkByte_004,u
+* format unsigned D as five decimal columns followed by carriage return.
+FormatDecimalNumber pshs      x         ; retain the start of the output field
+                    std       ParsedNumber,u ; store d at ParsedNumber,u
                     lda       #48       ; set a to the constant 48
                     sta       ,x        ; store a at ,x
                     sta       $01,x     ; store a at $01,x
@@ -351,54 +364,54 @@ Routine_001         pshs      x         ; save x on the stack
                     sta       $03,x     ; store a at $03,x
                     sta       $04,x     ; store a at $04,x
                     ldd       #10000    ; set d to the constant 10000
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    ldd       WorkByte_004,u ; load d from WorkByte_004,u
-                    lbsr      Routine_002 ; call subroutine Routine_002
+                    std       DecimalPlace,u ; store d at DecimalPlace,u
+                    ldd       ParsedNumber,u ; load d from ParsedNumber,u
+                    lbsr      EmitDecimalDigit ; emit the digit for the current decimal place
                     ldd       #1000     ; set d to the constant 1000
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    ldd       WorkByte_004,u ; load d from WorkByte_004,u
-                    bsr       Routine_002 ; call subroutine Routine_002
+                    std       DecimalPlace,u ; store d at DecimalPlace,u
+                    ldd       ParsedNumber,u ; load d from ParsedNumber,u
+                    bsr       EmitDecimalDigit ; emit the digit for the current decimal place
                     ldd       #100      ; set d to the constant 100
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    ldd       WorkByte_004,u ; load d from WorkByte_004,u
-                    bsr       Routine_002 ; call subroutine Routine_002
+                    std       DecimalPlace,u ; store d at DecimalPlace,u
+                    ldd       ParsedNumber,u ; load d from ParsedNumber,u
+                    bsr       EmitDecimalDigit ; emit the digit for the current decimal place
                     ldd       #10       ; set d to the constant 10
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    ldd       WorkByte_004,u ; load d from WorkByte_004,u
-                    bsr       Routine_002 ; call subroutine Routine_002
+                    std       DecimalPlace,u ; store d at DecimalPlace,u
+                    ldd       ParsedNumber,u ; load d from ParsedNumber,u
+                    bsr       EmitDecimalDigit ; emit the digit for the current decimal place
                     ldd       #1        ; set d to the constant 1
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    ldd       WorkByte_004,u ; load d from WorkByte_004,u
-                    bsr       Routine_002 ; call subroutine Routine_002
+                    std       DecimalPlace,u ; store d at DecimalPlace,u
+                    ldd       ParsedNumber,u ; load d from ParsedNumber,u
+                    bsr       EmitDecimalDigit ; emit the digit for the current decimal place
                     lda       #13       ; set a to the constant 13
                     sta       ,x        ; store a at ,x
                     puls      x         ; restore x from the stack
                     ldb       #32       ; set b to the constant 32
-Branch_020          lda       ,x        ; load a from ,x
+BlankLeadingZeroes  lda       ,x        ; load a from ,x
                     cmpa      #48       ; compare a with #48 and set the condition codes
-                    bne       Branch_021 ; branch when the values differ or the result is nonzero; target Branch_021
+                    bne       FindFormattedNumberEnd ; find the first byte after the digits
                     stb       ,x+       ; store b at ,x+
-                    bra       Branch_020 ; continue execution at Branch_020
-Branch_021          lda       ,x+       ; load a from ,x+
+                    bra       BlankLeadingZeroes ; continue in the named workflow
+FindFormattedNumberEnd lda       ,x+       ; load a from ,x+
                     cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       Branch_022 ; branch when carry reports an error or unsigned underflow; target Branch_022
+                    bcs       ReturnFormattedNumber ; return X at the final digit
                     cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       Branch_022 ; branch when the unsigned value is higher; target Branch_022
-                    bra       Branch_021 ; continue execution at Branch_021
-Branch_022          leax      -$01,x    ; form the address -$01,x in x
+                    bhi       ReturnFormattedNumber ; return X at the final digit
+                    bra       FindFormattedNumberEnd ; continue in the named workflow
+ReturnFormattedNumber leax      -$01,x    ; form the address -$01,x in x
                     rts                 ; return to the caller
-Routine_002         subd      WorkWord_002,u ; subtract from d using WorkWord_002,u
-                    bcs       Branch_023 ; branch when carry reports an error or unsigned underflow; target Branch_023
+EmitDecimalDigit    subd      DecimalPlace,u ; subtract from d using DecimalPlace,u
+                    bcs       DecimalDigitComplete ; restore the remainder after repeated subtraction
                     inc       ,x        ; increment the value at ,x
-                    bra       Routine_002 ; continue execution at Routine_002
-Branch_023          addd      WorkWord_002,u ; add to d using WorkWord_002,u
-                    std       WorkByte_004,u ; store d at WorkByte_004,u
+                    bra       EmitDecimalDigit ; continue in the named workflow
+DecimalDigitComplete addd      DecimalPlace,u ; add to d using DecimalPlace,u
+                    std       ParsedNumber,u ; store d at ParsedNumber,u
                     leax      $01,x     ; form the address $01,x in x
                     rts                 ; return to the caller
-Branch_011          ldd       #-1       ; set d to the constant -1
+NoDecimalNumber     ldd       #-1       ; set d to the constant -1
                     puls      pc,y      ; restore pc,y and return to the caller
 
-* Enable the SCF behavior required for interactive mail prompts.
+* enable the SCF behavior required for interactive mail prompts.
 InitializeTerminalInput
                     pshs      y,x,d     ; preserve the caller's startup registers
                     leax      >TerminalOptions,u ; select the local terminal-option packet
@@ -416,6 +429,6 @@ InitializeTerminalInput
 InitializeTerminalDone
                     puls      pc,y,x,d  ; restore the caller and continue
 
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+                    emod                ; emit the OS-9 module CRC and trailer
+eom                 equ       *         ; mark the module end for the size expression
+                    end                 ; end the assembly source
