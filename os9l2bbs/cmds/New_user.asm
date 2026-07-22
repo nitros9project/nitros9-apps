@@ -20,6 +20,8 @@
 * Decoded stream-slot allocation and low-level OS-9 file wrappers.
 *          2026/07/21  Codex
 * Decoded mode parsing and fopen/fdopen/freopen stream construction.
+*          2026/07/21  Codex
+* Decoded buffered stream initialization, refill, flush, and close paths.
 **********************************************************************
 
                     nam       New_user
@@ -37,7 +39,8 @@ rev                 set       $01       ; set assembly-time module attribute rev
 
 * the compiler keeps its global/runtime state relative to Y.  The registration
 * application owns six consecutive 80-byte input fields at the end of that area.
-RuntimeInputStream  equ       $001B     ; standard-input stream descriptor
+RuntimeInputStream  equ       $000E     ; standard-input stream descriptor
+RuntimeOutputStream equ       $001B     ; standard-output stream descriptor
 RuntimeInitialStack equ       $019D     ; stack pointer captured at process startup
 RuntimeSeekHigh     equ       $01A1     ; high word of the last seek result
 RuntimeSeekLow      equ       $01A3     ; low word of the last seek result
@@ -83,6 +86,17 @@ StreamPath          equ       WorkWord_004 ; underlying OS-9 path number
 StreamPushbackByte  equ       WorkByte_003 ; one-byte ungetc storage
 StreamBufferSize    equ       WorkWord_005 ; capacity of the assigned buffer
 StreamDescriptorSize equ       WorkBuffer_001 ; distance between descriptor entries
+
+StreamReadable      equ       $0001     ; reads are permitted
+StreamWritable      equ       $0002     ; writes are permitted
+StreamUnbuffered    equ       $0004     ; use the descriptor's one-byte fallback
+StreamHasBuffer     equ       $0008     ; descriptor has multi-byte buffer storage
+StreamAtEof         equ       $0010     ; the last refill reached end-of-file
+StreamIoError       equ       $0020     ; the last transfer failed
+StreamLineBuffered  equ       $0040     ; transfer carriage-return-terminated lines
+StreamFullyBuffered equ       $0080     ; transfer ordinary fixed-size blocks
+StreamWriting       equ       $0100     ; the current buffer contains output
+StreamInitialized   equ       $8000     ; buffering policy and storage are ready
 
 name                fcs       /New_user/ ; module name exposed to OS-9
                     fcb       $01       ; compiler startup-format version byte
@@ -357,7 +371,7 @@ CollectRegistration leax      >RegistrationIntro,pc ; select the registration re
                     pshs      x         ; pass the selected pointer through the compiler calling convention
                     lbsr      PrintFormatted ; render the selected prompt, message, or preview
                     leas      $02,s     ; discard one word-sized library argument
-                    leax      >RuntimeInputStream,y ; select the standard-input stream
+                    leax      >RuntimeOutputStream,y ; select the standard-input stream
                     pshs      x         ; pass the selected pointer through the compiler calling convention
                     lbsr      FlushStream ; flush pending terminal output before reading one byte
                     leas      $02,s     ; discard one word-sized library argument
@@ -553,7 +567,7 @@ AllocateStreamSlot
 stk_alloc_saved_u   equ       0         ; caller's U after the entry push
 stk_alloc_return    equ       2         ; caller return address
                     pshs      u         ; preserve the caller's descriptor pointer
-                    leau      >$000E,y  ; select the first of sixteen stream descriptors
+                    leau      >RuntimeInputStream,y ; select the first of sixteen stream descriptors
 ScanStreamSlots     ldd       StreamFlags,u ; inspect this descriptor's state flags
                     clra                ; isolate its low-byte open/read bits
                     andb      #3
@@ -623,7 +637,7 @@ ReturnFreeStreamSlot
                     tfr       u,d       ; return the available descriptor pointer
                     puls      pc,u
 StreamSetupFailed   clra                ; return a null descriptor pointer
-                    clrb
+                    clrb                ; complete the null return value
                     puls      pc,u
 OpenPathFromMode
 stk_mode_flags      equ       0         ; access mode assembled for OS-9
@@ -635,8 +649,8 @@ stk_mode_string     equ       10        ; pointer to the C mode string
                     pshs      u         ; preserve U while it carries the pathname
                     ldu       $04,s     ; keep the pathname ready for OS-9 wrappers
                     leas      -$04,s    ; reserve access flags and path-result locals
-                    clra
-                    clrb
+                    clra                ; clear the access-mode high byte
+                    clrb                ; begin with no access bits
                     std       ,s        ; begin with no access bits selected
                     ldx       $0A,s     ; inspect the first optional mode character
                     ldb       $01,x
@@ -789,9 +803,9 @@ ReadInputLine       pshs      u,d       ; save u,d on the stack
                     bra       Branch_055 ; continue execution at Branch_055
 Branch_056          ldd       ,s        ; load d from the current stack frame at ,s
                     stb       ,u+       ; store b at ,u+
-Branch_055          leax      >$000E,y  ; form the address >$000E,y in x
+Branch_055          leax      >RuntimeInputStream,y ; form the address >RuntimeInputStream,y in x
                     pshs      x         ; save x on the stack
-                    lbsr      Routine_021 ; call subroutine Routine_021
+                    lbsr      ReadStreamCharacter ; call subroutine ReadStreamCharacter
                     leas      $02,s     ; adjust the system stack pointer
                     std       ,s        ; store d in the current stack frame at ,s
                     cmpd      #13       ; compare d with #13 and set the condition codes
@@ -874,7 +888,7 @@ Branch_059          leas      $02,s     ; adjust the system stack pointer
                     fcc       "h2d5" ; store literal character data
                     fcb       $C0       ; store byte data
 PrintFormatted      pshs      u         ; save u on the stack
-                    leax      >RuntimeInputStream,y ; form the address >RuntimeInputStream,y in x
+                    leax      >RuntimeOutputStream,y ; form the address >RuntimeOutputStream,y in x
                     stx       >$038F,y  ; store x at >$038F,y
                     leax      $06,s     ; form the address $06,s in x
                     pshs      x         ; save x on the stack
@@ -1673,15 +1687,15 @@ stk_stream_index    equ       0         ; current descriptor number after PSHS U
 stk_stream_saved_u  equ       2         ; caller's U after PSHS U,D
 stk_stream_return   equ       4         ; caller return address
                     pshs      u,d       ; preserve U and allocate a word-sized slot index
-                    leau      >$000E,y  ; select the first runtime stream descriptor
+                    leau      >RuntimeInputStream,y ; select the first runtime stream descriptor
                     clra                ; initialize the slot index to zero
-                    clrb
+                    clrb                ; complete the zero slot index
                     std       ,s        ; retain the index in the local stack word
-                    bra       CheckNextStreamSlot
+                    bra       CheckNextStreamSlot ; test the first descriptor
 CloseNextStreamSlot
                     tfr       u,d       ; pass the current descriptor address
                     leau      StreamDescriptorSize,u ; advance to the next fixed-size descriptor
-                    pshs      d
+                    pshs      d         ; pass the descriptor being closed
                     bsr       CloseStream ; flush and close this occupied stream slot
                     leas      $02,s     ; discard the descriptor argument
 CheckNextStreamSlot
@@ -1690,175 +1704,204 @@ CheckNextStreamSlot
                     std       ,s        ; retain it for the next iteration
                     subd      #1        ; restore the index being tested now
                     cmpd      #16       ; the runtime owns sixteen stream slots
-                    blt       CloseNextStreamSlot
+                    blt       CloseNextStreamSlot ; visit every descriptor table entry
                     lbra      StreamOperationDone ; return through the shared stream epilogue
-CloseStream         pshs      u         ; save u on the stack
-                    ldu       $04,s     ; load u from the current stack frame at $04,s
-                    leas      -$02,s    ; adjust the system stack pointer
-                    cmpu      #0        ; compare u with #0 and set the condition codes
-                    beq       Branch_135 ; branch when the values are equal or the result is zero; target Branch_135
-                    ldd       StreamFlags,u ; load d from StreamFlags,u
-                    bne       Branch_136 ; branch when the values differ or the result is nonzero; target Branch_136
-Branch_135          ldd       #-1       ; set d to the constant -1
-                    lbra      StreamOperationDone ; continue execution at StreamOperationDone
-Branch_136          ldd       StreamFlags,u ; load d from StreamFlags,u
-                    clra                ; clear a to zero and set the condition codes
-                    andb      #2        ; mask b using #2
-                    beq       Branch_137 ; branch when the values are equal or the result is zero; target Branch_137
-                    pshs      u         ; save u on the stack
-                    bsr       FlushStream ; call subroutine FlushStream
-                    leas      $02,s     ; adjust the system stack pointer
-                    bra       Branch_138 ; continue execution at Branch_138
-Branch_137          clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-Branch_138          std       ,s        ; store d in the current stack frame at ,s
-                    ldd       StreamPath,u ; load d from StreamPath,u
-                    pshs      d         ; save d on the stack
-                    lbsr      ClosePath ; call subroutine ClosePath
-                    leas      $02,s     ; adjust the system stack pointer
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    std       StreamFlags,u ; store d at StreamFlags,u
-                    ldd       ,s        ; load d from the current stack frame at ,s
-                    bra       StreamOperationDone ; continue execution at StreamOperationDone
-FlushStream         pshs      u         ; save u on the stack
-                    ldu       $04,s     ; load u from the current stack frame at $04,s
-                    beq       Branch_139 ; branch when the values are equal or the result is zero; target Branch_139
-                    ldd       StreamFlags,u ; load d from StreamFlags,u
-                    clra                ; clear a to zero and set the condition codes
-                    andb      #34       ; mask b using #34
-                    cmpd      #2        ; compare d with #2 and set the condition codes
-                    beq       Branch_140 ; branch when the values are equal or the result is zero; target Branch_140
-Branch_139          ldd       #-1       ; set d to the constant -1
-                    puls      pc,u      ; restore pc,u and return to the caller
-Branch_140          ldd       StreamFlags,u ; load d from StreamFlags,u
-                    anda      #128      ; mask a using #128
-                    clrb                ; clear b to zero and set the condition codes
-                    std       -$02,s    ; store d in the current stack frame at -$02,s
-                    bne       Branch_141 ; branch when the values differ or the result is nonzero; target Branch_141
-                    pshs      u         ; save u on the stack
-                    lbsr      Routine_037 ; call subroutine Routine_037
-                    leas      $02,s     ; adjust the system stack pointer
-Branch_141          pshs      u         ; save u on the stack
-                    bsr       Routine_038 ; call subroutine Routine_038
-StreamOperationDone leas      $02,s     ; adjust the system stack pointer
-                    puls      pc,u      ; restore pc,u and return to the caller
-Routine_038         pshs      u         ; save u on the stack
-                    ldu       $04,s     ; load u from the current stack frame at $04,s
-                    leas      -$04,s    ; adjust the system stack pointer
-                    ldd       StreamFlags,u ; load d from StreamFlags,u
-                    anda      #1        ; mask a using #1
-                    clrb                ; clear b to zero and set the condition codes
-                    std       -$02,s    ; store d in the current stack frame at -$02,s
-                    bne       Branch_142 ; branch when the values differ or the result is nonzero; target Branch_142
-                    ldd       StreamCursor,u ; load d from StreamCursor,u
-                    cmpd      StreamBufferEnd,u ; compare d with StreamBufferEnd,u and set the condition codes
-                    beq       Branch_142 ; branch when the values are equal or the result is zero; target Branch_142
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    pshs      d         ; save d on the stack
-                    pshs      u         ; save u on the stack
-                    lbsr      Routine_039 ; call subroutine Routine_039
-                    leas      $02,s     ; adjust the system stack pointer
-                    ldd       $02,x     ; load d from $02,x
-                    pshs      d         ; save d on the stack
-                    ldd       ,x        ; load d from ,x
-                    pshs      d         ; save d on the stack
-                    ldd       StreamPath,u ; load d from StreamPath,u
-                    pshs      d         ; save d on the stack
-                    lbsr      SeekPath  ; call subroutine SeekPath
-                    leas      $08,s     ; adjust the system stack pointer
-Branch_142          ldd       StreamCursor,u ; load d from StreamCursor,u
-                    subd      StreamBufferStart,u ; subtract from d using StreamBufferStart,u
-                    std       $02,s     ; store d in the current stack frame at $02,s
-                    lbeq      Branch_143 ; branch when the values are equal or the result is zero; target Branch_143
-                    ldd       StreamFlags,u ; load d from StreamFlags,u
-                    anda      #1        ; mask a using #1
-                    clrb                ; clear b to zero and set the condition codes
-                    std       -$02,s    ; store d in the current stack frame at -$02,s
-                    lbeq      Branch_143 ; branch when the values are equal or the result is zero; target Branch_143
-                    ldd       StreamFlags,u ; load d from StreamFlags,u
-                    clra                ; clear a to zero and set the condition codes
-                    andb      #64       ; mask b using #64
-                    beq       Branch_144 ; branch when the values are equal or the result is zero; target Branch_144
-                    ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
-                    bra       Branch_145 ; continue execution at Branch_145
-Branch_146          ldd       $02,s     ; load d from the current stack frame at $02,s
-                    pshs      d         ; save d on the stack
-                    ldd       StreamCursor,u ; load d from StreamCursor,u
-                    pshs      d         ; save d on the stack
-                    ldd       StreamPath,u ; load d from StreamPath,u
-                    pshs      d         ; save d on the stack
-                    lbsr      WriteLineBytes ; call subroutine WriteLineBytes
-                    leas      $06,s     ; adjust the system stack pointer
-                    std       ,s        ; store d in the current stack frame at ,s
-                    cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    bne       Branch_147 ; branch when the values differ or the result is nonzero; target Branch_147
-                    leax      $04,s     ; form the address $04,s in x
-                    bra       Branch_148 ; continue execution at Branch_148
-Branch_147          ldd       $02,s     ; load d from the current stack frame at $02,s
-                    subd      ,s        ; subtract from d using ,s
-                    std       $02,s     ; store d in the current stack frame at $02,s
-                    ldd       StreamCursor,u ; load d from StreamCursor,u
-                    addd      ,s        ; add to d using ,s
-Branch_145          std       StreamCursor,u ; store d at StreamCursor,u
-                    ldd       $02,s     ; load d from the current stack frame at $02,s
-                    bne       Branch_146 ; branch when the values differ or the result is nonzero; target Branch_146
-                    bra       Branch_143 ; continue execution at Branch_143
-Branch_144          ldd       $02,s     ; load d from the current stack frame at $02,s
-                    pshs      d         ; save d on the stack
-                    ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
-                    pshs      d         ; save d on the stack
-                    ldd       StreamPath,u ; load d from StreamPath,u
-                    pshs      d         ; save d on the stack
-                    lbsr      WriteBytes ; call subroutine WriteBytes
-                    leas      $06,s     ; adjust the system stack pointer
-                    cmpd      $02,s     ; compare d with $02,s and set the condition codes
-                    beq       Branch_143 ; branch when the values are equal or the result is zero; target Branch_143
-                    bra       Branch_149 ; continue execution at Branch_149
-Branch_148          leas      -$04,x    ; adjust the system stack pointer
-Branch_149          ldd       StreamFlags,u ; load d from StreamFlags,u
-                    orb       #32       ; set selected bits in b using #32
-                    std       StreamFlags,u ; store d at StreamFlags,u
-                    ldd       StreamBufferEnd,u ; load d from StreamBufferEnd,u
-                    std       StreamCursor,u ; store d at StreamCursor,u
-                    ldd       #-1       ; set d to the constant -1
-                    bra       Branch_150 ; continue execution at Branch_150
-Branch_143          ldd       StreamFlags,u ; load d from StreamFlags,u
-                    ora       #1        ; set selected bits in a using #1
-                    std       StreamFlags,u ; store d at StreamFlags,u
-                    ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
-                    std       StreamCursor,u ; store d at StreamCursor,u
-                    addd      StreamBufferSize,u ; add to d using StreamBufferSize,u
-                    std       StreamBufferEnd,u ; store d at StreamBufferEnd,u
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-Branch_150          leas      $04,s     ; adjust the system stack pointer
-                    puls      pc,u      ; restore pc,u and return to the caller
-Routine_039         pshs      u         ; save u on the stack
-                    puls      pc,u      ; restore pc,u and return to the caller
-Routine_021         pshs      u         ; save u on the stack
-                    ldu       $04,s     ; load u from the current stack frame at $04,s
-                    beq       Branch_151 ; branch when the values are equal or the result is zero; target Branch_151
-                    ldd       StreamFlags,u ; load d from StreamFlags,u
-                    anda      #1        ; mask a using #1
-                    clrb                ; clear b to zero and set the condition codes
-                    std       -$02,s    ; store d in the current stack frame at -$02,s
-                    bne       Branch_151 ; branch when the values differ or the result is nonzero; target Branch_151
-                    ldd       StreamCursor,u ; load d from StreamCursor,u
-                    cmpd      StreamBufferEnd,u ; compare d with StreamBufferEnd,u and set the condition codes
-                    bcc       Branch_152 ; branch when carry is clear; target Branch_152
-                    ldd       StreamCursor,u ; load d from StreamCursor,u
-                    addd      #1        ; add to d using #1
-                    std       StreamCursor,u ; store d at StreamCursor,u
-                    subd      #1        ; subtract from d using #1
-                    tfr       d,x       ; copy the register values specified by d,x
-                    ldb       ,x        ; load b from ,x
-                    clra                ; clear a to zero and set the condition codes
-                    lbra      Branch_153 ; continue execution at Branch_153
-Branch_152          pshs      u         ; save u on the stack
-                    lbsr      Routine_042 ; call subroutine Routine_042
-                    lbra      Branch_154 ; continue execution at Branch_154
+CloseStream
+stk_close_result    equ       0         ; flush result after local allocation
+stk_close_saved_u   equ       2         ; caller's U after local allocation
+stk_streamclose_return equ       4         ; caller return address after local allocation
+stk_close_stream    equ       6         ; descriptor argument after local allocation
+                    pshs      u         ; preserve the caller's descriptor register
+                    ldu       $04,s     ; capture the descriptor before allocating the result word
+                    leas      -$02,s    ; reserve the flush result returned to the caller
+                    cmpu      #0        ; reject a null descriptor
+                    beq       RejectCloseRequest ; a null pointer cannot be closed
+                    ldd       StreamFlags,u ; inactive slots do not own an open path
+                    bne       CloseActiveStream ; nonzero flags identify an occupied slot
+RejectCloseRequest  ldd       #-1       ; report an invalid or already-closed stream
+                    lbra      StreamOperationDone ; unwind the local result word
+CloseActiveStream   ldd       StreamFlags,u ; determine whether buffered output is possible
+                    clra                ; inspect only low-byte access flags
+                    andb      #StreamWritable ; isolate write permission
+                    beq       SkipCloseFlush ; read-only streams have no pending output
+                    pshs      u         ; flush pending output before releasing the path
+                    bsr       FlushStream ; preserve any flush failure for the caller
+                    leas      $02,s     ; discard the descriptor argument
+                    bra       CloseUnderlyingPath ; close even when flushing failed
+SkipCloseFlush      clra                ; prepare a successful zero result
+                    clrb                ; a read-only stream has no write error to report
+CloseUnderlyingPath
+                    std       ,s        ; preserve the flush result across I$Close
+                    ldd       StreamPath,u ; select the underlying path number
+                    pshs      d         ; release the underlying OS-9 path
+                    lbsr      ClosePath ; release the OS-9 path
+                    leas      $02,s     ; discard the path argument
+                    clra                ; clear the descriptor flags as a word
+                    clrb                ; mark the table entry inactive
+                    std       StreamFlags,u ; make the descriptor reusable regardless of close status
+                    ldd       ,s        ; return the earlier flush result
+                    bra       StreamOperationDone ; return the saved flush result
+FlushStream
+stk_flush_saved_u   equ       0         ; caller's U after the entry push
+stk_flush_return    equ       2         ; caller return address
+stk_flush_stream    equ       4         ; descriptor argument
+                    pshs      u         ; preserve the caller's descriptor register
+                    ldu       $04,s     ; select the requested descriptor
+                    beq       RejectFlushRequest ; reject a null descriptor
+                    ldd       StreamFlags,u ; require write access without a prior I/O error
+                    clra                ; ignore high-byte orientation state
+                    andb      #StreamWritable+StreamIoError ; retain permission and error bits
+                    cmpd      #StreamWritable ; require writable with no error latched
+                    beq       PrepareStreamFlush ; proceed only for a healthy output stream
+RejectFlushRequest  ldd       #-1       ; report an invalid flush request
+                    puls      pc,u      ; reject null, read-only, or failed streams
+PrepareStreamFlush  ldd       StreamFlags,u ; initialize buffering on first use
+                    anda      #$80      ; isolate StreamInitialized's high byte
+                    clrb                ; form a word-sized initialization test
+                    std       -$02,s    ; use the compiler spill slot only for the flag test
+                    bne       FlushAssignedBuffer ; skip setup after first use
+                    pshs      u         ; pass the descriptor to lazy initialization
+                    lbsr      InitializeStreamBuffer ; choose policy and storage
+                    leas      $02,s     ; discard the descriptor argument
+FlushAssignedBuffer
+                    pshs      u         ; pass the prepared descriptor to the buffer flusher
+                    bsr       FlushBufferedStream ; return through the shared epilogue
+StreamOperationDone leas      $02,s     ; release the caller-specific local word
+                    puls      pc,u      ; restore U and return the operation status
+FlushBufferedStream
+stk_bufwrite_result equ       0         ; most recent line-write result
+stk_bufwrite_left   equ       2         ; bytes still pending in the buffer
+stk_bufwrite_saved_u equ       4         ; caller's U after local allocation
+stk_bufwrite_return equ       6         ; caller return address after local allocation
+stk_bufwrite_stream equ       8         ; descriptor argument after local allocation
+                    pshs      u         ; preserve the caller's descriptor register
+                    ldu       $04,s     ; capture the descriptor before allocating locals
+                    leas      -$04,s    ; reserve transfer result and remaining-byte words
+                    ldd       StreamFlags,u ; distinguish buffered input from pending output
+                    anda      #$01      ; isolate StreamWriting's high byte
+                    clrb                ; complete the word-sized orientation test
+                    std       -$02,s    ; spill the test value below the compiler frame
+                    bne       ComputePendingOutput ; output mode needs no input-position repair
+                    ldd       StreamCursor,u ; input may have unread bytes beyond the logical cursor
+                    cmpd      StreamBufferEnd,u ; detect unread cached input
+                    beq       ComputePendingOutput ; no unread input requires repositioning
+                    clra                ; build a zero position-query argument
+                    clrb                ; complete the zero word
+                    pshs      d         ; request the runtime's current logical position
+                    pshs      u         ; pass the descriptor to the position hook
+                    lbsr      NoOpStreamPositionHook ; compiler helper leaves its long-result pointer in X
+                    leas      $02,s     ; discard only the descriptor argument
+                    ldd       $02,x     ; pass the returned 32-bit low word
+                    pshs      d         ; pass the returned low position word
+                    ldd       ,x        ; pass the returned 32-bit high word
+                    pshs      d         ; pass the returned high position word
+                    ldd       StreamPath,u ; select the stream's OS-9 path
+                    pshs      d         ; pass the path number
+                    lbsr      SeekPath  ; synchronize OS-9 with the logical input position
+                    leas      $08,s     ; discard path, offset, and origin arguments
+ComputePendingOutput
+                    ldd       StreamCursor,u ; start with the current write position
+                    subd      StreamBufferStart,u ; measure buffered bytes preceding the cursor
+                    std       $02,s     ; retain the number of buffered bytes
+                    lbeq      ResetFlushedStream ; nothing has been accumulated
+                    ldd       StreamFlags,u ; verify that those bytes are output
+                    anda      #$01      ; only output-oriented buffers contain bytes to write
+                    clrb                ; form the word-sized orientation test
+                    std       -$02,s    ; preserve it in the compiler spill slot
+                    lbeq      ResetFlushedStream ; discard cached input rather than writing it
+                    ldd       StreamFlags,u ; select line or block transfer semantics
+                    clra                ; inspect only low-byte buffering flags
+                    andb      #StreamLineBuffered ; isolate line-oriented output
+                    beq       WriteBlockBuffer ; ordinary buffers use one bulk write
+                    ldd       StreamBufferStart,u ; begin the line-write loop at the buffer start
+                    bra       UpdateWriteCursor ; seed the line-write cursor
+WriteRemainingLineBytes
+                    ldd       $02,s     ; recover the bytes still pending
+                    pshs      d         ; pass the remaining byte count
+                    ldd       StreamCursor,u ; continue at the first unwritten byte
+                    pshs      d         ; pass the first unwritten byte
+                    ldd       StreamPath,u ; select the destination path
+                    pshs      d         ; pass it to the line-write wrapper
+                    lbsr      WriteLineBytes ; stop each transfer at a carriage return
+                    leas      $06,s     ; discard the transfer arguments
+                    std       ,s        ; retain the number written or -1
+                    cmpd      #-1       ; detect an OS-9 write failure
+                    bne       AccountForLineWrite ; otherwise consume the completed prefix
+                    leax      $04,s     ; preserve the compiler's error-frame restoration
+                    bra       RestoreFlushErrorFrame ; join the common failure path
+AccountForLineWrite
+                    ldd       $02,s     ; recover the previous remaining count
+                    subd      ,s        ; remove the completed portion from the remainder
+                    std       $02,s     ; retain the reduced count
+                    ldd       StreamCursor,u ; recover the previous transfer pointer
+                    addd      ,s        ; advance to the next unwritten byte
+UpdateWriteCursor   std       StreamCursor,u ; advance beyond the completed line
+                    ldd       $02,s     ; test whether bytes remain
+                    bne       WriteRemainingLineBytes ; continue through every CR-delimited fragment
+                    bra       ResetFlushedStream ; all line fragments reached OS-9
+WriteBlockBuffer    ldd       $02,s     ; recover the complete pending length
+                    pshs      d         ; write the entire pending block in one call
+                    ldd       StreamBufferStart,u ; select the beginning of buffered output
+                    pshs      d         ; pass the source address
+                    ldd       StreamPath,u ; select the destination path
+                    pshs      d         ; pass the path number
+                    lbsr      WriteBytes ; perform the bulk transfer
+                    leas      $06,s     ; discard the transfer arguments
+                    cmpd      $02,s     ; a short write is treated as failure
+                    beq       ResetFlushedStream ; accept only a complete block write
+                    bra       MarkStreamWriteError ; short writes latch the stream error
+RestoreFlushErrorFrame
+                    leas      -$04,x    ; reconstruct the compiler's local frame after failure
+MarkStreamWriteError
+                    ldd       StreamFlags,u ; preserve access and buffering state
+                    orb       #StreamIoError ; latch the failed transfer
+                    std       StreamFlags,u ; publish the terminal error state
+                    ldd       StreamBufferEnd,u ; prevent further buffered writes
+                    std       StreamCursor,u ; leave the buffer unavailable after an error
+                    ldd       #-1       ; return the conventional failure value
+                    bra       ReturnFlushStatus ; release locals and return failure
+ResetFlushedStream  ldd       StreamFlags,u ; preserve the descriptor configuration
+                    ora       #$01      ; mark the reset buffer as output-oriented
+                    std       StreamFlags,u ; publish the new orientation
+                    ldd       StreamBufferStart,u ; reset output to the first buffer byte
+                    std       StreamCursor,u ; make the buffer empty
+                    addd      StreamBufferSize,u ; restore the full writable boundary
+                    std       StreamBufferEnd,u ; reopen the complete buffer for output
+                    clra                ; prepare a successful zero result
+                    clrb                ; report a successful flush
+ReturnFlushStatus   leas      $04,s     ; release transfer-result locals
+                    puls      pc,u      ; restore U and return the flush status
+* this compiler-generated hook preserves all live values; its caller relies on
+* X already naming the runtime's shared 32-bit position result.
+NoOpStreamPositionHook
+                    pshs      u         ; preserve the calling convention's U value
+                    puls      pc,u      ; return without disturbing the position pointer
+ReadStreamCharacter
+stk_getc_saved_u    equ       0         ; caller's U after the entry push
+stk_getc_return     equ       2         ; caller return address
+stk_getc_stream     equ       4         ; descriptor argument
+                    pshs      u         ; preserve the caller's descriptor register
+                    ldu       $04,s     ; select the requested stream
+                    beq       ReturnReadFailure ; reject a null stream
+                    ldd       StreamFlags,u ; reject a stream currently oriented for output
+                    anda      #$01      ; an output-oriented buffer cannot satisfy getc
+                    clrb                ; complete the word-sized orientation test
+                    std       -$02,s    ; spill the orientation test below the frame
+                    bne       ReturnReadFailure ; getc cannot switch direction implicitly
+                    ldd       StreamCursor,u ; inspect the next cached-byte pointer
+                    cmpd      StreamBufferEnd,u ; consume cached data while cursor is in range
+                    bcc       RefillEmptyStream ; refill when cursor reached the boundary
+                    ldd       StreamCursor,u ; retain the byte address being returned
+                    addd      #1        ; calculate the following cursor
+                    std       StreamCursor,u ; advance past the returned byte
+                    subd      #1        ; recover the original byte address
+                    tfr       d,x       ; use it as the memory pointer
+                    ldb       ,x        ; return the previous cursor byte as an unsigned integer
+                    clra                ; widen the byte to a positive compiler integer
+                    lbra      ReturnStreamCharacter ; share the normal getc return sequence
+RefillEmptyStream   pshs      u         ; ask the refill path to return its first byte
+                    lbsr      RefillStreamBuffer ; return its first byte or -1
+                    lbra      FinishStreamRefill ; discard the pushed descriptor in the shared tail
                     fcb       $34       ; store byte data
                     fcb       $40       ; store byte data
                     fcb       $EE       ; store byte data
@@ -1887,8 +1930,8 @@ Branch_152          pshs      u         ; save u on the stack
                     fcb       $42       ; store byte data
                     fcb       $22       ; store byte data
                     fcb       $05       ; store byte data
-Branch_151          ldd       #-1       ; set d to the constant -1
-                    puls      pc,u      ; restore pc,u and return to the caller
+ReturnReadFailure   ldd       #-1       ; represent EOF, error, or invalid orientation
+                    puls      pc,u      ; restore U and return failure
                     fcb       $EC       ; store byte data
                     fcb       $C4       ; store byte data
                     fcb       $C3       ; store byte data
@@ -1957,158 +2000,176 @@ Branch_151          ldd       #-1       ; set d to the constant -1
                     fcb       $E4       ; store byte data
                     fcc       "2d5" ; store literal character data
                     fcb       $C0       ; store byte data
-Routine_042         pshs      u         ; save u on the stack
-                    ldu       $04,s     ; load u from the current stack frame at $04,s
-                    leas      -$02,s    ; adjust the system stack pointer
-                    ldd       StreamFlags,u ; load d from StreamFlags,u
-                    anda      #128      ; mask a using #128
-                    andb      #49       ; mask b using #49
-                    cmpd      #-32767   ; compare d with #-32767 and set the condition codes
-                    beq       Branch_155 ; branch when the values are equal or the result is zero; target Branch_155
-                    ldd       StreamFlags,u ; load d from StreamFlags,u
-                    clra                ; clear a to zero and set the condition codes
-                    andb      #49       ; mask b using #49
-                    cmpd      #1        ; compare d with #1 and set the condition codes
-                    lbne      Branch_156 ; branch when the values differ or the result is nonzero; target Branch_156
-                    pshs      u         ; save u on the stack
-                    lbsr      Routine_037 ; call subroutine Routine_037
-                    leas      $02,s     ; adjust the system stack pointer
-Branch_155          leax      >$000E,y  ; form the address >$000E,y in x
-                    pshs      x         ; save x on the stack
-                    cmpu      ,s++      ; compare u with ,s++ and set the condition codes
-                    bne       Branch_157 ; branch when the values differ or the result is nonzero; target Branch_157
-                    ldd       StreamFlags,u ; load d from StreamFlags,u
-                    clra                ; clear a to zero and set the condition codes
-                    andb      #64       ; mask b using #64
-                    beq       Branch_157 ; branch when the values are equal or the result is zero; target Branch_157
-                    leax      >RuntimeInputStream,y ; form the address >RuntimeInputStream,y in x
-                    pshs      x         ; save x on the stack
-                    lbsr      FlushStream ; call subroutine FlushStream
-                    leas      $02,s     ; adjust the system stack pointer
-Branch_157          ldd       StreamFlags,u ; load d from StreamFlags,u
-                    clra                ; clear a to zero and set the condition codes
-                    andb      #8        ; mask b using #8
-                    beq       Branch_158 ; branch when the values are equal or the result is zero; target Branch_158
-                    ldd       StreamBufferSize,u ; load d from StreamBufferSize,u
-                    pshs      d         ; save d on the stack
-                    ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
-                    pshs      d         ; save d on the stack
-                    ldd       StreamPath,u ; load d from StreamPath,u
-                    pshs      d         ; save d on the stack
-                    ldd       StreamFlags,u ; load d from StreamFlags,u
-                    clra                ; clear a to zero and set the condition codes
-                    andb      #64       ; mask b using #64
-                    beq       Branch_159 ; branch when the values are equal or the result is zero; target Branch_159
-                    leax      >ReadLineBytes,pc ; form the address >ReadLineBytes,pc in x
-                    bra       Branch_160 ; continue execution at Branch_160
-Branch_159          leax      >ReadBytes,pc ; form the address >ReadBytes,pc in x
-Branch_160          tfr       x,d       ; copy the register values specified by x,d
-                    tfr       d,x       ; copy the register values specified by d,x
-                    jsr       ,x        ; call subroutine ,x
-                    bra       Branch_161 ; continue execution at Branch_161
-Branch_158          ldd       #1        ; set d to the constant 1
-                    pshs      d         ; save d on the stack
-                    leax      StreamPushbackByte,u ; form the address StreamPushbackByte,u in x
-                    stx       StreamBufferStart,u ; store x at StreamBufferStart,u
-                    pshs      x         ; save x on the stack
-                    ldd       StreamPath,u ; load d from StreamPath,u
-                    pshs      d         ; save d on the stack
-                    lbsr      ReadBytes ; call subroutine ReadBytes
-Branch_161          leas      $06,s     ; adjust the system stack pointer
-                    std       ,s        ; store d in the current stack frame at ,s
-                    ldd       ,s        ; load d from the current stack frame at ,s
-                    bgt       Branch_162 ; branch when the signed value is greater; target Branch_162
-                    ldd       StreamFlags,u ; load d from StreamFlags,u
-                    pshs      d         ; save d on the stack
-                    ldd       $02,s     ; load d from the current stack frame at $02,s
-                    beq       Branch_163 ; branch when the values are equal or the result is zero; target Branch_163
-                    ldd       #32       ; set d to the constant 32
-                    bra       Branch_164 ; continue execution at Branch_164
-Branch_163          ldd       #16       ; set d to the constant 16
-Branch_164          ora       ,s+       ; set selected bits in a using ,s+
-                    orb       ,s+       ; set selected bits in b using ,s+
-                    std       StreamFlags,u ; store d at StreamFlags,u
-Branch_156          ldd       #-1       ; set d to the constant -1
-                    bra       Branch_154 ; continue execution at Branch_154
-Branch_162          ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
-                    addd      #1        ; add to d using #1
-                    std       StreamCursor,u ; store d at StreamCursor,u
-                    ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
-                    addd      ,s        ; add to d using ,s
-                    std       StreamBufferEnd,u ; store d at StreamBufferEnd,u
-                    ldb       [<$02,u]  ; load b from [<$02,u]
-                    clra                ; clear a to zero and set the condition codes
-Branch_154          leas      $02,s     ; adjust the system stack pointer
-Branch_153          puls      pc,u      ; restore pc,u and return to the caller
-Routine_037         pshs      u         ; save u on the stack
-                    ldu       $04,s     ; load u from the current stack frame at $04,s
-                    ldd       StreamFlags,u ; load d from StreamFlags,u
-                    clra                ; clear a to zero and set the condition codes
-                    andb      #192      ; mask b using #192
-                    bne       Branch_165 ; branch when the values differ or the result is nonzero; target Branch_165
-                    leas      -$20,s    ; adjust the system stack pointer
-                    leax      ,s        ; form the address ,s in x
-                    pshs      x         ; save x on the stack
-                    ldd       StreamPath,u ; load d from StreamPath,u
-                    pshs      d         ; save d on the stack
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_043 ; call subroutine Routine_043
-                    leas      $06,s     ; adjust the system stack pointer
-                    ldd       StreamFlags,u ; load d from StreamFlags,u
-                    pshs      d         ; save d on the stack
-                    ldb       $02,s     ; load b from the current stack frame at $02,s
-                    bne       Branch_166 ; branch when the values differ or the result is nonzero; target Branch_166
-                    ldd       #64       ; set d to the constant 64
-                    bra       Branch_167 ; continue execution at Branch_167
-Branch_166          ldd       #128      ; set d to the constant 128
-Branch_167          ora       ,s+       ; set selected bits in a using ,s+
-                    orb       ,s+       ; set selected bits in b using ,s+
-                    std       StreamFlags,u ; store d at StreamFlags,u
-                    leas      <$0020,s  ; adjust the system stack pointer
-Branch_165          ldd       StreamFlags,u ; load d from StreamFlags,u
-                    ora       #128      ; set selected bits in a using #128
-                    std       StreamFlags,u ; store d at StreamFlags,u
-                    clra                ; clear a to zero and set the condition codes
-                    andb      #12       ; mask b using #12
-                    beq       Branch_168 ; branch when the values are equal or the result is zero; target Branch_168
-                    puls      pc,u      ; restore pc,u and return to the caller
-Branch_168          ldd       StreamBufferSize,u ; load d from StreamBufferSize,u
-                    bne       Branch_169 ; branch when the values differ or the result is nonzero; target Branch_169
-                    ldd       StreamFlags,u ; load d from StreamFlags,u
-                    clra                ; clear a to zero and set the condition codes
-                    andb      #64       ; mask b using #64
-                    beq       Branch_170 ; branch when the values are equal or the result is zero; target Branch_170
-                    ldd       #128      ; set d to the constant 128
-                    bra       Branch_171 ; continue execution at Branch_171
-Branch_170          ldd       #256      ; set d to the constant 256
-Branch_171          std       StreamBufferSize,u ; store d at StreamBufferSize,u
-Branch_169          ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
-                    bne       Branch_172 ; branch when the values differ or the result is nonzero; target Branch_172
-                    ldd       StreamBufferSize,u ; load d from StreamBufferSize,u
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_044 ; call subroutine Routine_044
-                    leas      $02,s     ; adjust the system stack pointer
-                    std       StreamBufferStart,u ; store d at StreamBufferStart,u
-                    cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    beq       Branch_173 ; branch when the values are equal or the result is zero; target Branch_173
-Branch_172          ldd       StreamFlags,u ; load d from StreamFlags,u
-                    orb       #8        ; set selected bits in b using #8
-                    std       StreamFlags,u ; store d at StreamFlags,u
-                    bra       Branch_174 ; continue execution at Branch_174
-Branch_173          ldd       StreamFlags,u ; load d from StreamFlags,u
-                    orb       #4        ; set selected bits in b using #4
-                    std       StreamFlags,u ; store d at StreamFlags,u
-                    leax      StreamPushbackByte,u ; form the address StreamPushbackByte,u in x
-                    stx       StreamBufferStart,u ; store x at StreamBufferStart,u
-                    ldd       #1        ; set d to the constant 1
-                    std       StreamBufferSize,u ; store d at StreamBufferSize,u
-Branch_174          ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
-                    addd      StreamBufferSize,u ; add to d using StreamBufferSize,u
-                    std       StreamBufferEnd,u ; store d at StreamBufferEnd,u
-                    std       StreamCursor,u ; store d at StreamCursor,u
-                    puls      pc,u      ; restore pc,u and return to the caller
+RefillStreamBuffer
+stk_refill_count    equ       0         ; byte count returned by the low-level read
+stk_refill_saved_u  equ       2         ; caller's U after local allocation
+stk_refill_return   equ       4         ; caller return address after local allocation
+stk_refill_stream   equ       6         ; descriptor argument after local allocation
+                    pshs      u         ; preserve the caller's descriptor register
+                    ldu       $04,s     ; capture the descriptor before allocating the count
+                    leas      -$02,s    ; reserve the low-level transfer count
+                    ldd       StreamFlags,u ; accept initialized readable streams with no terminal status
+                    anda      #$80      ; isolate StreamInitialized's high byte
+                    andb      #StreamReadable+StreamAtEof+StreamIoError ; retain terminal read state
+                    cmpd      #StreamInitialized+StreamReadable ; require ready, readable, and clean
+                    beq       StreamReadyForRead ; skip lazy setup on the normal path
+                    ldd       StreamFlags,u ; an otherwise clean readable stream needs initialization
+                    clra                ; ignore initialization and orientation state
+                    andb      #StreamReadable+StreamAtEof+StreamIoError ; retain read eligibility
+                    cmpd      #StreamReadable ; only a clean readable stream can be initialized
+                    lbne      ReturnRefillFailure ; reject EOF, error, or non-readable streams
+                    pshs      u         ; pass the descriptor to lazy buffer setup
+                    lbsr      InitializeStreamBuffer ; establish policy and storage
+                    leas      $02,s     ; discard the descriptor argument
+StreamReadyForRead  leax      >RuntimeInputStream,y ; identify reads from standard input
+                    pshs      x         ; compare without sacrificing a working register
+                    cmpu      ,s++      ; detect the standard-input descriptor
+                    bne       SelectReadStorage ; ordinary streams need no prompt flush
+                    ldd       StreamFlags,u ; only terminal-style input needs prompt synchronization
+                    clra                ; inspect low-byte buffering state
+                    andb      #StreamLineBuffered ; detect terminal-style input
+                    beq       SelectReadStorage ; block input does not synchronize stdout
+                    leax      >RuntimeOutputStream,y ; select standard output
+                    pshs      x         ; flush any prompt before waiting for a line
+                    lbsr      FlushStream ; display a pending prompt before blocking for input
+                    leas      $02,s     ; discard the output descriptor argument
+SelectReadStorage   ldd       StreamFlags,u ; select allocated or one-byte storage
+                    clra                ; inspect low-byte buffer flags
+                    andb      #StreamHasBuffer ; detect multi-byte storage
+                    beq       ReadUnbufferedByte ; fall back to a single-byte transfer
+                    ldd       StreamBufferSize,u ; pass the maximum transfer length
+                    pshs      d         ; pass the allocated buffer capacity
+                    ldd       StreamBufferStart,u ; pass the destination buffer
+                    pshs      d         ; preserve the shared argument layout
+                    ldd       StreamPath,u ; pass the OS-9 path number
+                    pshs      d         ; complete the low-level read arguments
+                    ldd       StreamFlags,u ; choose line or unstructured I/O
+                    clra                ; inspect low-byte buffering state
+                    andb      #StreamLineBuffered ; isolate terminal-style input
+                    beq       SelectBlockRead ; files use an ordinary byte read
+                    leax      >ReadLineBytes,pc ; terminals use CR-terminated line reads
+                    bra       InvokeSelectedRead ; use the common indirect-call path
+SelectBlockRead     leax      >ReadBytes,pc ; ordinary files use unstructured reads
+InvokeSelectedRead  tfr       x,d       ; preserve the selected entry in compiler form
+                    tfr       d,x       ; restore it as an indirect-call pointer
+                    jsr       ,x        ; invoke the selected wrapper with the shared arguments
+                    bra       HandleRefillResult ; normalize either wrapper's result
+ReadUnbufferedByte  ldd       #1        ; request the descriptor-local byte only
+                    pshs      d         ; request exactly one byte
+                    leax      StreamPushbackByte,u ; select the fallback byte
+                    stx       StreamBufferStart,u ; reuse descriptor-local storage
+                    pshs      x         ; pass the fallback destination
+                    ldd       StreamPath,u ; pass the source path
+                    pshs      d         ; complete the one-byte read arguments
+                    lbsr      ReadBytes ; use ordinary reads for one-byte mode
+HandleRefillResult  leas      $06,s     ; discard path, buffer, and count arguments
+                    std       ,s        ; retain the actual count or failure value
+                    ldd       ,s        ; classify the transfer result
+                    bgt       ReturnFirstRefilledByte ; positive counts provide a character
+                    ldd       StreamFlags,u ; preserve existing descriptor state
+                    pshs      d         ; preserve existing state while adding EOF or error
+                    ldd       $02,s     ; recover the transfer result through the temporary push
+                    beq       MarkStreamEof ; zero bytes means clean end-of-file
+                    ldd       #StreamIoError ; a negative result means transfer failure
+                    bra       MergeReadStatus ; merge failure with existing state
+MarkStreamEof       ldd       #StreamAtEof ; latch EOF for later getc calls
+MergeReadStatus     ora       ,s+       ; restore the prior high flag byte
+                    orb       ,s+       ; merge the new terminal-state bit
+                    std       StreamFlags,u ; latch EOF or error for later calls
+ReturnRefillFailure ldd       #-1       ; expose both EOF and error as getc failure
+                    bra       FinishStreamRefill ; release the count local
+ReturnFirstRefilledByte
+                    ldd       StreamBufferStart,u ; locate the first returned byte
+                    addd      #1        ; advance the cursor past it
+                    std       StreamCursor,u ; consume the first byte immediately
+                    ldd       StreamBufferStart,u ; calculate the valid-data boundary
+                    addd      ,s        ; add the actual transfer count
+                    std       StreamBufferEnd,u ; limit cached input to the actual read count
+                    ldb       [<StreamBufferStart,u] ; return the first byte of the refill
+                    clra                ; widen the byte to a positive compiler integer
+FinishStreamRefill  leas      $02,s     ; release the saved transfer count
+ReturnStreamCharacter
+                    puls      pc,u      ; restore U and return the character or -1
+InitializeStreamBuffer
+stk_bufinit_saved_u equ       0         ; caller's U after the entry push
+stk_bufinit_return  equ       2         ; caller return address
+stk_bufinit_stream  equ       4         ; descriptor argument
+                    pshs      u         ; preserve the caller's descriptor register
+                    ldu       $04,s     ; select the descriptor being initialized
+                    ldd       StreamFlags,u ; honor an explicitly selected buffering policy
+                    clra                ; inspect only low-byte buffering policy
+                    andb      #StreamLineBuffered+StreamFullyBuffered ; retain policy bits
+                    bne       BufferingModeSelected ; retain caller-selected policy
+* no policy was supplied, so inspect the OS-9 option table in a 32-byte local.
+                    leas      -$20,s    ; reserve an OS-9 option table
+                    leax      ,s        ; point X at its first byte
+                    pshs      x         ; pass the option-table destination
+                    ldd       StreamPath,u ; pass the path being classified
+                    pshs      d         ; preserve the status-call argument order
+                    clra                ; request base option status code zero
+                    clrb                ; complete selector zero
+                    pshs      d         ; request the path's base option status
+                    lbsr      GetPathStatus ; obtain the device-type byte
+                    leas      $06,s     ; discard status arguments
+                    ldd       StreamFlags,u ; preserve existing stream state
+                    pshs      d         ; preserve existing state during policy selection
+                    ldb       $02,s     ; device type zero identifies an SCF-style terminal
+                    bne       SelectFullBuffering ; non-SCF paths use block buffering
+                    ldd       #StreamLineBuffered ; terminal paths flush at carriage returns
+                    bra       SaveBufferingMode ; merge the chosen terminal policy
+SelectFullBuffering ldd       #StreamFullyBuffered ; files favor sector-sized transfers
+SaveBufferingMode   ora       ,s+       ; restore the existing high flag byte
+                    orb       ,s+       ; merge the selected buffering policy
+                    std       StreamFlags,u ; publish the chosen policy
+                    leas      <$0020,s  ; release the temporary option table
+BufferingModeSelected
+                    ldd       StreamFlags,u ; mark policy and storage setup complete
+                    ora       #$80      ; set StreamInitialized in the high byte
+                    std       StreamFlags,u ; prevent repeated device classification
+                    clra                ; inspect the already-configured storage flags
+                    andb      #StreamUnbuffered+StreamHasBuffer ; retain storage state
+                    beq       ChooseBufferSize ; allocate only when no storage exists
+                    puls      pc,u      ; an existing buffer configuration is ready
+ChooseBufferSize    ldd       StreamBufferSize,u ; use a caller-selected size when present
+                    bne       EnsureBufferStorage ; retain a caller-selected capacity
+                    ldd       StreamFlags,u ; otherwise size according to buffering policy
+                    clra                ; inspect the low-byte line flag
+                    andb      #StreamLineBuffered ; distinguish terminal and file defaults
+                    beq       ChooseBlockBufferSize ; select the sector-sized file buffer
+                    ldd       #128      ; terminals default to a smaller line buffer
+                    bra       SaveDefaultBufferSize ; retain the terminal-sized default
+ChooseBlockBufferSize
+                    ldd       #256      ; ordinary files default to one sector
+SaveDefaultBufferSize
+                    std       StreamBufferSize,u ; publish the selected capacity
+EnsureBufferStorage
+                    ldd       StreamBufferStart,u ; accept caller-provided storage when nonzero
+                    bne       MarkBufferAvailable ; accept caller-provided storage
+                    ldd       StreamBufferSize,u ; otherwise request storage from the heap
+                    pshs      d         ; pass the allocation size
+                    lbsr      AllocateHeapBytes ; allocate the selected capacity from the runtime heap
+                    leas      $02,s     ; discard the allocation-size argument
+                    std       StreamBufferStart,u ; retain the returned buffer pointer
+                    cmpd      #-1       ; detect heap exhaustion
+                    beq       UseFallbackByteBuffer ; remain usable without heap space
+MarkBufferAvailable
+                    ldd       StreamFlags,u ; record that multi-byte storage is available
+                    orb       #StreamHasBuffer ; select the normal refill path
+                    std       StreamFlags,u ; publish available storage
+                    bra       ResetBufferWindow ; initialize its empty bounds
+UseFallbackByteBuffer
+                    ldd       StreamFlags,u ; degrade gracefully when allocation fails
+                    orb       #StreamUnbuffered ; select single-byte transfers
+                    std       StreamFlags,u ; publish fallback mode
+                    leax      StreamPushbackByte,u ; use the descriptor's spare byte
+                    stx       StreamBufferStart,u ; fall back to descriptor-local storage
+                    ldd       #1        ; limit transfers to the fallback byte
+                    std       StreamBufferSize,u ; record its single-byte capacity
+ResetBufferWindow   ldd       StreamBufferStart,u ; compute the empty-buffer boundary
+                    addd      StreamBufferSize,u ; advance past the assigned storage
+                    std       StreamBufferEnd,u ; publish the buffer boundary
+                    std       StreamCursor,u ; an empty input buffer starts at its end
+                    puls      pc,u      ; restore U with buffering ready
 Routine_030         pshs      u         ; save u on the stack
                     ldb       $05,s     ; load b from the current stack frame at $05,s
                     sex                 ; sign-extend b into d
@@ -2318,7 +2379,7 @@ Branch_184          lda       $04,s     ; load a from the current stack frame at
                     fcb       $F9       ; store byte data
                     fcb       $20       ; store byte data
                     fcb       $E7       ; store byte data
-Routine_043         lda       $05,s     ; load a from the current stack frame at $05,s
+GetPathStatus       lda       $05,s     ; load a from the current stack frame at $05,s
                     ldb       $03,s     ; load b from the current stack frame at $03,s
                     beq       Branch_185 ; branch when the values are equal or the result is zero; target Branch_185
                     cmpb      #1        ; compare b with #1 and set the condition codes
@@ -2670,7 +2731,7 @@ ApplySeekOffset     tfr       u,d       ; begin with the base position's low wor
                     fcb       $F8       ; store byte data
                     fcb       $35       ; store byte data
                     fcb       $86       ; store byte data
-Routine_044         ldd       $02,s     ; load d from the current stack frame at $02,s
+AllocateHeapBytes   ldd       $02,s     ; load d from the current stack frame at $02,s
                     addd      >RuntimeHeapEnd,y ; add to d using >RuntimeHeapEnd,y
                     bcs       Branch_202 ; branch when carry reports an error or unsigned underflow; target Branch_202
                     cmpd      >RuntimeStackLowWater,y ; compare d with >RuntimeStackLowWater,y and set the condition codes
