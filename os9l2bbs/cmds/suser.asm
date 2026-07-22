@@ -21,698 +21,697 @@
                     use       defsfile
                   ENDC
 
-tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
-atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+tylg                set       Prgrm+Objct
+atrv                set       ReEnt+rev
+rev                 set       $01
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_002        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_003        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkByte_003        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_004        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_005        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_004        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkBuffer_001      rmb       338       ; reserve 338 byte(s) in the module workspace
-WorkWord_005        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkBuffer_002      rmb       58        ; reserve 58 byte(s) in the module workspace
-WorkByte_006        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_003      rmb       3         ; reserve 3 byte(s) in the module workspace
-WorkWord_006        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkBuffer_004      rmb       938       ; reserve 938 byte(s) in the module workspace
-size                equ       .         ; define the assembly-time value for size
+StreamCursor        rmb       2         ; current byte pointer within the assigned buffer
+StreamBufferStart   rmb       2         ; first byte of the assigned stream buffer
+StreamBufferEnd     rmb       2         ; byte just beyond valid or writable buffered data
+StreamFlags         rmb       2         ; access, buffering, EOF, error, and orientation bits
+StreamPath          rmb       2         ; underlying OS-9 path number
+StreamPushbackByte  rmb       1         ; descriptor-local ungetc or fallback byte
+StreamBufferSize    rmb       2         ; configured buffer capacity
+RuntimeDescriptorTableRemainder rmb       338       ; remaining storage for the sixteen stream descriptors
+StartupArgv0Pointer rmb       2         ; program-name pointer installed as argv[0]
+StartupArgvVectorTail rmb       58        ; remaining argument-vector pointer slots
+StartupArgcHigh     rmb       1         ; high byte adjoining compiler argument state
+StartupArgumentState rmb       3         ; argc low byte and scanner bookkeeping
+StartupParameterLength rmb       2         ; original OS-9 parameter length
+RuntimeWorkspaceTail rmb       938       ; compiler globals and suser application frame
+StreamDescriptorSize equ       RuntimeDescriptorTableRemainder ; thirteen-byte descriptor stride
+size                equ       .
 
-name                fcs       /Suser/ ; store an OS-9 high-bit-terminated string
-                    fcb       $01       ; store byte data
-Routine_001         lda       ,y+       ; load a from ,y+
-                    sta       ,u+       ; store a at ,u+
-                    leax      -$01,x    ; form the address -$01,x in x
-                    bne       Routine_001 ; branch when the values differ or the result is nonzero; target Routine_001
-                    rts                 ; return to the caller
-start               pshs      y         ; save y on the stack
-                    pshs      u         ; save u on the stack
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-Branch_001          sta       ,u+       ; store a at ,u+
-                    decb                ; decrement b
-                    bne       Branch_001 ; branch when the values differ or the result is nonzero; target Branch_001
-                    ldx       ,s        ; load x from the current stack frame at ,s
-                    leau      ,x        ; form the workspace or data address ,x in u
-                    leax      >$01CB,x  ; form the address >$01CB,x in x
-                    pshs      x         ; save x on the stack
-                    leay      >Data_001,pc ; form the address >Data_001,pc in y
-                    ldx       ,y++      ; load x from ,y++
-                    beq       Branch_002 ; branch when the values are equal or the result is zero; target Branch_002
-                    bsr       Routine_001 ; call subroutine Routine_001
-                    ldu       $02,s     ; load u from the current stack frame at $02,s
-Branch_002          leau      >WorkByte_002,u ; form the workspace or data address >WorkByte_002,u in u
-                    ldx       ,y++      ; load x from ,y++
-                    beq       Branch_003 ; branch when the values are equal or the result is zero; target Branch_003
-                    bsr       Routine_001 ; call subroutine Routine_001
-                    clra                ; clear a to zero and set the condition codes
-Branch_003          cmpu      ,s        ; compare u with ,s and set the condition codes
-Code_001            beq       Code_002  ; branch when the values are equal or the result is zero; target Code_002
-                    sta       ,u+       ; store a at ,u+
-                    bra       Branch_003 ; continue execution at Branch_003
-Code_002            ldu       $02,s     ; load u from the current stack frame at $02,s
-                    ldd       ,y++      ; load d from ,y++
-                    beq       Branch_004 ; branch when the values are equal or the result is zero; target Branch_004
-                    leax      >0,pc     ; form the address >,pc in x
-                    lbsr      Routine_002 ; call subroutine Routine_002
-Branch_004          ldd       ,y++      ; load d from ,y++
-                    beq       Branch_005 ; branch when the values are equal or the result is zero; target Branch_005
-                    leax      WorkByte_001,u ; form the address WorkByte_001,u in x
-                    lbsr      Routine_002 ; call subroutine Routine_002
-Branch_005          leas      $04,s     ; adjust the system stack pointer
-                    puls      x         ; restore x from the stack
-                    stx       >WorkWord_006,u ; store x at >WorkWord_006,u
-                    sty       >WorkWord_005,u ; store y at >WorkWord_005,u
-                    ldd       #1        ; set d to the constant 1
-                    std       >WorkByte_006,u ; store d at >WorkByte_006,u
-                    leay      >WorkBuffer_002,u ; form the address >WorkBuffer_002,u in y
-                    leax      ,s        ; form the address ,s in x
-                    lda       ,x+       ; load a from ,x+
-Branch_006          ldb       >WorkBuffer_003,u ; load b from >WorkBuffer_003,u
-                    cmpb      #29       ; compare b with #29 and set the condition codes
-                    beq       Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
-Branch_008          cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
-                    cmpa      #32       ; compare a with #32 and set the condition codes
-                    beq       Branch_009 ; branch when the values are equal or the result is zero; target Branch_009
-                    cmpa      #44       ; compare a with #44 and set the condition codes
-                    bne       Branch_010 ; branch when the values differ or the result is nonzero; target Branch_010
-Branch_009          lda       ,x+       ; load a from ,x+
-                    bra       Branch_008 ; continue execution at Branch_008
-Branch_010          cmpa      #34       ; compare a with #34 and set the condition codes
-                    beq       Branch_011 ; branch when the values are equal or the result is zero; target Branch_011
-                    cmpa      #39       ; compare a with #39 and set the condition codes
-                    bne       Branch_012 ; branch when the values differ or the result is nonzero; target Branch_012
-Branch_011          stx       ,y++      ; store x at ,y++
-                    inc       >WorkBuffer_003,u ; increment the value at >WorkBuffer_003,u
-                    pshs      a         ; save a on the stack
-Branch_013          lda       ,x+       ; load a from ,x+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_014 ; branch when the values are equal or the result is zero; target Branch_014
-                    cmpa      ,s        ; compare a with ,s and set the condition codes
-                    bne       Branch_013 ; branch when the values differ or the result is nonzero; target Branch_013
-Branch_014          puls      b         ; restore b from the stack
-                    clr       -$01,x    ; clear -$01,x to zero and set the condition codes
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
-                    lda       ,x+       ; load a from ,x+
-                    bra       Branch_006 ; continue execution at Branch_006
-Branch_012          leax      -$01,x    ; form the address -$01,x in x
-                    stx       ,y++      ; store x at ,y++
-                    leax      $01,x     ; form the address $01,x in x
-                    inc       >WorkBuffer_003,u ; increment the value at >WorkBuffer_003,u
-Branch_015          cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_016 ; branch when the values are equal or the result is zero; target Branch_016
-                    cmpa      #32       ; compare a with #32 and set the condition codes
-                    beq       Branch_016 ; branch when the values are equal or the result is zero; target Branch_016
-                    cmpa      #44       ; compare a with #44 and set the condition codes
-                    beq       Branch_016 ; branch when the values are equal or the result is zero; target Branch_016
-                    lda       ,x+       ; load a from ,x+
-                    bra       Branch_015 ; continue execution at Branch_015
-Branch_016          clr       -$01,x    ; clear -$01,x to zero and set the condition codes
-                    bra       Branch_006 ; continue execution at Branch_006
-Branch_007          leax      >WorkWord_005,u ; form the address >WorkWord_005,u in x
-                    pshs      x         ; save x on the stack
-                    ldd       >WorkByte_006,u ; load d from >WorkByte_006,u
-                    pshs      d         ; save d on the stack
-                    leay      WorkByte_001,u ; form the address WorkByte_001,u in y
-                    bsr       Routine_003 ; call subroutine Routine_003
-                    lbsr      Routine_004 ; call subroutine Routine_004
-                    clr       ,-s       ; clear ,-s to zero and set the condition codes
-                    clr       ,-s       ; clear ,-s to zero and set the condition codes
-                    lbsr      Routine_005 ; call subroutine Routine_005
-Routine_003         leax      >$01CB,y  ; form the address >$01CB,y in x
-                    stx       >$01A9,y  ; store x at >$01A9,y
-                    sts       >$019D,y  ; store s at >$019D,y
-                    sts       >$01AB,y  ; store s at >$01AB,y
-                    ldd       #-126     ; set d to the constant -126
-Routine_006         leax      d,s       ; form the address d,s in x
-                    cmpx      >$01AB,y  ; compare x with >$01AB,y and set the condition codes
-                    bcc       Branch_017 ; branch when carry is clear; target Branch_017
-                    cmpx      >$01A9,y  ; compare x with >$01A9,y and set the condition codes
-                    bcs       Branch_018 ; branch when carry reports an error or unsigned underflow; target Branch_018
-                    stx       >$01AB,y  ; store x at >$01AB,y
-Branch_017          rts                 ; return to the caller
-Text_001            fcc       "**** STACK OVERFLOW ****" ; store literal character data
-                    fcb       $0D       ; store byte data
-Branch_018          leax      <Text_001,pc ; form the address <Text_001,pc in x
-                    ldb       #207      ; set b to the constant 207
-                    pshs      b         ; save b on the stack
-                    lda       #2        ; set a to the constant 2
-                    ldy       #100      ; set y to the constant 100
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    clr       ,-s       ; clear ,-s to zero and set the condition codes
-                    lbsr      Routine_007 ; call subroutine Routine_007
-                    ldd       >$019D,y  ; load d from >$019D,y
+name                fcs       /Suser/
+                    fcb       $01
+CopyInitializerBytes lda       ,y+       ; copy one byte from the packed initializer image
+                    sta       ,u+       ; install it in the process workspace
+                    leax      -$01,x    ; count down the current initialized block
+                    bne       CopyInitializerBytes ; continue until the block length reaches zero
+                    rts                 ; return to the startup dispatcher
+start               pshs      y         ; preserve OS-9's parameter length
+                    pshs      u         ; preserve the process workspace base
+                    clra                ; prepare a zero byte and a 256-byte loop count
+                    clrb                ; prepare a zero byte and a 256-byte loop count
+ClearDirectPage     sta       ,u+       ; clear the first workspace page
+                    decb                ; advance the modulo-256 clear count
+                    bne       ClearDirectPage ; clear all 256 direct-page bytes
+                    ldx       ,s        ; recover the original workspace base
+                    leau      ,x        ; select
+                    leax      >$01CB,x  ; select $01 cb
+                    pshs      x         ; retain the workspace-clear boundary
+                    leay      >RuntimeInitializerImage,pc ; select data 001
+                    ldx       ,y++      ; read the next initialized block length
+                    beq       InitializeSecondDataBlock ; select branch 002 when the requested case matches
+                    bsr       CopyInitializerBytes ; expand the described initialized bytes
+                    ldu       $02,s     ; recover $02
+InitializeSecondDataBlock leau      >StreamCursor+1,u ; select work byte 002
+                    ldx       ,y++      ; read the next initialized block length
+                    beq       ClearRemainingWorkspace ; select branch 003 when the requested case matches
+                    bsr       CopyInitializerBytes ; expand the described initialized bytes
+                    clra                ; prepare a zero byte and a 256-byte loop count
+ClearRemainingWorkspace cmpu      ,s
+CheckWorkspaceClearEnd beq       ApplyCodeRelocations ; begin relocation after all remaining BSS is zeroed
+                    sta       ,u+       ; install it in the process workspace
+                    bra       ClearRemainingWorkspace ; continue with branch 003
+ApplyCodeRelocations ldu       $02,s     ; recover $02
+                    ldd       ,y++      ; recover
+                    beq       ApplyDataRelocations ; skip an empty code-reference relocation table
+                    leax      >0,pc     ; use the module base as the relocation delta
+                    lbsr      ApplyRelocationTable ; invoke routine 002
+ApplyDataRelocations ldd       ,y++      ; recover
+                    beq       ParseCommandLine ; begin argument parsing when no data relocations remain
+                    leax      StreamCursor,u ; select work byte 001
+                    lbsr      ApplyRelocationTable ; invoke routine 002
+ParseCommandLine    leas      $04,s     ; release $04,s bytes of stack state
+                    puls      x         ; recover the OS-9 parameter length
+                    stx       >StartupParameterLength,u ; retain work word 006
+                    sty       >StartupArgv0Pointer,u ; retain work word 005
+                    ldd       #1        ; initialize work byte 006 to 1
+                    std       >StartupArgcHigh,u ; retain work byte 006
+                    leay      >StartupArgvVectorTail,u ; select work buffer 002
+                    leax      ,s        ; point at OS-9's CR-terminated parameter text
+                    lda       ,x+       ; prime the argument scanner with its first byte
+ParseNextArgument   ldb       >StartupArgumentState,u ; recover work buffer 003
+                    cmpb      #29       ; reserve the thirtieth argv slot for termination
+                    beq       InvokeSuser ; stop parsing at the argument-vector capacity or CR
+SkipArgumentDelimiters cmpa      #13       ; recognize the carriage-return terminator
+                    beq       InvokeSuser ; stop parsing at the argument-vector capacity or CR
+                    cmpa      #32       ; treat spaces as argument separators
+                    beq       ConsumeArgumentDelimiter ; skip a separating space
+                    cmpa      #44       ; also accept commas as argument separators
+                    bne       CheckQuotedArgument ; classify the first nonseparator byte
+ConsumeArgumentDelimiter lda       ,x+       ; consume the next byte while consume argument delimiter
+                    bra       SkipArgumentDelimiters ; discard consecutive spaces and commas
+CheckQuotedArgument cmpa      #34       ; recognize a double-quoted argument
+                    beq       RecordQuotedArgument ; begin a double-quoted argument
+                    cmpa      #39       ; also recognize a single-quoted argument
+                    bne       RecordBareArgument ; use ordinary delimiter rules otherwise
+RecordQuotedArgument stx       ,y++      ; record the first byte inside the quotes as argv
+                    inc       >StartupArgumentState,u ; increment the value at >StartupArgumentState,u
+                    pshs      a         ; retain the opening quote as the required closer
+ScanQuotedArgument  lda       ,x+       ; consume the next quoted byte
+                    cmpa      #13       ; allow CR to terminate an unterminated quote
+                    beq       TerminateQuotedArgument ; terminate an unmatched quote at end-of-line
+                    cmpa      ,s        ; test for the matching quote character
+                    bne       ScanQuotedArgument ; keep delimiters literal while inside quotes
+TerminateQuotedArgument puls      b         ; restore b
+                    clr       -$01,x    ; replace the closing delimiter with a C-string NUL
+                    cmpa      #13       ; allow CR to terminate an unterminated quote
+                    beq       InvokeSuser ; stop parsing at the argument-vector capacity or CR
+                    lda       ,x+       ; prime the argument scanner with its first byte
+                    bra       ParseNextArgument ; look for another argument
+RecordBareArgument  leax      -$01,x    ; rewind to include the first unquoted byte
+                    stx       ,y++      ; append the argument pointer to argv
+                    leax      $01,x     ; resume scanning after its first byte
+                    inc       >StartupArgumentState,u ; increment the value at >StartupArgumentState,u
+ScanBareArgument    cmpa      #13       ; test the current unquoted byte for termination
+                    beq       TerminateBareArgument ; finish on CR, space, or comma
+                    cmpa      #32       ; treat spaces as argument separators
+                    beq       TerminateBareArgument ; finish on CR, space, or comma
+                    cmpa      #44       ; also accept commas as argument separators
+                    beq       TerminateBareArgument ; finish on CR, space, or comma
+                    lda       ,x+       ; prime the argument scanner with its first byte
+                    bra       ScanBareArgument ; consume another ordinary argument byte
+TerminateBareArgument clr       -$01,x    ; initialize -$01
+                    bra       ParseNextArgument ; look for another argument
+InvokeSuser         leax      >StartupArgv0Pointer,u ; select work word 005
+                    pshs      x         ; pass argv through the compiler calling convention
+                    ldd       >StartupArgcHigh,u ; recover work byte 006
+                    pshs      d         ; pass argc beside argv
+                    leay      StreamCursor,u ; select work byte 001
+                    bsr       InitializeRuntimeBounds ; invoke routine 003
+                    lbsr      SuserMain ; invoke routine 004
+                    clr       ,-s       ; push a zero process exit status
+                    clr       ,-s       ; push a zero process exit status
+                    lbsr      ExitProcess ; flush runtime state and terminate successfully
+InitializeRuntimeBounds leax      >$01CB,y  ; select $01 cb
+                    stx       >$01A9,y  ; retain $01 a9
+                    sts       >$019D,y
+                    sts       >$01AB,y
+                    ldd       #-126     ; establish the routine 003 loop or field bound (-126)
+CheckStackSpace     leax      d,s       ; project the requested stack growth below the current S
+                    cmpx      >$01AB,y  ; test against $01 ab
+                    bcc       StackSpaceAvailable ; select branch 017 when carry remains clear
+                    cmpx      >$01A9,y  ; test against $01 a9
+                    bcs       AbortStackOverflow ; select branch 018 when carry reports an error or underflow
+                    stx       >$01AB,y  ; retain $01 ab
+StackSpaceAvailable rts                 ; return with the requested stack range validated
+StackOverflowMessage fcc       "**** STACK OVERFLOW ****"
+                    fcb       $0D
+AbortStackOverflow  leax      <StackOverflowMessage,pc ; select text 001
+                    ldb       #207      ; establish the branch 018 loop or field bound (207)
+                    pshs      b         ; pass that status to the nonreturning exit wrapper
+                    lda       #2        ; write the diagnostic on standard error
+                    ldy       #100      ; bound output beyond the fixed message length
+                    os9       I$WritLn  ; display the fatal diagnostic through its carriage return
+                    clr       ,-s       ; widen the one-byte status to a compiler word
+                    lbsr      ExitWithStackStatus ; invoke routine 007
+                    ldd       >$019D,y  ; recover $019 d
                     subd      >$01AB,y  ; subtract from d using >$01AB,y
-                    rts                 ; return to the caller
-                    fcb       $EC       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $AB       ; store byte data
-                    fcb       $A3       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $39       ; store byte data
-Routine_002         pshs      x         ; save x on the stack
-                    leax      d,y       ; form the address d,y in x
-                    leax      d,x       ; form the address d,x in x
-                    pshs      x         ; save x on the stack
-Branch_019          ldd       ,y++      ; load d from ,y++
-                    leax      d,u       ; form the address d,u in x
-                    ldd       ,x        ; load d from ,x
-                    addd      $02,s     ; add to d using $02,s
-                    std       ,x        ; store d at ,x
-                    cmpy      ,s        ; compare y with ,s and set the condition codes
-                    bne       Branch_019 ; branch when the values differ or the result is nonzero; target Branch_019
-                    leas      $04,s     ; adjust the system stack pointer
-                    rts                 ; return to the caller
-Routine_004         pshs      u         ; save u on the stack
-                    ldd       #-284     ; set d to the constant -284
-                    lbsr      Routine_006 ; call subroutine Routine_006
-                    leas      >$FF34,s  ; adjust the system stack pointer
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
+                    rts                 ; return to the diagnostic caller
+                    fcb       $EC
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $AB
+                    fcb       $A3
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $A9
+                    fcb       $39
+ApplyRelocationTable pshs      x         ; preserve the selected relocation delta
+                    leax      d,y       ; locate the end of the packed word-offset table
+                    leax      d,x       ; account for the table's own displacement encoding
+                    pshs      x         ; retain the computed table end
+RelocateNextWord    ldd       ,y++      ; recover
+                    leax      d,u       ; locate the word requiring relocation
+                    ldd       ,x        ; recover
+                    addd      $02,s     ; add the selected module or data base
+                    std       ,x        ; install the runtime absolute address
+                    cmpy      ,s        ; test for the end of the relocation table
+                    bne       RelocateNextWord ; relocate every listed word
+                    leas      $04,s     ; release $04,s bytes of stack state
+                    rts                 ; return to the startup dispatcher
+SuserMain           pshs      u         ; preserve the caller frame while the registration program runs
+                    ldd       #-284     ; establish the routine 004 loop or field bound (-284)
+                    lbsr      CheckStackSpace ; invoke routine 006
+                    leas      >$FF34,s  ; release >$FF34,s bytes of stack state
+                    clra                ; select standard input
+                    clrb                ; clear the byte accumulator for counting
                     stb       ,s        ; store b in the current stack frame at ,s
-                    ldd       >$00D0,s  ; load d from the current stack frame at >$00D0,s
-                    cmpd      #1        ; compare d with #1 and set the condition codes
-                    bne       Branch_020 ; branch when the values differ or the result is nonzero; target Branch_020
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    pshs      d         ; save d on the stack
-                    leax      >Text_002,pc ; form the address >Text_002,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_008 ; call subroutine Routine_008
-                    leas      $04,s     ; adjust the system stack pointer
-Branch_020          ldx       >$00D2,s  ; load x from the current stack frame at >$00D2,s
-                    ldd       $02,x     ; load d from $02,x
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_009 ; call subroutine Routine_009
-                    leas      $02,s     ; adjust the system stack pointer
+                    ldd       >$00D0,s  ; recover $00 d0
+                    cmpd      #1        ; test against #1
+                    bne       ValidateUserArgument ; select branch 020 when the requested case does not match
+                    clra                ; select standard input
+                    clrb                ; clear the byte accumulator for counting
+                    pshs      d         ; pass the current value as a word-sized argument
+                    leax      >UsageMessage,pc ; select text 002
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      AbortCannotOpen ; print the diagnostic and terminate with the saved error
+                    leas      $04,s     ; release $04,s bytes of stack state
+ValidateUserArgument ldx       >$00D2,s  ; recover $00 d2
+                    ldd       $02,x     ; recover $02
+                    pshs      d         ; preserve d across the operation
+                    lbsr      ParseUserNumber ; invoke routine 009
+                    leas      $02,s     ; release $02,s bytes of stack state
                     std       >$00CA,s  ; store d in the current stack frame at >$00CA,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_010 ; call subroutine Routine_010
-                    leas      $02,s     ; adjust the system stack pointer
-                    cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    bne       Branch_021 ; branch when the values differ or the result is nonzero; target Branch_021
-                    ldd       >$01AD,y  ; load d from >$01AD,y
-                    pshs      d         ; save d on the stack
-                    leax      >Text_003,pc ; form the address >Text_003,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_008 ; call subroutine Routine_008
-                    leas      $04,s     ; adjust the system stack pointer
-Branch_021          ldd       #2        ; set d to the constant 2
-                    bra       Branch_022 ; continue execution at Branch_022
-Branch_023          ldd       >$00C8,s  ; load d from the current stack frame at >$00C8,s
+                    pshs      d         ; preserve d across the operation
+                    lbsr      SetProcessUser ; invoke routine 010
+                    leas      $02,s     ; release $02,s bytes of stack state
+                    cmpd      #-1       ; test against #-1
+                    bne       BuildCommandLine ; select branch 021 when the requested case does not match
+                    ldd       >$01AD,y  ; recover $01 ad
+                    pshs      d         ; preserve d across the operation
+                    leax      >UserChangeDeniedMessage,pc ; select text 003
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      AbortCannotOpen ; invoke abort cannot open
+                    leas      $04,s     ; release $04,s bytes of stack state
+BuildCommandLine    ldd       #2        ; establish the branch 021 loop or field bound (2)
+                    bra       AdvanceCommandArgument ; continue with branch 022
+AppendCommandArgument ldd       >$00C8,s  ; recover $00 c8
                     aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
-                    ldx       >$00D2,s  ; load x from the current stack frame at >$00D2,s
-                    leax      d,x       ; form the address d,x in x
-                    ldd       ,x        ; load d from ,x
-                    pshs      d         ; save d on the stack
-                    leax      $02,s     ; form the address $02,s in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_011 ; call subroutine Routine_011
-                    leas      $04,s     ; adjust the system stack pointer
-                    leax      >Data_002,pc ; form the address >Data_002,pc in x
-                    pshs      x         ; save x on the stack
-                    leax      $02,s     ; form the address $02,s in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_011 ; call subroutine Routine_011
-                    leas      $04,s     ; adjust the system stack pointer
-                    ldd       >$00C8,s  ; load d from the current stack frame at >$00C8,s
+                    ldx       >$00D2,s  ; recover $00 d2
+                    leax      d,x       ; select d
+                    ldd       ,x        ; recover
+                    pshs      d         ; pass the current value as a word-sized argument
+                    leax      $02,s     ; address the local confirmation byte
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      AppendCString ; invoke routine 011
+                    leas      $04,s     ; release $04,s bytes of stack state
+                    leax      >SpaceString,pc ; select data 002
+                    pshs      x         ; preserve x across the operation
+                    leax      $02,s     ; select $02
+                    pshs      x         ; preserve x across the operation
+                    lbsr      AppendCString ; invoke routine 011
+                    leas      $04,s     ; release $04,s bytes of stack state
+                    ldd       >$00C8,s  ; recover $00 c8
                     addd      #1        ; add to d using #1
-Branch_022          std       >$00C8,s  ; store d in the current stack frame at >$00C8,s
-                    ldd       >$00C8,s  ; load d from the current stack frame at >$00C8,s
-                    cmpd      >$00D0,s  ; compare d with >$00D0,s and set the condition codes
-                    blt       Branch_023 ; branch when the signed value is less; target Branch_023
-                    leax      >Data_003,pc ; form the address >Data_003,pc in x
-                    pshs      x         ; save x on the stack
-                    leax      $02,s     ; form the address $02,s in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_011 ; call subroutine Routine_011
-                    leas      $04,s     ; adjust the system stack pointer
-                    ldd       #3        ; set d to the constant 3
-                    pshs      d         ; save d on the stack
-                    ldd       #1        ; set d to the constant 1
-                    pshs      d         ; save d on the stack
-                    ldd       #16       ; set d to the constant 16
-                    pshs      d         ; save d on the stack
-                    leax      $06,s     ; form the address $06,s in x
-                    pshs      x         ; save x on the stack
-                    leax      $08,s     ; form the address $08,s in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_012 ; call subroutine Routine_012
+AdvanceCommandArgument std       >$00C8,s  ; store d in the current stack frame at >$00C8,s
+                    ldd       >$00C8,s  ; recover $00 c8
+                    cmpd      >$00D0,s  ; test against $00 d0
+                    blt       AppendCommandArgument ; continue with branch 023 below the signed limit
+                    leax      >CarriageReturnString,pc ; select data 003
+                    pshs      x         ; preserve x across the operation
+                    leax      $02,s     ; select $02
+                    pshs      x         ; preserve x across the operation
+                    lbsr      AppendCString ; invoke routine 011
+                    leas      $04,s     ; release $04,s bytes of stack state
+                    ldd       #3        ; establish the branch 022 loop or field bound (3)
+                    pshs      d         ; pass the current value as a word-sized argument
+                    ldd       #1        ; establish the branch 022 loop or field bound (1)
+                    pshs      d         ; preserve d across the operation
+                    ldd       #16       ; establish the branch 022 loop or field bound (16)
+                    pshs      d         ; preserve d across the operation
+                    leax      $06,s     ; select $06
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    leax      $08,s     ; select $08
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      MeasureCString ; invoke measure cstring
                     std       ,s        ; store d in the current stack frame at ,s
-                    leax      >Text_004,pc ; form the address >Text_004,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_013 ; call subroutine Routine_013
-                    leas      $0C,s     ; adjust the system stack pointer
-                    leas      >$00CC,s  ; adjust the system stack pointer
+                    leax      >DefaultShellName,pc ; select text 004
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      ForkSelectedProgram ; invoke routine 013
+                    leas      $0C,s     ; release $0C,s bytes of stack state
+                    leas      >$00CC,s  ; release >$00CC,s bytes of stack state
+                    puls      pc,u      ; restore the caller frame and return
+AbortCannotOpen     pshs      u         ; preserve the caller frame for fatal error reporting
+                    ldd       #-72      ; establish the abort cannot open loop or field bound (-72)
+                    lbsr      CheckStackSpace ; invoke routine 006
+                    ldd       $04,s     ; recover $04
+                    pshs      d         ; pass the current value as a word-sized argument
+                    leax      >StringLineFormat,pc ; select data 004
+                    pshs      x         ; pass the selected pointer through the compiler calling convention
+                    lbsr      PrintFormatted ; invoke routine 014
+                    leas      $04,s     ; release $04,s bytes of stack state
+                    ldd       $06,s     ; recover $06
+                    pshs      d         ; pass the current value as a word-sized argument
+                    lbsr      ExitProcess ; terminate with the open failure status
+                    leas      $02,s     ; release $02,s bytes of stack state
+                    puls      pc,u      ; restore the caller frame and return
+UsageMessage        fcc       "Usage is: Suser <number> [progname]"
+                    fcb       $00
+UserChangeDeniedMessage fcc       "Sorry, you cannot change the user number"
+                    fcb       $00
+SpaceString         fcb       $20
+                    fcb       $00
+CarriageReturnString fcb       $0D
+                    fcb       $00
+DefaultShellName    fcc       "Shell"
+                    fcb       $0D
+                    fcb       $00
+StringLineFormat    fcb       $25
+                    fcb       $73
+                    fcb       $0D
+                    fcb       $00
+PrintFormatted      pshs      u         ; preserve the caller's descriptor pointer
+                    leax      >$001B,y  ; select $001 b
+                    stx       >$01AF,y  ; retain $01 af
+                    leax      $06,s     ; select $06
+                    pshs      x         ; preserve x across the operation
+                    ldd       $06,s     ; recover $06
+                    bra       InvokeFormatEngine ; continue with invoke format engine
+                    fcb       $34
+                    fcb       $40
+                    fcb       $EC
+                    fcb       $64
+                    fcb       $ED
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $AF
+                    fcc       "0h4"
+                    fcb       $10
+                    fcb       $EC
+                    fcb       $68
+InvokeFormatEngine  pshs      d         ; preserve d across the operation
+                    leax      >EncodedFormatWrapper,pc ; select data 005
+                    pshs      x         ; preserve x across the operation
+                    bsr       FormatOutputCore ; invoke format output core
+                    leas      $06,s     ; release $06,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
-Routine_008         pshs      u         ; save u on the stack
-                    ldd       #-72      ; set d to the constant -72
-                    lbsr      Routine_006 ; call subroutine Routine_006
-                    ldd       $04,s     ; load d from the current stack frame at $04,s
-                    pshs      d         ; save d on the stack
-                    leax      >Data_004,pc ; form the address >Data_004,pc in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_014 ; call subroutine Routine_014
-                    leas      $04,s     ; adjust the system stack pointer
-                    ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_005 ; call subroutine Routine_005
-                    leas      $02,s     ; adjust the system stack pointer
-                    puls      pc,u      ; restore pc,u and return to the caller
-Text_002            fcc       "Usage is: Suser <number> [progname]" ; store literal character data
-                    fcb       $00       ; store byte data
-Text_003            fcc       "Sorry, you cannot change the user number" ; store literal character data
-                    fcb       $00       ; store byte data
-Data_002            fcb       $20       ; store byte data
-                    fcb       $00       ; store byte data
-Data_003            fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Text_004            fcc       "Shell" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Data_004            fcb       $25       ; store byte data
-                    fcb       $73       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcb       $00       ; store byte data
-Routine_014         pshs      u         ; save u on the stack
-                    leax      >$001B,y  ; form the address >$001B,y in x
-                    stx       >$01AF,y  ; store x at >$01AF,y
-                    leax      $06,s     ; form the address $06,s in x
-                    pshs      x         ; save x on the stack
-                    ldd       $06,s     ; load d from the current stack frame at $06,s
-                    bra       Branch_024 ; continue execution at Branch_024
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $AF       ; store byte data
-                    fcc       "0h4" ; store literal character data
-                    fcb       $10       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $68       ; store byte data
-Branch_024          pshs      d         ; save d on the stack
-                    leax      >Data_005,pc ; form the address >Data_005,pc in x
-                    pshs      x         ; save x on the stack
-                    bsr       Routine_015 ; call subroutine Routine_015
-                    leas      $06,s     ; adjust the system stack pointer
-                    puls      pc,u      ; restore pc,u and return to the caller
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $AF       ; store byte data
-                    fcc       "0h4" ; store literal character data
-                    fcb       $10       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $68       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $8D       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $8D       ; store byte data
-                    fcb       $0C       ; store byte data
-                    fcc       "2fO_" ; store literal character data
-                    fcb       $E7       ; store byte data
-                    fcb       $B9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $AF       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $C0       ; store byte data
-Routine_015         pshs      u         ; save u on the stack
-                    ldu       $06,s     ; load u from the current stack frame at $06,s
-                    leas      -$0B,s    ; adjust the system stack pointer
-                    bra       Branch_025 ; continue execution at Branch_025
-Branch_026          ldb       $08,s     ; load b from the current stack frame at $08,s
-                    lbeq      Branch_027 ; branch when the values are equal or the result is zero; target Branch_027
-                    ldb       $08,s     ; load b from the current stack frame at $08,s
+                    fcb       $34
+                    fcb       $40
+                    fcb       $EC
+                    fcb       $64
+                    fcb       $ED
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $AF
+                    fcc       "0h4"
+                    fcb       $10
+                    fcb       $EC
+                    fcb       $68
+                    fcb       $34
+                    fcb       $06
+                    fcb       $30
+                    fcb       $8D
+                    fcb       $04
+                    fcb       $A9
+                    fcb       $34
+                    fcb       $10
+                    fcb       $8D
+                    fcb       $0C
+                    fcc       "2fO_"
+                    fcb       $E7
+                    fcb       $B9
+                    fcb       $01
+                    fcb       $AF
+                    fcb       $EC
+                    fcb       $64
+                    fcb       $35
+                    fcb       $C0
+FormatOutputCore    pshs      u         ; preserve u across the operation
+                    ldu       $06,s     ; recover $06
+                    leas      -$0B,s    ; release -$0B,s bytes of stack state
+                    bra       ScanFormatString ; continue with scan format string
+EmitLiteralFormatByte ldb       $08,s     ; recover $08
+                    lbeq      FinishFormattedOutput ; select finish formatted output when the requested case matches
+                    ldb       $08,s     ; recover $08
                     sex                 ; sign-extend b into d
-                    pshs      d         ; save d on the stack
-                    jsr       [<$11,s]  ; call subroutine [<$11,s]
-                    leas      $02,s     ; adjust the system stack pointer
-Branch_025          ldb       ,u+       ; load b from ,u+
+                    pshs      d         ; preserve d across the operation
+                    jsr       [<$11,s]
+                    leas      $02,s     ; release $02,s bytes of stack state
+ScanFormatString    ldb       ,u+       ; consume the next byte while scan format string
                     stb       $08,s     ; store b in the current stack frame at $08,s
-                    cmpb      #37       ; compare b with #37 and set the condition codes
-                    bne       Branch_026 ; branch when the values differ or the result is nonzero; target Branch_026
-                    ldb       ,u+       ; load b from ,u+
+                    cmpb      #37       ; establish the scan format string loop or field bound (37)
+                    bne       EmitLiteralFormatByte ; select emit literal format byte when the requested case does not match
+                    ldb       ,u+       ; consume the next byte while scan format string
                     stb       $08,s     ; store b in the current stack frame at $08,s
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
+                    clra                ; select standard input
+                    clrb                ; clear the byte accumulator for counting
                     std       $02,s     ; store d in the current stack frame at $02,s
                     std       $06,s     ; store d in the current stack frame at $06,s
-                    ldb       $08,s     ; load b from the current stack frame at $08,s
-                    cmpb      #45       ; compare b with #45 and set the condition codes
-                    bne       Branch_028 ; branch when the values differ or the result is nonzero; target Branch_028
-                    ldd       #1        ; set d to the constant 1
-                    std       >$01C5,y  ; store d at >$01C5,y
-                    ldb       ,u+       ; load b from ,u+
+                    ldb       $08,s     ; recover $08
+                    cmpb      #45       ; establish the scan format string loop or field bound (45)
+                    bne       NoLeftJustifyFlag ; select branch 028 when the requested case does not match
+                    ldd       #1        ; initialize $01 c5 to 1
+                    std       >$01C5,y  ; retain $01 c5
+                    ldb       ,u+       ; consume the next byte while scan format string
                     stb       $08,s     ; store b in the current stack frame at $08,s
-                    bra       Branch_029 ; continue execution at Branch_029
-Branch_028          clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    std       >$01C5,y  ; store d at >$01C5,y
-Branch_029          ldb       $08,s     ; load b from the current stack frame at $08,s
-                    cmpb      #48       ; compare b with #48 and set the condition codes
-                    bne       Branch_030 ; branch when the values differ or the result is nonzero; target Branch_030
-                    ldd       #48       ; set d to the constant 48
-                    bra       Branch_031 ; continue execution at Branch_031
-Branch_030          ldd       #32       ; set d to the constant 32
-Branch_031          std       >$01C7,y  ; store d at >$01C7,y
-                    bra       Branch_032 ; continue execution at Branch_032
-Branch_033          ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    ldd       #10       ; set d to the constant 10
-                    lbsr      Routine_016 ; call subroutine Routine_016
-                    pshs      d         ; save d on the stack
-                    ldb       $0A,s     ; load b from the current stack frame at $0A,s
+                    bra       SelectFormatPadding ; continue with select format padding
+NoLeftJustifyFlag   clra                ; select standard input
+                    clrb                ; clear the byte accumulator for counting
+                    std       >$01C5,y  ; retain $01 c5
+SelectFormatPadding ldb       $08,s     ; recover $08
+                    cmpb      #48       ; recognize or generate ASCII zero
+                    bne       UseSpacePadding ; select use space padding when the requested case does not match
+                    ldd       #48       ; recognize or generate ASCII zero
+                    bra       SaveFormatPadding ; continue with branch 031
+UseSpacePadding     ldd       #32       ; recognize the first printable ASCII value
+SaveFormatPadding   std       >$01C7,y  ; retain $01 c7
+                    bra       ParseFieldWidth ; continue with parse field width
+AccumulateFieldWidth ldd       $06,s     ; recover $06
+                    pshs      d         ; preserve d across the operation
+                    ldd       #10       ; select the line-feed control byte
+                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    pshs      d         ; preserve d across the operation
+                    ldb       $0A,s     ; recover $0 a
                     sex                 ; sign-extend b into d
                     addd      #-48      ; add to d using #-48
                     addd      ,s++      ; add to d using ,s++
                     std       $06,s     ; store d in the current stack frame at $06,s
-                    ldb       ,u+       ; load b from ,u+
+                    ldb       ,u+       ; consume the next byte while accumulate field width
                     stb       $08,s     ; store b in the current stack frame at $08,s
-Branch_032          ldb       $08,s     ; load b from the current stack frame at $08,s
+ParseFieldWidth     ldb       $08,s     ; recover $08
                     sex                 ; sign-extend b into d
-                    leax      >$00DF,y  ; form the address >$00DF,y in x
-                    leax      d,x       ; form the address d,x in x
-                    ldb       ,x        ; load b from ,x
-                    clra                ; clear a to zero and set the condition codes
+                    leax      >$00DF,y  ; select $00 df
+                    leax      d,x       ; select d
+                    ldb       ,x        ; recover
+                    clra                ; select standard input
                     andb      #8        ; mask b using #8
-                    bne       Branch_033 ; branch when the values differ or the result is nonzero; target Branch_033
-                    ldb       $08,s     ; load b from the current stack frame at $08,s
-                    cmpb      #46       ; compare b with #46 and set the condition codes
-                    bne       Branch_034 ; branch when the values differ or the result is nonzero; target Branch_034
-                    ldd       #1        ; set d to the constant 1
+                    bne       AccumulateFieldWidth ; repeat accumulate field width until the terminating condition is met
+                    ldb       $08,s     ; recover $08
+                    cmpb      #46       ; establish the parse field width loop or field bound (46)
+                    bne       NoPrecisionSpecified ; select no precision specified when the requested case does not match
+                    ldd       #1        ; initialize $04 to 1
                     std       $04,s     ; store d in the current stack frame at $04,s
-                    bra       Branch_035 ; continue execution at Branch_035
-Branch_036          ldd       $02,s     ; load d from the current stack frame at $02,s
-                    pshs      d         ; save d on the stack
-                    ldd       #10       ; set d to the constant 10
-                    lbsr      Routine_016 ; call subroutine Routine_016
-                    pshs      d         ; save d on the stack
-                    ldb       $0A,s     ; load b from the current stack frame at $0A,s
+                    bra       ParsePrecisionDigits ; continue with parse precision digits
+AccumulatePrecision ldd       $02,s     ; recover $02
+                    pshs      d         ; preserve d across the operation
+                    ldd       #10       ; select the line-feed control byte
+                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    pshs      d         ; preserve d across the operation
+                    ldb       $0A,s     ; recover $0 a
                     sex                 ; sign-extend b into d
                     addd      #-48      ; add to d using #-48
                     addd      ,s++      ; add to d using ,s++
                     std       $02,s     ; store d in the current stack frame at $02,s
-Branch_035          ldb       ,u+       ; load b from ,u+
+ParsePrecisionDigits ldb       ,u+       ; consume the next byte while parse precision digits
                     stb       $08,s     ; store b in the current stack frame at $08,s
-                    ldb       $08,s     ; load b from the current stack frame at $08,s
+                    ldb       $08,s     ; recover $08
                     sex                 ; sign-extend b into d
-                    leax      >$00DF,y  ; form the address >$00DF,y in x
-                    leax      d,x       ; form the address d,x in x
-                    ldb       ,x        ; load b from ,x
-                    clra                ; clear a to zero and set the condition codes
+                    leax      >$00DF,y  ; select $00 df
+                    leax      d,x       ; select d
+                    ldb       ,x        ; recover
+                    clra                ; select standard input
                     andb      #8        ; mask b using #8
-                    bne       Branch_036 ; branch when the values differ or the result is nonzero; target Branch_036
-                    bra       Branch_037 ; continue execution at Branch_037
-Branch_034          clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
+                    bne       AccumulatePrecision ; repeat accumulate precision until the terminating condition is met
+                    bra       DispatchConversion ; continue with dispatch conversion
+NoPrecisionSpecified clra                ; select standard input
+                    clrb                ; clear the byte accumulator for counting
                     std       $04,s     ; store d in the current stack frame at $04,s
-Branch_037          ldb       $08,s     ; load b from the current stack frame at $08,s
+DispatchConversion  ldb       $08,s     ; recover $08
                     sex                 ; sign-extend b into d
-                    tfr       d,x       ; copy the register values specified by d,x
-                    lbra      Branch_038 ; continue execution at Branch_038
-Branch_039          ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    ldx       <$0015,s  ; load x from the current stack frame at <$0015,s
-                    leax      $02,x     ; form the address $02,x in x
+                    tfr       d,x       ; transfer d,x
+                    lbra      MatchConversionType ; continue with match conversion type
+FormatSignedDecimal ldd       $06,s     ; recover $06
+                    pshs      d         ; preserve d across the operation
+                    ldx       <$0015,s  ; recover $0015
+                    leax      $02,x     ; select $02
                     stx       <$0015,s  ; store x in the current stack frame at <$0015,s
-                    ldd       -$02,x    ; load d from -$02,x
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_017 ; call subroutine Routine_017
-                    bra       Branch_040 ; continue execution at Branch_040
-Branch_041          ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    ldx       <$0015,s  ; load x from the current stack frame at <$0015,s
-                    leax      $02,x     ; form the address $02,x in x
+                    ldd       -$02,x    ; recover -$02
+                    pshs      d         ; preserve d across the operation
+                    lbsr      ConvertSignedDecimal ; invoke convert signed decimal
+                    bra       StoreConvertedPointer ; continue with store converted pointer
+FormatOctal         ldd       $06,s     ; recover $06
+                    pshs      d         ; preserve d across the operation
+                    ldx       <$0015,s  ; recover $0015
+                    leax      $02,x     ; select $02
                     stx       <$0015,s  ; store x in the current stack frame at <$0015,s
-                    ldd       -$02,x    ; load d from -$02,x
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_018 ; call subroutine Routine_018
-Branch_040          std       ,s        ; store d in the current stack frame at ,s
-                    lbra      Branch_042 ; continue execution at Branch_042
-Branch_043          ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    ldb       $0A,s     ; load b from the current stack frame at $0A,s
+                    ldd       -$02,x    ; recover -$02
+                    pshs      d         ; preserve d across the operation
+                    lbsr      ConvertOctal ; invoke convert octal
+StoreConvertedPointer std       ,s        ; store d in the current stack frame at ,s
+                    lbra      WriteConvertedField ; continue with write converted field
+FormatHexadecimal   ldd       $06,s     ; recover $06
+                    pshs      d         ; preserve d across the operation
+                    ldb       $0A,s     ; recover $0 a
                     sex                 ; sign-extend b into d
-                    leax      >$00DF,y  ; form the address >$00DF,y in x
-                    leax      d,x       ; form the address d,x in x
-                    ldb       ,x        ; load b from ,x
-                    clra                ; clear a to zero and set the condition codes
+                    leax      >$00DF,y  ; select $00 df
+                    leax      d,x       ; select d
+                    ldb       ,x        ; recover
+                    clra                ; select standard input
                     andb      #2        ; mask b using #2
-                    pshs      d         ; save d on the stack
-                    ldx       <$0017,s  ; load x from the current stack frame at <$0017,s
-                    leax      $02,x     ; form the address $02,x in x
+                    pshs      d         ; preserve d across the operation
+                    ldx       <$0017,s  ; recover $0017
+                    leax      $02,x     ; select $02
                     stx       <$0017,s  ; store x in the current stack frame at <$0017,s
-                    ldd       -$02,x    ; load d from -$02,x
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_019 ; call subroutine Routine_019
-                    lbra      Branch_044 ; continue execution at Branch_044
-Branch_045          ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    ldx       <$0015,s  ; load x from the current stack frame at <$0015,s
-                    leax      $02,x     ; form the address $02,x in x
+                    ldd       -$02,x    ; recover -$02
+                    pshs      d         ; preserve d across the operation
+                    lbsr      ConvertHexadecimal ; invoke routine 019
+                    lbra      RestoreFormatStack ; continue with restore format stack
+FormatUnsignedDecimal ldd       $06,s     ; recover $06
+                    pshs      d         ; preserve d across the operation
+                    ldx       <$0015,s  ; recover $0015
+                    leax      $02,x     ; select $02
                     stx       <$0015,s  ; store x in the current stack frame at <$0015,s
-                    ldd       -$02,x    ; load d from -$02,x
-                    pshs      d         ; save d on the stack
-                    leax      >$01B1,y  ; form the address >$01B1,y in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_020 ; call subroutine Routine_020
-                    lbra      Branch_044 ; continue execution at Branch_044
-Branch_046          ldd       $04,s     ; load d from the current stack frame at $04,s
-                    bne       Branch_047 ; branch when the values differ or the result is nonzero; target Branch_047
-                    ldd       #6        ; set d to the constant 6
+                    ldd       -$02,x    ; recover -$02
+                    pshs      d         ; preserve d across the operation
+                    leax      >$01B1,y  ; select $01 b1
+                    pshs      x         ; preserve x across the operation
+                    lbsr      ConvertUnsignedDecimal ; invoke convert unsigned decimal
+                    lbra      RestoreFormatStack ; continue with restore format stack
+FormatFloatingValue ldd       $04,s     ; recover $04
+                    bne       ConvertFloatingValue ; select convert floating value when the requested case does not match
+                    ldd       #6        ; initialize $02 to 6
                     std       $02,s     ; store d in the current stack frame at $02,s
-Branch_047          ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    leax      <$0015,s  ; form the address <$0015,s in x
-                    pshs      x         ; save x on the stack
-                    ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    ldb       $0E,s     ; load b from the current stack frame at $0E,s
+ConvertFloatingValue ldd       $06,s     ; recover $06
+                    pshs      d         ; preserve d across the operation
+                    leax      <$0015,s  ; select $0015
+                    pshs      x         ; preserve x across the operation
+                    ldd       $06,s     ; recover $06
+                    pshs      d         ; preserve d across the operation
+                    ldb       $0E,s     ; recover $0 e
                     sex                 ; sign-extend b into d
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_021 ; call subroutine Routine_021
-                    leas      $06,s     ; adjust the system stack pointer
-                    lbra      Branch_048 ; continue execution at Branch_048
-Branch_049          ldx       <$0013,s  ; load x from the current stack frame at <$0013,s
-                    leax      $02,x     ; form the address $02,x in x
+                    pshs      d         ; preserve d across the operation
+                    lbsr      ReturnEmptyString ; invoke return empty string
+                    leas      $06,s     ; release $06,s bytes of stack state
+                    lbra      PassConvertedField ; continue with pass converted field
+FormatCharacterValue ldx       <$0013,s  ; recover $0013
+                    leax      $02,x     ; select $02
                     stx       <$0013,s  ; store x in the current stack frame at <$0013,s
-                    ldd       -$02,x    ; load d from -$02,x
-                    lbra      Branch_050 ; continue execution at Branch_050
-Branch_051          ldx       <$0013,s  ; load x from the current stack frame at <$0013,s
-                    leax      $02,x     ; form the address $02,x in x
+                    ldd       -$02,x    ; recover -$02
+                    lbra      EmitScalarValue ; continue with emit scalar value
+FormatStringValue   ldx       <$0013,s  ; recover $0013
+                    leax      $02,x     ; select $02
                     stx       <$0013,s  ; store x in the current stack frame at <$0013,s
-                    ldd       -$02,x    ; load d from -$02,x
+                    ldd       -$02,x    ; recover -$02
                     std       $09,s     ; store d in the current stack frame at $09,s
-                    ldd       $04,s     ; load d from the current stack frame at $04,s
-                    beq       Branch_052 ; branch when the values are equal or the result is zero; target Branch_052
-                    ldd       $09,s     ; load d from the current stack frame at $09,s
+                    ldd       $04,s     ; recover $04
+                    beq       StringWidthReady ; select string width ready when the requested case matches
+                    ldd       $09,s     ; recover $09
                     std       $04,s     ; store d in the current stack frame at $04,s
-                    bra       Branch_053 ; continue execution at Branch_053
-Branch_054          ldb       [<$09,s]  ; load b from the current stack frame at [<$09,s]
-                    beq       Branch_055 ; branch when the values are equal or the result is zero; target Branch_055
-                    ldd       $09,s     ; load d from the current stack frame at $09,s
+                    bra       MeasureBoundedString ; continue with measure bounded string
+CountStringByte     ldb       [<$09,s]  ; recover [<$09
+                    beq       EmitFormattedField ; select emit formatted field when the requested case matches
+                    ldd       $09,s     ; recover $09
                     addd      #1        ; add to d using #1
                     std       $09,s     ; store d in the current stack frame at $09,s
-Branch_053          ldd       $02,s     ; load d from the current stack frame at $02,s
+MeasureBoundedString ldd       $02,s     ; recover $02
                     addd      #-1       ; add to d using #-1
                     std       $02,s     ; store d in the current stack frame at $02,s
                     subd      #-1       ; subtract from d using #-1
-                    bne       Branch_054 ; branch when the values differ or the result is nonzero; target Branch_054
-Branch_055          ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    ldd       $0B,s     ; load d from the current stack frame at $0B,s
+                    bne       CountStringByte ; select count string byte when the requested case does not match
+EmitFormattedField  ldd       $06,s     ; recover $06
+                    pshs      d         ; preserve d across the operation
+                    ldd       $0B,s     ; recover $0 b
                     subd      $06,s     ; subtract from d using $06,s
-                    pshs      d         ; save d on the stack
-                    ldd       $08,s     ; load d from the current stack frame at $08,s
-                    pshs      d         ; save d on the stack
-                    ldd       <$0015,s  ; load d from the current stack frame at <$0015,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_022 ; call subroutine Routine_022
-                    leas      $08,s     ; adjust the system stack pointer
-                    bra       Branch_056 ; continue execution at Branch_056
-Branch_052          ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    ldd       $0B,s     ; load d from the current stack frame at $0B,s
-                    bra       Branch_048 ; continue execution at Branch_048
-Branch_057          ldb       ,u+       ; load b from ,u+
+                    pshs      d         ; preserve d across the operation
+                    ldd       $08,s     ; recover $08
+                    pshs      d         ; preserve d across the operation
+                    ldd       <$0015,s  ; recover $0015
+                    pshs      d         ; preserve d across the operation
+                    lbsr      WritePaddedField ; invoke write padded field
+                    leas      $08,s     ; release $08,s bytes of stack state
+                    bra       ResumeFormatScan ; continue with resume format scan
+StringWidthReady    ldd       $06,s     ; recover $06
+                    pshs      d         ; preserve d across the operation
+                    ldd       $0B,s     ; recover $0 b
+                    bra       PassConvertedField ; continue with pass converted field
+AcceptLongModifier  ldb       ,u+       ; consume the next byte while accept long modifier
                     stb       $08,s     ; store b in the current stack frame at $08,s
-                    bra       Branch_058 ; continue execution at Branch_058
-                    fcb       $32       ; store byte data
-                    fcb       $15       ; store byte data
-Branch_058          ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    leax      <$0015,s  ; form the address <$0015,s in x
-                    pshs      x         ; save x on the stack
-                    ldb       $0C,s     ; load b from the current stack frame at $0C,s
+                    bra       FormatLongValue ; continue with format long value
+                    fcb       $32
+                    fcb       $15
+FormatLongValue     ldd       $06,s     ; recover $06
+                    pshs      d         ; preserve d across the operation
+                    leax      <$0015,s  ; select $0015
+                    pshs      x         ; preserve x across the operation
+                    ldb       $0C,s     ; recover $0 c
                     sex                 ; sign-extend b into d
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_023 ; call subroutine Routine_023
-Branch_044          leas      $04,s     ; adjust the system stack pointer
-Branch_048          pshs      d         ; save d on the stack
-Branch_042          ldd       <$0013,s  ; load d from the current stack frame at <$0013,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_024 ; call subroutine Routine_024
-                    leas      $06,s     ; adjust the system stack pointer
-Branch_056          lbra      Branch_025 ; continue execution at Branch_025
-Branch_059          ldb       $08,s     ; load b from the current stack frame at $08,s
+                    pshs      d         ; preserve d across the operation
+                    lbsr      SelectIntegerArgument ; invoke select integer argument
+RestoreFormatStack  leas      $04,s     ; release $04,s bytes of stack state
+PassConvertedField  pshs      d         ; preserve d across the operation
+WriteConvertedField ldd       <$0013,s  ; recover $0013
+                    pshs      d         ; preserve d across the operation
+                    lbsr      WritePaddedString ; invoke write padded string
+                    leas      $06,s     ; release $06,s bytes of stack state
+ResumeFormatScan    lbra      ScanFormatString ; continue with scan format string
+EmitUnknownSpecifier ldb       $08,s     ; recover $08
                     sex                 ; sign-extend b into d
-Branch_050          pshs      d         ; save d on the stack
-                    jsr       [<$11,s]  ; call subroutine [<$11,s]
-                    leas      $02,s     ; adjust the system stack pointer
-                    lbra      Branch_025 ; continue execution at Branch_025
-Branch_038          cmpx      #100      ; compare x with #100 and set the condition codes
-                    lbeq      Branch_039 ; branch when the values are equal or the result is zero; target Branch_039
-                    cmpx      #111      ; compare x with #111 and set the condition codes
-                    lbeq      Branch_041 ; branch when the values are equal or the result is zero; target Branch_041
-                    cmpx      #120      ; compare x with #120 and set the condition codes
-                    lbeq      Branch_043 ; branch when the values are equal or the result is zero; target Branch_043
-                    cmpx      #88       ; compare x with #88 and set the condition codes
-                    lbeq      Branch_043 ; branch when the values are equal or the result is zero; target Branch_043
-                    cmpx      #117      ; compare x with #117 and set the condition codes
-                    lbeq      Branch_045 ; branch when the values are equal or the result is zero; target Branch_045
-                    cmpx      #102      ; compare x with #102 and set the condition codes
-                    lbeq      Branch_046 ; branch when the values are equal or the result is zero; target Branch_046
-                    cmpx      #101      ; compare x with #101 and set the condition codes
-                    lbeq      Branch_046 ; branch when the values are equal or the result is zero; target Branch_046
-                    cmpx      #103      ; compare x with #103 and set the condition codes
-                    lbeq      Branch_046 ; branch when the values are equal or the result is zero; target Branch_046
-                    cmpx      #69       ; compare x with #69 and set the condition codes
-                    lbeq      Branch_046 ; branch when the values are equal or the result is zero; target Branch_046
-                    cmpx      #71       ; compare x with #71 and set the condition codes
-                    lbeq      Branch_046 ; branch when the values are equal or the result is zero; target Branch_046
-                    cmpx      #99       ; compare x with #99 and set the condition codes
-                    lbeq      Branch_049 ; branch when the values are equal or the result is zero; target Branch_049
-                    cmpx      #115      ; compare x with #115 and set the condition codes
-                    lbeq      Branch_051 ; branch when the values are equal or the result is zero; target Branch_051
-                    cmpx      #108      ; compare x with #108 and set the condition codes
-                    lbeq      Branch_057 ; branch when the values are equal or the result is zero; target Branch_057
-                    bra       Branch_059 ; continue execution at Branch_059
-Branch_027          leas      $0B,s     ; adjust the system stack pointer
+EmitScalarValue     pshs      d         ; preserve d across the operation
+                    jsr       [<$11,s]
+                    leas      $02,s     ; release $02,s bytes of stack state
+                    lbra      ScanFormatString ; continue with scan format string
+MatchConversionType cmpx      #100      ; test against #100
+                    lbeq      FormatSignedDecimal ; select format signed decimal when the requested case matches
+                    cmpx      #111      ; test against #111
+                    lbeq      FormatOctal ; select format octal when the requested case matches
+                    cmpx      #120      ; test against #120
+                    lbeq      FormatHexadecimal ; select format hexadecimal when the requested case matches
+                    cmpx      #88       ; test against #88
+                    lbeq      FormatHexadecimal ; select format hexadecimal when the requested case matches
+                    cmpx      #117      ; test against #117
+                    lbeq      FormatUnsignedDecimal ; select format unsigned decimal when the requested case matches
+                    cmpx      #102      ; test against #102
+                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    cmpx      #101      ; test against #101
+                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    cmpx      #103      ; test against #103
+                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    cmpx      #69       ; test against #69
+                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    cmpx      #71       ; test against #71
+                    lbeq      FormatFloatingValue ; select format floating value when the requested case matches
+                    cmpx      #99       ; test against #99
+                    lbeq      FormatCharacterValue ; select format character value when the requested case matches
+                    cmpx      #115      ; test against #115
+                    lbeq      FormatStringValue ; select format string value when the requested case matches
+                    cmpx      #108      ; test against #108
+                    lbeq      AcceptLongModifier ; select accept long modifier when the requested case matches
+                    bra       EmitUnknownSpecifier ; continue with emit unknown specifier
+FinishFormattedOutput leas      $0B,s     ; release $0B,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
-Routine_017         pshs      u,d       ; save u,d on the stack
-                    leax      >$01B1,y  ; form the address >$01B1,y in x
+ConvertSignedDecimal pshs      u,d       ; save u,d on the stack
+                    leax      >$01B1,y  ; select $01 b1
                     stx       ,s        ; store x in the current stack frame at ,s
-                    ldd       $06,s     ; load d from the current stack frame at $06,s
-                    bge       Branch_060 ; branch when the signed value is greater than or equal; target Branch_060
-                    ldd       $06,s     ; load d from the current stack frame at $06,s
+                    ldd       $06,s     ; recover $06
+                    bge       ConvertSignedMagnitude ; continue with convert signed magnitude at or above the signed limit
+                    ldd       $06,s     ; recover $06
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
                     std       $06,s     ; store d in the current stack frame at $06,s
-                    bge       Branch_061 ; branch when the signed value is greater than or equal; target Branch_061
-                    leax      >Text_005,pc ; form the address >Text_005,pc in x
-                    pshs      x         ; save x on the stack
-                    leax      >$01B1,y  ; form the address >$01B1,y in x
-                    pshs      x         ; save x on the stack
-                    lbsr      Routine_025 ; call subroutine Routine_025
-                    leas      $04,s     ; adjust the system stack pointer
-                    lbra      Branch_062 ; continue execution at Branch_062
-Branch_061          ldd       #45       ; set d to the constant 45
-                    ldx       ,s        ; load x from the current stack frame at ,s
-                    leax      $01,x     ; form the address $01,x in x
+                    bge       PrefixMinusSign ; continue with prefix minus sign at or above the signed limit
+                    leax      >MinimumSignedText,pc ; select text 005
+                    pshs      x         ; preserve x across the operation
+                    leax      >$01B1,y  ; select $01 b1
+                    pshs      x         ; preserve x across the operation
+                    lbsr      CopyCString ; invoke copy cstring
+                    leas      $04,s     ; release $04,s bytes of stack state
+                    lbra      ReturnConversionBuffer ; continue with branch 062
+PrefixMinusSign     ldd       #45       ; initialize  to 45
+                    ldx       ,s        ; recover
+                    leax      $01,x     ; select $01
                     stx       ,s        ; store x in the current stack frame at ,s
-                    stb       -$01,x    ; store b at -$01,x
-Branch_060          ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    ldd       $02,s     ; load d from the current stack frame at $02,s
-                    pshs      d         ; save d on the stack
-                    bsr       Routine_020 ; call subroutine Routine_020
-                    leas      $04,s     ; adjust the system stack pointer
-                    lbra      Branch_063 ; continue execution at Branch_063
-Routine_020         pshs      u,y,x,d   ; save u,y,x,d on the stack
-                    ldu       $0A,s     ; load u from the current stack frame at $0A,s
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
+                    stb       -$01,x    ; replace the byte just examined in place
+ConvertSignedMagnitude ldd       $06,s     ; recover $06
+                    pshs      d         ; preserve d across the operation
+                    ldd       $02,s     ; recover $02
+                    pshs      d         ; preserve d across the operation
+                    bsr       ConvertUnsignedDecimal ; invoke convert unsigned decimal
+                    leas      $04,s     ; release $04,s bytes of stack state
+                    lbra      ReturnNumericBuffer ; continue with branch 063
+ConvertUnsignedDecimal pshs      u,y,x,d   ; save u,y,x,d on the stack
+                    ldu       $0A,s     ; recover $0 a
+                    clra                ; select standard input
+                    clrb                ; clear the byte accumulator for counting
                     std       $02,s     ; store d in the current stack frame at $02,s
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
+                    clra                ; select standard input
+                    clrb                ; clear the byte accumulator for counting
                     std       ,s        ; store d in the current stack frame at ,s
-                    bra       Branch_064 ; continue execution at Branch_064
-Branch_065          ldd       ,s        ; load d from the current stack frame at ,s
+                    bra       NormalizeDecimalRange ; continue with normalize decimal range
+IncreaseDecimalDigitCount ldd       ,s        ; recover
                     addd      #1        ; add to d using #1
                     std       ,s        ; store d in the current stack frame at ,s
-                    ldd       $0C,s     ; load d from the current stack frame at $0C,s
+                    ldd       $0C,s     ; recover $0 c
                     subd      >$0001,y  ; subtract from d using >$0001,y
                     std       $0C,s     ; store d in the current stack frame at $0C,s
-Branch_064          ldd       $0C,s     ; load d from the current stack frame at $0C,s
-                    blt       Branch_065 ; branch when the signed value is less; target Branch_065
-                    leax      >$0001,y  ; form the address >$0001,y in x
+NormalizeDecimalRange ldd       $0C,s     ; recover $0 c
+                    blt       IncreaseDecimalDigitCount ; continue with increase decimal digit count below the signed limit
+                    leax      >$0001,y  ; select $0001
                     stx       $04,s     ; store x in the current stack frame at $04,s
-                    bra       Branch_066 ; continue execution at Branch_066
-Branch_067          ldd       ,s        ; load d from the current stack frame at ,s
+                    bra       EmitDecimalDigits ; continue with emit decimal digits
+AdvanceDecimalDigit ldd       ,s        ; recover
                     addd      #1        ; add to d using #1
                     std       ,s        ; store d in the current stack frame at ,s
-Branch_068          ldd       $0C,s     ; load d from the current stack frame at $0C,s
+SubtractDecimalPlace ldd       $0C,s     ; recover $0 c
                     subd      [<$04,s]  ; subtract from d using [<$04,s]
                     std       $0C,s     ; store d in the current stack frame at $0C,s
-                    bge       Branch_067 ; branch when the signed value is greater than or equal; target Branch_067
-                    ldd       $0C,s     ; load d from the current stack frame at $0C,s
+                    bge       AdvanceDecimalDigit ; continue with advance decimal digit at or above the signed limit
+                    ldd       $0C,s     ; recover $0 c
                     addd      [<$04,s]  ; add to d using [<$04,s]
                     std       $0C,s     ; store d in the current stack frame at $0C,s
-                    ldd       ,s        ; load d from the current stack frame at ,s
-                    beq       Branch_069 ; branch when the values are equal or the result is zero; target Branch_069
-                    ldd       #1        ; set d to the constant 1
+                    ldd       ,s        ; recover
+                    beq       MarkDecimalStarted ; select mark decimal started when the requested case matches
+                    ldd       #1        ; initialize $02 to 1
                     std       $02,s     ; store d in the current stack frame at $02,s
-Branch_069          ldd       $02,s     ; load d from the current stack frame at $02,s
-                    beq       Branch_070 ; branch when the values are equal or the result is zero; target Branch_070
-                    ldd       ,s        ; load d from the current stack frame at ,s
+MarkDecimalStarted  ldd       $02,s     ; recover $02
+                    beq       AdvanceDecimalDivisor ; select advance decimal divisor when the requested case matches
+                    ldd       ,s        ; recover
                     addd      #48       ; add to d using #48
-                    stb       ,u+       ; store b at ,u+
-Branch_070          clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
+                    stb       ,u+       ; retain
+AdvanceDecimalDivisor clra                ; select standard input
+                    clrb                ; clear the byte accumulator for counting
                     std       ,s        ; store d in the current stack frame at ,s
-                    ldd       $04,s     ; load d from the current stack frame at $04,s
+                    ldd       $04,s     ; recover $04
                     addd      #2        ; add to d using #2
                     std       $04,s     ; store d in the current stack frame at $04,s
-Branch_066          ldd       $04,s     ; load d from the current stack frame at $04,s
-                    cmpd      >$0009,y  ; compare d with >$0009,y and set the condition codes
-                    bne       Branch_068 ; branch when the values differ or the result is nonzero; target Branch_068
-                    ldd       $0C,s     ; load d from the current stack frame at $0C,s
+EmitDecimalDigits   ldd       $04,s     ; recover $04
+                    cmpd      >$0009,y  ; test against $0009
+                    bne       SubtractDecimalPlace ; select subtract decimal place when the requested case does not match
+                    ldd       $0C,s     ; recover $0 c
                     addd      #48       ; add to d using #48
-                    stb       ,u+       ; store b at ,u+
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    stb       WorkByte_001,u ; store b at WorkByte_001,u
-                    ldd       $0A,s     ; load d from the current stack frame at $0A,s
-                    leas      $06,s     ; adjust the system stack pointer
+                    stb       ,u+       ; retain
+                    clra                ; select standard input
+                    clrb                ; clear the byte accumulator for counting
+                    stb       StreamCursor,u ; retain work byte 001
+                    ldd       $0A,s     ; recover $0 a
+                    leas      $06,s     ; release $06,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
-Routine_018         pshs      u,d       ; save u,d on the stack
-                    leax      >$01B1,y  ; form the address >$01B1,y in x
+ConvertOctal        pshs      u,d       ; save u,d on the stack
+                    leax      >$01B1,y  ; select $01 b1
                     stx       ,s        ; store x in the current stack frame at ,s
-                    leau      >$01BB,y  ; form the workspace or data address >$01BB,y in u
-Branch_071          ldd       $06,s     ; load d from the current stack frame at $06,s
-                    clra                ; clear a to zero and set the condition codes
+                    leau      >$01BB,y  ; select $01 bb
+ExtractOctalDigit   ldd       $06,s     ; recover $06
+                    clra                ; select standard input
                     andb      #7        ; mask b using #7
                     addd      #48       ; add to d using #48
-                    stb       ,u+       ; store b at ,u+
-                    ldd       $06,s     ; load d from the current stack frame at $06,s
+                    stb       ,u+       ; retain
+                    ldd       $06,s     ; recover $06
                     lsra                ; shift a right logically
                     rorb                ; rotate b right through carry
                     lsra                ; shift a right logically
@@ -720,48 +719,48 @@ Branch_071          ldd       $06,s     ; load d from the current stack frame at
                     lsra                ; shift a right logically
                     rorb                ; rotate b right through carry
                     std       $06,s     ; store d in the current stack frame at $06,s
-                    bne       Branch_071 ; branch when the values differ or the result is nonzero; target Branch_071
-                    bra       Branch_072 ; continue execution at Branch_072
-Branch_073          ldb       WorkByte_001,u ; load b from WorkByte_001,u
-                    ldx       ,s        ; load x from the current stack frame at ,s
-                    leax      $01,x     ; form the address $01,x in x
+                    bne       ExtractOctalDigit ; select extract octal digit when the requested case does not match
+                    bra       ReverseOctalDigits ; continue with reverse octal digits
+CopyOctalDigit      ldb       StreamCursor,u ; recover work byte 001
+                    ldx       ,s        ; recover
+                    leax      $01,x     ; select $01
                     stx       ,s        ; store x in the current stack frame at ,s
-                    stb       -$01,x    ; store b at -$01,x
-Branch_072          leau      -$01,u    ; form the workspace or data address -$01,u in u
-                    pshs      u         ; save u on the stack
-                    leax      >$01BB,y  ; form the address >$01BB,y in x
-                    cmpx      ,s++      ; compare x with ,s++ and set the condition codes
-                    bls       Branch_073 ; branch when the unsigned value is lower or equal; target Branch_073
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
+                    stb       -$01,x    ; replace the byte just examined in place
+ReverseOctalDigits  leau      -$01,u    ; select -$01
+                    pshs      u         ; preserve u across the operation
+                    leax      >$01BB,y  ; select $01 bb
+                    cmpx      ,s++      ; test against
+                    bls       CopyOctalDigit ; continue copy octal digit while the range test permits it
+                    clra                ; select standard input
+                    clrb                ; clear the byte accumulator for counting
                     stb       [,s]      ; store b in the current stack frame at [,s]
-Branch_063          leax      >$01B1,y  ; form the address >$01B1,y in x
-                    tfr       x,d       ; copy the register values specified by x,d
-Branch_062          leas      $02,s     ; adjust the system stack pointer
+ReturnNumericBuffer leax      >$01B1,y  ; select $01 b1
+                    tfr       x,d       ; transfer x,d
+ReturnConversionBuffer leas      $02,s     ; release $02,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
-Routine_019         pshs      u,x,d     ; save u,x,d on the stack
-                    leax      >$01B1,y  ; form the address >$01B1,y in x
+ConvertHexadecimal  pshs      u,x,d     ; save u,x,d on the stack
+                    leax      >$01B1,y  ; select $01 b1
                     stx       $02,s     ; store x in the current stack frame at $02,s
-                    leau      >$01BB,y  ; form the workspace or data address >$01BB,y in u
-Branch_074          ldd       $08,s     ; load d from the current stack frame at $08,s
-                    clra                ; clear a to zero and set the condition codes
+                    leau      >$01BB,y  ; select $01 bb
+ExtractHexDigit     ldd       $08,s     ; recover $08
+                    clra                ; select standard input
                     andb      #15       ; mask b using #15
                     std       ,s        ; store d in the current stack frame at ,s
-                    pshs      d         ; save d on the stack
-                    ldd       $02,s     ; load d from the current stack frame at $02,s
-                    cmpd      #9        ; compare d with #9 and set the condition codes
-                    ble       Branch_075 ; branch when the signed value is less than or equal; target Branch_075
-                    ldd       $0C,s     ; load d from the current stack frame at $0C,s
-                    beq       Branch_076 ; branch when the values are equal or the result is zero; target Branch_076
-                    ldd       #65       ; set d to the constant 65
-                    bra       Branch_077 ; continue execution at Branch_077
-Branch_076          ldd       #97       ; set d to the constant 97
-Branch_077          addd      #-10      ; add to d using #-10
-                    bra       Branch_078 ; continue execution at Branch_078
-Branch_075          ldd       #48       ; set d to the constant 48
-Branch_078          addd      ,s++      ; add to d using ,s++
-                    stb       ,u+       ; store b at ,u+
-                    ldd       $08,s     ; load d from the current stack frame at $08,s
+                    pshs      d         ; preserve d across the operation
+                    ldd       $02,s     ; recover $02
+                    cmpd      #9        ; test against #9
+                    ble       UseNumericHexDigit
+                    ldd       $0C,s     ; recover $0 c
+                    beq       UseLowercaseHexBase ; select use lowercase hex base when the requested case matches
+                    ldd       #65       ; establish the extract hex digit loop or field bound (65)
+                    bra       AdjustHexAlphabeticDigit ; continue with adjust hex alphabetic digit
+UseLowercaseHexBase ldd       #97       ; establish the use lowercase hex base loop or field bound (97)
+AdjustHexAlphabeticDigit addd      #-10      ; add to d using #-10
+                    bra       StoreHexDigit ; continue with store hex digit
+UseNumericHexDigit  ldd       #48       ; recognize or generate ASCII zero
+StoreHexDigit       addd      ,s++      ; add to d using ,s++
+                    stb       ,u+       ; retain
+                    ldd       $08,s     ; recover $08
                     lsra                ; shift a right logically
                     rorb                ; rotate b right through carry
                     lsra                ; shift a right logically
@@ -772,1665 +771,1665 @@ Branch_078          addd      ,s++      ; add to d using ,s++
                     rorb                ; rotate b right through carry
                     anda      #15       ; mask a using #15
                     std       $08,s     ; store d in the current stack frame at $08,s
-                    bne       Branch_074 ; branch when the values differ or the result is nonzero; target Branch_074
-                    bra       Branch_079 ; continue execution at Branch_079
-Branch_080          ldb       WorkByte_001,u ; load b from WorkByte_001,u
-                    ldx       $02,s     ; load x from the current stack frame at $02,s
-                    leax      $01,x     ; form the address $01,x in x
+                    bne       ExtractHexDigit ; select extract hex digit when the requested case does not match
+                    bra       ReverseHexDigits ; continue with reverse hex digits
+CopyHexDigit        ldb       StreamCursor,u ; recover work byte 001
+                    ldx       $02,s     ; recover $02
+                    leax      $01,x     ; select $01
                     stx       $02,s     ; store x in the current stack frame at $02,s
-                    stb       -$01,x    ; store b at -$01,x
-Branch_079          leau      -$01,u    ; form the workspace or data address -$01,u in u
-                    pshs      u         ; save u on the stack
-                    leax      >$01BB,y  ; form the address >$01BB,y in x
-                    cmpx      ,s++      ; compare x with ,s++ and set the condition codes
-                    bls       Branch_080 ; branch when the unsigned value is lower or equal; target Branch_080
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
+                    stb       -$01,x    ; replace the byte just examined in place
+ReverseHexDigits    leau      -$01,u    ; select -$01
+                    pshs      u         ; preserve u across the operation
+                    leax      >$01BB,y  ; select $01 bb
+                    cmpx      ,s++      ; test against
+                    bls       CopyHexDigit ; continue copy hex digit while the range test permits it
+                    clra                ; select standard input
+                    clrb                ; clear the byte accumulator for counting
                     stb       [<$02,s]  ; store b in the current stack frame at [<$02,s]
-                    leax      >$01B1,y  ; form the address >$01B1,y in x
-                    tfr       x,d       ; copy the register values specified by x,d
-                    lbra      Branch_081 ; continue execution at Branch_081
-Routine_022         pshs      u         ; save u on the stack
-                    ldu       $06,s     ; load u from the current stack frame at $06,s
-                    ldd       $0A,s     ; load d from the current stack frame at $0A,s
+                    leax      >$01B1,y  ; select $01 b1
+                    tfr       x,d       ; transfer x,d
+                    lbra      ReturnFormattedBuffer ; continue with return formatted buffer
+WritePaddedField    pshs      u         ; preserve u across the operation
+                    ldu       $06,s     ; recover $06
+                    ldd       $0A,s     ; recover $0 a
                     subd      $08,s     ; subtract from d using $08,s
                     std       $0A,s     ; store d in the current stack frame at $0A,s
-                    ldd       >$01C5,y  ; load d from >$01C5,y
-                    bne       Branch_082 ; branch when the values differ or the result is nonzero; target Branch_082
-                    bra       Branch_083 ; continue execution at Branch_083
-Branch_084          ldd       >$01C7,y  ; load d from >$01C7,y
-                    pshs      d         ; save d on the stack
-                    jsr       [<$06,s]  ; call subroutine [<$06,s]
-                    leas      $02,s     ; adjust the system stack pointer
-Branch_083          ldd       $0A,s     ; load d from the current stack frame at $0A,s
+                    ldd       >$01C5,y  ; recover $01 c5
+                    bne       EmitFieldBytes ; select emit field bytes when the requested case does not match
+                    bra       EmitLeadingPadding ; continue with emit leading padding
+EmitLeadingPadByte  ldd       >$01C7,y  ; recover $01 c7
+                    pshs      d         ; preserve d across the operation
+                    jsr       [<$06,s]
+                    leas      $02,s     ; release $02,s bytes of stack state
+EmitLeadingPadding  ldd       $0A,s     ; recover $0 a
                     addd      #-1       ; add to d using #-1
                     std       $0A,s     ; store d in the current stack frame at $0A,s
                     subd      #-1       ; subtract from d using #-1
-                    bgt       Branch_084 ; branch when the signed value is greater; target Branch_084
-                    bra       Branch_082 ; continue execution at Branch_082
-Branch_085          ldb       ,u+       ; load b from ,u+
+                    bgt       EmitLeadingPadByte
+                    bra       EmitFieldBytes ; continue with emit field bytes
+EmitNextFieldByte   ldb       ,u+       ; consume the next byte while emit next field byte
                     sex                 ; sign-extend b into d
-                    pshs      d         ; save d on the stack
-                    jsr       [<$06,s]  ; call subroutine [<$06,s]
-                    leas      $02,s     ; adjust the system stack pointer
-Branch_082          ldd       $08,s     ; load d from the current stack frame at $08,s
+                    pshs      d         ; preserve d across the operation
+                    jsr       [<$06,s]
+                    leas      $02,s     ; release $02,s bytes of stack state
+EmitFieldBytes      ldd       $08,s     ; recover $08
                     addd      #-1       ; add to d using #-1
                     std       $08,s     ; store d in the current stack frame at $08,s
                     subd      #-1       ; subtract from d using #-1
-                    bne       Branch_085 ; branch when the values differ or the result is nonzero; target Branch_085
-                    ldd       >$01C5,y  ; load d from >$01C5,y
-                    beq       Branch_086 ; branch when the values are equal or the result is zero; target Branch_086
-                    bra       Branch_087 ; continue execution at Branch_087
-Branch_088          ldd       >$01C7,y  ; load d from >$01C7,y
-                    pshs      d         ; save d on the stack
-                    jsr       [<$06,s]  ; call subroutine [<$06,s]
-                    leas      $02,s     ; adjust the system stack pointer
-Branch_087          ldd       $0A,s     ; load d from the current stack frame at $0A,s
+                    bne       EmitNextFieldByte ; select emit next field byte when the requested case does not match
+                    ldd       >$01C5,y  ; recover $01 c5
+                    beq       ReturnPaddedField ; select return padded field when the requested case matches
+                    bra       EmitTrailingPadding ; continue with emit trailing padding
+EmitTrailingPadByte ldd       >$01C7,y  ; recover $01 c7
+                    pshs      d         ; preserve d across the operation
+                    jsr       [<$06,s]
+                    leas      $02,s     ; release $02,s bytes of stack state
+EmitTrailingPadding ldd       $0A,s     ; recover $0 a
                     addd      #-1       ; add to d using #-1
                     std       $0A,s     ; store d in the current stack frame at $0A,s
                     subd      #-1       ; subtract from d using #-1
-                    bgt       Branch_088 ; branch when the signed value is greater; target Branch_088
-Branch_086          puls      pc,u      ; restore pc,u and return to the caller
-Routine_024         pshs      u         ; save u on the stack
-                    ldu       $06,s     ; load u from the current stack frame at $06,s
-                    ldd       $08,s     ; load d from the current stack frame at $08,s
-                    pshs      d         ; save d on the stack
-                    pshs      u         ; save u on the stack
-                    lbsr      Routine_012 ; call subroutine Routine_012
-                    leas      $02,s     ; adjust the system stack pointer
+                    bgt       EmitTrailingPadByte
+ReturnPaddedField   puls      pc,u      ; restore pc,u and return to the caller
+WritePaddedString   pshs      u         ; preserve u across the operation
+                    ldu       $06,s     ; recover $06
+                    ldd       $08,s     ; recover $08
+                    pshs      d         ; preserve d across the operation
+                    pshs      u         ; preserve u across the operation
+                    lbsr      MeasureCString ; invoke measure cstring
+                    leas      $02,s     ; release $02,s bytes of stack state
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
                     addd      ,s++      ; add to d using ,s++
                     std       $08,s     ; store d in the current stack frame at $08,s
-                    ldd       >$01C5,y  ; load d from >$01C5,y
-                    bne       Branch_089 ; branch when the values differ or the result is nonzero; target Branch_089
-                    bra       Branch_090 ; continue execution at Branch_090
-Branch_091          ldd       >$01C7,y  ; load d from >$01C7,y
-                    pshs      d         ; save d on the stack
-                    jsr       [<$06,s]  ; call subroutine [<$06,s]
-                    leas      $02,s     ; adjust the system stack pointer
-Branch_090          ldd       $08,s     ; load d from the current stack frame at $08,s
+                    ldd       >$01C5,y  ; recover $01 c5
+                    bne       EmitStringBytes ; select emit string bytes when the requested case does not match
+                    bra       EmitStringLeadingPadding ; continue with emit string leading padding
+EmitStringLeadingPadByte ldd       >$01C7,y  ; recover $01 c7
+                    pshs      d         ; preserve d across the operation
+                    jsr       [<$06,s]
+                    leas      $02,s     ; release $02,s bytes of stack state
+EmitStringLeadingPadding ldd       $08,s     ; recover $08
                     addd      #-1       ; add to d using #-1
                     std       $08,s     ; store d in the current stack frame at $08,s
                     subd      #-1       ; subtract from d using #-1
-                    bgt       Branch_091 ; branch when the signed value is greater; target Branch_091
-                    bra       Branch_089 ; continue execution at Branch_089
-Branch_092          ldb       ,u+       ; load b from ,u+
+                    bgt       EmitStringLeadingPadByte
+                    bra       EmitStringBytes ; continue with emit string bytes
+EmitNextStringByte  ldb       ,u+       ; consume the next byte while emit next string byte
                     sex                 ; sign-extend b into d
-                    pshs      d         ; save d on the stack
-                    jsr       [<$06,s]  ; call subroutine [<$06,s]
-                    leas      $02,s     ; adjust the system stack pointer
-Branch_089          ldb       WorkByte_001,u ; load b from WorkByte_001,u
-                    bne       Branch_092 ; branch when the values differ or the result is nonzero; target Branch_092
-                    ldd       >$01C5,y  ; load d from >$01C5,y
-                    beq       Branch_093 ; branch when the values are equal or the result is zero; target Branch_093
-                    bra       Branch_094 ; continue execution at Branch_094
-Branch_095          ldd       >$01C7,y  ; load d from >$01C7,y
-                    pshs      d         ; save d on the stack
-                    jsr       [<$06,s]  ; call subroutine [<$06,s]
-                    leas      $02,s     ; adjust the system stack pointer
-Branch_094          ldd       $08,s     ; load d from the current stack frame at $08,s
+                    pshs      d         ; preserve d across the operation
+                    jsr       [<$06,s]
+                    leas      $02,s     ; release $02,s bytes of stack state
+EmitStringBytes     ldb       StreamCursor,u ; recover work byte 001
+                    bne       EmitNextStringByte ; select emit next string byte when the requested case does not match
+                    ldd       >$01C5,y  ; recover $01 c5
+                    beq       ReturnPaddedString ; select return padded string when the requested case matches
+                    bra       EmitStringTrailingPadding ; continue with emit string trailing padding
+EmitStringTrailingPadByte ldd       >$01C7,y  ; recover $01 c7
+                    pshs      d         ; preserve d across the operation
+                    jsr       [<$06,s]
+                    leas      $02,s     ; release $02,s bytes of stack state
+EmitStringTrailingPadding ldd       $08,s     ; recover $08
                     addd      #-1       ; add to d using #-1
                     std       $08,s     ; store d in the current stack frame at $08,s
                     subd      #-1       ; subtract from d using #-1
-                    bgt       Branch_095 ; branch when the signed value is greater; target Branch_095
-Branch_093          puls      pc,u      ; restore pc,u and return to the caller
-Data_005            fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $AF       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $1D       ; store byte data
-Branch_081          leas      $04,s     ; adjust the system stack pointer
+                    bgt       EmitStringTrailingPadByte
+ReturnPaddedString  puls      pc,u      ; restore pc,u and return to the caller
+EncodedFormatWrapper fcb       $34
+                    fcb       $40
+                    fcb       $EC
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $AF
+                    fcb       $34
+                    fcb       $06
+                    fcb       $EC
+                    fcb       $66
+                    fcb       $34
+                    fcb       $06
+                    fcb       $17
+                    fcb       $00
+                    fcb       $1D
+ReturnFormattedBuffer leas      $04,s     ; release $04,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $AF       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $AF       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $AF       ; store byte data
-                    fcb       $E7       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $C0       ; store byte data
-Text_005            fcc       "-32768" ; store literal character data
-                    fcb       $00       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $EE       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $80       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $22       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $83       ; store byte data
-                    fcb       $80       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $14       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $4F       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $22       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $83       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $F9       ; store byte data
-                    fcb       $32       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $4F       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcc       "0g4" ; store literal character data
-                    fcb       $10       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $48       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $4F       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $8D       ; store byte data
-                    fcb       $05       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $8D       ; store byte data
-                    fcb       $05       ; store byte data
-                    fcb       $43       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $AD       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $32       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $83       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $4A       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $CA       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $DC       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $5F       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $7E       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $07       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $EB       ; store byte data
-                    fcb       $32       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $C3       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $83       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $E7       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $A3       ; store byte data
-                    fcb       $44       ; store byte data
-                    fcb       $24       ; store byte data
-                    fcb       $0F       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $4F       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $13       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $83       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $0B       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $BE       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $E1       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $9B       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $C0       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $EE       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $08       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $03       ; store byte data
-                    fcb       $98       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcc       "F2d" ; store literal character data
-                    fcb       $EC       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $3B       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcc       "K" ; store literal character data
-Routine_026         pshs      u,d       ; save u,d on the stack
-                    leau      >$000E,y  ; form the workspace or data address >$000E,y in u
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    std       ,s        ; store d in the current stack frame at ,s
-                    bra       Branch_096 ; continue execution at Branch_096
-Branch_097          tfr       u,d       ; copy the register values specified by u,d
-                    leau      WorkBuffer_001,u ; form the workspace or data address WorkBuffer_001,u in u
-                    pshs      d         ; save d on the stack
-                    bsr       Routine_027 ; call subroutine Routine_027
-                    leas      $02,s     ; adjust the system stack pointer
-Branch_096          ldd       ,s        ; load d from the current stack frame at ,s
-                    addd      #1        ; add to d using #1
-                    std       ,s        ; store d in the current stack frame at ,s
-                    subd      #1        ; subtract from d using #1
-                    cmpd      #16       ; compare d with #16 and set the condition codes
-                    blt       Branch_097 ; branch when the signed value is less; target Branch_097
-                    lbra      Branch_098 ; continue execution at Branch_098
-Routine_027         pshs      u         ; save u on the stack
-                    ldu       $04,s     ; load u from the current stack frame at $04,s
-                    leas      -$02,s    ; adjust the system stack pointer
-                    cmpu      #0        ; compare u with #0 and set the condition codes
-                    beq       Branch_099 ; branch when the values are equal or the result is zero; target Branch_099
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    bne       Branch_100 ; branch when the values differ or the result is nonzero; target Branch_100
-Branch_099          ldd       #-1       ; set d to the constant -1
-                    lbra      Branch_098 ; continue execution at Branch_098
-Branch_100          ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    clra                ; clear a to zero and set the condition codes
+                    fcb       $34
+                    fcb       $40
+                    fcb       $EC
+                    fcb       $64
+                    fcb       $AE
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $AF
+                    fcb       $30
+                    fcb       $01
+                    fcb       $AF
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $AF
+                    fcb       $E7
+                    fcb       $1F
+                    fcb       $35
+                    fcb       $C0
+MinimumSignedText   fcc       "-32768"
+                    fcb       $00
+                    fcb       $34
+                    fcb       $40
+                    fcb       $EE
+                    fcb       $66
+                    fcb       $EC
+                    fcb       $46
+                    fcb       $84
+                    fcb       $80
+                    fcb       $C4
+                    fcb       $22
+                    fcb       $10
+                    fcb       $83
+                    fcb       $80
+                    fcb       $02
+                    fcb       $27
+                    fcb       $14
+                    fcb       $EC
+                    fcb       $46
+                    fcb       $4F
+                    fcb       $C4
+                    fcb       $22
+                    fcb       $10
+                    fcb       $83
+                    fcb       $00
+                    fcb       $02
+                    fcb       $10
+                    fcb       $26
+                    fcb       $01
+                    fcb       $1F
+                    fcb       $34
+                    fcb       $40
+                    fcb       $17
+                    fcb       $01
+                    fcb       $F9
+                    fcb       $32
+                    fcb       $62
+                    fcb       $EC
+                    fcb       $46
+                    fcb       $4F
+                    fcb       $C4
+                    fcb       $04
+                    fcb       $27
+                    fcb       $35
+                    fcb       $CC
+                    fcb       $00
+                    fcb       $01
+                    fcb       $34
+                    fcb       $06
+                    fcc       "0g4"
+                    fcb       $10
+                    fcb       $EC
+                    fcb       $48
+                    fcb       $34
+                    fcb       $06
+                    fcb       $EC
+                    fcb       $46
+                    fcb       $4F
+                    fcb       $C4
+                    fcb       $40
+                    fcb       $27
+                    fcb       $06
+                    fcb       $30
+                    fcb       $8D
+                    fcb       $05
+                    fcb       $62
+                    fcb       $20
+                    fcb       $04
+                    fcb       $30
+                    fcb       $8D
+                    fcb       $05
+                    fcb       $43
+                    fcb       $1F
+                    fcb       $10
+                    fcb       $1F
+                    fcb       $01
+                    fcb       $AD
+                    fcb       $84
+                    fcb       $32
+                    fcb       $66
+                    fcb       $10
+                    fcb       $83
+                    fcb       $FF
+                    fcb       $FF
+                    fcb       $26
+                    fcb       $4A
+                    fcb       $EC
+                    fcb       $46
+                    fcb       $CA
+                    fcb       $20
+                    fcb       $ED
+                    fcb       $46
+                    fcb       $16
+                    fcb       $00
+                    fcb       $DC
+                    fcb       $EC
+                    fcb       $46
+                    fcb       $84
+                    fcb       $01
+                    fcb       $5F
+                    fcb       $ED
+                    fcb       $7E
+                    fcb       $26
+                    fcb       $07
+                    fcb       $34
+                    fcb       $40
+                    fcb       $17
+                    fcb       $00
+                    fcb       $EB
+                    fcb       $32
+                    fcb       $62
+                    fcb       $EC
+                    fcb       $C4
+                    fcb       $C3
+                    fcb       $00
+                    fcb       $01
+                    fcb       $ED
+                    fcb       $C4
+                    fcb       $83
+                    fcb       $00
+                    fcb       $01
+                    fcb       $1F
+                    fcb       $01
+                    fcb       $EC
+                    fcb       $64
+                    fcb       $E7
+                    fcb       $84
+                    fcb       $EC
+                    fcb       $C4
+                    fcb       $10
+                    fcb       $A3
+                    fcb       $44
+                    fcb       $24
+                    fcb       $0F
+                    fcb       $EC
+                    fcb       $46
+                    fcb       $4F
+                    fcb       $C4
+                    fcb       $40
+                    fcb       $27
+                    fcb       $13
+                    fcb       $EC
+                    fcb       $64
+                    fcb       $10
+                    fcb       $83
+                    fcb       $00
+                    fcb       $0D
+                    fcb       $26
+                    fcb       $0B
+                    fcb       $34
+                    fcb       $40
+                    fcb       $17
+                    fcb       $00
+                    fcb       $BE
+                    fcb       $ED
+                    fcb       $E1
+                    fcb       $10
+                    fcb       $26
+                    fcb       $00
+                    fcb       $9B
+                    fcb       $EC
+                    fcb       $64
+                    fcb       $35
+                    fcb       $C0
+                    fcb       $34
+                    fcb       $40
+                    fcb       $EE
+                    fcb       $64
+                    fcb       $EC
+                    fcb       $66
+                    fcb       $34
+                    fcb       $06
+                    fcb       $34
+                    fcb       $40
+                    fcb       $CC
+                    fcb       $00
+                    fcb       $08
+                    fcb       $17
+                    fcb       $03
+                    fcb       $98
+                    fcb       $34
+                    fcb       $06
+                    fcb       $17
+                    fcb       $FF
+                    fcc       "F2d"
+                    fcb       $EC
+                    fcb       $66
+                    fcb       $34
+                    fcb       $06
+                    fcb       $34
+                    fcb       $40
+                    fcb       $17
+                    fcb       $FF
+                    fcb       $3B
+                    fcb       $16
+                    fcb       $01
+                    fcc       "K"
+CloseAllStreams     pshs      u,d       ; preserve U and allocate a word-sized slot index
+                    leau      >$000E,y  ; select $000 e
+                    clra                ; initialize the slot index to zero
+                    clrb                ; complete the zero slot index
+                    std       ,s        ; retain the index in the local stack word
+                    bra       CheckNextStreamSlot ; continue with branch 096
+CloseNextStreamSlot tfr       u,d       ; pass the current descriptor address
+                    leau      RuntimeDescriptorTableRemainder,u ; select work buffer 001
+                    pshs      d         ; pass the descriptor being closed
+                    bsr       CloseStream ; invoke routine 027
+                    leas      $02,s     ; release $02,s bytes of stack state
+CheckNextStreamSlot ldd       ,s        ; recover
+                    addd      #1        ; prepare the following index
+                    std       ,s        ; retain it for the next iteration
+                    subd      #1        ; restore the index being tested now
+                    cmpd      #16       ; test against #16
+                    blt       CloseNextStreamSlot ; continue with branch 097 below the signed limit
+                    lbra      StreamOperationDone ; return through the shared stream epilogue
+CloseStream         pshs      u         ; preserve the caller's descriptor register
+                    ldu       $04,s     ; recover $04
+                    leas      -$02,s    ; release -$02,s bytes of stack state
+                    cmpu      #0
+                    beq       RejectCloseRequest ; a null pointer cannot be closed
+                    ldd       StreamFlags,u ; recover work word 003
+                    bne       CloseActiveStream ; nonzero flags identify an occupied slot
+RejectCloseRequest  ldd       #-1       ; establish the reject close request loop or field bound (-1)
+                    lbra      StreamOperationDone ; unwind the local result word
+CloseActiveStream   ldd       StreamFlags,u ; recover work word 003
+                    clra                ; inspect only low-byte access flags
                     andb      #2        ; mask b using #2
-                    beq       Branch_101 ; branch when the values are equal or the result is zero; target Branch_101
-                    pshs      u         ; save u on the stack
-                    bsr       Routine_028 ; call subroutine Routine_028
-                    leas      $02,s     ; adjust the system stack pointer
-                    bra       Branch_102 ; continue execution at Branch_102
-Branch_101          clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-Branch_102          std       ,s        ; store d in the current stack frame at ,s
-                    ldd       WorkByte_003,u ; load d from WorkByte_003,u
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_029 ; call subroutine Routine_029
-                    leas      $02,s     ; adjust the system stack pointer
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
-                    ldd       ,s        ; load d from the current stack frame at ,s
-                    bra       Branch_098 ; continue execution at Branch_098
-Routine_028         pshs      u         ; save u on the stack
-                    ldu       $04,s     ; load u from the current stack frame at $04,s
-                    beq       Branch_103 ; branch when the values are equal or the result is zero; target Branch_103
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    clra                ; clear a to zero and set the condition codes
+                    beq       SkipCloseFlush ; read-only streams have no pending output
+                    pshs      u         ; flush pending output before releasing the path
+                    bsr       FlushStream ; invoke routine 028
+                    leas      $02,s     ; release $02,s bytes of stack state
+                    bra       CloseUnderlyingPath ; continue with branch 102
+SkipCloseFlush      clra                ; prepare a successful zero result
+                    clrb                ; a read-only stream has no write error to report
+CloseUnderlyingPath std       ,s        ; preserve the flush result across I$Close
+                    ldd       StreamPath,u ; recover work byte 003
+                    pshs      d         ; release the underlying OS-9 path
+                    lbsr      ClosePath ; invoke routine 029
+                    leas      $02,s     ; release $02,s bytes of stack state
+                    clra                ; clear the descriptor flags as a word
+                    clrb                ; mark the table entry inactive
+                    std       StreamFlags,u ; retain work word 003
+                    ldd       ,s        ; recover
+                    bra       StreamOperationDone ; return the saved flush result
+FlushStream         pshs      u         ; preserve the caller's descriptor register
+                    ldu       $04,s     ; recover $04
+                    beq       RejectFlushRequest ; select branch 103 when the requested case matches
+                    ldd       StreamFlags,u ; recover work word 003
+                    clra                ; ignore high-byte orientation state
                     andb      #34       ; mask b using #34
-                    cmpd      #2        ; compare d with #2 and set the condition codes
-                    beq       Branch_104 ; branch when the values are equal or the result is zero; target Branch_104
-Branch_103          ldd       #-1       ; set d to the constant -1
-                    puls      pc,u      ; restore pc,u and return to the caller
-Branch_104          ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    cmpd      #2        ; test against #2
+                    beq       PrepareStreamFlush ; select branch 104 when the requested case matches
+RejectFlushRequest  ldd       #-1       ; establish the branch 103 loop or field bound (-1)
+                    puls      pc,u      ; reject null, read-only, or failed streams
+PrepareStreamFlush  ldd       StreamFlags,u ; recover work word 003
                     anda      #128      ; mask a using #128
-                    clrb                ; clear b to zero and set the condition codes
-                    std       -$02,s    ; store d in the current stack frame at -$02,s
-                    bne       Branch_105 ; branch when the values differ or the result is nonzero; target Branch_105
-                    pshs      u         ; save u on the stack
-                    lbsr      Routine_030 ; call subroutine Routine_030
-                    leas      $02,s     ; adjust the system stack pointer
-Branch_105          pshs      u         ; save u on the stack
-                    bsr       Routine_031 ; call subroutine Routine_031
-Branch_098          leas      $02,s     ; adjust the system stack pointer
-                    puls      pc,u      ; restore pc,u and return to the caller
-Routine_031         pshs      u         ; save u on the stack
-                    ldu       $04,s     ; load u from the current stack frame at $04,s
-                    leas      -$04,s    ; adjust the system stack pointer
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    clrb                ; form a word-sized initialization test
+                    std       -$02,s    ; use the compiler spill slot only for the flag test
+                    bne       FlushAssignedBuffer ; select branch 105 when the requested case does not match
+                    pshs      u         ; pass the descriptor to lazy initialization
+                    lbsr      InitializeStreamBuffer ; invoke routine 030
+                    leas      $02,s     ; release $02,s bytes of stack state
+FlushAssignedBuffer pshs      u         ; pass the prepared descriptor to the buffer flusher
+                    bsr       FlushBufferedStream ; invoke routine 031
+StreamOperationDone leas      $02,s     ; release $02,s bytes of stack state
+                    puls      pc,u      ; restore U and return the operation status
+FlushBufferedStream pshs      u         ; preserve the caller's descriptor register
+                    ldu       $04,s     ; recover $04
+                    leas      -$04,s    ; release -$04,s bytes of stack state
+                    ldd       StreamFlags,u ; recover work word 003
                     anda      #1        ; mask a using #1
-                    clrb                ; clear b to zero and set the condition codes
-                    std       -$02,s    ; store d in the current stack frame at -$02,s
-                    bne       Branch_106 ; branch when the values differ or the result is nonzero; target Branch_106
-                    ldd       WorkByte_001,u ; load d from WorkByte_001,u
-                    cmpd      WorkWord_002,u ; compare d with WorkWord_002,u and set the condition codes
-                    beq       Branch_106 ; branch when the values are equal or the result is zero; target Branch_106
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    pshs      d         ; save d on the stack
-                    pshs      u         ; save u on the stack
-                    lbsr      Routine_032 ; call subroutine Routine_032
-                    leas      $02,s     ; adjust the system stack pointer
-                    ldd       $02,x     ; load d from $02,x
-                    pshs      d         ; save d on the stack
-                    ldd       ,x        ; load d from ,x
-                    pshs      d         ; save d on the stack
-                    ldd       WorkByte_003,u ; load d from WorkByte_003,u
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_033 ; call subroutine Routine_033
-                    leas      $08,s     ; adjust the system stack pointer
-Branch_106          ldd       WorkByte_001,u ; load d from WorkByte_001,u
-                    subd      WorkWord_001,u ; subtract from d using WorkWord_001,u
-                    std       $02,s     ; store d in the current stack frame at $02,s
-                    lbeq      Branch_107 ; branch when the values are equal or the result is zero; target Branch_107
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    clrb                ; complete the word-sized orientation test
+                    std       -$02,s    ; spill the test value below the compiler frame
+                    bne       ComputePendingOutput ; select branch 106 when the requested case does not match
+                    ldd       StreamCursor,u ; recover work byte 001
+                    cmpd      StreamBufferEnd,u ; test against work word 002
+                    beq       ComputePendingOutput ; select branch 106 when the requested case matches
+                    clra                ; build a zero position-query argument
+                    clrb                ; complete the zero word
+                    pshs      d         ; request the runtime's current logical position
+                    pshs      u         ; pass the descriptor to the position hook
+                    lbsr      NoOpStreamPositionHook ; invoke routine 032
+                    leas      $02,s     ; release $02,s bytes of stack state
+                    ldd       $02,x     ; recover $02
+                    pshs      d         ; pass the returned low position word
+                    ldd       ,x        ; recover
+                    pshs      d         ; pass the returned high position word
+                    ldd       StreamPath,u ; recover work byte 003
+                    pshs      d         ; pass the path number
+                    lbsr      SeekPath  ; invoke routine 033
+                    leas      $08,s     ; release $08,s bytes of stack state
+ComputePendingOutput ldd       StreamCursor,u ; recover work byte 001
+                    subd      StreamBufferStart,u ; subtract from d using StreamBufferStart,u
+                    std       $02,s     ; retain the number of buffered bytes
+                    lbeq      ResetFlushedStream ; nothing has been accumulated
+                    ldd       StreamFlags,u ; recover work word 003
                     anda      #1        ; mask a using #1
-                    clrb                ; clear b to zero and set the condition codes
-                    std       -$02,s    ; store d in the current stack frame at -$02,s
-                    lbeq      Branch_107 ; branch when the values are equal or the result is zero; target Branch_107
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    clra                ; clear a to zero and set the condition codes
+                    clrb                ; form the word-sized orientation test
+                    std       -$02,s    ; preserve it in the compiler spill slot
+                    lbeq      ResetFlushedStream ; discard cached input rather than writing it
+                    ldd       StreamFlags,u ; recover work word 003
+                    clra                ; inspect only low-byte buffering flags
                     andb      #64       ; mask b using #64
-                    beq       Branch_108 ; branch when the values are equal or the result is zero; target Branch_108
-                    ldd       WorkWord_001,u ; load d from WorkWord_001,u
-                    bra       Branch_109 ; continue execution at Branch_109
-Branch_110          ldd       $02,s     ; load d from the current stack frame at $02,s
-                    pshs      d         ; save d on the stack
-                    ldd       WorkByte_001,u ; load d from WorkByte_001,u
-                    pshs      d         ; save d on the stack
-                    ldd       WorkByte_003,u ; load d from WorkByte_003,u
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_034 ; call subroutine Routine_034
-                    leas      $06,s     ; adjust the system stack pointer
-                    std       ,s        ; store d in the current stack frame at ,s
-                    cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    bne       Branch_111 ; branch when the values differ or the result is nonzero; target Branch_111
-                    leax      $04,s     ; form the address $04,s in x
-                    bra       Branch_112 ; continue execution at Branch_112
-Branch_111          ldd       $02,s     ; load d from the current stack frame at $02,s
-                    subd      ,s        ; subtract from d using ,s
-                    std       $02,s     ; store d in the current stack frame at $02,s
-                    ldd       WorkByte_001,u ; load d from WorkByte_001,u
-                    addd      ,s        ; add to d using ,s
-Branch_109          std       WorkByte_001,u ; store d at WorkByte_001,u
-                    ldd       $02,s     ; load d from the current stack frame at $02,s
-                    bne       Branch_110 ; branch when the values differ or the result is nonzero; target Branch_110
-                    bra       Branch_107 ; continue execution at Branch_107
-Branch_108          ldd       $02,s     ; load d from the current stack frame at $02,s
-                    pshs      d         ; save d on the stack
-                    ldd       WorkWord_001,u ; load d from WorkWord_001,u
-                    pshs      d         ; save d on the stack
-                    ldd       WorkByte_003,u ; load d from WorkByte_003,u
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_035 ; call subroutine Routine_035
-                    leas      $06,s     ; adjust the system stack pointer
-                    cmpd      $02,s     ; compare d with $02,s and set the condition codes
-                    beq       Branch_107 ; branch when the values are equal or the result is zero; target Branch_107
-                    bra       Branch_113 ; continue execution at Branch_113
-Branch_112          leas      -$04,x    ; adjust the system stack pointer
-Branch_113          ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    beq       WriteBlockBuffer ; ordinary buffers use one bulk write
+                    ldd       StreamBufferStart,u ; recover work word 001
+                    bra       UpdateWriteCursor ; seed the line-write cursor
+WriteNextLineFragment ldd       $02,s     ; recover $02
+                    pshs      d         ; pass the remaining byte count
+                    ldd       StreamCursor,u ; recover work byte 001
+                    pshs      d         ; pass the first unwritten byte
+                    ldd       StreamPath,u ; recover work byte 003
+                    pshs      d         ; pass it to the line-write wrapper
+                    lbsr      WriteLineBytes ; invoke routine 034
+                    leas      $06,s     ; release $06,s bytes of stack state
+                    std       ,s        ; retain the number written or -1
+                    cmpd      #-1       ; test against #-1
+                    bne       AdvanceAfterLineWrite ; select branch 111 when the requested case does not match
+                    leax      $04,s     ; preserve the compiler's error-frame restoration
+                    bra       RestoreFailedWriteFrame ; continue with branch 112
+AdvanceAfterLineWrite ldd       $02,s     ; recover $02
+                    subd      ,s        ; remove the completed portion from the remainder
+                    std       $02,s     ; retain the reduced count
+                    ldd       StreamCursor,u ; recover work byte 001
+                    addd      ,s        ; advance to the next unwritten byte
+UpdateWriteCursor   std       StreamCursor,u ; retain work byte 001
+                    ldd       $02,s     ; recover $02
+                    bne       WriteNextLineFragment ; select branch 110 when the requested case does not match
+                    bra       ResetFlushedStream ; all line fragments reached OS-9
+WriteBlockBuffer    ldd       $02,s     ; recover $02
+                    pshs      d         ; write the entire pending block in one call
+                    ldd       StreamBufferStart,u ; recover work word 001
+                    pshs      d         ; pass the source address
+                    ldd       StreamPath,u ; recover work byte 003
+                    pshs      d         ; pass the path number
+                    lbsr      WriteBytes ; invoke routine 035
+                    leas      $06,s     ; release $06,s bytes of stack state
+                    cmpd      $02,s     ; test against $02
+                    beq       ResetFlushedStream ; accept only a complete block write
+                    bra       MarkStreamWriteError ; continue with branch 113
+RestoreFailedWriteFrame leas      -$04,x    ; release -$04,x bytes of stack state
+MarkStreamWriteError ldd       StreamFlags,u ; recover work word 003
                     orb       #32       ; set selected bits in b using #32
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
-                    ldd       WorkWord_002,u ; load d from WorkWord_002,u
-                    std       WorkByte_001,u ; store d at WorkByte_001,u
-                    ldd       #-1       ; set d to the constant -1
-                    bra       Branch_114 ; continue execution at Branch_114
-Branch_107          ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    std       StreamFlags,u ; retain work word 003
+                    ldd       StreamBufferEnd,u ; recover work word 002
+                    std       StreamCursor,u ; retain work byte 001
+                    ldd       #-1       ; initialize work word 003 to -1
+                    bra       ReturnFlushStatus ; release locals and return failure
+ResetFlushedStream  ldd       StreamFlags,u ; recover work word 003
                     ora       #1        ; set selected bits in a using #1
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
-                    ldd       WorkWord_001,u ; load d from WorkWord_001,u
-                    std       WorkByte_001,u ; store d at WorkByte_001,u
-                    addd      WorkWord_004,u ; add to d using WorkWord_004,u
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-Branch_114          leas      $04,s     ; adjust the system stack pointer
-                    puls      pc,u      ; restore pc,u and return to the caller
-Routine_032         pshs      u         ; save u on the stack
-                    puls      pc,u      ; restore pc,u and return to the caller
-Routine_030         pshs      u         ; save u on the stack
-                    ldu       $04,s     ; load u from the current stack frame at $04,s
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    clra                ; clear a to zero and set the condition codes
+                    std       StreamFlags,u ; retain work word 003
+                    ldd       StreamBufferStart,u ; recover work word 001
+                    std       StreamCursor,u ; retain work byte 001
+                    addd      StreamBufferSize,u ; add to d using StreamBufferSize,u
+                    std       StreamBufferEnd,u ; retain work word 002
+                    clra                ; prepare a successful zero result
+                    clrb                ; report a successful flush
+ReturnFlushStatus   leas      $04,s     ; release $04,s bytes of stack state
+                    puls      pc,u      ; restore U and return the flush status
+NoOpStreamPositionHook pshs      u         ; preserve the calling convention's U value
+                    puls      pc,u      ; return without disturbing the position pointer
+InitializeStreamBuffer pshs      u         ; preserve the caller's descriptor register
+                    ldu       $04,s     ; recover $04
+                    ldd       StreamFlags,u ; recover work word 003
+                    clra                ; widen the byte to a positive compiler integer
                     andb      #192      ; mask b using #192
-                    bne       Branch_115 ; branch when the values differ or the result is nonzero; target Branch_115
-                    leas      -$20,s    ; adjust the system stack pointer
-                    leax      ,s        ; form the address ,s in x
-                    pshs      x         ; save x on the stack
-                    ldd       WorkByte_003,u ; load d from WorkByte_003,u
-                    pshs      d         ; save d on the stack
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_036 ; call subroutine Routine_036
-                    leas      $06,s     ; adjust the system stack pointer
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    pshs      d         ; save d on the stack
-                    ldb       $02,s     ; load b from the current stack frame at $02,s
-                    bne       Branch_116 ; branch when the values differ or the result is nonzero; target Branch_116
-                    ldd       #64       ; set d to the constant 64
-                    bra       Branch_117 ; continue execution at Branch_117
-Branch_116          ldd       #128      ; set d to the constant 128
-Branch_117          ora       ,s+       ; set selected bits in a using ,s+
+                    bne       BufferingModeSelected ; select branch 115 when the requested case does not match
+                    leas      -$20,s    ; release -$20,s bytes of stack state
+                    leax      ,s        ; point X at its first byte
+                    pshs      x         ; pass the option-table destination
+                    ldd       StreamPath,u ; recover work byte 003
+                    pshs      d         ; preserve the status-call argument order
+                    clra                ; request base option status code zero
+                    clrb                ; complete selector zero
+                    pshs      d         ; request the path's base option status
+                    lbsr      GetPathStatus ; invoke routine 036
+                    leas      $06,s     ; release $06,s bytes of stack state
+                    ldd       StreamFlags,u ; recover work word 003
+                    pshs      d         ; preserve existing state during policy selection
+                    ldb       $02,s     ; device type zero identifies an SCF-style terminal
+                    bne       SelectFullBuffering ; select branch 116 when the requested case does not match
+                    ldd       #64       ; establish the routine 030 loop or field bound (64)
+                    bra       SaveBufferingMode ; continue with branch 117
+SelectFullBuffering ldd       #128      ; initialize work word 003 to 128
+SaveBufferingMode   ora       ,s+       ; set selected bits in a using ,s+
                     orb       ,s+       ; set selected bits in b using ,s+
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
-                    leas      <$0020,s  ; adjust the system stack pointer
-Branch_115          ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    std       StreamFlags,u ; retain work word 003
+                    leas      <$0020,s  ; release <$0020,s bytes of stack state
+BufferingModeSelected ldd       StreamFlags,u ; recover work word 003
                     ora       #128      ; set selected bits in a using #128
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
-                    clra                ; clear a to zero and set the condition codes
+                    std       StreamFlags,u ; retain work word 003
+                    clra                ; inspect the already-configured storage flags
                     andb      #12       ; mask b using #12
-                    beq       Branch_118 ; branch when the values are equal or the result is zero; target Branch_118
-                    puls      pc,u      ; restore pc,u and return to the caller
-Branch_118          ldd       WorkWord_004,u ; load d from WorkWord_004,u
-                    bne       Branch_119 ; branch when the values differ or the result is nonzero; target Branch_119
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    clra                ; clear a to zero and set the condition codes
+                    beq       ChooseBufferSize ; allocate only when no storage exists
+                    puls      pc,u      ; an existing buffer configuration is ready
+ChooseBufferSize    ldd       StreamBufferSize,u ; recover work word 004
+                    bne       EnsureBufferStorage ; select branch 119 when the requested case does not match
+                    ldd       StreamFlags,u ; recover work word 003
+                    clra                ; inspect the low-byte line flag
                     andb      #64       ; mask b using #64
-                    beq       Branch_120 ; branch when the values are equal or the result is zero; target Branch_120
-                    ldd       #128      ; set d to the constant 128
-                    bra       Branch_121 ; continue execution at Branch_121
-Branch_120          ldd       #256      ; set d to the constant 256
-Branch_121          std       WorkWord_004,u ; store d at WorkWord_004,u
-Branch_119          ldd       WorkWord_001,u ; load d from WorkWord_001,u
-                    bne       Branch_122 ; branch when the values differ or the result is nonzero; target Branch_122
-                    ldd       WorkWord_004,u ; load d from WorkWord_004,u
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_037 ; call subroutine Routine_037
-                    leas      $02,s     ; adjust the system stack pointer
-                    std       WorkWord_001,u ; store d at WorkWord_001,u
-                    cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    beq       Branch_123 ; branch when the values are equal or the result is zero; target Branch_123
-Branch_122          ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    beq       ChooseBlockBufferSize ; select branch 120 when the requested case matches
+                    ldd       #128      ; initialize work word 004 to 128
+                    bra       SaveDefaultBufferSize ; continue with branch 121
+ChooseBlockBufferSize ldd       #256      ; initialize work word 004 to 256
+SaveDefaultBufferSize std       StreamBufferSize,u ; retain work word 004
+EnsureBufferStorage ldd       StreamBufferStart,u ; recover work word 001
+                    bne       MarkBufferAvailable ; select branch 122 when the requested case does not match
+                    ldd       StreamBufferSize,u ; recover work word 004
+                    pshs      d         ; pass the allocation size
+                    lbsr      AllocateHeapBytes ; invoke routine 037
+                    leas      $02,s     ; release $02,s bytes of stack state
+                    std       StreamBufferStart,u ; retain work word 001
+                    cmpd      #-1       ; test against #-1
+                    beq       UseFallbackByteBuffer ; select branch 123 when the requested case matches
+MarkBufferAvailable ldd       StreamFlags,u ; recover work word 003
                     orb       #8        ; set selected bits in b using #8
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
-                    bra       Branch_124 ; continue execution at Branch_124
-Branch_123          ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    std       StreamFlags,u ; retain work word 003
+                    bra       ResetBufferWindow ; initialize its empty bounds
+UseFallbackByteBuffer ldd       StreamFlags,u ; recover work word 003
                     orb       #4        ; set selected bits in b using #4
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
-                    leax      WorkByte_005,u ; form the address WorkByte_005,u in x
-                    stx       WorkWord_001,u ; store x at WorkWord_001,u
-                    ldd       #1        ; set d to the constant 1
-                    std       WorkWord_004,u ; store d at WorkWord_004,u
-Branch_124          ldd       WorkWord_001,u ; load d from WorkWord_001,u
-                    addd      WorkWord_004,u ; add to d using WorkWord_004,u
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    std       WorkByte_001,u ; store d at WorkByte_001,u
-                    puls      pc,u      ; restore pc,u and return to the caller
-Routine_023         pshs      u         ; save u on the stack
-                    ldb       $05,s     ; load b from the current stack frame at $05,s
+                    std       StreamFlags,u ; retain work word 003
+                    leax      StreamPushbackByte,u ; select work byte 005
+                    stx       StreamBufferStart,u ; retain work word 001
+                    ldd       #1        ; initialize work word 004 to 1
+                    std       StreamBufferSize,u ; retain work word 004
+ResetBufferWindow   ldd       StreamBufferStart,u ; recover work word 001
+                    addd      StreamBufferSize,u ; add to d using StreamBufferSize,u
+                    std       StreamBufferEnd,u ; retain work word 002
+                    std       StreamCursor,u ; retain work byte 001
+                    puls      pc,u      ; restore U with buffering ready
+SelectIntegerArgument pshs      u         ; preserve u across the operation
+                    ldb       $05,s     ; recover $05
                     sex                 ; sign-extend b into d
-                    tfr       d,x       ; copy the register values specified by d,x
-                    bra       Branch_125 ; continue execution at Branch_125
-Branch_126          ldd       [<$06,s]  ; load d from the current stack frame at [<$06,s]
+                    tfr       d,x       ; transfer d,x
+                    bra       ClassifyIntegerConversion ; continue with classify integer conversion
+FetchLongIntegerArgument ldd       [<$06,s]  ; recover [<$06
                     addd      #4        ; add to d using #4
                     std       [<$06,s]  ; store d in the current stack frame at [<$06,s]
-                    leax      >Data_006,pc ; form the address >Data_006,pc in x
-                    bra       Branch_127 ; continue execution at Branch_127
-Branch_128          ldb       $05,s     ; load b from the current stack frame at $05,s
-                    stb       >$000C,y  ; store b at >$000C,y
-                    leax      >$000B,y  ; form the address >$000B,y in x
-Branch_127          tfr       x,d       ; copy the register values specified by x,d
+                    leax      >EmptyIntegerText,pc ; select data 006
+                    bra       ReturnIntegerArgument ; continue with return integer argument
+UseByteIntegerArgument ldb       $05,s     ; recover $05
+                    stb       >$000C,y  ; retain $000 c
+                    leax      >$000B,y  ; select $000 b
+ReturnIntegerArgument tfr       x,d       ; transfer x,d
                     puls      pc,u      ; restore pc,u and return to the caller
-Branch_125          cmpx      #100      ; compare x with #100 and set the condition codes
-                    beq       Branch_126 ; branch when the values are equal or the result is zero; target Branch_126
-                    cmpx      #111      ; compare x with #111 and set the condition codes
-                    lbeq      Branch_126 ; branch when the values are equal or the result is zero; target Branch_126
-                    cmpx      #120      ; compare x with #120 and set the condition codes
-                    lbeq      Branch_126 ; branch when the values are equal or the result is zero; target Branch_126
-                    bra       Branch_128 ; continue execution at Branch_128
-                    fcb       $35       ; store byte data
-                    fcb       $C0       ; store byte data
-Data_006            fcb       $00       ; store byte data
-Routine_021         pshs      u         ; save u on the stack
-                    leax      >Data_007,pc ; form the address >Data_007,pc in x
-                    tfr       x,d       ; copy the register values specified by x,d
+ClassifyIntegerConversion cmpx      #100      ; test against #100
+                    beq       FetchLongIntegerArgument ; select fetch long integer argument when the requested case matches
+                    cmpx      #111      ; test against #111
+                    lbeq      FetchLongIntegerArgument ; select fetch long integer argument when the requested case matches
+                    cmpx      #120      ; test against #120
+                    lbeq      FetchLongIntegerArgument ; select fetch long integer argument when the requested case matches
+                    bra       UseByteIntegerArgument ; continue with use byte integer argument
+                    fcb       $35
+                    fcb       $C0
+EmptyIntegerText    fcb       $00
+ReturnEmptyString   pshs      u         ; preserve u across the operation
+                    leax      >EmptyString,pc ; select data 007
+                    tfr       x,d       ; transfer x,d
                     puls      pc,u      ; restore pc,u and return to the caller
-Data_007            fcb       $00       ; store byte data
-Routine_012         pshs      u         ; save u on the stack
-                    ldu       $04,s     ; load u from the current stack frame at $04,s
-Branch_129          ldb       ,u+       ; load b from ,u+
-                    bne       Branch_129 ; branch when the values differ or the result is nonzero; target Branch_129
-                    tfr       u,d       ; copy the register values specified by u,d
+EmptyString         fcb       $00
+MeasureCString      pshs      u         ; preserve u across the operation
+                    ldu       $04,s     ; recover $04
+FindCStringEnd      ldb       ,u+       ; consume the next byte while find cstring end
+                    bne       FindCStringEnd ; repeat find cstring end until the terminating condition is met
+                    tfr       u,d       ; transfer u,d
                     subd      $04,s     ; subtract from d using $04,s
                     addd      #-1       ; add to d using #-1
                     puls      pc,u      ; restore pc,u and return to the caller
-Routine_025         pshs      u         ; save u on the stack
-                    ldu       $06,s     ; load u from the current stack frame at $06,s
-                    leas      -$02,s    ; adjust the system stack pointer
-                    ldd       $06,s     ; load d from the current stack frame at $06,s
+CopyCString         pshs      u         ; preserve u across the operation
+                    ldu       $06,s     ; recover $06
+                    leas      -$02,s    ; release -$02,s bytes of stack state
+                    ldd       $06,s     ; recover $06
                     std       ,s        ; store d in the current stack frame at ,s
-Branch_130          ldb       ,u+       ; load b from ,u+
-                    ldx       ,s        ; load x from the current stack frame at ,s
-                    leax      $01,x     ; form the address $01,x in x
+CopyCStringByte     ldb       ,u+       ; consume the next byte while copy cstring byte
+                    ldx       ,s        ; recover
+                    leax      $01,x     ; select $01
                     stx       ,s        ; store x in the current stack frame at ,s
-                    stb       -$01,x    ; store b at -$01,x
-                    bne       Branch_130 ; branch when the values differ or the result is nonzero; target Branch_130
-                    bra       Branch_131 ; continue execution at Branch_131
-Routine_011         pshs      u         ; save u on the stack
-                    ldu       $06,s     ; load u from the current stack frame at $06,s
-                    leas      -$02,s    ; adjust the system stack pointer
-                    ldd       $06,s     ; load d from the current stack frame at $06,s
+                    stb       -$01,x    ; replace the byte just examined in place
+                    bne       CopyCStringByte ; repeat copy cstring byte until the terminating condition is met
+                    bra       ReturnCopiedString ; continue with branch 131
+AppendCString       pshs      u         ; preserve u across the operation
+                    ldu       $06,s     ; recover $06
+                    leas      -$02,s    ; release -$02,s bytes of stack state
+                    ldd       $06,s     ; recover $06
                     std       ,s        ; store d in the current stack frame at ,s
-Branch_132          ldx       ,s        ; load x from the current stack frame at ,s
-                    leax      $01,x     ; form the address $01,x in x
+FindAppendEnd       ldx       ,s        ; recover
+                    leax      $01,x     ; select $01
                     stx       ,s        ; store x in the current stack frame at ,s
-                    ldb       -$01,x    ; load b from -$01,x
-                    bne       Branch_132 ; branch when the values differ or the result is nonzero; target Branch_132
-                    ldd       ,s        ; load d from the current stack frame at ,s
+                    ldb       -$01,x    ; recover -$01
+                    bne       FindAppendEnd ; select branch 132 when the requested case does not match
+                    ldd       ,s        ; recover
                     addd      #-1       ; add to d using #-1
                     std       ,s        ; store d in the current stack frame at ,s
-Branch_133          ldb       ,u+       ; load b from ,u+
-                    ldx       ,s        ; load x from the current stack frame at ,s
-                    leax      $01,x     ; form the address $01,x in x
+AppendCStringByte   ldb       ,u+       ; consume the next byte while branch 133
+                    ldx       ,s        ; recover
+                    leax      $01,x     ; select $01
                     stx       ,s        ; store x in the current stack frame at ,s
-                    stb       -$01,x    ; store b at -$01,x
-                    bne       Branch_133 ; branch when the values differ or the result is nonzero; target Branch_133
-Branch_131          ldd       $06,s     ; load d from the current stack frame at $06,s
-                    leas      $02,s     ; adjust the system stack pointer
+                    stb       -$01,x    ; replace the byte just examined in place
+                    bne       AppendCStringByte ; select branch 133 when the requested case does not match
+ReturnCopiedString  ldd       $06,s     ; recover $06
+                    leas      $02,s     ; release $02,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $EE       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $AF       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcc       "O_5" ; store literal character data
-                    fcb       $C0       ; store byte data
-                    fcb       $33       ; store byte data
-                    fcb       $41       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $1D       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $F8       ; store byte data
-                    fcb       $08       ; store byte data
-                    fcb       $1D       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $A3       ; store byte data
-                    fcb       $E1       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $E2       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $F8       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $1D       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $1D       ; store byte data
-                    fcb       $A3       ; store byte data
-                    fcb       $E1       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $C0       ; store byte data
-Routine_009         pshs      u         ; save u on the stack
-                    ldu       $04,s     ; load u from the current stack frame at $04,s
-                    leas      -$05,s    ; adjust the system stack pointer
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
+                    fcb       $34
+                    fcb       $40
+                    fcb       $EE
+                    fcb       $64
+                    fcb       $20
+                    fcb       $10
+                    fcb       $AE
+                    fcb       $66
+                    fcb       $30
+                    fcb       $01
+                    fcb       $AF
+                    fcb       $66
+                    fcb       $E6
+                    fcb       $1F
+                    fcb       $26
+                    fcb       $04
+                    fcc       "O_5"
+                    fcb       $C0
+                    fcb       $33
+                    fcb       $41
+                    fcb       $E6
+                    fcb       $C4
+                    fcb       $1D
+                    fcb       $34
+                    fcb       $06
+                    fcb       $E6
+                    fcb       $F8
+                    fcb       $08
+                    fcb       $1D
+                    fcb       $10
+                    fcb       $A3
+                    fcb       $E1
+                    fcb       $27
+                    fcb       $E2
+                    fcb       $E6
+                    fcb       $F8
+                    fcb       $06
+                    fcb       $1D
+                    fcb       $34
+                    fcb       $06
+                    fcb       $E6
+                    fcb       $C4
+                    fcb       $1D
+                    fcb       $A3
+                    fcb       $E1
+                    fcb       $35
+                    fcb       $C0
+ParseUserNumber     pshs      u         ; preserve u across the operation
+                    ldu       $04,s     ; recover $04
+                    leas      -$05,s    ; release -$05,s bytes of stack state
+                    clra                ; select standard input
+                    clrb                ; clear the byte accumulator for counting
                     std       $01,s     ; store d in the current stack frame at $01,s
-Branch_134          ldb       ,u+       ; load b from ,u+
+SkipLeadingWhitespace ldb       ,u+       ; consume the next byte while branch 134
                     stb       ,s        ; store b in the current stack frame at ,s
-                    cmpb      #32       ; compare b with #32 and set the condition codes
-                    beq       Branch_134 ; branch when the values are equal or the result is zero; target Branch_134
-                    ldb       ,s        ; load b from the current stack frame at ,s
-                    cmpb      #9        ; compare b with #9 and set the condition codes
-                    lbeq      Branch_134 ; branch when the values are equal or the result is zero; target Branch_134
-                    ldb       ,s        ; load b from the current stack frame at ,s
-                    cmpb      #45       ; compare b with #45 and set the condition codes
-                    bne       Branch_135 ; branch when the values differ or the result is nonzero; target Branch_135
-                    ldd       #1        ; set d to the constant 1
-                    bra       Branch_136 ; continue execution at Branch_136
-Branch_135          clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-Branch_136          std       $03,s     ; store d in the current stack frame at $03,s
-                    ldb       ,s        ; load b from the current stack frame at ,s
-                    cmpb      #45       ; compare b with #45 and set the condition codes
-                    beq       Branch_137 ; branch when the values are equal or the result is zero; target Branch_137
-                    ldb       ,s        ; load b from the current stack frame at ,s
-                    cmpb      #43       ; compare b with #43 and set the condition codes
-                    bne       Branch_138 ; branch when the values differ or the result is nonzero; target Branch_138
-                    bra       Branch_137 ; continue execution at Branch_137
-Branch_139          ldd       $01,s     ; load d from the current stack frame at $01,s
-                    pshs      d         ; save d on the stack
-                    ldd       #10       ; set d to the constant 10
-                    lbsr      Routine_016 ; call subroutine Routine_016
-                    pshs      d         ; save d on the stack
-                    ldb       $02,s     ; load b from the current stack frame at $02,s
+                    cmpb      #32       ; recognize the first printable ASCII value
+                    beq       SkipLeadingWhitespace ; select branch 134 when the requested case matches
+                    ldb       ,s        ; recover
+                    cmpb      #9        ; establish the branch 134 loop or field bound (9)
+                    lbeq      SkipLeadingWhitespace ; select branch 134 when the requested case matches
+                    ldb       ,s        ; recover
+                    cmpb      #45       ; establish the branch 134 loop or field bound (45)
+                    bne       PositiveNumber ; select branch 135 when the requested case does not match
+                    ldd       #1        ; initialize $03 to 1
+                    bra       SaveNumericSign ; continue with branch 136
+PositiveNumber      clra                ; select standard input
+                    clrb                ; clear the byte accumulator for counting
+SaveNumericSign     std       $03,s     ; store d in the current stack frame at $03,s
+                    ldb       ,s        ; recover
+                    cmpb      #45       ; establish the branch 136 loop or field bound (45)
+                    beq       ConsumeNumericByte ; select branch 137 when the requested case matches
+                    ldb       ,s        ; recover
+                    cmpb      #43       ; establish the branch 136 loop or field bound (43)
+                    bne       TestNumericByte ; select branch 138 when the requested case does not match
+                    bra       ConsumeNumericByte ; continue with branch 137
+AccumulateDecimalDigit ldd       $01,s     ; recover $01
+                    pshs      d         ; preserve d across the operation
+                    ldd       #10       ; select the line-feed control byte
+                    lbsr      MultiplyUnsignedWords ; invoke multiply unsigned words
+                    pshs      d         ; preserve d across the operation
+                    ldb       $02,s     ; recover $02
                     sex                 ; sign-extend b into d
                     addd      ,s++      ; add to d using ,s++
                     addd      #-48      ; add to d using #-48
                     std       $01,s     ; store d in the current stack frame at $01,s
-Branch_137          ldb       ,u+       ; load b from ,u+
+ConsumeNumericByte  ldb       ,u+       ; consume the next byte while branch 137
                     stb       ,s        ; store b in the current stack frame at ,s
-Branch_138          ldb       ,s        ; load b from the current stack frame at ,s
+TestNumericByte     ldb       ,s        ; recover
                     sex                 ; sign-extend b into d
-                    leax      >$00DF,y  ; form the address >$00DF,y in x
-                    leax      d,x       ; form the address d,x in x
-                    ldb       ,x        ; load b from ,x
-                    clra                ; clear a to zero and set the condition codes
+                    leax      >$00DF,y  ; select $00 df
+                    leax      d,x       ; select d
+                    ldb       ,x        ; recover
+                    clra                ; select standard input
                     andb      #8        ; mask b using #8
-                    bne       Branch_139 ; branch when the values differ or the result is nonzero; target Branch_139
-                    ldd       $03,s     ; load d from the current stack frame at $03,s
-                    beq       Branch_140 ; branch when the values are equal or the result is zero; target Branch_140
-                    ldd       $01,s     ; load d from the current stack frame at $01,s
+                    bne       AccumulateDecimalDigit ; select branch 139 when the requested case does not match
+                    ldd       $03,s     ; recover $03
+                    beq       ReturnPositiveNumber ; select branch 140 when the requested case matches
+                    ldd       $01,s     ; recover $01
                     nega                ; negate a
                     negb                ; negate b
                     sbca      #0        ; subtract with borrow from a using #0
-                    bra       Branch_141 ; continue execution at Branch_141
-Branch_140          ldd       $01,s     ; load d from the current stack frame at $01,s
-Branch_141          leas      $05,s     ; adjust the system stack pointer
+                    bra       ReturnParsedNumber ; continue with branch 141
+ReturnPositiveNumber ldd       $01,s     ; recover $01
+ReturnParsedNumber  leas      $05,s     ; release $05,s bytes of stack state
                     puls      pc,u      ; restore pc,u and return to the caller
-Routine_016         tsta                ; set condition codes from a without changing it
-                    bne       Branch_142 ; branch when the values differ or the result is nonzero; target Branch_142
+MultiplyUnsignedWords tsta                ; set condition codes from a without changing it
+                    bne       MultiplyFullWidth ; repeat multiply full width until the terminating condition is met
                     tst       $02,s     ; set condition codes from $02,s without changing it
-                    bne       Branch_142 ; branch when the values differ or the result is nonzero; target Branch_142
-                    lda       $03,s     ; load a from the current stack frame at $03,s
-                    mul                 ; multiply a by b and return the product in d
-                    ldx       ,s        ; load x from the current stack frame at ,s
+                    bne       MultiplyFullWidth ; repeat multiply full width until the terminating condition is met
+                    lda       $03,s     ; recover $03
+                    mul                 ; form the byte-product in D
+                    ldx       ,s        ; recover
                     stx       $02,s     ; store x in the current stack frame at $02,s
-                    ldx       #0        ; set x to the constant 0
+                    ldx       #0        ; initialize  to 0
                     std       ,s        ; store d in the current stack frame at ,s
                     puls      pc,d      ; restore pc,d and return to the caller
-Branch_142          pshs      d         ; save d on the stack
-                    ldd       #0        ; set d to the constant 0
-                    pshs      d         ; save d on the stack
-                    pshs      d         ; save d on the stack
-                    lda       $05,s     ; load a from the current stack frame at $05,s
-                    ldb       $09,s     ; load b from the current stack frame at $09,s
-                    mul                 ; multiply a by b and return the product in d
+MultiplyFullWidth   pshs      d         ; preserve d across the operation
+                    ldd       #0        ; establish the multiply full width loop or field bound (0)
+                    pshs      d         ; preserve d across the operation
+                    pshs      d         ; preserve d across the operation
+                    lda       $05,s     ; recover $05
+                    ldb       $09,s     ; recover $09
+                    mul                 ; form the byte-product in D
                     std       $02,s     ; store d in the current stack frame at $02,s
-                    lda       $05,s     ; load a from the current stack frame at $05,s
-                    ldb       $08,s     ; load b from the current stack frame at $08,s
-                    mul                 ; multiply a by b and return the product in d
+                    lda       $05,s     ; recover $05
+                    ldb       $08,s     ; recover $08
+                    mul                 ; form the byte-product in D
                     addd      $01,s     ; add to d using $01,s
                     std       $01,s     ; store d in the current stack frame at $01,s
-                    bcc       Branch_143 ; branch when carry is clear; target Branch_143
+                    bcc       AccumulateMiddleProduct ; continue accumulate middle product while the range test permits it
                     inc       ,s        ; increment the value at ,s
-Branch_143          lda       $04,s     ; load a from the current stack frame at $04,s
-                    ldb       $09,s     ; load b from the current stack frame at $09,s
-                    mul                 ; multiply a by b and return the product in d
+AccumulateMiddleProduct lda       $04,s     ; recover $04
+                    ldb       $09,s     ; recover $09
+                    mul                 ; form the byte-product in D
                     addd      $01,s     ; add to d using $01,s
                     std       $01,s     ; store d in the current stack frame at $01,s
-                    bcc       Branch_144 ; branch when carry is clear; target Branch_144
+                    bcc       AccumulateHighProduct ; continue accumulate high product while the range test permits it
                     inc       ,s        ; increment the value at ,s
-Branch_144          lda       $04,s     ; load a from the current stack frame at $04,s
-                    ldb       $08,s     ; load b from the current stack frame at $08,s
-                    mul                 ; multiply a by b and return the product in d
+AccumulateHighProduct lda       $04,s     ; recover $04
+                    ldb       $08,s     ; recover $08
+                    mul                 ; form the byte-product in D
                     addd      ,s        ; add to d using ,s
                     std       ,s        ; store d in the current stack frame at ,s
-                    ldx       $06,s     ; load x from the current stack frame at $06,s
+                    ldx       $06,s     ; recover $06
                     stx       $08,s     ; store x in the current stack frame at $08,s
-                    ldx       ,s        ; load x from the current stack frame at ,s
-                    ldd       $02,s     ; load d from the current stack frame at $02,s
-                    leas      $08,s     ; adjust the system stack pointer
+                    ldx       ,s        ; recover
+                    ldd       $02,s     ; recover $02
+                    leas      $08,s     ; release $08,s bytes of stack state
                     rts                 ; return to the caller
-                    fcb       $5D       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $13       ; store byte data
-                    fcc       "gbfcZ&" ; store literal character data
-                    fcb       $F9       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $0A       ; store byte data
-                    fcb       $5D       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $07       ; store byte data
-                    fcc       "dbfcZ&" ; store literal character data
-                    fcb       $F9       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $E4       ; store byte data
-                    fcc       "2d9]'" ; store literal character data
-                    fcb       $F0       ; store byte data
-                    fcc       "hcibZ&" ; store literal character data
-                    fcb       $F9       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $E7       ; store byte data
-Routine_036         lda       $05,s     ; load a from the current stack frame at $05,s
-                    ldb       $03,s     ; load b from the current stack frame at $03,s
-                    beq       Branch_145 ; branch when the values are equal or the result is zero; target Branch_145
-                    cmpb      #1        ; compare b with #1 and set the condition codes
-                    beq       Branch_146 ; branch when the values are equal or the result is zero; target Branch_146
-                    cmpb      #6        ; compare b with #6 and set the condition codes
-                    beq       Branch_146 ; branch when the values are equal or the result is zero; target Branch_146
-                    cmpb      #2        ; compare b with #2 and set the condition codes
-                    beq       Branch_147 ; branch when the values are equal or the result is zero; target Branch_147
-                    cmpb      #5        ; compare b with #5 and set the condition codes
-                    beq       Branch_147 ; branch when the values are equal or the result is zero; target Branch_147
-                    ldb       #208      ; set b to the constant 208
-                    lbra      Branch_148 ; continue execution at Branch_148
-Branch_147          pshs      u         ; save u on the stack
-                    os9       I$GetStt  ; query status code B for path A
-                    bcc       Branch_149 ; branch when carry is clear; target Branch_149
-                    puls      u         ; restore u from the stack
-                    lbra      Branch_148 ; continue execution at Branch_148
-Branch_149          stx       [<$08,s]  ; store x in the current stack frame at [<$08,s]
-                    ldx       $08,s     ; load x from the current stack frame at $08,s
-                    stu       $02,x     ; store u at $02,x
-                    puls      u         ; restore u from the stack
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    rts                 ; return to the caller
-Branch_145          ldx       $06,s     ; load x from the current stack frame at $06,s
-Branch_146          os9       I$GetStt  ; query status code B for path A
-                    lbra      Branch_150 ; continue execution at Branch_150
-                    fcb       $A6       ; store byte data
-                    fcb       $65       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $63       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $09       ; store byte data
-                    fcb       $C1       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcb       $C6       ; store byte data
-                    fcb       $D0       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $8E       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $8E       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $8F       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $68       ; store byte data
-                    fcb       $EE       ; store byte data
-                    fcb       $6A       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $8E       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $81       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $A6       ; store byte data
-                    fcb       $65       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $25       ; store byte data
-                    fcb       $03       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $8F       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $72       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $A6       ; store byte data
-                    fcb       $65       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $25       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $5E       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $89       ; store byte data
-                    fcb       $4F       ; store byte data
-                    fcb       $39       ; store byte data
-Routine_029         lda       $03,s     ; load a from the current stack frame at $03,s
-                    os9       I$Close   ; close path A
-                    lbra      Branch_150 ; continue execution at Branch_150
-                    fcb       $AE       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $65       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $85       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $51       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $A6       ; store byte data
-                    fcb       $65       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $89       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $24       ; store byte data
-                    fcb       $CA       ; store byte data
-                    fcb       $0B       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $83       ; store byte data
-                    fcb       $25       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $89       ; store byte data
-                    fcb       $4F       ; store byte data
-                    fcb       $39       ; store byte data
-                    fcb       $C1       ; store byte data
-                    fcb       $DA       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $2F       ; store byte data
-                    fcb       $A6       ; store byte data
-                    fcb       $65       ; store byte data
-                    fcb       $85       ; store byte data
-                    fcb       $80       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $07       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $25       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $1C       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $42       ; store byte data
-                    fcb       $8E       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $33       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $C6       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $8E       ; store byte data
-                    fcc       "5B$" ; store literal character data
-                    fcb       $D3       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $8F       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $87       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $03       ; store byte data
-                    fcb       $A6       ; store byte data
-                    fcb       $63       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $82       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $25       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $F1       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $89       ; store byte data
-                    fcc       "O94 " ; store literal character data
-                    fcb       $AE       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $A6       ; store byte data
-                    fcb       $65       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcc       "h4 " ; store literal character data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $89       ; store byte data
-                    fcb       $24       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcb       $C1       ; store byte data
-                    fcb       $D3       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcc       "O_5" ; store literal character data
-                    fcb       $B0       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $D0       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $B0       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $A6       ; store byte data
-                    fcb       $65       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcc       "h4 " ; store literal character data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $8B       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $DD       ; store byte data
-Routine_035         pshs      y         ; save y on the stack
-                    ldy       $08,s     ; load y from the current stack frame at $08,s
-                    beq       Branch_151 ; branch when the values are equal or the result is zero; target Branch_151
-                    lda       $05,s     ; load a from the current stack frame at $05,s
-                    ldx       $06,s     ; load x from the current stack frame at $06,s
-                    os9       I$Write   ; write Y bytes from X to path A
-Branch_152          bcc       Branch_151 ; branch when carry is clear; target Branch_151
-                    puls      y         ; restore y from the stack
-                    lbra      Branch_148 ; continue execution at Branch_148
-Branch_151          tfr       y,d       ; copy the register values specified by y,d
-                    puls      pc,y      ; restore pc,y and return to the caller
-Routine_034         pshs      y         ; save y on the stack
-                    ldy       $08,s     ; load y from the current stack frame at $08,s
-                    beq       Branch_151 ; branch when the values are equal or the result is zero; target Branch_151
-                    lda       $05,s     ; load a from the current stack frame at $05,s
-                    ldx       $06,s     ; load x from the current stack frame at $06,s
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    bra       Branch_152 ; continue execution at Branch_152
-Routine_033         pshs      u         ; save u on the stack
-                    ldd       $0A,s     ; load d from the current stack frame at $0A,s
-                    bne       Branch_153 ; branch when the values differ or the result is nonzero; target Branch_153
-                    ldu       #0        ; set u to the constant 0
-                    ldx       #0        ; set x to the constant 0
-                    bra       Branch_154 ; continue execution at Branch_154
-Branch_153          cmpd      #1        ; compare d with #1 and set the condition codes
-                    beq       Branch_155 ; branch when the values are equal or the result is zero; target Branch_155
-                    cmpd      #2        ; compare d with #2 and set the condition codes
-                    beq       Branch_156 ; branch when the values are equal or the result is zero; target Branch_156
-                    ldb       #247      ; set b to the constant 247
-Branch_157          clra                ; clear a to zero and set the condition codes
-                    std       >$01AD,y  ; store d at >$01AD,y
-                    ldd       #-1       ; set d to the constant -1
-                    leax      >$01A1,y  ; form the address >$01A1,y in x
-                    std       ,x        ; store d at ,x
-                    std       $02,x     ; store d at $02,x
-                    puls      pc,u      ; restore pc,u and return to the caller
-Branch_156          lda       $05,s     ; load a from the current stack frame at $05,s
-                    ldb       #2        ; set b to the constant 2
-                    os9       I$GetStt  ; query status code B for path A
-                    bcs       Branch_157 ; branch when carry reports an error or unsigned underflow; target Branch_157
-                    bra       Branch_154 ; continue execution at Branch_154
-Branch_155          lda       $05,s     ; load a from the current stack frame at $05,s
-                    ldb       #5        ; set b to the constant 5
-                    os9       I$GetStt  ; query status code B for path A
-                    bcs       Branch_157 ; branch when carry reports an error or unsigned underflow; target Branch_157
-Branch_154          tfr       u,d       ; copy the register values specified by u,d
-                    addd      $08,s     ; add to d using $08,s
-                    std       >$01A3,y  ; store d at >$01A3,y
-                    tfr       d,u       ; copy the register values specified by d,u
-                    tfr       x,d       ; copy the register values specified by x,d
+                    fcb       $5D
+                    fcb       $27
+                    fcb       $13
+                    fcc       "gbfcZ&"
+                    fcb       $F9
+                    fcb       $20
+                    fcb       $0A
+                    fcb       $5D
+                    fcb       $27
+                    fcb       $07
+                    fcc       "dbfcZ&"
+                    fcb       $F9
+                    fcb       $EC
+                    fcb       $62
+                    fcb       $34
+                    fcb       $06
+                    fcb       $EC
+                    fcb       $62
+                    fcb       $ED
+                    fcb       $64
+                    fcb       $EC
+                    fcb       $E4
+                    fcc       "2d9]'"
+                    fcb       $F0
+                    fcc       "hcibZ&"
+                    fcb       $F9
+                    fcb       $20
+                    fcb       $E7
+GetPathStatus       lda       $05,s     ; select the OS-9 path number
+                    ldb       $03,s     ; dispatch on the requested GetStat selector
+                    beq       GetStatusIntoBuffer ; selector zero fills an option table at X
+                    cmpb      #1        ; selector one returns register-only status
+                    beq       GetRegisterPathStatus ; select branch 146 when the requested case matches
+                    cmpb      #6        ; selector six also needs no result-buffer translation
+                    beq       GetRegisterPathStatus ; select branch 146 when the requested case matches
+                    cmpb      #2        ; establish the routine 036 loop or field bound (2)
+                    beq       GetLongPathStatus ; select get long path status when the requested case matches
+                    cmpb      #5        ; establish the routine 036 loop or field bound (5)
+                    beq       GetLongPathStatus ; select get long path status when the requested case matches
+                    ldb       #208      ; select status operation 208
+                    lbra      ReturnOsError ; continue with branch 148
+GetLongPathStatus   pshs      u         ; preserve the compiler workspace register
+                    os9       I$GetStt  ; obtain the requested 32-bit value in X:U
+                    bcc       StoreLongStatusResult ; select branch 149 when carry remains clear
+                    puls      u         ; restore U before translating the OS-9 error
+                    lbra      ReturnOsError ; continue with branch 148
+StoreLongStatusResult stx       [<$08,s]  ; store the high word through the shifted result pointer
+                    ldx       $08,s     ; recover that result pointer
+                    stu       $02,x     ; retain $02
+                    puls      u         ; restore the compiler workspace register
+                    clra                ; return zero after a successful status query
+                    clrb                ; clear the byte accumulator for counting
+                    rts                 ; return the completed result to the caller
+GetStatusIntoBuffer ldx       $06,s     ; supply the caller's option-table buffer
+GetRegisterPathStatus os9       I$GetStt  ; perform the selector-specific status request
+                    lbra      ReturnOsResult ; continue with branch 150
+                    fcb       $A6
+                    fcb       $65
+                    fcb       $E6
+                    fcb       $63
+                    fcb       $27
+                    fcb       $09
+                    fcb       $C1
+                    fcb       $02
+                    fcb       $27
+                    fcb       $0D
+                    fcb       $C6
+                    fcb       $D0
+                    fcb       $16
+                    fcb       $02
+                    fcb       $8E
+                    fcb       $AE
+                    fcb       $66
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $8E
+                    fcb       $16
+                    fcb       $02
+                    fcb       $8F
+                    fcb       $34
+                    fcb       $40
+                    fcb       $AE
+                    fcb       $68
+                    fcb       $EE
+                    fcb       $6A
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $8E
+                    fcb       $35
+                    fcb       $40
+                    fcb       $16
+                    fcb       $02
+                    fcb       $81
+                    fcb       $AE
+                    fcb       $62
+                    fcb       $A6
+                    fcb       $65
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $84
+                    fcb       $25
+                    fcb       $03
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $8F
+                    fcb       $16
+                    fcb       $02
+                    fcb       $72
+                    fcb       $AE
+                    fcb       $62
+                    fcb       $A6
+                    fcb       $65
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $84
+                    fcb       $10
+                    fcb       $25
+                    fcb       $02
+                    fcb       $5E
+                    fcb       $1F
+                    fcb       $89
+                    fcb       $4F
+                    fcb       $39
+ClosePath           lda       $03,s     ; select the path argument
+                    os9       I$Close   ; flush and release the OS-9 path
+                    lbra      ReturnOsResult ; continue with branch 150
+                    fcb       $AE
+                    fcb       $62
+                    fcb       $E6
+                    fcb       $65
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $85
+                    fcb       $16
+                    fcb       $02
+                    fcb       $51
+                    fcb       $AE
+                    fcb       $62
+                    fcb       $A6
+                    fcb       $65
+                    fcb       $1F
+                    fcb       $89
+                    fcb       $C4
+                    fcb       $24
+                    fcb       $CA
+                    fcb       $0B
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $83
+                    fcb       $25
+                    fcb       $04
+                    fcb       $1F
+                    fcb       $89
+                    fcb       $4F
+                    fcb       $39
+                    fcb       $C1
+                    fcb       $DA
+                    fcb       $10
+                    fcb       $26
+                    fcb       $02
+                    fcb       $2F
+                    fcb       $A6
+                    fcb       $65
+                    fcb       $85
+                    fcb       $80
+                    fcb       $10
+                    fcb       $26
+                    fcb       $02
+                    fcb       $27
+                    fcb       $84
+                    fcb       $07
+                    fcb       $AE
+                    fcb       $62
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $84
+                    fcb       $10
+                    fcb       $25
+                    fcb       $02
+                    fcb       $1C
+                    fcb       $34
+                    fcb       $42
+                    fcb       $8E
+                    fcb       $00
+                    fcb       $00
+                    fcb       $33
+                    fcb       $84
+                    fcb       $C6
+                    fcb       $02
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $8E
+                    fcc       "5B$"
+                    fcb       $D3
+                    fcb       $34
+                    fcb       $04
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $8F
+                    fcb       $35
+                    fcb       $04
+                    fcb       $16
+                    fcb       $02
+                    fcb       $02
+                    fcb       $AE
+                    fcb       $62
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $87
+                    fcb       $16
+                    fcb       $02
+                    fcb       $03
+                    fcb       $A6
+                    fcb       $63
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $82
+                    fcb       $10
+                    fcb       $25
+                    fcb       $01
+                    fcb       $F1
+                    fcb       $1F
+                    fcb       $89
+                    fcc       "O94 "
+                    fcb       $AE
+                    fcb       $66
+                    fcb       $A6
+                    fcb       $65
+                    fcb       $10
+                    fcb       $AE
+                    fcc       "h4 "
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $89
+                    fcb       $24
+                    fcb       $0D
+                    fcb       $C1
+                    fcb       $D3
+                    fcb       $26
+                    fcb       $04
+                    fcc       "O_5"
+                    fcb       $B0
+                    fcb       $35
+                    fcb       $30
+                    fcb       $16
+                    fcb       $01
+                    fcb       $D0
+                    fcb       $1F
+                    fcb       $20
+                    fcb       $35
+                    fcb       $B0
+                    fcb       $34
+                    fcb       $20
+                    fcb       $A6
+                    fcb       $65
+                    fcb       $AE
+                    fcb       $66
+                    fcb       $10
+                    fcb       $AE
+                    fcc       "h4 "
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $8B
+                    fcb       $20
+                    fcb       $DD
+WriteBytes          pshs      y         ; preserve the caller's Y
+                    ldy       $08,s     ; recover the transfer length
+                    beq       ReturnWriteCount ; select branch 151 when the requested case matches
+                    lda       $05,s     ; select the OS-9 path number
+                    ldx       $06,s     ; select the source buffer
+                    os9       I$Write   ; perform an unstructured byte write
+FinishWrite         bcc       ReturnWriteCount ; select branch 151 when carry remains clear
+                    puls      y         ; restore Y before the shared error path
+                    lbra      ReturnOsError ; continue with branch 148
+ReturnWriteCount    tfr       y,d       ; return the actual transfer count
+                    puls      pc,y      ; preserve the flags or register state required by the following operation
+WriteLineBytes      pshs      y         ; preserve the caller's Y
+                    ldy       $08,s     ; recover the maximum line length
+                    beq       ReturnWriteCount ; select branch 151 when the requested case matches
+                    lda       $05,s     ; select the OS-9 path number
+                    ldx       $06,s     ; select the CR-terminated source line
+                    os9       I$WritLn  ; write through the first carriage return
+                    bra       FinishWrite ; reuse normal/error result conversion
+SeekPath            pshs      u         ; preserve U for the 32-bit OS-9 offset
+                    ldd       $0A,s     ; recover $0 a
+                    bne       SelectSeekOrigin ; select branch 153 when the requested case does not match
+                    ldu       #0        ; establish the routine 033 loop or field bound (0)
+                    ldx       #0        ; establish the finish write loop or field bound (0)
+                    bra       ComputeSeekTarget ; continue with branch 154
+SelectSeekOrigin    cmpd      #1        ; test against #1
+                    beq       SeekRelativeCurrent ; select branch 155 when the requested case matches
+                    cmpd      #2        ; test against #2
+                    beq       SeekRelativeEnd ; select branch 156 when the requested case matches
+                    ldb       #247      ; initialize $01 ad to 247
+ReturnSeekError     clra                ; widen the OS-9 error to a compiler word
+                    std       >$01AD,y  ; retain $01 ad
+                    ldd       #-1       ; initialize  to -1
+                    leax      >$01A1,y  ; select $01 a1
+                    std       ,x        ; preserve the flags or register state required by the following operation
+                    std       $02,x     ; preserve the flags or register state required by the following operation
+                    puls      pc,u      ; preserve the flags or register state required by the following operation
+SeekRelativeEnd     lda       $05,s     ; select the path number
+                    ldb       #2        ; select status operation 2
+                    os9       I$GetStt  ; preserve the flags or register state required by the following operation
+                    bcs       ReturnSeekError ; select branch 157 when carry reports an error or underflow
+                    bra       ComputeSeekTarget ; continue with branch 154
+SeekRelativeCurrent lda       $05,s     ; select the path number
+                    ldb       #5        ; select status operation 5
+                    os9       I$GetStt  ; preserve the flags or register state required by the following operation
+                    bcs       ReturnSeekError ; select branch 157 when carry reports an error or underflow
+ComputeSeekTarget   tfr       u,d       ; begin with the base position's low word
+                    addd      $08,s     ; add the requested low offset
+                    std       >$01A3,y  ; retain $01 a3
+                    tfr       d,u       ; supply it to I$Seek
+                    tfr       x,d       ; continue with the base high word
                     adcb      $07,s     ; add with carry to b using $07,s
                     adca      $06,s     ; add with carry to a using $06,s
-                    bmi       Branch_157 ; branch when the result is negative; target Branch_157
-                    tfr       d,x       ; copy the register values specified by d,x
-                    std       >$01A1,y  ; store d at >$01A1,y
-                    lda       $05,s     ; load a from the current stack frame at $05,s
-                    os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    bcs       Branch_157 ; branch when carry reports an error or unsigned underflow; target Branch_157
-                    leax      >$01A1,y  ; form the address >$01A1,y in x
-                    puls      pc,u      ; restore pc,u and return to the caller
-                    fcb       $EC       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $9F       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $A3       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $C9       ; store byte data
-                    fcb       $25       ; store byte data
-                    fcb       $25       ; store byte data
-                    fcb       $E3       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $9F       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $A3       ; store byte data
-                    fcb       $E4       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $07       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcc       " 5 $" ; store literal character data
-                    fcb       $06       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcc       "2b9" ; store literal character data
-                    fcb       $ED       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $9F       ; store byte data
-                    fcb       $E3       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $C9       ; store byte data
-                    fcb       $A3       ; store byte data
-                    fcb       $E4       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $C9       ; store byte data
-                    fcb       $32       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $C9       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $A3       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $C9       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $9F       ; store byte data
-                    fcb       $A3       ; store byte data
-                    fcb       $E1       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $4F       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $E4       ; store byte data
-                    fcb       $A7       ; store byte data
-                    fcb       $80       ; store byte data
-                    fcb       $AC       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $9F       ; store byte data
-                    fcb       $25       ; store byte data
-                    fcb       $F8       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $86       ; store byte data
-Routine_037         ldd       $02,s     ; load d from the current stack frame at $02,s
+                    bmi       ReturnSeekError ; select branch 157 from the preceding condition
+                    tfr       d,x       ; supply the high word to I$Seek
+                    std       >$01A1,y  ; retain $01 a1
+                    lda       $05,s     ; select the path number
+                    os9       I$Seek    ; commit the calculated X:U position
+                    bcs       ReturnSeekError ; select branch 157 when carry reports an error or underflow
+                    leax      >$01A1,y  ; select $01 a1
+                    puls      pc,u      ; preserve the flags or register state required by the following operation
+                    fcb       $EC
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $9F
+                    fcb       $34
+                    fcb       $06
+                    fcb       $EC
+                    fcb       $64
+                    fcb       $10
+                    fcb       $A3
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $C9
+                    fcb       $25
+                    fcb       $25
+                    fcb       $E3
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $9F
+                    fcb       $34
+                    fcb       $20
+                    fcb       $A3
+                    fcb       $E4
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $07
+                    fcb       $1F
+                    fcc       " 5 $"
+                    fcb       $06
+                    fcb       $CC
+                    fcb       $FF
+                    fcb       $FF
+                    fcc       "2b9"
+                    fcb       $ED
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $9F
+                    fcb       $E3
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $C9
+                    fcb       $A3
+                    fcb       $E4
+                    fcb       $ED
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $C9
+                    fcb       $32
+                    fcb       $62
+                    fcb       $EC
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $C9
+                    fcb       $34
+                    fcb       $06
+                    fcb       $A3
+                    fcb       $64
+                    fcb       $ED
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $C9
+                    fcb       $EC
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $9F
+                    fcb       $A3
+                    fcb       $E1
+                    fcb       $34
+                    fcb       $06
+                    fcb       $4F
+                    fcb       $AE
+                    fcb       $E4
+                    fcb       $A7
+                    fcb       $80
+                    fcb       $AC
+                    fcb       $A9
+                    fcb       $01
+                    fcb       $9F
+                    fcb       $25
+                    fcb       $F8
+                    fcb       $35
+                    fcb       $86
+AllocateHeapBytes   ldd       $02,s     ; recover $02
                     addd      >$01A9,y  ; add to d using >$01A9,y
-                    bcs       Branch_158 ; branch when carry reports an error or unsigned underflow; target Branch_158
-                    cmpd      >$01AB,y  ; compare d with >$01AB,y and set the condition codes
-                    bcc       Branch_158 ; branch when carry is clear; target Branch_158
-                    pshs      d         ; save d on the stack
-                    ldx       >$01A9,y  ; load x from >$01A9,y
-                    clra                ; clear a to zero and set the condition codes
-Branch_159          cmpx      ,s        ; compare x with ,s and set the condition codes
-                    bcc       Branch_160 ; branch when carry is clear; target Branch_160
-                    sta       ,x+       ; store a at ,x+
-                    bra       Branch_159 ; continue execution at Branch_159
-Branch_160          ldd       >$01A9,y  ; load d from >$01A9,y
-                    puls      x         ; restore x from the stack
-                    stx       >$01A9,y  ; store x at >$01A9,y
-                    rts                 ; return to the caller
-Branch_158          ldd       #-1       ; set d to the constant -1
-                    rts                 ; return to the caller
-                    fcb       $A6       ; store byte data
-                    fcb       $63       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $65       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $08       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $A7       ; store byte data
-                    fcb       $4F       ; store byte data
-                    fcb       $5F       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $25       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $95       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $E7       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $6F       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $89       ; store byte data
-                    fcb       $4F       ; store byte data
-                    fcb       $39       ; store byte data
-                    fcb       $A6       ; store byte data
-                    fcb       $63       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $65       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $88       ; store byte data
-Routine_013         leau      ,s        ; form the workspace or data address ,s in u
-                    leas      >$00FF,y  ; adjust the system stack pointer
-                    ldx       WorkWord_001,u ; load x from WorkWord_001,u
-                    ldy       WorkWord_002,u ; load y from WorkWord_002,u
-                    lda       WorkByte_004,u ; load a from WorkByte_004,u
+                    bcs       AllocationFailed ; select branch 158 when carry reports an error or underflow
+                    cmpd      >$01AB,y  ; test against $01 ab
+                    bcc       AllocationFailed ; select branch 158 when carry remains clear
+                    pshs      d         ; retain the proposed heap boundary
+                    ldx       >$01A9,y  ; recover $01 a9
+                    clra                ; use zero as the allocator's initialization byte
+CheckHeapCollision  cmpx      ,s        ; test against
+                    bcc       CommitHeapEnd ; select branch 160 when carry remains clear
+                    sta       ,x+       ; clear one newly allocated byte
+                    bra       CheckHeapCollision ; continue with branch 159
+CommitHeapEnd       ldd       >$01A9,y  ; recover $01 a9
+                    puls      x         ; recover the proposed new boundary
+                    stx       >$01A9,y  ; retain $01 a9
+                    rts                 ; return the completed result to the caller
+AllocationFailed    ldd       #-1       ; establish the branch 158 loop or field bound (-1)
+                    rts                 ; return the completed result to the caller
+                    fcb       $A6
+                    fcb       $63
+                    fcb       $E6
+                    fcb       $65
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $08
+                    fcb       $16
+                    fcb       $00
+                    fcb       $A7
+                    fcb       $4F
+                    fcb       $5F
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $04
+                    fcb       $10
+                    fcb       $25
+                    fcb       $00
+                    fcb       $95
+                    fcb       $AE
+                    fcb       $62
+                    fcb       $27
+                    fcb       $04
+                    fcb       $E7
+                    fcb       $01
+                    fcb       $6F
+                    fcb       $84
+                    fcb       $1F
+                    fcb       $89
+                    fcb       $4F
+                    fcb       $39
+                    fcb       $A6
+                    fcb       $63
+                    fcb       $E6
+                    fcb       $65
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $0D
+                    fcb       $16
+                    fcb       $00
+                    fcb       $88
+ForkSelectedProgram leau      ,s        ; select
+                    leas      >$00FF,y  ; release >$00FF,y bytes of stack state
+                    ldx       StreamBufferStart,u ; recover work word 001
+                    ldy       StreamBufferEnd,u ; recover work word 002
+                    lda       StreamPath+1,u ; recover work byte 004
                     asla                ; shift a left arithmetically
                     asla                ; shift a left arithmetically
                     asla                ; shift a left arithmetically
                     asla                ; shift a left arithmetically
-                    ora       WorkWord_004,u ; set selected bits in a using WorkWord_004,u
-                    ldb       WorkBuffer_001,u ; load b from WorkBuffer_001,u
-                    ldu       WorkWord_003,u ; load u from WorkWord_003,u
+                    ora       StreamBufferSize,u ; set selected bits in a using StreamBufferSize,u
+                    ldb       RuntimeDescriptorTableRemainder,u ; recover work buffer 001
+                    ldu       StreamFlags,u ; recover work word 003
                     os9       F$Chain   ; replace this process with the module at X
                     os9       F$Exit    ; terminate the process with status B
-                    fcb       $34       ; store byte data
-                    fcb       $60       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $AE       ; store byte data
-                    fcb       $68       ; store byte data
-                    fcb       $EE       ; store byte data
-                    fcb       $6A       ; store byte data
-                    fcb       $A6       ; store byte data
-                    fcb       $6D       ; store byte data
-                    fcb       $AA       ; store byte data
-                    fcb       $6F       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $E8       ; store byte data
-                    fcb       $11       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $03       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $60       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $25       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $49       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $89       ; store byte data
-                    fcc       "O94 " ; store literal character data
-                    fcb       $10       ; store byte data
-                    fcb       $3F       ; store byte data
-                    fcb       $0C       ; store byte data
-                    fcc       "5 $" ; store literal character data
-                    fcb       $04       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $25       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $38       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $89       ; store byte data
-                    fcc       "O9" ; store literal character data
-Routine_038         pshs      y         ; save y on the stack
+                    fcb       $34
+                    fcb       $60
+                    fcb       $AE
+                    fcb       $66
+                    fcb       $10
+                    fcb       $AE
+                    fcb       $68
+                    fcb       $EE
+                    fcb       $6A
+                    fcb       $A6
+                    fcb       $6D
+                    fcb       $AA
+                    fcb       $6F
+                    fcb       $E6
+                    fcb       $E8
+                    fcb       $11
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $03
+                    fcb       $35
+                    fcb       $60
+                    fcb       $10
+                    fcb       $25
+                    fcb       $00
+                    fcb       $49
+                    fcb       $1F
+                    fcb       $89
+                    fcc       "O94 "
+                    fcb       $10
+                    fcb       $3F
+                    fcb       $0C
+                    fcc       "5 $"
+                    fcb       $04
+                    fcb       $10
+                    fcb       $25
+                    fcb       $00
+                    fcb       $38
+                    fcb       $1F
+                    fcb       $89
+                    fcc       "O9"
+SetUserSystemCall   pshs      y         ; preserve y across the operation
                     os9       F$ID      ; retrieve the current process and user IDs
-                    bcc       Branch_161 ; branch when carry is clear; target Branch_161
-Branch_162          puls      y         ; restore y from the stack
-                    lbra      Branch_148 ; continue execution at Branch_148
-Branch_161          tfr       y,d       ; copy the register values specified by y,d
+                    bcc       SetUserSucceeded ; select branch 161 when carry remains clear
+ReturnUserError     puls      y         ; restore y
+                    lbra      ReturnOsError ; continue with branch 148
+SetUserSucceeded    tfr       y,d       ; transfer y,d
                     puls      pc,y      ; restore pc,y and return to the caller
-Routine_010         pshs      y         ; save y on the stack
-                    bsr       Routine_038 ; call subroutine Routine_038
+SetProcessUser      pshs      y         ; preserve y across the operation
+                    bsr       SetUserSystemCall ; invoke routine 038
                     std       -$02,s    ; store d in the current stack frame at -$02,s
-                    beq       Branch_163 ; branch when the values are equal or the result is zero; target Branch_163
-                    ldb       #214      ; set b to the constant 214
-                    bra       Branch_162 ; continue execution at Branch_162
-Branch_163          ldy       $04,s     ; load y from the current stack frame at $04,s
+                    beq       TrySetUser ; select branch 163 when the requested case matches
+                    ldb       #214      ; establish the routine 010 loop or field bound (214)
+                    bra       ReturnUserError ; continue with branch 162
+TrySetUser          ldy       $04,s     ; recover $04
                     os9       F$SUser   ; change the process user ID to Y
-                    bcc       Branch_164 ; branch when carry is clear; target Branch_164
-                    cmpb      #208      ; compare b with #208 and set the condition codes
-                    bne       Branch_162 ; branch when the values differ or the result is nonzero; target Branch_162
-                    tfr       y,d       ; copy the register values specified by y,d
-                    ldy       >Code_001 ; load y from >Code_001
-                    std       $09,y     ; store d at $09,y
-Branch_164          clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
+                    bcc       ReturnUserSuccess ; select branch 164 when carry remains clear
+                    cmpb      #208      ; establish the branch 163 loop or field bound (208)
+                    bne       ReturnUserError ; select branch 162 when the requested case does not match
+                    tfr       y,d       ; transfer y,d
+                    ldy       >CheckWorkspaceClearEnd ; recover code 001
+                    std       $09,y     ; retain $09
+ReturnUserSuccess   clra                ; widen OS-9's error byte in B
+                    clrb                ; clear the byte accumulator for counting
                     puls      pc,y      ; restore pc,y and return to the caller
-Branch_148          clra                ; clear a to zero and set the condition codes
-                    std       >$01AD,y  ; store d at >$01AD,y
-                    ldd       #-1       ; set d to the constant -1
-                    rts                 ; return to the caller
-Branch_150          bcs       Branch_148 ; branch when carry reports an error or unsigned underflow; target Branch_148
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    rts                 ; return to the caller
-Routine_005         lbsr      Code_003  ; call subroutine Code_003
-                    lbsr      Routine_026 ; call subroutine Routine_026
-Routine_007         ldd       $02,s     ; load d from the current stack frame at $02,s
-                    os9       F$Exit    ; terminate the process with status B
-Code_003            rts                 ; return to the caller
-Data_001            fcb       $00       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $5E       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $03       ; store byte data
-                    fcb       $E8       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $0A       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $09       ; store byte data
-                    fcb       $6C       ; store byte data
-                    fcb       $78       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $42       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $11       ; store byte data
-                    fcb       $11       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $11       ; store byte data
-                    fcb       $11       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcc       "0               HHHHHHHHHH       BBBBBB" ; store literal character data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcc       "      DDDDDD" ; store literal character data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcc       "    " ; store literal character data
-                    fcb       $01       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $09       ; store byte data
-                    fcc       "Suser" ; store literal character data
-                    fcb       $00       ; store byte data
+ReturnOsError       clra                ; select standard input
+                    std       >$01AD,y  ; retain $01 ad
+                    ldd       #-1       ; establish the branch 148 loop or field bound (-1)
+                    rts                 ; return the completed result to the caller
+ReturnOsResult      bcs       ReturnOsError ; select branch 148 when carry reports an error or underflow
+                    clra                ; select standard input
+                    clrb                ; return zero for a successful void-style wrapper
+                    rts                 ; return the completed result to the caller
+ExitProcess         lbsr      RunExitHook ; allow a linked application cleanup hook
+                    lbsr      CloseAllStreams ; invoke routine 026
+ExitWithStackStatus ldd       $02,s     ; recover $02
+                    os9       F$Exit    ; terminate with its low byte in B
+RunExitHook         rts                 ; default application cleanup hook does nothing
+RuntimeInitializerImage fcb       $00
+                    fcb       $01
+                    fcb       $00
+                    fcb       $01
+                    fcb       $5E
+                    fcb       $27
+                    fcb       $10
+                    fcb       $03
+                    fcb       $E8
+                    fcb       $00
+                    fcb       $64
+                    fcb       $00
+                    fcb       $0A
+                    fcb       $00
+                    fcb       $09
+                    fcb       $6C
+                    fcb       $78
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $01
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $02
+                    fcb       $00
+                    fcb       $01
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $42
+                    fcb       $00
+                    fcb       $02
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $11
+                    fcb       $11
+                    fcb       $01
+                    fcb       $11
+                    fcb       $11
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcb       $01
+                    fcc       "0               HHHHHHHHHH       BBBBBB"
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcb       $02
+                    fcc       "      DDDDDD"
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcb       $04
+                    fcc       "    "
+                    fcb       $01
+                    fcb       $00
+                    fcb       $00
+                    fcb       $00
+                    fcb       $01
+                    fcb       $00
+                    fcb       $09
+                    fcc       "Suser"
+                    fcb       $00
 
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+                    emod                ; emit the OS-9 module CRC and trailer
+eom                 equ       *         ; mark the module end for the size expression
+                    end                 ; end the assembly source
