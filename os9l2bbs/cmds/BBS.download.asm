@@ -12,6 +12,8 @@
 * Annotated source and normalized comments.
 *          2026/07/21  Codex
 * Refined command annotations and normalized formatting.
+*          2026/07/22  Codex
+* Decoded protocol dispatch and download-statistics accounting.
 **********************************************************************
 
                     nam       BBS.download
@@ -27,175 +29,189 @@ rev                 set       $01       ; set assembly-time module attribute rev
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_002        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_003        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkBuffer_001      rmb       6         ; reserve 6 byte(s) in the module workspace
-WorkWord_004        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_005        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_006        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_007        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkBuffer_002      rmb       414       ; reserve 414 byte(s) in the module workspace
+ProtocolChoice      rmb       1
+StatsPathNum        rmb       1
+CallerUserId        rmb       2
+* one 32-byte BBS.userstats record
+StatsUserId         rmb       2
+StatsLoginCount     rmb       2
+StatsLastLoginTime  rmb       6
+StatsMessagesLeft   rmb       2
+StatsMessagesRead   rmb       2
+StatsDownloads      rmb       2
+StatsUploads        rmb       2
+StatsRecordTail     rmb       414       ; first 10 bytes complete the statistics record
 size                equ       .         ; define the assembly-time value for size
 
-name                fcs       /BBS.download/ ; store an OS-9 high-bit-terminated string
-                    fcc       "Enter your download protocol" ; store literal character data
-                    fcb       $0D       ; store byte data
-Data_001            fcb       $0A       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcc       "[A] Ascii" ; store literal character data
-                    fcb       $0A       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcc       "[X] xmodem" ; store literal character data
-                    fcb       $0A       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcc       "[C] xmodem (CRC)" ; store literal character data
-                    fcb       $0A       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcc       "[Y] ymodem" ; store literal character data
-                    fcb       $0A       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcc       "[Q] quit" ; store literal character data
-                    fcb       $0A       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcc       "Protocol?" ; store literal character data
-Text_001            fcc       "dloadx" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_002            fcc       "dloadxc" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_003            fcc       "dloady" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcc       "dloadyb" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_004            fcc       "Dloada" ; store literal character data
-                    fcb       $0D       ; store byte data
-Data_002            fcb       $0D       ; store byte data
-                    fcb       $0A       ; store byte data
-Text_005            fcc       "/dd/bbs/BBS.userstats" ; store literal character data
-                    fcb       $0D       ; store byte data
+name                fcs       /BBS.download/ ; publish the command name in the module header
+UnusedProtocolTitle fcc       "Enter your download protocol" ; retained title not included in the menu write
+                    fcb       $0D
+ProtocolMenu        fcb       $0A
+                    fcb       $0D
+                    fcc       "[A] Ascii"
+                    fcb       $0A
+                    fcb       $0D
+                    fcc       "[X] xmodem"
+                    fcb       $0A
+                    fcb       $0D
+                    fcc       "[C] xmodem (CRC)"
+                    fcb       $0A
+                    fcb       $0D
+                    fcc       "[Y] ymodem"
+                    fcb       $0A
+                    fcb       $0D
+                    fcc       "[Q] quit"
+                    fcb       $0A
+                    fcb       $0D
+                    fcc       "Protocol?" ; menu intentionally ends without CR for inline input
+XmodemProgram       fcc       "dloadx"
+                    fcb       $0D       ; terminate the child module name
+XmodemCrcProgram    fcc       "dloadxc"
+                    fcb       $0D       ; terminate the child module name
+YmodemProgram       fcc       "dloady"
+                    fcb       $0D       ; terminate the child module name
+UnusedYmodemBatchProgram fcc       "dloadyb" ; retained protocol name without a dispatch choice
+                    fcb       $0D       ; terminate the retained module name
+AsciiProgram        fcc       "Dloada"
+                    fcb       $0D       ; terminate the child module name
+ChildParameterReturn fcb       $0D       ; one-byte empty parameter passed to the child
+                    fcb       $0A       ; adjacent byte is retained but excluded from the fork
+UserStatsPath       fcc       "/dd/bbs/BBS.userstats"
+                    fcb       $0D       ; terminate the absolute statistics pathname
 
-start               lda       ,x        ; load a from ,x
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_001 ; branch when the values are equal or the result is zero; target Branch_001
-                    lda       #1        ; set a to the constant 1
-                    os9       I$ChgDir  ; change the current directory to the path at X
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-Branch_001          leax      >Data_001,pc ; form the address >Data_001,pc in x
-                    ldy       #74       ; set y to the constant 74
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      WorkByte_001,u ; form the address WorkByte_001,u in x
-                    ldy       #1        ; set y to the constant 1
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    leax      >Data_002,pc ; form the address >Data_002,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    anda      #223      ; mask a using #223
-                    cmpa      #65       ; compare a with #65 and set the condition codes
-                    beq       Branch_003 ; branch when the values are equal or the result is zero; target Branch_003
-                    cmpa      #88       ; compare a with #88 and set the condition codes
-                    beq       Branch_004 ; branch when the values are equal or the result is zero; target Branch_004
-                    cmpa      #89       ; compare a with #89 and set the condition codes
-                    beq       Branch_005 ; branch when the values are equal or the result is zero; target Branch_005
-                    cmpa      #67       ; compare a with #67 and set the condition codes
-                    beq       Branch_006 ; branch when the values are equal or the result is zero; target Branch_006
-                    cmpa      #81       ; compare a with #81 and set the condition codes
-                    lbeq      Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
-                    bra       Branch_001 ; continue execution at Branch_001
-Branch_004          leax      >Text_001,pc ; form the address >Text_001,pc in x
-                    bra       Branch_008 ; continue execution at Branch_008
-Branch_005          leax      >Text_003,pc ; form the address >Text_003,pc in x
-                    bra       Branch_008 ; continue execution at Branch_008
-Branch_006          leax      >Text_002,pc ; form the address >Text_002,pc in x
-                    bra       Branch_008 ; continue execution at Branch_008
-Branch_003          leax      >Text_004,pc ; form the address >Text_004,pc in x
-                    bra       Branch_008 ; continue execution at Branch_008
-Branch_008          ldy       #1        ; set y to the constant 1
-                    lda       #17       ; set a to the constant 17
-                    ldb       #3        ; set b to the constant 3
-                    pshs      u         ; save u on the stack
-                    leau      >Data_002,pc ; form the workspace or data address >Data_002,pc in u
-                    os9       F$Fork    ; spawn the module at X with parameters at U
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    clrb                ; clear b to zero and set the condition codes
-                    os9       F$Wait    ; wait for a child process to terminate
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    cmpb      #0        ; compare b with #0 and set the condition codes
-                    lbne      Branch_002 ; branch when the values differ or the result is nonzero; target Branch_002
-                    puls      u         ; restore u from the stack
-                    leax      >Text_005,pc ; form the address >Text_005,pc in x
-                    lda       #3        ; set a to the constant 3
-                    os9       I$Open    ; open the path at X using access mode A
-                    bcc       Branch_009 ; branch when carry is clear; target Branch_009
-                    ldb       #27       ; set b to the constant 27
-                    os9       I$Create  ; create the path at X with mode A and attributes B
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-Branch_009          sta       WorkByte_002,u ; store a at WorkByte_002,u
-                    os9       F$ID      ; retrieve the current process and user IDs
-                    sty       WorkWord_001,u ; store y at WorkWord_001,u
-Branch_010          leax      WorkWord_002,u ; form the address WorkWord_002,u in x
-                    ldy       #32       ; set y to the constant 32
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    bcs       Branch_011 ; branch when carry reports an error or unsigned underflow; target Branch_011
-                    ldd       WorkWord_002,u ; load d from WorkWord_002,u
-                    cmpd      WorkWord_001,u ; compare d with WorkWord_001,u and set the condition codes
-                    bne       Branch_010 ; branch when the values differ or the result is nonzero; target Branch_010
-                    bra       Branch_012 ; continue execution at Branch_012
-Branch_011          cmpb      #211      ; compare b with #211 and set the condition codes
-                    lbne      Branch_002 ; branch when the values differ or the result is nonzero; target Branch_002
-                    lbra      Branch_013 ; continue execution at Branch_013
-Branch_012          ldd       <WorkWord_006,u ; load d from <WorkWord_006,u
-                    addd      #1        ; add to d using #1
-                    std       <WorkWord_006,u ; store d at <WorkWord_006,u
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    ldb       #5        ; set b to the constant 5
-                    pshs      u         ; save u on the stack
-                    os9       I$GetStt  ; query status code B for path A
-                    tfr       u,d       ; copy the register values specified by u,d
-                    subd      #32       ; subtract from d using #32
-                    bge       Branch_014 ; branch when the signed value is greater than or equal; target Branch_014
-                    leax      -$01,x    ; form the address -$01,x in x
-Branch_014          ldu       ,s        ; load u from the current stack frame at ,s
-                    tfr       d,y       ; copy the register values specified by d,y
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    tfr       y,u       ; copy the register values specified by y,u
-                    os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    puls      u         ; restore u from the stack
-                    leax      WorkWord_002,u ; form the address WorkWord_002,u in x
-                    ldy       #32       ; set y to the constant 32
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    os9       I$Write   ; write Y bytes from X to path A
-                    os9       I$Close   ; close path A
-                    lbra      Branch_007 ; continue execution at Branch_007
-Branch_013          leax      WorkWord_002,u ; form the address WorkWord_002,u in x
-                    ldd       #1        ; set d to the constant 1
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
-                    std       <WorkWord_005,u ; store d at <WorkWord_005,u
-                    ldd       #0        ; set d to the constant 0
-                    std       WorkWord_004,u ; store d at WorkWord_004,u
-                    std       <WorkWord_007,u ; store d at <WorkWord_007,u
-                    std       <WorkWord_006,u ; store d at <WorkWord_006,u
-                    ldd       WorkWord_001,u ; load d from WorkWord_001,u
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-                    os9       F$Time    ; read the current system date and time
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    leax      WorkWord_002,u ; form the address WorkWord_002,u in x
-                    ldy       #32       ; set y to the constant 32
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    os9       I$Write   ; write Y bytes from X to path A
-                    os9       I$Close   ; close path A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-Branch_007          clrb                ; clear b to zero and set the condition codes
-Branch_002          os9       F$Exit    ; terminate the process with status B
+* an optional path becomes the execution directory used by the selected
+* downloader.  The protocol menu dispatches one of four independent modules.
+start               lda       ,x        ; inspect the optional download-directory argument
+                    cmpa      #13       ; recognize a bare invocation
+                    beq       PromptProtocol ; keep the current execution directory when absent
+                    lda       #1        ; select execution-directory semantics
+                    os9       I$ChgDir  ; enter the directory containing downloadable files
+                    lbcs      ExitWithStatus ; preserve a directory-change failure
+PromptProtocol      leax      >ProtocolMenu,pc ; prepare the four protocol choices
+                    ldy       #74       ; write the exact menu block
+                    lda       #1        ; direct the menu to the terminal
+                    os9       I$Write   ; leave the cursor after the protocol prompt
+                    leax      ProtocolChoice,u ; receive one menu keystroke
+                    ldy       #1        ; accept exactly one byte
+                    clra                ; select standard input
+                    os9       I$Read    ; wait for a protocol choice
+                    leax      >ChildParameterReturn,pc ; select the CR used for terminal echo
+                    ldy       #1        ; output only the CR, not its adjacent LF
+                    lda       #1        ; direct it to the terminal
+                    os9       I$Write   ; move to the next terminal line
+                    lda       ProtocolChoice,u ; recover the raw selection
+                    anda      #223      ; make the menu case-insensitive
+                    cmpa      #65       ; test for ASCII transfer
+                    beq       SelectAscii ; dispatch Dloada
+                    cmpa      #88       ; test for checksum XMODEM
+                    beq       SelectXmodem ; dispatch dloadx
+                    cmpa      #89       ; test for YMODEM
+                    beq       SelectYmodem ; dispatch dloady
+                    cmpa      #67       ; test for CRC XMODEM
+                    beq       SelectXmodemCrc ; dispatch dloadxc
+                    cmpa      #81       ; test for an explicit quit
+                    lbeq      ExitSuccessfully ; leave without starting a child
+                    bra       PromptProtocol ; reject any unrecognized keystroke
+SelectXmodem        leax      >XmodemProgram,pc ; select the checksum XMODEM engine
+                    bra       ForkSelectedProtocol ; use the common child lifecycle
+SelectYmodem        leax      >YmodemProgram,pc ; select the YMODEM engine
+                    bra       ForkSelectedProtocol ; use the common child lifecycle
+SelectXmodemCrc     leax      >XmodemCrcProgram,pc ; select the CRC XMODEM engine
+                    bra       ForkSelectedProtocol ; use the common child lifecycle
+SelectAscii         leax      >AsciiProgram,pc ; select the plain-text engine
+                    bra       ForkSelectedProtocol ; use the common child lifecycle
 
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+* fork the downloader with a one-byte empty command line.  Statistics are
+* updated only after the child exits successfully.
+ForkSelectedProtocol ldy       #1        ; pass a one-byte parameter area to the child
+                    lda       #17       ; request an executable program module
+                    ldb       #3        ; grant the child three additional data pages
+                    pshs      u         ; preserve the workspace pointer across fork and wait
+                    leau      >ChildParameterReturn,pc ; pass a CR-only command line
+                    os9       F$Fork    ; start the selected protocol engine
+                    lbcs      ExitWithStatus ; propagate a fork failure without touching statistics
+                    clrb                ; clear stale status before waiting
+                    os9       F$Wait    ; collect the downloader's termination status
+                    lbcs      ExitWithStatus ; propagate a wait failure
+                    cmpb      #0        ; require the child to report success
+                    lbne      ExitWithStatus ; return the downloader's failure status
+                    puls      u         ; recover the module workspace pointer
+                    leax      >UserStatsPath,pc ; select the shared per-user statistics file
+                    lda       #3        ; request read/write access
+                    os9       I$Open    ; open the existing statistics database
+                    bcc       StatsFileReady ; scan it when it already exists
+                    ldb       #27       ; use the package's writable data-file attributes
+                    os9       I$Create  ; create a missing statistics database
+                    lbcs      ExitWithStatus ; preserve a create failure
+StatsFileReady      sta       StatsPathNum,u ; retain the statistics path number
+                    os9       F$ID      ; obtain the caller's OS-9 user ID
+                    sty       CallerUserId,u ; retain the record key for the scan
+
+* BBS.userstats uses 32-byte records keyed by their leading user ID.  Updating
+* an existing record requires seeking back one record from the current position.
+FindStatsRecord     leax      StatsUserId,u ; receive one complete statistics record
+                    ldy       #32       ; preserve the fixed database stride
+                    lda       StatsPathNum,u ; select the statistics stream
+                    os9       I$Read    ; fetch the next user's counters
+                    bcs       StatsScanEnded ; distinguish an absent user from an I/O error
+                    ldd       StatsUserId,u ; inspect the record's account key
+                    cmpd      CallerUserId,u ; compare it with the downloader's user ID
+                    bne       FindStatsRecord ; continue until the caller's record is found
+                    bra       IncrementDownloadCount ; update the existing download counter
+StatsScanEnded      cmpb      #211      ; recognize OS-9 end-of-file as an absent record
+                    lbne      ExitWithStatus ; preserve an actual statistics read error
+                    lbra      CreateStatsRecord ; append the package's historical initial record
+IncrementDownloadCount
+stk_saved_workspace equ       0         ; saved u at the top of stack after the temporary push
+                    ldd       <StatsDownloads,u ; fetch the caller's cumulative download count
+                    addd      #1        ; account for the successful child transfer
+                    std       <StatsDownloads,u ; retain the incremented count
+                    lda       StatsPathNum,u ; select the statistics stream
+                    ldb       #5        ; request its current 32-bit file position
+                    pshs      u         ; save workspace u before GetStat returns the low offset in u
+                    os9       I$GetStt  ; obtain the position immediately after the matched record
+                    tfr       u,d       ; move the low offset word where subtraction is convenient
+                    subd      #32       ; back up by one fixed statistics record
+                    bge       HaveStatsWriteOffset ; retain the high word when no borrow occurred
+                    leax      -$01,x    ; propagate the low-word borrow into the high word
+HaveStatsWriteOffset ldu       stk_saved_workspace,s ; recover workspace access without popping it
+                    tfr       d,y       ; preserve the calculated low offset word
+                    lda       StatsPathNum,u ; recover the path number through workspace u
+                    tfr       y,u       ; complete the target x:u seek position
+                    os9       I$Seek    ; return to the beginning of the matched record
+                    lbcs      ExitWithStatus ; preserve a seek failure
+                    puls      u         ; restore the workspace pointer and balance the stack
+                    leax      StatsUserId,u ; select the modified 32-byte record
+                    ldy       #32       ; rewrite exactly one database record
+                    lda       StatsPathNum,u ; select BBS.userstats
+                    os9       I$Write   ; commit the incremented download count
+                    os9       I$Close   ; release the statistics file
+                    lbra      ExitSuccessfully ; report the completed transfer and accounting
+
+* historical behavior for a missing user is asymmetric: it seeds login count
+* and messages-read to one, but initializes the download count itself to zero.
+CreateStatsRecord   leax      StatsUserId,u ; prepare a new record at its leading user-ID field
+                    ldd       #1        ; select the historical nonzero initializer
+                    std       StatsLoginCount,u ; seed the login count
+                    std       <StatsMessagesRead,u ; seed messages-read, as in the original binary
+                    ldd       #0        ; clear the other initialized counters
+                    std       StatsMessagesLeft,u ; begin with no messages posted
+                    std       <StatsUploads,u ; begin with no uploads
+                    std       <StatsDownloads,u ; preserve the original zero download count anomaly
+                    ldd       CallerUserId,u ; fetch the successful downloader's account ID
+                    std       StatsUserId,u ; key the appended record to that caller
+                    leax      StatsLastLoginTime,u ; select the record's six-byte timestamp field
+                    os9       F$Time    ; stamp the newly created record with the current time
+                    lbcs      ExitWithStatus ; preserve a clock-service error
+                    leax      StatsUserId,u ; select the completed new record
+                    ldy       #32       ; append one fixed-size record
+                    lda       StatsPathNum,u ; select the statistics database
+                    os9       I$Write   ; append the caller's initial counters
+                    os9       I$Close   ; release the statistics file
+                    lbcs      ExitWithStatus ; preserve a close failure reported by the original flow
+ExitSuccessfully    clrb                ; report a successful quit or completed download
+ExitWithStatus      os9       F$Exit    ; return success or the preserved OS-9 status
+
+                    emod                ; emit the OS-9 module CRC and trailer
+eom                 equ       *         ; mark the module end for the size expression
+                    end                 ; end the assembly source
