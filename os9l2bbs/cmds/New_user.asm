@@ -22,6 +22,8 @@
 * Decoded mode parsing and fopen/fdopen/freopen stream construction.
 *          2026/07/21  Codex
 * Decoded buffered stream initialization, refill, flush, and close paths.
+*          2026/07/21  Codex
+* Decoded character/word I/O, pushback, path status, and heap allocation.
 **********************************************************************
 
                     nam       New_user
@@ -1487,200 +1489,113 @@ Branch_117          leas      $04,s     ; adjust the system stack pointer
                     fcb       $C0       ; store byte data
 Text_025            fcc       "-32768" ; store literal character data
                     fcb       $00       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $EE       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $80       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $22       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $83       ; store byte data
-                    fcb       $80       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $14       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $4F       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $22       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $83       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $03       ; store byte data
-                    fcc       "M2b" ; store literal character data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $4F       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcc       "0g4" ; store literal character data
-                    fcb       $10       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $48       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $4F       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $8D       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $43       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $8D       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $24       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $AD       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $32       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $83       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $4A       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $CA       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $DC       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $5F       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $7E       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $07       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $EB       ; store byte data
-                    fcb       $32       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $C3       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $83       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $E7       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $A3       ; store byte data
-                    fcb       $44       ; store byte data
-                    fcb       $24       ; store byte data
-                    fcb       $0F       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $4F       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $13       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $83       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $0B       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $BE       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $E1       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $9B       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $C0       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $EE       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $08       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $79       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcc       "F2d" ; store literal character data
-                    fcb       $EC       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $3B       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcc       "K" ; store literal character data
+* encoded putc-style entry point; raw bytes preserve the compiler's exact layout.
+WriteStreamCharacter
+stk_putc_saved_u    equ       0         ; caller's U after the encoded entry push
+stk_putc_return     equ       2         ; caller return address
+stk_putc_char       equ       4         ; character value
+stk_putc_stream     equ       6         ; destination descriptor
+                    fcb       $34,$40   ; preserve U
+                    fcb       $EE,$66   ; select the destination descriptor
+                    fcb       $EC,$46   ; inspect initialization, write, and error state
+                    fcb       $84,$80   ; isolate StreamInitialized's high byte
+                    fcb       $C4,$22   ; retain StreamWritable and StreamIoError
+                    fcb       $10,$83,$80,$02 ; accept an initialized healthy output stream
+                    fcb       $27,$14   ; continue at CharacterStreamReady
+                    fcb       $EC,$46   ; retry the state test without initialization
+                    fcb       $4F       ; ignore high-byte flags
+                    fcb       $C4,$22   ; retain write permission and error state
+                    fcb       $10,$83,$00,$02 ; accept an uninitialized healthy output stream
+                    fcb       $10,$26,$01,$1F ; otherwise return through RejectFlushRequest
+                    fcb       $34,$40   ; pass the descriptor to lazy initialization
+                    fcb       $17,$03,$4D ; choose buffering policy and storage
+                    fcb       $32,$62   ; discard the descriptor argument
+CharacterStreamReady
+                    fcb       $EC,$46   ; choose buffered or one-byte output
+                    fcb       $4F       ; inspect only low-byte flags
+                    fcb       $C4,$04   ; isolate StreamUnbuffered
+                    fcb       $27,$35   ; use BufferCharacter for normal buffering
+WriteUnbufferedCharacter
+                    fcb       $CC,$00,$01 ; request a one-byte transfer
+                    fcb       $34,$06   ; pass the transfer length
+                    fcb       $30,$67   ; point at the low byte of the character argument
+                    fcb       $34,$10   ; pass that one-byte source address
+                    fcb       $EC,$48   ; select the underlying OS-9 path
+                    fcb       $34,$06   ; pass the path number
+                    fcb       $EC,$46   ; choose line or ordinary write semantics
+                    fcb       $4F       ; inspect low-byte buffering flags
+                    fcb       $C4,$40   ; isolate StreamLineBuffered
+                    fcb       $27,$06   ; select WriteBytes for ordinary output
+                    fcb       $30,$8D,$06,$43 ; select WriteLineBytes for terminal output
+                    fcb       $20,$04   ; join InvokeCharacterWrite
+                    fcb       $30,$8D,$06,$24 ; select WriteBytes for ordinary output
+InvokeCharacterWrite
+                    fcb       $1F,$10   ; preserve the selected wrapper in compiler form
+                    fcb       $1F,$01   ; restore it as an indirect-call pointer
+                    fcb       $AD,$84   ; invoke the selected one-byte write
+                    fcb       $32,$66   ; discard path, buffer, and length arguments
+                    fcb       $10,$83,$FF,$FF ; detect low-level write failure
+                    fcb       $26,$4A   ; return the written character on success
+                    fcb       $EC,$46   ; preserve the descriptor state after failure
+                    fcb       $CA,$20   ; latch StreamIoError
+                    fcb       $ED,$46   ; publish the error state
+                    fcb       $16,$00,$DC ; return -1 through RejectFlushRequest
+BufferCharacter
+                    fcb       $EC,$46   ; inspect the stream's current orientation
+                    fcb       $84,$01   ; isolate StreamWriting's high byte
+                    fcb       $5F       ; form a word-sized orientation test
+                    fcb       $ED,$7E   ; spill it below the compiler frame
+                    fcb       $26,$07   ; retain an existing output buffer
+                    fcb       $34,$40   ; pass the descriptor to the buffer flusher
+                    fcb       $17,$00,$EB ; reset an input-oriented buffer for output
+                    fcb       $32,$62   ; discard the descriptor argument
+StoreCharacterInBuffer
+                    fcb       $EC,$C4   ; recover the current cursor
+                    fcb       $C3,$00,$01 ; advance by one byte
+                    fcb       $ED,$C4   ; publish the following cursor
+                    fcb       $83,$00,$01 ; recover the byte address being filled
+                    fcb       $1F,$01   ; use that address as X
+                    fcb       $EC,$64   ; recover the character argument
+                    fcb       $E7,$84   ; store its low byte in the buffer
+                    fcb       $EC,$C4   ; inspect the updated cursor
+                    fcb       $10,$A3,$44 ; compare it with StreamBufferEnd
+                    fcb       $24,$0F   ; flush when the buffer is full
+                    fcb       $EC,$46   ; otherwise inspect line-buffering state
+                    fcb       $4F       ; ignore high-byte flags
+                    fcb       $C4,$40   ; isolate StreamLineBuffered
+                    fcb       $27,$13   ; return immediately for block buffering
+                    fcb       $EC,$64   ; recover the character value
+                    fcb       $10,$83,$00,$0D ; detect carriage return
+                    fcb       $26,$0B   ; retain non-terminating line characters
+FlushBufferedCharacter
+                    fcb       $34,$40   ; pass the descriptor to the buffer flusher
+                    fcb       $17,$00,$BE ; write the full buffer or completed line
+                    fcb       $ED,$E1   ; replace the argument slot with the flush result
+                    fcb       $10,$26,$00,$9B ; return -1 if flushing failed
+ReturnWrittenCharacter
+                    fcb       $EC,$64   ; return the original character value
+                    fcb       $35,$C0   ; restore U and return
+* encoded putw-style entry point; emit the high byte before the low byte.
+WriteStreamWord
+stk_putw_saved_u    equ       0         ; caller's U after the encoded entry push
+stk_putw_return     equ       2         ; caller return address
+stk_putw_stream     equ       4         ; destination descriptor
+stk_putw_word       equ       6         ; big-endian word value
+                    fcb       $34,$40   ; preserve U
+                    fcb       $EE,$64   ; retain the destination descriptor
+                    fcb       $EC,$66   ; recover the word being written
+                    fcb       $34,$06   ; pass it to the shift helper
+                    fcb       $34,$40   ; preserve the stream argument
+                    fcb       $CC,$00,$08 ; request an eight-bit right shift
+                    fcb       $17,$04,$79 ; extract the original high byte
+                    fcb       $34,$06   ; pass that byte to WriteStreamCharacter
+                    fcb       $17,$FF,$46 ; emit the high byte first
+                    fcb       $32,$64   ; discard the first character arguments
+                    fcb       $EC,$66   ; recover the original word
+                    fcb       $34,$06   ; pass its low byte as the character value
+                    fcb       $34,$40   ; pass the destination descriptor
+                    fcb       $17,$FF,$3B ; emit the low byte second
+                    fcb       $16,$01,$4B ; return through the shared stream epilogue
 * Walk the compiler's table of sixteen stream descriptors during process exit.
 CloseAllStreams
 stk_stream_index    equ       0         ; current descriptor number after PSHS U,D
@@ -1902,104 +1817,67 @@ stk_getc_stream     equ       4         ; descriptor argument
 RefillEmptyStream   pshs      u         ; ask the refill path to return its first byte
                     lbsr      RefillStreamBuffer ; return its first byte or -1
                     lbra      FinishStreamRefill ; discard the pushed descriptor in the shared tail
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $EE       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $4F       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $0F       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $83       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $07       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $A3       ; store byte data
-                    fcb       $42       ; store byte data
-                    fcb       $22       ; store byte data
-                    fcb       $05       ; store byte data
+* encoded ungetc-style entry point; push one byte back into cached input.
+UnreadStreamCharacter
+stk_ungetc_saved_u  equ       0         ; caller's U after the encoded entry push
+stk_ungetc_return   equ       2         ; caller return address
+stk_ungetc_char     equ       4         ; character to restore
+stk_ungetc_stream   equ       6         ; readable descriptor
+                    fcb       $34,$40   ; preserve U
+                    fcb       $EE,$66   ; select the target descriptor
+                    fcb       $27,$16   ; reject a null stream
+                    fcb       $EC,$46   ; inspect its access flags
+                    fcb       $4F       ; ignore high-byte orientation state
+                    fcb       $C4,$01   ; isolate StreamReadable
+                    fcb       $27,$0F   ; reject a non-readable stream
+                    fcb       $EC,$64   ; recover the requested character
+                    fcb       $10,$83,$FF,$FF ; reject the EOF sentinel
+                    fcb       $27,$07   ; return failure for EOF
+                    fcb       $EC,$C4   ; recover the current input cursor
+                    fcb       $10,$A3,$42 ; compare it with StreamBufferStart
+                    fcb       $22,$05   ; push back only when space precedes the cursor
 ReturnReadFailure   ldd       #-1       ; represent EOF, error, or invalid orientation
                     puls      pc,u      ; restore U and return failure
-                    fcb       $EC       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $C3       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $C4       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $E7       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $C0       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $EE       ; store byte data
-                    fcc       "d2|4@" ; store literal character data
-                    fcb       $17       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $93       ; store byte data
-                    fcb       $32       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $83       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $27       ; store byte data
-                    fcb       $0F       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $84       ; store byte data
-                    fcb       $32       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $E4       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $83       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $26       ; store byte data
-                    fcb       $05       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $FF       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $0C       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $08       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $95       ; store byte data
-                    fcb       $E3       ; store byte data
-                    fcb       $E4       ; store byte data
-                    fcc       "2d5" ; store literal character data
-                    fcb       $C0       ; store byte data
+PushBackCharacter
+                    fcb       $EC,$C4   ; recover the current cursor
+                    fcb       $C3,$FF,$FF ; move it back by one byte
+                    fcb       $ED,$C4   ; publish the restored input position
+                    fcb       $1F,$01   ; use the new cursor as X
+                    fcb       $EC,$64   ; recover the character argument
+                    fcb       $E7,$84   ; place its low byte before unread input
+                    fcb       $EC,$64   ; return the restored character
+                    fcb       $35,$C0   ; restore U and return
+* encoded getw-style entry point; combine two input bytes in big-endian order.
+ReadStreamWord
+stk_getw_second     equ       0         ; second byte after local allocation
+stk_getw_first      equ       2         ; first byte after local allocation
+stk_getw_saved_u    equ       4         ; caller's U after local allocation
+stk_getw_return     equ       6         ; caller return address after local allocation
+stk_getw_stream     equ       8         ; source descriptor after local allocation
+                    fcb       $34,$40   ; preserve U
+                    fcb       $EE,$64   ; retain the source descriptor
+                    fcb       $32,$7C   ; reserve both byte-result words
+                    fcb       $34,$40   ; pass the stream to ReadStreamCharacter
+                    fcb       $17,$FF,$93 ; obtain the high byte
+                    fcb       $32,$62   ; discard the stream argument
+                    fcb       $ED,$62   ; retain the first byte
+                    fcb       $10,$83,$FF,$FF ; detect EOF or input failure
+                    fcb       $27,$0F   ; return -1 without reading a low byte
+                    fcb       $34,$40   ; pass the stream for the second read
+                    fcb       $17,$FF,$84 ; obtain the low byte
+                    fcb       $32,$62   ; discard the stream argument
+                    fcb       $ED,$E4   ; retain the second byte
+                    fcb       $10,$83,$FF,$FF ; detect EOF or input failure
+                    fcb       $26,$05   ; combine two valid bytes
+                    fcb       $CC,$FF,$FF ; otherwise return failure
+                    fcb       $20,$0C   ; skip the combination path
+CombineStreamWord   fcb       $EC,$62   ; recover the first byte
+                    fcb       $34,$06   ; pass it to the shift helper
+                    fcb       $CC,$00,$08 ; request an eight-bit left shift
+                    fcb       $17,$02,$95 ; move the first byte into the high half
+                    fcb       $E3,$E4   ; add the retained second byte
+                    fcb       $32,$64   ; release both local words
+                    fcb       $35,$C0   ; restore U and return the combined word
 RefillStreamBuffer
 stk_refill_count    equ       0         ; byte count returned by the low-level read
 stk_refill_saved_u  equ       2         ; caller's U after local allocation
@@ -2379,34 +2257,41 @@ Branch_184          lda       $04,s     ; load a from the current stack frame at
                     fcb       $F9       ; store byte data
                     fcb       $20       ; store byte data
                     fcb       $E7       ; store byte data
-GetPathStatus       lda       $05,s     ; load a from the current stack frame at $05,s
-                    ldb       $03,s     ; load b from the current stack frame at $03,s
-                    beq       Branch_185 ; branch when the values are equal or the result is zero; target Branch_185
-                    cmpb      #1        ; compare b with #1 and set the condition codes
-                    beq       Branch_186 ; branch when the values are equal or the result is zero; target Branch_186
-                    cmpb      #6        ; compare b with #6 and set the condition codes
-                    beq       Branch_186 ; branch when the values are equal or the result is zero; target Branch_186
-                    cmpb      #2        ; compare b with #2 and set the condition codes
-                    beq       Branch_187 ; branch when the values are equal or the result is zero; target Branch_187
-                    cmpb      #5        ; compare b with #5 and set the condition codes
-                    beq       Branch_187 ; branch when the values are equal or the result is zero; target Branch_187
-                    ldb       #208      ; set b to the constant 208
-                    lbra      StoreRuntimeError ; continue execution at StoreRuntimeError
-Branch_187          pshs      u         ; save u on the stack
-                    os9       I$GetStt  ; query status code B for path A
-                    bcc       Branch_189 ; branch when carry is clear; target Branch_189
-                    puls      u         ; restore u from the stack
-                    lbra      StoreRuntimeError ; continue execution at StoreRuntimeError
-Branch_189          stx       [<$08,s]  ; store x in the current stack frame at [<$08,s]
-                    ldx       $08,s     ; load x from the current stack frame at $08,s
-                    stu       $02,x     ; store u at $02,x
-                    puls      u         ; restore u from the stack
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    rts                 ; return to the caller
-Branch_185          ldx       $06,s     ; load x from the current stack frame at $06,s
-Branch_186          os9       I$GetStt  ; query status code B for path A
-                    lbra      ReturnZeroOnSuccess ; continue execution at ReturnZeroOnSuccess
+GetPathStatus
+stk_getstt_return   equ       0         ; caller return address
+stk_getstt_selector equ       2         ; word-sized GetStat selector
+stk_getstt_path     equ       4         ; word-sized path number
+stk_getstt_result   equ       6         ; buffer or 32-bit result pointer
+                    lda       $05,s     ; select the OS-9 path number
+                    ldb       $03,s     ; dispatch on the requested GetStat selector
+                    beq       GetStatusIntoBuffer ; selector zero fills an option table at X
+                    cmpb      #1        ; selector one returns register-only status
+                    beq       InvokeSimpleGetStatus
+                    cmpb      #6        ; selector six also needs no result-buffer translation
+                    beq       InvokeSimpleGetStatus
+                    cmpb      #SS.Size  ; file size returns a 32-bit X:U value
+                    beq       GetLongPathStatus
+                    cmpb      #SS.Pos   ; current position also returns X:U
+                    beq       GetLongPathStatus
+                    ldb       #E$UnkSvc ; reject selectors unsupported by this compiler wrapper
+                    lbra      StoreRuntimeError
+GetLongPathStatus   pshs      u         ; preserve the compiler workspace register
+                    os9       I$GetStt  ; obtain the requested 32-bit value in X:U
+                    bcc       StoreLongPathStatus
+                    puls      u         ; restore U before translating the OS-9 error
+                    lbra      StoreRuntimeError
+StoreLongPathStatus
+                    stx       [<$08,s]  ; store the high word through the shifted result pointer
+                    ldx       $08,s     ; recover that result pointer
+                    stu       $02,x     ; store the low word after it
+                    puls      u         ; restore the compiler workspace register
+                    clra                ; return zero after a successful status query
+                    clrb
+                    rts
+GetStatusIntoBuffer ldx       $06,s     ; supply the caller's option-table buffer
+InvokeSimpleGetStatus
+                    os9       I$GetStt  ; perform the selector-specific status request
+                    lbra      ReturnZeroOnSuccess ; return zero or publish the OS-9 error
                     fcb       $A6       ; store byte data
                     fcb       $65       ; store byte data
                     fcb       $E6       ; store byte data
@@ -2731,24 +2616,29 @@ ApplySeekOffset     tfr       u,d       ; begin with the base position's low wor
                     fcb       $F8       ; store byte data
                     fcb       $35       ; store byte data
                     fcb       $86       ; store byte data
-AllocateHeapBytes   ldd       $02,s     ; load d from the current stack frame at $02,s
-                    addd      >RuntimeHeapEnd,y ; add to d using >RuntimeHeapEnd,y
-                    bcs       Branch_202 ; branch when carry reports an error or unsigned underflow; target Branch_202
-                    cmpd      >RuntimeStackLowWater,y ; compare d with >RuntimeStackLowWater,y and set the condition codes
-                    bcc       Branch_202 ; branch when carry is clear; target Branch_202
-                    pshs      d         ; save d on the stack
-                    ldx       >RuntimeHeapEnd,y ; load x from >RuntimeHeapEnd,y
-                    clra                ; clear a to zero and set the condition codes
-Branch_203          cmpx      ,s        ; compare x with ,s and set the condition codes
-                    bcc       Branch_204 ; branch when carry is clear; target Branch_204
-                    sta       ,x+       ; store a at ,x+
-                    bra       Branch_203 ; continue execution at Branch_203
-Branch_204          ldd       >RuntimeHeapEnd,y ; load d from >RuntimeHeapEnd,y
-                    puls      x         ; restore x from the stack
-                    stx       >RuntimeHeapEnd,y ; store x at >RuntimeHeapEnd,y
-                    rts                 ; return to the caller
-Branch_202          ldd       #-1       ; set d to the constant -1
-                    rts                 ; return to the caller
+AllocateHeapBytes
+stk_heap_return     equ       0         ; caller return address
+stk_heap_size       equ       2         ; requested zero-filled byte count
+                    ldd       $02,s     ; recover the requested allocation size
+                    addd      >RuntimeHeapEnd,y ; calculate the proposed new heap boundary
+                    bcs       RejectHeapAllocation ; reject 16-bit address wraparound
+                    cmpd      >RuntimeStackLowWater,y ; preserve separation from the growing stack
+                    bcc       RejectHeapAllocation ; reject collision or overlap
+                    pshs      d         ; retain the proposed heap boundary
+                    ldx       >RuntimeHeapEnd,y ; begin clearing at the old boundary
+                    clra                ; use zero as the allocator's initialization byte
+ClearAllocatedBytes cmpx      ,s        ; stop upon reaching the proposed boundary
+                    bcc       CommitHeapAllocation
+                    sta       ,x+       ; clear one newly allocated byte
+                    bra       ClearAllocatedBytes
+CommitHeapAllocation
+                    ldd       >RuntimeHeapEnd,y ; return the old boundary as the allocation base
+                    puls      x         ; recover the proposed new boundary
+                    stx       >RuntimeHeapEnd,y ; commit the allocation atomically
+                    rts
+RejectHeapAllocation
+                    ldd       #-1       ; report overflow or heap/stack collision
+                    rts
 StoreRuntimeError   clra                ; widen OS-9's error byte in B
                     std       >RuntimeErrorCode,y ; expose it through the compiler runtime
                     ldd       #-1       ; return the conventional failure value
