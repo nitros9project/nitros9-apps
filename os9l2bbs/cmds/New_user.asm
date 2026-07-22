@@ -14,6 +14,8 @@
 * Refined command annotations and normalized formatting.
 *          2026/07/21  Codex
 * Decoded the registration application and separated linked runtime support.
+*          2026/07/21  Codex
+* Decoded compiler startup, relocation, stack guards, and process exit.
 **********************************************************************
 
                     nam       New_user
@@ -32,6 +34,9 @@ rev                 set       $01       ; set assembly-time module attribute rev
 * the compiler keeps its global/runtime state relative to Y.  The registration
 * application owns six consecutive 80-byte input fields at the end of that area.
 RuntimeInputStream  equ       $001B     ; standard-input stream descriptor
+RuntimeInitialStack equ       $019D     ; stack pointer captured at process startup
+RuntimeHeapEnd      equ       $01A9     ; first byte unavailable to heap allocation
+RuntimeStackLowWater equ       $01AB     ; deepest stack address validated so far
 RuntimeErrorCode    equ       $01AD     ; last library or OS-9 error code
 ApplicantName       equ       $01AF     ; caller's real name
 ApplicantCity       equ       $01FF     ; caller's city
@@ -57,156 +62,158 @@ WorkWord_007        rmb       2         ; reserve 2 byte(s) in the module worksp
 WorkBuffer_004      rmb       1418      ; reserve 1418 byte(s) in the module workspace
 size                equ       .         ; define the assembly-time value for size
 
-name                fcs       /New_user/ ; store an OS-9 high-bit-terminated string
-                    fcb       $01       ; store byte data
-Routine_001         lda       ,y+       ; load a from ,y+
-                    sta       ,u+       ; store a at ,u+
-                    leax      -$01,x    ; form the address -$01,x in x
-                    bne       Routine_001 ; branch when the values differ or the result is nonzero; target Routine_001
-                    rts                 ; return to the caller
-start               pshs      y         ; save y on the stack
-                    pshs      u         ; save u on the stack
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-Branch_001          sta       ,u+       ; store a at ,u+
-                    decb                ; decrement b
-                    bne       Branch_001 ; branch when the values differ or the result is nonzero; target Branch_001
-                    ldx       ,s        ; load x from the current stack frame at ,s
-                    leau      ,x        ; form the workspace or data address ,x in u
-                    leax      >$03AB,x  ; form the address >$03AB,x in x
-                    pshs      x         ; save x on the stack
-                    leay      >Data_001,pc ; form the address >Data_001,pc in y
-                    ldx       ,y++      ; load x from ,y++
-                    beq       Branch_002 ; branch when the values are equal or the result is zero; target Branch_002
-                    bsr       Routine_001 ; call subroutine Routine_001
-                    ldu       $02,s     ; load u from the current stack frame at $02,s
-Branch_002          leau      >WorkByte_002,u ; form the workspace or data address >WorkByte_002,u in u
-                    ldx       ,y++      ; load x from ,y++
-                    beq       Branch_003 ; branch when the values are equal or the result is zero; target Branch_003
-                    bsr       Routine_001 ; call subroutine Routine_001
-                    clra                ; clear a to zero and set the condition codes
-Branch_003          cmpu      ,s        ; compare u with ,s and set the condition codes
-                    beq       Branch_004 ; branch when the values are equal or the result is zero; target Branch_004
-                    sta       ,u+       ; store a at ,u+
-                    bra       Branch_003 ; continue execution at Branch_003
-Branch_004          ldu       $02,s     ; load u from the current stack frame at $02,s
-                    ldd       ,y++      ; load d from ,y++
-                    beq       Branch_005 ; branch when the values are equal or the result is zero; target Branch_005
-                    leax      >0,pc     ; form the address 0,pc in x
-                    lbsr      Routine_002 ; call subroutine Routine_002
-Branch_005          ldd       ,y++      ; load d from ,y++
-                    beq       Branch_006 ; branch when the values are equal or the result is zero; target Branch_006
-                    leax      WorkByte_001,u ; form the address WorkByte_001,u in x
-                    lbsr      Routine_002 ; call subroutine Routine_002
-Branch_006          leas      $04,s     ; adjust the system stack pointer
-                    puls      x         ; restore x from the stack
-                    stx       >WorkWord_007,u ; store x at >WorkWord_007,u
-                    sty       >WorkWord_006,u ; store y at >WorkWord_006,u
-                    ldd       #1        ; set d to the constant 1
-                    std       >WorkByte_004,u ; store d at >WorkByte_004,u
-                    leay      >WorkBuffer_002,u ; form the address >WorkBuffer_002,u in y
-                    leax      ,s        ; form the address ,s in x
-                    lda       ,x+       ; load a from ,x+
-Branch_007          ldb       >WorkBuffer_003,u ; load b from >WorkBuffer_003,u
-                    cmpb      #29       ; compare b with #29 and set the condition codes
-                    beq       Branch_008 ; branch when the values are equal or the result is zero; target Branch_008
-Branch_009          cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_008 ; branch when the values are equal or the result is zero; target Branch_008
-                    cmpa      #32       ; compare a with #32 and set the condition codes
-                    beq       Branch_010 ; branch when the values are equal or the result is zero; target Branch_010
-                    cmpa      #44       ; compare a with #44 and set the condition codes
-                    bne       Branch_011 ; branch when the values differ or the result is nonzero; target Branch_011
-Branch_010          lda       ,x+       ; load a from ,x+
-                    bra       Branch_009 ; continue execution at Branch_009
-Branch_011          cmpa      #34       ; compare a with #34 and set the condition codes
-                    beq       Branch_012 ; branch when the values are equal or the result is zero; target Branch_012
-                    cmpa      #39       ; compare a with #39 and set the condition codes
-                    bne       Branch_013 ; branch when the values differ or the result is nonzero; target Branch_013
-Branch_012          stx       ,y++      ; store x at ,y++
-                    inc       >WorkBuffer_003,u ; increment the value at >WorkBuffer_003,u
-                    pshs      a         ; save a on the stack
-Branch_014          lda       ,x+       ; load a from ,x+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_015 ; branch when the values are equal or the result is zero; target Branch_015
-                    cmpa      ,s        ; compare a with ,s and set the condition codes
-                    bne       Branch_014 ; branch when the values differ or the result is nonzero; target Branch_014
-Branch_015          puls      b         ; restore b from the stack
-                    clr       -$01,x    ; clear -$01,x to zero and set the condition codes
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_008 ; branch when the values are equal or the result is zero; target Branch_008
-                    lda       ,x+       ; load a from ,x+
-                    bra       Branch_007 ; continue execution at Branch_007
-Branch_013          leax      -$01,x    ; form the address -$01,x in x
-                    stx       ,y++      ; store x at ,y++
-                    leax      $01,x     ; form the address $01,x in x
-                    inc       >WorkBuffer_003,u ; increment the value at >WorkBuffer_003,u
-Branch_016          cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_017 ; branch when the values are equal or the result is zero; target Branch_017
-                    cmpa      #32       ; compare a with #32 and set the condition codes
-                    beq       Branch_017 ; branch when the values are equal or the result is zero; target Branch_017
-                    cmpa      #44       ; compare a with #44 and set the condition codes
-                    beq       Branch_017 ; branch when the values are equal or the result is zero; target Branch_017
-                    lda       ,x+       ; load a from ,x+
-                    bra       Branch_016 ; continue execution at Branch_016
-Branch_017          clr       -$01,x    ; clear -$01,x to zero and set the condition codes
-                    bra       Branch_007 ; continue execution at Branch_007
-Branch_008          leax      >WorkWord_006,u ; form the address >WorkWord_006,u in x
-                    pshs      x         ; save x on the stack
-                    ldd       >WorkByte_004,u ; load d from >WorkByte_004,u
-                    pshs      d         ; save d on the stack
-                    leay      WorkByte_001,u ; form the address WorkByte_001,u in y
-                    bsr       Routine_003 ; call subroutine Routine_003
-                    lbsr      RegistrationMain ; call subroutine RegistrationMain
-                    clr       ,-s       ; clear ,-s to zero and set the condition codes
-                    clr       ,-s       ; clear ,-s to zero and set the condition codes
-                    lbsr      ExitProcess ; call subroutine ExitProcess
-Routine_003         leax      >$03AB,y  ; form the address >$03AB,y in x
-                    stx       >$01A9,y  ; store x at >$01A9,y
-                    sts       >$019D,y  ; store s at >$019D,y
-                    sts       >$01AB,y  ; store s at >$01AB,y
-                    ldd       #-126     ; set d to the constant -126
-CheckStackSpace     leax      d,s       ; form the address d,s in x
-                    cmpx      >$01AB,y  ; compare x with >$01AB,y and set the condition codes
-                    bcc       Branch_018 ; branch when carry is clear; target Branch_018
-                    cmpx      >$01A9,y  ; compare x with >$01A9,y and set the condition codes
-                    bcs       Branch_019 ; branch when carry reports an error or unsigned underflow; target Branch_019
-                    stx       >$01AB,y  ; store x at >$01AB,y
-Branch_018          rts                 ; return to the caller
-Text_001            fcc       "**** STACK OVERFLOW ****" ; store literal character data
-                    fcb       $0D       ; store byte data
-Branch_019          leax      <Text_001,pc ; form the address <Text_001,pc in x
-                    ldb       #207      ; set b to the constant 207
-                    pshs      b         ; save b on the stack
-                    lda       #2        ; set a to the constant 2
-                    ldy       #100      ; set y to the constant 100
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    clr       ,-s       ; clear ,-s to zero and set the condition codes
-                    lbsr      Routine_007 ; call subroutine Routine_007
-                    ldd       >$019D,y  ; load d from >$019D,y
-                    subd      >$01AB,y  ; subtract from d using >$01AB,y
-                    rts                 ; return to the caller
-                    fcb       $EC       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $AB       ; store byte data
-                    fcb       $A3       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $A9       ; store byte data
-                    fcb       $39       ; store byte data
-Routine_002         pshs      x         ; save x on the stack
-                    leax      d,y       ; form the address d,y in x
-                    leax      d,x       ; form the address d,x in x
-                    pshs      x         ; save x on the stack
-Branch_020          ldd       ,y++      ; load d from ,y++
-                    leax      d,u       ; form the address d,u in x
-                    ldd       ,x        ; load d from ,x
-                    addd      $02,s     ; add to d using $02,s
-                    std       ,x        ; store d at ,x
-                    cmpy      ,s        ; compare y with ,s and set the condition codes
-                    bne       Branch_020 ; branch when the values differ or the result is nonzero; target Branch_020
-                    leas      $04,s     ; adjust the system stack pointer
-                    rts                 ; return to the caller
+name                fcs       /New_user/ ; module name exposed to OS-9
+                    fcb       $01       ; compiler startup-format version byte
+CopyInitializerBytes lda       ,y+       ; copy one byte from the packed initializer image
+                    sta       ,u+       ; install it in the process workspace
+                    leax      -$01,x    ; count down the current initialized block
+                    bne       CopyInitializerBytes ; continue until the block length reaches zero
+                    rts                 ; return to the startup dispatcher
+start               pshs      y         ; preserve OS-9's parameter length
+                    pshs      u         ; preserve the process workspace base
+                    clra                ; prepare a zero byte and a 256-byte loop count
+                    clrb                ; prepare a zero byte and a 256-byte loop count
+ClearDirectPage     sta       ,u+       ; clear the first workspace page
+                    decb                ; advance the modulo-256 clear count
+                    bne       ClearDirectPage ; clear all 256 direct-page bytes
+                    ldx       ,s        ; recover the original workspace base
+                    leau      ,x        ; begin initialized data at the workspace base
+                    leax      >$03AB,x  ; compute the end of the compiler's initialized/global area
+                    pshs      x         ; retain the workspace-clear boundary
+                    leay      >RuntimeInitializerImage,pc ; select the packed initializer and relocation image
+                    ldx       ,y++      ; read the next initialized block length
+                    beq       InitializeSecondDataBlock ; skip an empty first initialized block
+                    bsr       CopyInitializerBytes ; expand the described initialized bytes
+                    ldu       $02,s     ; recover the process workspace base beneath the boundary
+InitializeSecondDataBlock leau      >WorkByte_002,u ; advance to the second initialized-data destination
+                    ldx       ,y++      ; read the next initialized block length
+                    beq       ClearRemainingWorkspace ; skip an empty second initialized block
+                    bsr       CopyInitializerBytes ; expand the described initialized bytes
+                    clra                ; prepare a zero byte and a 256-byte loop count
+ClearRemainingWorkspace cmpu      ,s        ; test whether initialized data reached the global-area end
+                    beq       ApplyCodeRelocations ; begin relocation after all remaining BSS is zeroed
+                    sta       ,u+       ; install it in the process workspace
+                    bra       ClearRemainingWorkspace ; clear another uninitialized workspace byte
+ApplyCodeRelocations ldu       $02,s     ; restore the workspace base for relocation
+                    ldd       ,y++      ; read the next relocation-table byte length
+                    beq       ApplyDataRelocations ; skip an empty code-reference relocation table
+                    leax      >0,pc     ; use the module base as the relocation delta
+                    lbsr      ApplyRelocationTable ; adjust every address named by this table
+ApplyDataRelocations ldd       ,y++      ; read the workspace-reference table length
+                    beq       ParseCommandLine ; begin argument parsing when no data relocations remain
+                    leax      WorkByte_001,u ; use the process data base as the relocation delta
+                    lbsr      ApplyRelocationTable ; adjust every address named by this table
+ParseCommandLine    leas      $04,s     ; discard saved startup registers and initializer boundary
+                    puls      x         ; recover the OS-9 parameter length
+                    stx       >WorkWord_007,u ; retain the original parameter length
+                    sty       >WorkWord_006,u ; seed argv with the program-name pointer
+                    ldd       #1        ; begin argc with the implicit program name
+                    std       >WorkByte_004,u ; seed argc with the implicit program-name argument
+                    leay      >WorkBuffer_002,u ; select storage for the argv pointer vector
+                    leax      ,s        ; point at OS-9's CR-terminated parameter text
+                    lda       ,x+       ; prime the argument scanner with its first byte
+ParseNextArgument   ldb       >WorkBuffer_003,u ; recover the current argument count
+                    cmpb      #29       ; reserve the thirtieth argv slot for termination
+                    beq       InvokeRegistration ; stop parsing at the argument-vector capacity or CR
+SkipArgumentDelimiters cmpa      #13       ; recognize the OS-9 parameter terminator
+                    beq       InvokeRegistration ; stop parsing at the argument-vector capacity or CR
+                    cmpa      #32       ; treat spaces as argument separators
+                    beq       ConsumeArgumentDelimiter ; skip a separating space
+                    cmpa      #44       ; also accept commas as argument separators
+                    bne       CheckQuotedArgument ; classify the first nonseparator byte
+ConsumeArgumentDelimiter lda       ,x+       ; advance beyond the current separator
+                    bra       SkipArgumentDelimiters ; discard consecutive spaces and commas
+CheckQuotedArgument cmpa      #34       ; recognize a double-quoted argument
+                    beq       RecordQuotedArgument ; begin a double-quoted argument
+                    cmpa      #39       ; also recognize a single-quoted argument
+                    bne       RecordBareArgument ; use ordinary delimiter rules otherwise
+RecordQuotedArgument stx       ,y++      ; record the first byte inside the quotes as argv
+                    inc       >WorkBuffer_003,u ; count the newly discovered argument
+                    pshs      a         ; retain the opening quote as the required closer
+ScanQuotedArgument  lda       ,x+       ; consume the next quoted byte
+                    cmpa      #13       ; allow CR to terminate an unterminated quote
+                    beq       TerminateQuotedArgument ; terminate an unmatched quote at end-of-line
+                    cmpa      ,s        ; test for the matching quote character
+                    bne       ScanQuotedArgument ; keep delimiters literal while inside quotes
+TerminateQuotedArgument puls      b         ; discard the saved quote character
+                    clr       -$01,x    ; replace the closing delimiter with a C-string NUL
+                    cmpa      #13       ; allow CR to terminate an unterminated quote
+                    beq       InvokeRegistration ; stop parsing at the argument-vector capacity or CR
+                    lda       ,x+       ; prime the argument scanner with its first byte
+                    bra       ParseNextArgument ; look for another argument
+RecordBareArgument  leax      -$01,x    ; rewind to include the first unquoted byte
+                    stx       ,y++      ; append the argument pointer to argv
+                    leax      $01,x     ; resume scanning after its first byte
+                    inc       >WorkBuffer_003,u ; count the newly discovered argument
+ScanBareArgument    cmpa      #13       ; test the current unquoted byte for termination
+                    beq       TerminateBareArgument ; finish on CR, space, or comma
+                    cmpa      #32       ; treat spaces as argument separators
+                    beq       TerminateBareArgument ; finish on CR, space, or comma
+                    cmpa      #44       ; also accept commas as argument separators
+                    beq       TerminateBareArgument ; finish on CR, space, or comma
+                    lda       ,x+       ; prime the argument scanner with its first byte
+                    bra       ScanBareArgument ; consume another ordinary argument byte
+TerminateBareArgument clr       -$01,x    ; convert its delimiter to a C-string NUL
+                    bra       ParseNextArgument ; look for another argument
+InvokeRegistration  leax      >WorkWord_006,u ; pass the completed argv vector to the application
+                    pshs      x         ; pass argv through the compiler calling convention
+                    ldd       >WorkByte_004,u ; pass the completed argc value
+                    pshs      d         ; pass argc beside argv
+                    leay      WorkByte_001,u ; establish the compiler global-data base
+                    bsr       InitializeRuntimeBounds ; initialize heap and stack collision guards
+                    lbsr      RegistrationMain ; run the decoded new-user application
+                    clr       ,-s       ; push a zero process exit status
+                    clr       ,-s       ; push a zero process exit status
+                    lbsr      ExitProcess ; flush runtime state and terminate successfully
+InitializeRuntimeBounds leax      >$03AB,y  ; place the heap ceiling after compiler globals
+                    stx       >RuntimeHeapEnd,y ; record the heap/stack collision boundary
+                    sts       >RuntimeInitialStack,y ; retain the startup stack for diagnostics
+                    sts       >RuntimeStackLowWater,y ; initialize or update the deepest validated stack address
+                    ldd       #-126     ; require the startup routine's maximum stack allowance
+CheckStackSpace     leax      d,s       ; project the requested stack growth below the current S
+                    cmpx      >RuntimeStackLowWater,y ; compare with the deepest range checked earlier
+                    bcc       StackSpaceAvailable ; return when no new low-water check is needed
+                    cmpx      >RuntimeHeapEnd,y ; keep projected stack above compiler globals and heap
+                    bcs       AbortStackOverflow ; abort rather than corrupt process data
+                    stx       >RuntimeStackLowWater,y ; remember the newly validated low-water address
+StackSpaceAvailable rts                 ; return with the requested stack range validated
+StackOverflowMessage fcc       "**** STACK OVERFLOW ****" ; fatal compiler-runtime stack diagnostic
+                    fcb       C$CR      ; terminate the diagnostic for I$WritLn
+AbortStackOverflow  leax      <StackOverflowMessage,pc ; select the fatal stack diagnostic
+                    ldb       #E$MemFul ; original runtime reports the collision as memory full
+                    pshs      b         ; pass that status to the nonreturning exit wrapper
+                    lda       #2        ; write the diagnostic on standard error
+                    ldy       #100      ; bound output beyond the fixed message length
+                    os9       I$WritLn  ; display the fatal diagnostic through its carriage return
+                    clr       ,-s       ; widen the one-byte status to a compiler word
+                    lbsr      ExitWithStackStatus ; terminate immediately with E$MemFul
+                    ldd       >RuntimeInitialStack,y ; recover the startup stack address
+                    subd      >RuntimeStackLowWater,y ; return peak stack consumption in D
+                    rts                 ; return to the diagnostic caller
+
+* encoded compiler helper: LDD >RuntimeStackLowWater,Y; SUBD
+* >RuntimeHeapEnd,Y; RTS.  The original disassembly retained these bytes as data.
+MeasureAvailableStack
+                    fcb       $EC,$A9,$01,$AB ; load the recorded low-water address
+                    fcb       $A3,$A9,$01,$A9 ; subtract the heap collision boundary
+                    fcb       $39       ; return the available gap in D
+ApplyRelocationTable
+stk_reloc_table_end equ       0         ; packed table end after both temporary pushes
+stk_reloc_delta     equ       2         ; code or data base after both temporary pushes
+stk_reloc_return    equ       4         ; caller return address after both pushes
+                    pshs      x         ; preserve the selected relocation delta
+                    leax      d,y       ; locate the end of the packed word-offset table
+                    leax      d,x       ; account for the table's own displacement encoding
+                    pshs      x         ; retain the computed table end
+RelocateNextWord    ldd       ,y++      ; read the next workspace word offset
+                    leax      d,u       ; locate the word requiring relocation
+                    ldd       ,x        ; recover its link-time relative value
+                    addd      $02,s     ; add the selected module or data base
+                    std       ,x        ; install the runtime absolute address
+                    cmpy      ,s        ; test for the end of the relocation table
+                    bne       RelocateNextWord ; relocate every listed word
+                    leas      $04,s     ; release the table end and relocation delta
+                    rts                 ; return to the startup dispatcher
 RegistrationMain
 stk_confirmation    equ       0         ; normalized Y/N response after local allocation
 stk_log_stream      equ       1         ; append stream pointer after local allocation
@@ -1622,25 +1629,32 @@ Text_025            fcc       "-32768" ; store literal character data
                     fcb       $16       ; store byte data
                     fcb       $01       ; store byte data
                     fcc       "K" ; store literal character data
-Routine_034         pshs      u,d       ; save u,d on the stack
-                    leau      >$000E,y  ; form the workspace or data address >$000E,y in u
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    std       ,s        ; store d in the current stack frame at ,s
-                    bra       Branch_132 ; continue execution at Branch_132
-Branch_133          tfr       u,d       ; copy the register values specified by u,d
-                    leau      WorkBuffer_001,u ; form the workspace or data address WorkBuffer_001,u in u
-                    pshs      d         ; save d on the stack
-                    bsr       Routine_035 ; call subroutine Routine_035
-                    leas      $02,s     ; adjust the system stack pointer
-Branch_132          ldd       ,s        ; load d from the current stack frame at ,s
-                    addd      #1        ; add to d using #1
-                    std       ,s        ; store d in the current stack frame at ,s
-                    subd      #1        ; subtract from d using #1
-                    cmpd      #16       ; compare d with #16 and set the condition codes
-                    blt       Branch_133 ; branch when the signed value is less; target Branch_133
-                    lbra      Branch_134 ; continue execution at Branch_134
-Routine_035         pshs      u         ; save u on the stack
+* Walk the compiler's table of sixteen stream descriptors during process exit.
+CloseAllStreams
+stk_stream_index    equ       0         ; current descriptor number after PSHS U,D
+stk_stream_saved_u  equ       2         ; caller's U after PSHS U,D
+stk_stream_return   equ       4         ; caller return address
+                    pshs      u,d       ; preserve U and allocate a word-sized slot index
+                    leau      >$000E,y  ; select the first runtime stream descriptor
+                    clra                ; initialize the slot index to zero
+                    clrb
+                    std       ,s        ; retain the index in the local stack word
+                    bra       CheckNextStreamSlot
+CloseNextStreamSlot
+                    tfr       u,d       ; pass the current descriptor address
+                    leau      WorkBuffer_001,u ; advance to the next fixed-size descriptor
+                    pshs      d
+                    bsr       CloseStream ; flush and close this occupied stream slot
+                    leas      $02,s     ; discard the descriptor argument
+CheckNextStreamSlot
+                    ldd       ,s        ; recover the next slot index
+                    addd      #1        ; prepare the following index
+                    std       ,s        ; retain it for the next iteration
+                    subd      #1        ; restore the index being tested now
+                    cmpd      #16       ; the runtime owns sixteen stream slots
+                    blt       CloseNextStreamSlot
+                    lbra      StreamOperationDone ; return through the shared stream epilogue
+CloseStream         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
                     leas      -$02,s    ; adjust the system stack pointer
                     cmpu      #0        ; compare u with #0 and set the condition codes
@@ -1648,7 +1662,7 @@ Routine_035         pshs      u         ; save u on the stack
                     ldd       WorkWord_003,u ; load d from WorkWord_003,u
                     bne       Branch_136 ; branch when the values differ or the result is nonzero; target Branch_136
 Branch_135          ldd       #-1       ; set d to the constant -1
-                    lbra      Branch_134 ; continue execution at Branch_134
+                    lbra      StreamOperationDone ; continue execution at StreamOperationDone
 Branch_136          ldd       WorkWord_003,u ; load d from WorkWord_003,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #2        ; mask b using #2
@@ -1668,7 +1682,7 @@ Branch_138          std       ,s        ; store d in the current stack frame at 
                     clrb                ; clear b to zero and set the condition codes
                     std       WorkWord_003,u ; store d at WorkWord_003,u
                     ldd       ,s        ; load d from the current stack frame at ,s
-                    bra       Branch_134 ; continue execution at Branch_134
+                    bra       StreamOperationDone ; continue execution at StreamOperationDone
 FlushStream         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
                     beq       Branch_139 ; branch when the values are equal or the result is zero; target Branch_139
@@ -1689,7 +1703,7 @@ Branch_140          ldd       WorkWord_003,u ; load d from WorkWord_003,u
                     leas      $02,s     ; adjust the system stack pointer
 Branch_141          pshs      u         ; save u on the stack
                     bsr       Routine_038 ; call subroutine Routine_038
-Branch_134          leas      $02,s     ; adjust the system stack pointer
+StreamOperationDone leas      $02,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
 Routine_038         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
@@ -2589,20 +2603,20 @@ Branch_198          tfr       u,d       ; copy the register values specified by 
                     fcb       $35       ; store byte data
                     fcb       $86       ; store byte data
 Routine_044         ldd       $02,s     ; load d from the current stack frame at $02,s
-                    addd      >$01A9,y  ; add to d using >$01A9,y
+                    addd      >RuntimeHeapEnd,y ; add to d using >RuntimeHeapEnd,y
                     bcs       Branch_202 ; branch when carry reports an error or unsigned underflow; target Branch_202
-                    cmpd      >$01AB,y  ; compare d with >$01AB,y and set the condition codes
+                    cmpd      >RuntimeStackLowWater,y ; compare d with >RuntimeStackLowWater,y and set the condition codes
                     bcc       Branch_202 ; branch when carry is clear; target Branch_202
                     pshs      d         ; save d on the stack
-                    ldx       >$01A9,y  ; load x from >$01A9,y
+                    ldx       >RuntimeHeapEnd,y ; load x from >RuntimeHeapEnd,y
                     clra                ; clear a to zero and set the condition codes
 Branch_203          cmpx      ,s        ; compare x with ,s and set the condition codes
                     bcc       Branch_204 ; branch when carry is clear; target Branch_204
                     sta       ,x+       ; store a at ,x+
                     bra       Branch_203 ; continue execution at Branch_203
-Branch_204          ldd       >$01A9,y  ; load d from >$01A9,y
+Branch_204          ldd       >RuntimeHeapEnd,y ; load d from >RuntimeHeapEnd,y
                     puls      x         ; restore x from the stack
-                    stx       >$01A9,y  ; store x at >$01A9,y
+                    stx       >RuntimeHeapEnd,y ; store x at >RuntimeHeapEnd,y
                     rts                 ; return to the caller
 Branch_202          ldd       #-1       ; set d to the constant -1
                     rts                 ; return to the caller
@@ -2614,12 +2628,20 @@ Branch_190          bcs       Branch_188 ; branch when carry reports an error or
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     rts                 ; return to the caller
-ExitProcess         lbsr      Code_001  ; call subroutine Code_001
-                    lbsr      Routine_034 ; call subroutine Routine_034
-Routine_007         ldd       $02,s     ; load d from the current stack frame at $02,s
-                    os9       F$Exit    ; terminate the process with status B
-Code_001            rts                 ; return to the caller
-Data_001            fcb       $00       ; store byte data
+ExitProcess         lbsr      RunExitHook ; allow a linked application cleanup hook
+                    lbsr      CloseAllStreams ; flush every compiler-managed stream
+ExitWithStackStatus
+stk_exit_return     equ       0         ; caller return address
+stk_exit_status     equ       2         ; word-sized compiler exit argument
+                    ldd       $02,s     ; recover the compiler's word-sized exit status
+                    os9       F$Exit    ; terminate with its low byte in B
+RunExitHook         rts                 ; default application cleanup hook does nothing
+
+* packed initialized-data image, relocation metadata, ctype tables, and runtime
+* literals expanded by the startup code above.  Its internal regions are decoded
+* in the later data-table pass.
+RuntimeInitializerImage
+                    fcb       $00       ; first initialized-data block length high byte
                     fcb       $01       ; store byte data
                     fcb       $00       ; store byte data
                     fcb       $01       ; store byte data
