@@ -55,15 +55,15 @@ efficiently use OS9L2BBS you should be able to use the OS-9 operating environmen
 
 The way a typical BBS, set up with this software, should run is as follows:
 
-The command `Tsmon` should be run with the port name as a parameter. When `Tsmon`
-recognizes a caller it will automatically run two programs, `BBS.login` and `Monitor`. `BBS.login` will first list the
-`motd` file to the caller, and then prompt him to log in. `Monitor` will simply monitor the carrier detect
-status on the port. Once the user logs in, `BBS.login` will run the program specified for that user in the
+The command [`Tsmon`](#tsmon) should be run with the port name as a parameter. When [`Tsmon`](#tsmon)
+recognizes a caller it will automatically run two programs, [`BBS.login`](#bbslogin) and [`Monitor`](#monitor). [`BBS.login`](#bbslogin) will first list the
+`motd` file to the caller, and then prompt him to log in. [`Monitor`](#monitor) will simply monitor the carrier detect
+status on the port. Once the user logs in, [`BBS.login`](#bbslogin) will run the program specified for that user in the
 `BBS.users` file. Note that this can be any program, even a shell for sysop and superuser passwords.
 This program can be either a single command or a script filename. If it is a script filename, the
-command file should call the `Menu` program. The `Menu` program is the cornerstone of the system.
-This command displays a menu text file, then waits for users to input options. When the `Menu`
-program is finished, `BBS.login` will list the `eotd` file to the caller and hang up.
+command file should call the [`Menu`](#menu) program. The [`Menu`](#menu) program is the cornerstone of the system.
+This command displays a menu text file, then waits for users to input options. When the [`Menu`](#menu)
+program is finished, [`BBS.login`](#bbslogin) will list the `eotd` file to the caller and hang up.
 
 If you do not know how to create and use script files, you should read your OS-9
 documentation. A script file is, quite simply, a file that contains a list of commands to be executed one
@@ -167,87 +167,87 @@ a small description of each.
 
 | Name | Description |
 | --- | --- |
-| `Tsmon` | Autobaud terminal monitor |
-| `BBS.login` | Login program |
-| `Monitor` | Carrier-detect monitor |
-| `Menu` | Menu program |
-| `New_user` | Program to collect new-user information |
-| `BBS.build` | Simple file creator |
-| `BBS.list` | Simple file-list command |
-| `BBS.validate` | New-user validation program |
-| `BBS.form` | Creates user forms |
-| `BBS.stat` | Views user statistics |
-| `At` | Event-scheduler program |
-| `Prompt` | Creates user prompts |
-| `ViewBBS` | Allows the BBS to be viewed while running |
-| `Ansicode` | ANSI graphics-code generator |
-| `AnsiEd` | ANSI graphics editor |
-| `AnsiFilt` | ANSI graphics-to-OS-9 filter |
-| `Suser` | Sets the user number |
-| `pause` | Waits for a keypress |
+| [`Tsmon`](#tsmon) | Autobaud terminal monitor |
+| [`BBS.login`](#bbslogin) | Login program |
+| [`Monitor`](#monitor) | Carrier-detect monitor |
+| [`Menu`](#menu) | Menu program |
+| [`New_user`](#new_user) | Program to collect new-user information |
+| [`BBS.build`](#bbsbuild) | Simple file creator |
+| [`BBS.list`](#bbslist) | Simple file-list command |
+| [`BBS.validate`](#bbsvalidate) | New-user validation program |
+| [`BBS.form`](#bbsform) | Creates user forms |
+| [`BBS.stat`](#bbsstat) | Views user statistics |
+| [`At`](#at) | Event-scheduler program |
+| [`Prompt`](#prompt) | Creates user prompts |
+| [`ViewBBS`](#viewbbs) | Allows the BBS to be viewed while running |
+| [`Ansicode`](#ansicode) | ANSI graphics-code generator |
+| [`AnsiEd`](#ansied) | ANSI graphics editor |
+| [`AnsiFilt`](#ansifilt) | ANSI graphics-to-OS-9 filter |
+| [`Suser`](#suser) | Sets the user number |
+| [`pause`](#pause) | Waits for a keypress |
 
 ### Chat Mode Commands
 
 | Name | Description |
 | --- | --- |
-| `BBS.chat` | Chat request |
-| `Answer` | Answers a chat request |
+| [`BBS.chat`](#bbschat) | Chat request |
+| [`Answer`](#answer) | Answers a chat request |
 
 ### Conference Mode Commands
 
 | Name | Description |
 | --- | --- |
-| `BBS.who` | Shows who is currently online |
-| `BBS.page` | Pages another user |
-| `BBS.conf` | Enters conference mode |
-| `BBS.conf.who` | Shows who is in conference mode |
+| [`BBS.who`](#bbswho) | Shows who is currently online |
+| [`BBS.page`](#bbspage) | Pages another user |
+| [`BBS.conf`](#bbsconf) | Enters conference mode |
+| [`BBS.conf.who`](#bbsconfwho) | Shows who is in conference mode |
 
 ### Message Retrieval Commands
 
 | Name | Description |
 | --- | --- |
-| `BBS.create` | Creates a message base |
-| `BBS.post` | Posts a message |
-| `BBS.convert` | Converts messages from release 2.0 |
-| `BBS.delete` | Deletes a message |
-| `BBS.pack` | Packs a message base |
-| `BBS.read` | Reads a message |
-| `BBS.reply` | Replies to a message |
-| `BBS.forward` | Reads messages forward from a selected message |
-| `BBS.new` | Reads new messages |
-| `BBS.scan` | Scans message headers |
-| `BBS.search` | Searches messages |
+| [`BBS.create`](#bbscreate) | Creates a message base |
+| [`BBS.post`](#bbspost) | Posts a message |
+| [`BBS.convert`](#bbsconvert) | Converts messages from release 2.0 |
+| [`BBS.delete`](#bbsdelete) | Deletes a message |
+| [`BBS.pack`](#bbspack) | Packs a message base |
+| [`BBS.read`](#bbsread) | Reads a message |
+| [`BBS.reply`](#bbsreply) | Replies to a message |
+| [`BBS.forward`](#bbsforward) | Reads messages forward from a selected message |
+| [`BBS.new`](#bbsnew) | Reads new messages |
+| [`BBS.scan`](#bbsscan) | Scans message headers |
+| [`BBS.search`](#bbssearch) | Searches messages |
 
 ### Mail Retrieval Commands
 
 | Name | Description |
 | --- | --- |
-| `BBS.mail.post` | Posts mail |
-| `BBS.mail.check` | Checks mail status |
-| `BBS.mail.read` | Reads mail |
-| `BBS.mail.readD` | Reads and deletes mail |
-| `BBS.mail.delete` | Deletes mail |
+| [`BBS.mail.post`](#bbsmailpost) | Posts mail |
+| [`BBS.mail.check`](#bbsmailcheck) | Checks mail status |
+| [`BBS.mail.read`](#bbsmailread) | Reads mail |
+| [`BBS.mail.readD`](#bbsmailreadd) | Reads and deletes mail |
+| [`BBS.mail.delete`](#bbsmaildelete) | Deletes mail |
 
 ### File Retrieval Commands
 
 | Name | Description |
 | --- | --- |
-| `BBS.upload` | Prompts for an upload protocol |
-| `Uloada` | Uploads using ASCII |
-| `Uloadx` | Uploads using XMODEM |
-| `Uloadxc` | Uploads using XMODEM CRC |
-| `Uloady` | Uploads using YMODEM |
-| `BBS.download` | Prompts for a download protocol |
-| `Dloada` | Downloads using ASCII |
-| `Dloadx` | Downloads using XMODEM |
-| `Dloadxc` | Downloads using XMODEM CRC |
-| `Dloady` | Downloads using YMODEM |
-| `DLD.validate` | Validates new uploads |
-| `DLD.add` | Adds new files without uploading them |
-| `DLD.unvalidate` | Unvalidates old uploads |
-| `DLD.search` | Searches for a download |
-| `DLD.list` | Lists downloads |
-| `DLD.read` | Reads file information |
+| [`BBS.upload`](#bbsupload) | Prompts for an upload protocol |
+| [`Uloada`](#uloada) | Uploads using ASCII |
+| [`Uloadx`](#uloadx) | Uploads using XMODEM |
+| [`Uloadxc`](#uloadxc) | Uploads using XMODEM CRC |
+| [`Uloady`](#uloady) | Uploads using YMODEM |
+| [`BBS.download`](#bbsdownload) | Prompts for a download protocol |
+| [`Dloada`](#dloada) | Downloads using ASCII |
+| [`Dloadx`](#dloadx) | Downloads using XMODEM |
+| [`Dloadxc`](#dloadxc) | Downloads using XMODEM CRC |
+| [`Dloady`](#dloady) | Downloads using YMODEM |
+| [`DLD.validate`](#dldvalidate) | Validates new uploads |
+| [`DLD.add`](#dldadd) | Adds new files without uploading them |
+| [`DLD.unvalidate`](#dldunvalidate) | Unvalidates old uploads |
+| [`DLD.search`](#dldsearch) | Searches for a download |
+| [`DLD.list`](#dldlist) | Lists downloads |
+| [`DLD.read`](#dldread) | Reads file information |
 
 These commands are further explained in the following pages.
 
@@ -257,10 +257,10 @@ These commands are further explained in the following pages.
 
 **Syntax:** `Tsmon [-m] <port>`
 
-`Tsmon` is the first command run to start the execution of the board. The `Tsmon` command
+[`Tsmon`](#tsmon) is the first command run to start the execution of the board. The [`Tsmon`](#tsmon) command
 monitors a port (such as `/t2`) for an `<enter>` keypress. If a character is received that isn't an `<enter>`,
-`Tsmon` assumes that the baud is set wrong and switches baud rates. It then waits again for an
-`<enter>`. `Tsmon` will continue cycling like this through baud rates until it gets an `<enter>` keypress.
+[`Tsmon`](#tsmon) assumes that the baud is set wrong and switches baud rates. It then waits again for an
+`<enter>`. [`Tsmon`](#tsmon) will continue cycling like this through baud rates until it gets an `<enter>` keypress.
 The baud rates cycle as follows:
 
 1. 1200 baud
@@ -268,17 +268,17 @@ The baud rates cycle as follows:
 3. 300 baud
 4. 1200 baud
 
-Once `Tsmon` receives an `<enter>` character it sends a message stating what baud, parity, and stop
-bits are operating. `Tsmon` then automatically runs two commands, `BBS.login` and `Monitor`. If the `-m` option
-is specified, the `Monitor` command will not be executed. These commands are explained further in the
-section for that command. `Tsmon` should be run as a background task as follows:
+Once [`Tsmon`](#tsmon) receives an `<enter>` character it sends a message stating what baud, parity, and stop
+bits are operating. [`Tsmon`](#tsmon) then automatically runs two commands, [`BBS.login`](#bbslogin) and [`Monitor`](#monitor). If the `-m` option
+is specified, the [`Monitor`](#monitor) command will not be executed. These commands are explained further in the
+section for that command. [`Tsmon`](#tsmon) should be run as a background task as follows:
 
 ```text
 Tsmon /t2 &
 ```
 
-That way the board runs completely in the background. If `Tsmon` is run in the foreground, it will not
-allow you to use that window any longer. For this reason it is suggested that you run `Tsmon` in the
+That way the board runs completely in the background. If [`Tsmon`](#tsmon) is run in the foreground, it will not
+allow you to use that window any longer. For this reason it is suggested that you run [`Tsmon`](#tsmon) in the
 background.
 
 You can run the board in a window for debugging. To do this enter the following commands:
@@ -294,11 +294,11 @@ like. Once you have run this command, simply press `<CLEAR>` until you see the w
 `<ENTER>`. The board should respond with `1200 baud 8 bits no parity`. You can now access the
 board as if you were online.
 
-Another feature of `Tsmon` is its modem setup feature. With this feature you can have `Tsmon`
-reset your modem every time someone logs off. When `Tsmon` is first run, and every time a user is
+Another feature of [`Tsmon`](#tsmon) is its modem setup feature. With this feature you can have [`Tsmon`](#tsmon)
+reset your modem every time someone logs off. When [`Tsmon`](#tsmon) is first run, and every time a user is
 logged off, it will look for a file called `modem.set` in the current working directory. If the file does not
-exist, this feature is ignored. If the file does exist, `Tsmon` sends whatever information is in that file to
-the modem AT THE BAUD RATE THE PORT WAS XMODED TO. This means that if you use `Tsmon`
+exist, this feature is ignored. If the file does exist, [`Tsmon`](#tsmon) sends whatever information is in that file to
+the modem AT THE BAUD RATE THE PORT WAS XMODED TO. This means that if you use [`Tsmon`](#tsmon)
 you MUST Xmode your port to the modem's baud rate. This file should contain any commands that
 you need to send to your modem to have it initialized. My `modem.set` looks as follows:
 
@@ -316,17 +316,17 @@ to the fact that 2400 baud modems will not automatically jump to their highest r
 
 **Syntax:** `BBS.login`
 
-The `BBS.login` program allows you to maintain a list of users and their passwords and user numbers.
-This program is automatically run by `Tsmon` and need not be run by the sysop. This is the program
+The [`BBS.login`](#bbslogin) program allows you to maintain a list of users and their passwords and user numbers.
+This program is automatically run by [`Tsmon`](#tsmon) and need not be run by the sysop. This is the program
 that prompts the person logging in for his name and password.
 
-The `BBS.login` program requires several files to run. The first file it looks for is `motd`. This file is
+The [`BBS.login`](#bbslogin) program requires several files to run. The first file it looks for is `motd`. This file is
 listed to the user's screen immediately after he calls. It should be used as a welcome message, and
 should provide any instructions necessary for logging in. A default `motd` file is provided, but it is
 suggested that you create your own. You can use any editor to create this file. This file should be
-in the same directory as `Tsmon` is run from, usually `/dd/bbs`.
+in the same directory as [`Tsmon`](#tsmon) is run from, usually `/dd/bbs`.
 
-The `BBS.login` program next looks for a file called `BBS.users`. This file contains the name, password,
+The [`BBS.login`](#bbslogin) program next looks for a file called `BBS.users`. This file contains the name, password,
 program to run, and user number for every user of the bulletin board. This file is a simple text file that
 can be created and edited by any editor. The format of each line in this file is as follows:
 
@@ -341,7 +341,7 @@ system PER DAY. If this parameter is omitted or is set to 0, the user will not h
 access the system as long as he wants.
 
 Note that the program to run can be a script file. I would suggest this as you could have the
-file list special messages and bulletins that you create, read and check mail, and then run the `Menu`
+file list special messages and bulletins that you create, read and check mail, and then run the [`Menu`](#menu)
 program. Here is a sample command file:
 
 ```text
@@ -355,21 +355,21 @@ Menu BBS.menu BBS.cmds </1
 ```
 
 This command file would list the file called `bulletins`, read the mail, list a file called `sysop_message`
-and run the `Menu` program. The `-x` option stops the board from hanging up if an error occurs.
+and run the [`Menu`](#menu) program. The `-x` option stops the board from hanging up if an error occurs.
 
-Another file that `BBS.login` looks for is a file called `Userlog`. If the file does not exist, `BBS.login` creates
+Another file that [`BBS.login`](#bbslogin) looks for is a file called `Userlog`. If the file does not exist, [`BBS.login`](#bbslogin) creates
 it and records the user's name and login time. This allows you to maintain a list of all callers
 and the time they called.
-`BBS.login` also prints the person's name and the time they called on the printer (if connected).
-The last file that `BBS.login` looks for is a file called `eotd`. This file is displayed after the command that
-was executed is finished. In the case of the `Menu` program, this happens when a specific option (that
+[`BBS.login`](#bbslogin) also prints the person's name and the time they called on the printer (if connected).
+The last file that [`BBS.login`](#bbslogin) looks for is a file called `eotd`. This file is displayed after the command that
+was executed is finished. In the case of the [`Menu`](#menu) program, this happens when a specific option (that
 you define) is pressed. This file should contain an appropriate sign-off message of your choosing.
 
-Still another file that `BBS.login` looks for is `/dd/bbs/BBS.userstats`. If this file does not exist, `BBS.login`
-will create it. If it does exist, `BBS.login` will look for the current user's entry in the file. If the current user's
+Still another file that [`BBS.login`](#bbslogin) looks for is `/dd/bbs/BBS.userstats`. If this file does not exist, [`BBS.login`](#bbslogin)
+will create it. If it does exist, [`BBS.login`](#bbslogin) will look for the current user's entry in the file. If the current user's
 entry is not found, an entry is created for him. Note that this means that you NEVER have to modify
-the userstats file; it will be maintained automatically. `BBS.login` will then store the time and run the
-program you specified. When you exit from `Menu`, `BBS.login` will update the amount of time remaining
+the userstats file; it will be maintained automatically. [`BBS.login`](#bbslogin) will then store the time and run the
+program you specified. When you exit from [`Menu`](#menu), [`BBS.login`](#bbslogin) will update the amount of time remaining
 for the next login. This allows users to only access the board for a preset amount of time each day.
 If a time of 0 is given, or no time at all is given, the user will not have a time limit and can access the
 board as long as he likes. Notice that this is compatible with release 2.0 of the BBS, so you do not
@@ -379,11 +379,11 @@ have to change your `BBS.users` file from release 2.0 if you don't want to give 
 
 **Syntax:** `Monitor`
 
-The `Monitor` program will monitor the carrier detect status of the port. If the carrier detect is lost
+The [`Monitor`](#monitor) program will monitor the carrier detect status of the port. If the carrier detect is lost
 the program will kill all processes started by its parent process and any of its children. This means
 that if someone hangs up, any processes started by that person will be killed.
 
-**Note:** This program is automatically run by `Tsmon` and need not be run by the system operator. This
+**Note:** This program is automatically run by [`Tsmon`](#tsmon) and need not be run by the system operator. This
 program is also very hardware-dependent. It works with the Deluxe RS-232 Pak from Radio Shack as
 well as many *compatible* paks (including the Orion Technologies TELEpak).
 
@@ -391,16 +391,16 @@ well as many *compatible* paks (including the Orion Technologies TELEpak).
 
 **Syntax:** `Menu <menu file> <command file>`
 
-The `Menu` command allows the sysop to create his own menus to be used by the users of his
+The [`Menu`](#menu) command allows the sysop to create his own menus to be used by the users of his
 bulletin board. This command is the cornerstone of the whole BBS system. It allows the sysop to
 define what keys will be pressed to execute what commands. It also allows the sysop to define all of
 his own menus. The menu is a text file that is *echoed* or sent to the user's screen. This file can even
 contain special graphics characters, such as the popular ANSI standard.
 
-The `Menu` command requires two files as follows:
+The [`Menu`](#menu) command requires two files as follows:
 
 A menu file, which is simply a text file that will be listed to the user's screen. This file can be created
-using any editor (`edit`, `Scred`, `Tsedit`, `BBS.build`, or `AnsiEd` for ANSI graphics). Control codes can also
+using any editor (`edit`, `Scred`, `Tsedit`, [`BBS.build`](#bbsbuild), or [`AnsiEd`](#ansied) for ANSI graphics). Control codes can also
 be inserted into this file for special effects. The control codes will appear as dots when you type them
 in. To clear the screen the control code is `<CNTRL><L>`. To ring the bell the code is
 `<CNTRL><G>`. You can experiment to find other special codes.
@@ -414,13 +414,13 @@ U> Upload a file
 D> Download a file
 ```
 
-The next file required is a commands file, which is a text file that instructs the `Menu` program how
+The next file required is a commands file, which is a text file that instructs the [`Menu`](#menu) program how
 to use options. Each line in this file contains either a single letter option followed by the OS-9
 command line to execute, or a user priority condition followed by a single letter option and the
 OS-9 command line to execute. The user priority condition is in the form `<#####`, `>#####`, or
 `=#####`, where `#####` is a five-digit user number. The user number MUST be five digits. If the
 number is less than five digits, it must be padded with zeros. The `<`, `>`, and `=` symbols stand for less than,
-greater than, and equal to respectively. If the user priority is specified, the `Menu` program first checks
+greater than, and equal to respectively. If the user priority is specified, the [`Menu`](#menu) program first checks
 that the user can access the option, then if the user's number meets the specified condition (`<`, `>`, or
 `=`), he is allowed to execute the option.
 
@@ -465,8 +465,8 @@ redisplay the current menu.
 The change menu command (`chm`) will change the menu file names. This allows you to have
 more than one menu in each directory.
 
-The exit command (`ex`) exits from the `Menu` program and returns to the calling program. If the
-calling program was `BBS.login`, the user will be disconnected after receiving the `eotd` file.
+The exit command (`ex`) exits from the [`Menu`](#menu) program and returns to the calling program. If the
+calling program was [`BBS.login`](#bbslogin), the user will be disconnected after receiving the `eotd` file.
 
 Example special commands:
 
@@ -481,17 +481,17 @@ g ex
 /Enter Your Choice?
 ```
 
-Another feature of the `Menu` program is timekeeping. The `Menu` program, when it is first run,
+Another feature of the [`Menu`](#menu) program is timekeeping. The [`Menu`](#menu) program, when it is first run,
 checks the time remaining. It then keeps track of this time and will log the user off when his time is
-up. The time remaining is set up by the `BBS.login` command using the value given in the `BBS.users` file
-(see `BBS.login` for more information).
+up. The time remaining is set up by the [`BBS.login`](#bbslogin) command using the value given in the `BBS.users` file
+(see [`BBS.login`](#bbslogin) for more information).
 
 ### `BBS.build`
 
 **Syntax:** `BBS.build <filename>`
 
-The `BBS.build` command is a simple file creator/editor similar to the editor used for posting
-messages. This editor is provided to the sysop to add his own features to the board. The `BBS.build`
+The [`BBS.build`](#bbsbuild) command is a simple file creator/editor similar to the editor used for posting
+messages. This editor is provided to the sysop to add his own features to the board. The [`BBS.build`](#bbsbuild)
 command will not edit an old file; it will only create a new one.
 
 One example use for this command is to create feedback to the sysop on his printer. To do this,
@@ -502,7 +502,7 @@ printer.
 
 **Syntax:** `BBS.list <filename>`
 
-The `BBS.list` command is a simple file list command similar to the `List` command that comes
+The [`BBS.list`](#bbslist) command is a simple file list command similar to the `List` command that comes
 with OS-9. The important difference is that the person online can press the `<SPACE>` bar and abort
 the listing. This allows a person to cancel a long listing.
 
@@ -510,7 +510,7 @@ the listing. This allows a person to cancel a long listing.
 
 **Syntax:** `BBS.validate`
 
-The `BBS.validate` command allows you to easily add entries to your `BBS.users` file. This
+The [`BBS.validate`](#bbsvalidate) command allows you to easily add entries to your `BBS.users` file. This
 command will prompt you for all necessary information for a new user, including his alias (to update
 the `/dd/bbs/BBS.alias` file). This command can be used as an alternative to using a text editor to add
 new users.
@@ -519,9 +519,9 @@ new users.
 
 **Syntax:** `BBS.form <formpath> <pathname>`
 
-The `BBS.form` command allows you to design your own forms for users to fill out. This
+The [`BBS.form`](#bbsform) command allows you to design your own forms for users to fill out. This
 command is useful for getting information from your system users. It can be used to get the necessary
-information from new users. Note that this is used in the `New_user` menu for that purpose. The first
+information from new users. Note that this is used in the [`New_user`](#new_user) menu for that purpose. The first
 file, the `<formpath>`, is a text file that describes the format of the form. You create this file with any
 text editor. All you have to do is enter one question on each line of this file. This question will be sent
 to the user's terminal and he will be allowed to type a response. The question asked and the user's
@@ -532,10 +532,10 @@ a file. If the specified file does not exist, it is created; if it does exist, i
 
 **Syntax:** `BBS.stat`
 
-The `BBS.stat` command allows users to view their user statistics. This command outputs each
+The [`BBS.stat`](#bbsstat) command allows users to view their user statistics. This command outputs each
 user's statistics in an easily readable format. The user statistics are maintained in a file called
-`/dd/bbs/BBS.userstats` and this file must exist for the `BBS.stat` command to work. This file does NOT
-need to be created by you. It will be automatically created by `BBS.login`. This file will be updated by the
+`/dd/bbs/BBS.userstats` and this file must exist for the [`BBS.stat`](#bbsstat) command to work. This file does NOT
+need to be created by you. It will be automatically created by [`BBS.login`](#bbslogin). This file will be updated by the
 BBS commands. The following statistics are maintained: last logged in, times logged in, number of
 files uploaded and downloaded, the number of messages left and read, and the amount of time
 remaining for this login.
@@ -544,7 +544,7 @@ remaining for this login.
 
 **Syntax:** `At yy/mm/dd hh:mm <command line>`
 
-The `At` command allows you to execute commands at a given date and time. The
+The [`At`](#at) command allows you to execute commands at a given date and time. The
 `<command line>` parameter is any valid OS-9 command line (that you would type at the `OS9:` prompt).
 The date is specified in OS-9 format, year/month/day hour:minute (note that the time uses the 24-hour
 clock). If a date of 00/00/00 is specified, the event will occur EVERY day at the specified time. Note
@@ -564,7 +564,7 @@ At 00/00/00 00:00 del /dd/bbs/userlog
 
 **Syntax:** `Prompt <command> 'Parameter Prompt' <other parameters>`
 
-The `Prompt` command is a very powerful command that allows you to create prompts for your
+The [`Prompt`](#prompt) command is a very powerful command that allows you to create prompts for your
 BBS. You can prompt the user for parameters to be passed to a command. For instance, suppose
 you wanted a co-sysop menu to include the `DIR` command, but didn't want to give shell access to the
 co-sysop. You could implement this in the menu commands file as follows:
@@ -580,7 +580,7 @@ the sysop and can increase the power of the BBS's menus.
 
 **Syntax:** `ViewBBS`
 
-The `ViewBBS` command allows you to view the board while it is running IF YOU HAVE
+The [`ViewBBS`](#viewbbs) command allows you to view the board while it is running IF YOU HAVE
 INSTALLED THE PROPER DRIVERS! In order for this command to work, you MUST have installed the
 `/Td` device as well as the `/Wb` window (included). This command will effectively do a `<CLEAR>` to
 `/Wb`. See the section on the `/Td` driver for more information.
@@ -589,7 +589,7 @@ INSTALLED THE PROPER DRIVERS! In order for this command to work, you MUST have i
 
 **Syntax:** `Ansicode <codes>`
 
-The `Ansicode` command allows you to send ANSI code sequences through the BBS. ANSI
+The [`Ansicode`](#ansicode) command allows you to send ANSI code sequences through the BBS. ANSI
 codes are used to control colors, etc., on ANSI terminals. Some of the more important codes are listed
 below.
 
@@ -620,7 +620,7 @@ background to blue.
 
 **Syntax:** `AnsiFilt <inputfile> or <command> ! AnsiFilt`
 
-`AnsiFilt` is a filter that converts ANSI codes into their OS-9 screen code equivalents. You can
+[`AnsiFilt`](#ansifilt) is a filter that converts ANSI codes into their OS-9 screen code equivalents. You can
 use it either by redirecting its input or by piping the output of
 another command through it. This command is useful for testing the BBS's menus.
 
@@ -631,24 +631,39 @@ AnsiFilt <BBS.menu_am
 Ansicode 33;44m ! AnsiFilt
 ```
 
-Note that the second example allows you to check the results of the `Ansicode` command so that you
+Note that the second example allows you to check the results of the [`Ansicode`](#ansicode) command so that you
 can see how it will look.
 
 ### `AnsiEd`
 
 **Syntax:** `AnsiEd [<inputfile>] [<outputfile>]`
 
-`AnsiEd` is an ANSI graphics editor that allows you to create great-looking screens and menus
-with ANSI graphics. A complete description of how `AnsiEd` works appears later
-in the `AnsiEd` section of this manual.
+[`AnsiEd`](#ansied) is an ANSI graphics editor that allows you to create great-looking screens and menus
+with ANSI graphics. A complete description of how [`AnsiEd`](#ansied) works appears later
+in the [ANSI Editor](#ansi-editor) section of this manual.
 
 ### `Suser`
 
 **Syntax:** `Suser <number> [<command line>]`
 
-`Suser` allows you to change the current user number. This allows you to check for mail, etc.,
+[`Suser`](#suser) allows you to change the current user number. This allows you to check for mail, etc.,
 without being user 0. Note that this command can only be run by the sysop (user 0). If no
 command line is specified, a shell will be started.
+
+### `New_user`
+
+**Syntax:** `New_user`
+
+[`New_user`](#new_user) collects a prospective user's name, city, state, telephone number, requested alias,
+and requested password. It displays the completed application for confirmation and saves it for the sysop
+to validate later.
+
+### `pause`
+
+**Syntax:** `pause ["<message>"]`
+
+[`pause`](#pause) displays the supplied message, or `Press any key to continue...` when no message is
+given, and waits for one keypress. Scripts should redirect standard input to the caller's terminal.
 
 ## Chat Mode Commands
 
@@ -656,19 +671,19 @@ command line is specified, a shell will be started.
 
 **Syntax:** `BBS.chat`
 
-The `BBS.chat` command allows a person on a remote terminal to communicate with someone
-(usually the sysop) at the local BBS site. The `BBS.chat` command will cause a bell to ring on the local
-BBS's terminal. If no one answers the bell (see the `Answer` command), the person issuing the chat
+The [`BBS.chat`](#bbschat) command allows a person on a remote terminal to communicate with someone
+(usually the sysop) at the local BBS site. The [`BBS.chat`](#bbschat) command will cause a bell to ring on the local
+BBS's terminal. If no one answers the bell (see the [`Answer`](#answer) command), the person issuing the chat
 request will be informed that the sysop is not available.
 
-**Note:** The `BBS.chat` command requires that the local terminal have at least one unused window available
+**Note:** The [`BBS.chat`](#bbschat) command requires that the local terminal have at least one unused window available
 (this is needed to ring the bell).
 
 ### `Answer`
 
 **Syntax:** `Answer`
 
-The `Answer` command is used to answer a corresponding chat request. Simply enter `Answer`, and
+The [`Answer`](#answer) command is used to answer a corresponding chat request. Simply enter [`Answer`](#answer), and
 you will be able to communicate with the person online. When you are finished chatting, you can
 terminate the chat session by pressing `<ALT><X>`. The person issuing the chat request cannot
 terminate the chat. If no one answers the chat request within 10 rings, the chat is terminated.
@@ -679,9 +694,9 @@ terminate the chat. If no one answers the chat request within 10 rings, the chat
 
 **Syntax:** `BBS.who`
 
-The `BBS.who` command gives a list of the users currently online. This command can be used
+The [`BBS.who`](#bbswho) command gives a list of the users currently online. This command can be used
 in a menu to allow users online to see who is currently on the system. This command can be used
-together with `BBS.page` to initiate conference modes. This command is also useful to the sysop when
+together with [`BBS.page`](#bbspage) to initiate conference modes. This command is also useful to the sysop when
 he wants to know who is online.
 
 **Note:** This command requires that the file `/dd/bbs/BBS.alias` exist.
@@ -690,7 +705,7 @@ he wants to know who is online.
 
 **Syntax:** `BBS.page`
 
-The `BBS.page` command allows a user to send a brief one-line message to another user that
+The [`BBS.page`](#bbspage) command allows a user to send a brief one-line message to another user that
 is logged in at the same time (but on a different port). The command prompts the user for the person
 to page. The program then checks to see if that user is currently online. If that user is online, he will
 get the message at the next available time. Note that this may take a few seconds. The user initiating
@@ -702,7 +717,7 @@ the page will be informed to wait.
 
 **Syntax:** `BBS.conf`
 
-`BBS.conf` is a system command used to create a *conference mode*. When `BBS.conf` is run
+[`BBS.conf`](#bbsconf) is a system command used to create a *conference mode*. When [`BBS.conf`](#bbsconf) is run
 by two separate people at the same time, each user can see what the other types. This is similar to
 the conference mode on DELPHI and other multi-user systems. Once the program is run, you will be
 prompted for a handle. This handle will be displayed before each line of text as you type. If you press
@@ -718,8 +733,8 @@ see the messages.
 
 **Syntax:** `BBS.conf.who`
 
-`BBS.conf.who` is a system command that displays a list of the users currently in conference
-mode (running `BBS.conf`). This allows users to see who is in conference without actually entering the
+[`BBS.conf.who`](#bbsconfwho) is a system command that displays a list of the users currently in conference
+mode (running [`BBS.conf`](#bbsconf)). This allows users to see who is in conference without actually entering the
 conference mode.
 
 **Note:** This command requires that the file `/dd/bbs/BBS.alias` exist.
@@ -730,8 +745,8 @@ conference mode.
 
 **Syntax:** `BBS.create`
 
-The `BBS.create` command creates the files necessary to start a message base. By executing this
-command, you create a message base with no messages. If a message base already exists, `BBS.create`
+The [`BBS.create`](#bbscreate) command creates the files necessary to start a message base. By executing this
+command, you create a message base with no messages. If a message base already exists, [`BBS.create`](#bbscreate)
 will return an error. This command should be run in each subdirectory that is intended to be used for
 a message base.
 
@@ -739,8 +754,8 @@ a message base.
 
 **Syntax:** `BBS.post`
 
-The `BBS.post` command will add a new message to an existing message base in the
-current directory (see `BBS.create`). The person issuing this command (usually a BBS user) will be
+The [`BBS.post`](#bbspost) command will add a new message to an existing message base in the
+current directory (see [`BBS.create`](#bbscreate)). The person issuing this command (usually a BBS user) will be
 prompted for a message subject. After the subject of the message is entered, the user will be
 prompted for whom the message is addressed. Note that the user can address a message to all
 users by simply pressing `<ENTER>` at this prompt. After entering whom the message is addressed to,
@@ -749,8 +764,8 @@ user-friendly editor for posting this message. This editor will word-wrap at the
 
 **Note:** This message base is not completely compatible with release 2.0. Release 2.0 does not allow
 a message to be addressed to a specific user. A utility for converting message bases is provided with
-the board. This utility (`BBS.convert`) will convert a release 2.0-compatible message base to a release
-3.0-compatible message base. See the `BBS.convert` command for more information.
+the board. This utility ([`BBS.convert`](#bbsconvert)) will convert a release 2.0-compatible message base to a release
+3.0-compatible message base. See the [`BBS.convert`](#bbsconvert) command for more information.
 
 **Note:** This command requires that the file `/dd/bbs/BBS.alias` exist with a list of user names or aliases
 and their numbers.
@@ -772,11 +787,11 @@ name as the alias, that's fine.
 
 **Syntax:** `BBS.convert [<dirname>]`
 
-The `BBS.convert` utility is specifically for those people who own release 2.0 of this system and
+The [`BBS.convert`](#bbsconvert) utility is specifically for those people who own release 2.0 of this system and
 are upgrading to release 3.0. If you do not own release 2.0 of this system, disregard this command.
 If you do own release 2.0 of this system, you should update your message bases. Note that it is not
 ABSOLUTELY necessary, but if you don't, all previously posted messages will be addressed to random
-users (possibly unknown). When you run `BBS.convert` it addresses all previously posted messages to
+users (possibly unknown). When you run [`BBS.convert`](#bbsconvert) it addresses all previously posted messages to
 `All Users`. Here are some examples:
 
 ```text
@@ -789,20 +804,20 @@ BBS.convert /dd/bbs/sigs/coco
 
 **Syntax:** `BBS.delete`
 
-The `BBS.delete` command allows someone to delete his own messages. The sysop is allowed to
+The [`BBS.delete`](#bbsdelete) command allows someone to delete his own messages. The sysop is allowed to
 delete anyone's messages. If someone tries to delete someone else's message he will be given the
-message `You cannot delete that message.` When the `BBS.delete` command is issued, it gives the total
+message `You cannot delete that message.` When the [`BBS.delete`](#bbsdelete) command is issued, it gives the total
 number of messages and asks which message number to delete. If that person owns the message
 or is the sysop (user 0), then the message will be deleted.
 
-**Note:** When a message is deleted, it still occupies space until it is packed (see the `BBS.pack`
+**Note:** When a message is deleted, it still occupies space until it is packed (see the [`BBS.pack`](#bbspack)
 command).
 
 ### `BBS.pack`
 
 **Syntax:** `BBS.pack <dirname>`
 
-The `BBS.pack` command removes all deleted messages from the specified message base. When
+The [`BBS.pack`](#bbspack) command removes all deleted messages from the specified message base. When
 a message is deleted, it is really only flagged for deletion. To be completely removed, the message
 base must be packed. This is done in order to save time for the BBS user. Packing a large message base
 requires a lot of time; I therefore recommend that packing be done during
@@ -816,8 +831,8 @@ when more disk space is needed.
 
 **Syntax:** `BBS.read`
 
-The `BBS.read` command allows someone to read messages previously posted (see the `BBS.post`
-command). The `BBS.read` command will tell the user how many current messages exist, what his
+The [`BBS.read`](#bbsread) command allows someone to read messages previously posted (see the [`BBS.post`](#bbspost)
+command). The [`BBS.read`](#bbsread) command will tell the user how many current messages exist, what his
 current message number is, and prompt him for which message number to read. The user can also specify
 that he wants to read the next message, the previous message, or the next thread message (the next message with
 the same subject as the current message) or reply to the current message. The message will then be
@@ -827,11 +842,19 @@ listed. The user can then continue entering message numbers, or enter `q` to qui
 
 **Note:** This command requires the `/dd/bbs/BBS.alias` file to exist.
 
+### `BBS.reply`
+
+**Syntax:** `BBS.reply`
+
+[`BBS.reply`](#bbsreply) composes a response to the current message and keeps the reply in the same
+thread. It is invoked by [`BBS.read`](#bbsread), uses the original subject, and updates the message base
+and the caller's statistics.
+
 ### `BBS.forward`
 
 **Syntax:** `BBS.forward`
 
-The `BBS.forward` command works much the same as the `BBS.read` command, except that it reads
+The [`BBS.forward`](#bbsforward) command works much the same as the [`BBS.read`](#bbsread) command, except that it reads
 all messages following a certain message number.
 
 **Note:** This command also updates the `/dd/bbs/BBS.userstats` file.
@@ -842,9 +865,9 @@ all messages following a certain message number.
 
 **Syntax:** `BBS.new`
 
-The `BBS.new` command automatically reads all messages with a number higher than the last
-message read by that user. The `BBS.read`, `BBS.forward`, and `BBS.new` commands keep track of the
-last message read by each user. The `BBS.new` command can then read any message not previously
+The [`BBS.new`](#bbsnew) command automatically reads all messages with a number higher than the last
+message read by that user. The [`BBS.read`](#bbsread), [`BBS.forward`](#bbsforward), and [`BBS.new`](#bbsnew) commands keep track of the
+last message read by each user. The [`BBS.new`](#bbsnew) command can then read any message not previously
 read.
 
 **Note:** This command also updates the `/dd/bbs/BBS.userstats` file.
@@ -855,8 +878,8 @@ read.
 
 **Syntax:** `BBS.scan`
 
-The `BBS.scan` command is used to read the headers of all messages in the message base. When
-the `BBS.scan` command is executed it tells the user how many messages exist. It then prompts for the
+The [`BBS.scan`](#bbsscan) command is used to read the headers of all messages in the message base. When
+the [`BBS.scan`](#bbsscan) command is executed it tells the user how many messages exist. It then prompts for the
 first message number to scan. The message number, person who posted the message, date, and
 message subject are then displayed for those messages with a number higher than the number
 entered.
@@ -865,8 +888,8 @@ entered.
 
 **Syntax:** `BBS.search`
 
-The `BBS.search` command is used to search for a certain message subject. When the
-`BBS.search` command is executed, it prompts the user for the text to search for. The text is then
+The [`BBS.search`](#bbssearch) command is used to search for a certain message subject. When the
+[`BBS.search`](#bbssearch) command is executed, it prompts the user for the text to search for. The text is then
 searched for in the message subjects. A listing of what message subjects contain that text is then
 displayed.
 
@@ -880,17 +903,17 @@ All message subjects containing the word `modem` would then be found.
 
 **Syntax:** `BBS.mail.post`
 
-The `BBS.mail.post` command allows a BBS user to send mail to another BBS user. When the
+The [`BBS.mail.post`](#bbsmailpost) command allows a BBS user to send mail to another BBS user. When the
 command is invoked, it prompts for the name of the person to whom the mail should be sent. If
 the person's name entered is found in the `/dd/bbs/BBS.alias` file, the user is then prompted to enter
 the message subject. Once this is entered the user is given a maximum of 100 lines to leave his
-message. The `BBS.mail.post` command uses the same user-friendly editor as `BBS.post` and `BBS.build`.
+message. The [`BBS.mail.post`](#bbsmailpost) command uses the same user-friendly editor as [`BBS.post`](#bbspost) and [`BBS.build`](#bbsbuild).
 Once the message is entered, the mail is stored. When the receiver asks to read mail, he will
 receive the message. Mail is private; therefore, only the person receiving the mail can read his mail.
-The sysop can, however, list the entire mail file if he pleases. The sysop can also use the `Suser`
+The sysop can, however, list the entire mail file if he pleases. The sysop can also use the [`Suser`](#suser)
 command to set the user number and check a specific user's mail.
 
-**Note:** `BBS.mail.post` requires `/dd/bbs/BBS.alias`, which contains a list of all users' names or aliases
+**Note:** [`BBS.mail.post`](#bbsmailpost) requires `/dd/bbs/BBS.alias`, which contains a list of all users' names or aliases
 and their user numbers. Example:
 
 ```text
@@ -906,36 +929,36 @@ of real names.
 
 **Syntax:** `BBS.mail.check`
 
-The `BBS.mail.check` command allows a BBS user to see if the mail he sent has been received.
+The [`BBS.mail.check`](#bbsmailcheck) command allows a BBS user to see if the mail he sent has been received.
 
-The `BBS.mail.check` command immediately tells the user what messages have not yet been received.
+The [`BBS.mail.check`](#bbsmailcheck) command immediately tells the user what messages have not yet been received.
 A user can only check the mail that he has sent.
 
 ### `BBS.mail.read`
 
 **Syntax:** `BBS.mail.read`
 
-The `BBS.mail.read` command allows a BBS user to read any mail that has been sent to him. The
+The [`BBS.mail.read`](#bbsmailread) command allows a BBS user to read any mail that has been sent to him. The
 message will be listed along with who sent it. The user will then be asked if he wishes to reread the
 message (in case it scrolled off his screen). If not, the command will continue with the next message,
 and so on.
 
-**Note:** The messages will not be deleted with this command (see `BBS.mail.delete` and `BBS.mail.readD`).
+**Note:** The messages will not be deleted with this command (see [`BBS.mail.delete`](#bbsmaildelete) and [`BBS.mail.readD`](#bbsmailreadd)).
 
 ### `BBS.mail.readD`
 
 **Syntax:** `BBS.mail.readD`
 
-The `BBS.mail.readD` command is exactly like the `BBS.mail.read` command, except that if any
-messages were present, `BBS.mail.delete` is automatically called to delete them.
+The [`BBS.mail.readD`](#bbsmailreadd) command is exactly like the [`BBS.mail.read`](#bbsmailread) command, except that if any
+messages were present, [`BBS.mail.delete`](#bbsmaildelete) is automatically called to delete them.
 
 ### `BBS.mail.delete`
 
 **Syntax:** `BBS.mail.delete`
 
-The `BBS.mail.delete` command will delete any mail sent to the user WITHOUT READING IT. This
+The [`BBS.mail.delete`](#bbsmaildelete) command will delete any mail sent to the user WITHOUT READING IT. This
 command should only be executed after the mail has been read (this can be done automatically with
-`BBS.mail.readD`).
+[`BBS.mail.readD`](#bbsmailreadd)).
 
 ## File Retrieval Commands
 
@@ -943,10 +966,10 @@ command should only be executed after the mail has been read (this can be done a
 
 **Syntax:** `BBS.upload [<dirname>]`
 
-`BBS.upload` is an integrated file upload system. It prompts the user to enter the desired upload
+[`BBS.upload`](#bbsupload) is an integrated file upload system. It prompts the user to enter the desired upload
 protocol. The program then runs the appropriate upload program. If the file is uploaded
 without error, the user is prompted for a one-line description of the file. This description is then placed
-in a list file for later validation. This program requires that the programs `Uloadx`, `Uloadxc`, and `Uloady`
+in a list file for later validation. This program requires that the programs [`Uloadx`](#uloadx), [`Uloadxc`](#uloadxc), and [`Uloady`](#uloady)
 be in the current execution directory.
 
 **Note:** This command also updates the `/dd/bbs/BBS.userstats` file.
@@ -955,7 +978,7 @@ be in the current execution directory.
 
 **Syntax:** `Uloada [<filename>]`
 
-`Uloada` uploads a file using a simple ASCII protocol. With this protocol, you simply send the
+[`Uloada`](#uloada) uploads a file using a simple ASCII protocol. With this protocol, you simply send the
 information as an ASCII text file. When you are finished uploading, simply type `<CTRL><T>` and
 the upload will be terminated.
 
@@ -963,31 +986,31 @@ the upload will be terminated.
 
 **Syntax:** `Uloadx [<filename>]`
 
-`Uloadx` uploads a file using the XMODEM protocol as implemented by Ward Christensen. This
-program is automatically run by `BBS.upload` and need not be run by the sysop. If the filename is not
+[`Uloadx`](#uloadx) uploads a file using the XMODEM protocol as implemented by Ward Christensen. This
+program is automatically run by [`BBS.upload`](#bbsupload) and need not be run by the sysop. If the filename is not
 specified, the user is prompted for one.
 
 ### `Uloadxc`
 
 **Syntax:** `Uloadxc [<filename>]`
 
-`Uloadxc` uploads a file using the CRC version of the XMODEM upload program. This command
-is automatically run by `BBS.upload` and need not be run by the sysop. If the filename is not specified,
+[`Uloadxc`](#uloadxc) uploads a file using the CRC version of the XMODEM upload program. This command
+is automatically run by [`BBS.upload`](#bbsupload) and need not be run by the sysop. If the filename is not specified,
 the user is prompted for one.
 
 ### `Uloady`
 
 **Syntax:** `Uloady [<filename>]`
 
-`Uloady` uploads a file using the YMODEM protocol. This command is automatically run by
-`BBS.upload` and need not be run by the sysop. If the filename is not specified, the user is prompted
+[`Uloady`](#uloady) uploads a file using the YMODEM protocol. This command is automatically run by
+[`BBS.upload`](#bbsupload) and need not be run by the sysop. If the filename is not specified, the user is prompted
 for one.
 
 ### `BBS.download`
 
 **Syntax:** `BBS.download [<dirname>]`
 
-`BBS.download` is an integrated file download system. It prompts the user to enter the desired download
+[`BBS.download`](#bbsdownload) is an integrated file download system. It prompts the user to enter the desired download
 protocol. The program then runs the appropriate download program.
 
 **Note:** This command also updates the `/dd/bbs/BBS.userstats` file.
@@ -996,7 +1019,7 @@ protocol. The program then runs the appropriate download program.
 
 **Syntax:** `Dloada [<filename>]`
 
-`Dloada` is a download system command that allows the user to download files using the ASCII
+[`Dloada`](#dloada) is a download system command that allows the user to download files using the ASCII
 protocol. With this protocol, the ASCII text is simply sent through the BBS and the user can use a
 capture buffer to receive the information.
 
@@ -1004,32 +1027,32 @@ capture buffer to receive the information.
 
 **Syntax:** `Dloadx [<filename>]`
 
-`Dloadx` is a download system command that allows the user to download files from the board
+[`Dloadx`](#dloadx) is a download system command that allows the user to download files from the board
 using the XMODEM protocol implemented by Ward Christensen. If the filename is not specified, the
-user is prompted for one. This command is automatically run by `BBS.download`.
+user is prompted for one. This command is automatically run by [`BBS.download`](#bbsdownload).
 
 ### `Dloadxc`
 
 **Syntax:** `Dloadxc [<filename>]`
 
-`Dloadxc` is a download system command that allows the user to download files from the board
+[`Dloadxc`](#dloadxc) is a download system command that allows the user to download files from the board
 using the CRC version of the XMODEM protocol. This command is automatically run from
-`BBS.download` and need not be run by the sysop. If the filename is not specified, the user is prompted
+[`BBS.download`](#bbsdownload) and need not be run by the sysop. If the filename is not specified, the user is prompted
 for one.
 
 ### `Dloady`
 
 **Syntax:** `Dloady [<filename>]`
 
-`Dloady` is a download system command that allows the user to download files from the board
-using the YMODEM protocol. This command is automatically run from `BBS.download` and need not be
+[`Dloady`](#dloady) is a download system command that allows the user to download files from the board
+using the YMODEM protocol. This command is automatically run from [`BBS.download`](#bbsdownload) and need not be
 run by the sysop. If the filename is not specified, the user is prompted for one.
 
 ### `DLD.validate`
 
 **Syntax:** `DLD.validate [<dirname>]`
 
-`DLD.validate` is a download system command that allows the system operator to validate
+[`DLD.validate`](#dldvalidate) is a download system command that allows the system operator to validate
 uploads. When this program is run, the user is given a list of files not yet validated for download. The
 user can then either validate the file, download the file, or go on to the next file. If the user decides
 to validate the file, he will be prompted for a one-line description of the file (64-character maximum), a list
@@ -1037,11 +1060,19 @@ of keywords on which the file can be searched, and a paragraph description of th
 can then use this information to find and access the file. If `<dirname>` is not specified, the current
 directory is assumed. This is true of all upload/download commands.
 
+### `DLD.unvalidate`
+
+**Syntax:** `DLD.unvalidate [<dirname>]`
+
+[`DLD.unvalidate`](#dldunvalidate) removes a file's validated status from the download library in the
+specified directory, or the current directory when none is given. It updates `DLD.lst` without deleting
+the file itself.
+
 ### `DLD.add`
 
 **Syntax:** `DLD.add [<dirname>]`
 
-`DLD.add` is a download system command that allows the sysop to post downloads without
+[`DLD.add`](#dldadd) is a download system command that allows the sysop to post downloads without
 having them be uploaded. This allows the sysop to add new files to the current database without
 having to upload them.
 
@@ -1049,7 +1080,7 @@ having to upload them.
 
 **Syntax:** `DLD.search [<dirname>]`
 
-`DLD.search` is a download system command that allows users to search for files to download
+[`DLD.search`](#dldsearch) is a download system command that allows users to search for files to download
 using keywords. These keywords are the keywords entered by the sysop when he validates the
 program. When this command is run, the user is prompted for a keyword to search for. The user will
 then be given a list of all fields that are associated with that keyword.
@@ -1058,7 +1089,7 @@ then be given a list of all fields that are associated with that keyword.
 
 **Syntax:** `DLD.list [<dirname>]`
 
-`DLD.list` is a download system command that allows users to list all files currently validated for
+[`DLD.list`](#dldlist) is a download system command that allows users to list all files currently validated for
 downloading in the specified directory. When the command is run, the user is given a formatted listing
 of all files currently available.
 
@@ -1066,7 +1097,7 @@ of all files currently available.
 
 **Syntax:** `DLD.read [<dirname>]`
 
-`DLD.read` is a download system command that allows users to read the paragraph description
+[`DLD.read`](#dldread) is a download system command that allows users to read the paragraph description
 of a file validated for download. When this program is run, the user will be prompted for the name of
 the file to read. If the file has been validated for download, the paragraph description entered by the
 sysop will be displayed.
@@ -1118,7 +1149,7 @@ determined to be a normal user. Any number greater than 1000 is considered an el
 allowed access to the elite-user menu. This standard is compatible with that set forth in release 2.0
 of this system. Note that this is only a standard and is in NO WAY ENFORCED! If you want to
 change your user numbering system, possibly to include many different levels of users, this is
-completely up to you. The `Menu` command provides you with MAXIMUM flexibility in this area; you
+completely up to you. The [`Menu`](#menu) command provides you with MAXIMUM flexibility in this area; you
 can set up as many user levels as you like!
 
 The way you set up the board is completely up to you. I suggest adding your own
@@ -1172,7 +1203,7 @@ in managing the board.
 ### Build the MOTD File
 
 You are now ready to build the `motd` file. This file is listed on the user's screen when he logs in
-and must exist in the directory that `Tsmon` is run from. You can put whatever text you want in this file,
+and must exist in the directory that [`Tsmon`](#tsmon) is run from. You can put whatever text you want in this file,
 but it should contain the name of your board and any instructions necessary to log in.
 
 ### Build the EOTD File
@@ -1195,11 +1226,11 @@ directory that calls it. This means that your menu structure should follow your 
 the menu files should all have the same name, but be in different directories. For example, if you
 named your menu `BBS.menu` (as I did), and your command file `BBS.cmds` (as I did), then every
 directory that you want to call should have those two files in it. You then call the new menu by simply
-running the `chd` command to change to the new directory. The `Menu` program will then automatically use the new
+running the `chd` command to change to the new directory. The [`Menu`](#menu) program will then automatically use the new
 menu files.
 
 To actually create the menu, you can use any editor that you have available (`Build`, `Edit`, `Scred`,
-`Tsedit`, or even `BBS.build`). You should create the menu file exactly as you would like it to appear to
+`Tsedit`, or even [`BBS.build`](#bbsbuild)). You should create the menu file exactly as you would like it to appear to
 the user, with the addition of control commands for screen formatting (see [`Menu`](#menu) for more information).
 
 Once the menu file is created, you must create the command file. This also can be done with any
@@ -1208,23 +1239,23 @@ command line to execute for that option. The command file can be any OS-9 comman
 command, command file, or anything else that would be valid in an OS-9 command file. The only
 difference is the special commands (see [`Menu`](#menu) for more information). These special commands must
 be on a line by themselves. Typically the commands that you would put in a message base would be
-`BBS.post`, `BBS.delete`, `BBS.forward`, `BBS.scan`, `BBS.new`, etc.
+[`BBS.post`](#bbspost), [`BBS.delete`](#bbsdelete), [`BBS.forward`](#bbsforward), [`BBS.scan`](#bbsscan), [`BBS.new`](#bbsnew), etc.
 
 These two menu files must be created for every subdirectory that you want to have. These
 subdirectories then become submenus that perform different functions.
 
 ### Create All Message Bases
 
-You must now go to every directory that will contain a message base and execute `BBS.create`.
+You must now go to every directory that will contain a message base and execute [`BBS.create`](#bbscreate).
 This will initialize the message base so that new messages can be posted. If this is not done, any calls
-to `BBS.post` will return an error.
+to [`BBS.post`](#bbspost) will return an error.
 
 ### Create User List Files
 
 The next step in setting up the board is to construct the user list files. These files have to be
-`BBS.users` and `/dd/bbs/BBS.alias`. The `BBS.users` file must be in the same directory as `Tsmon` is run
+`BBS.users` and `/dd/bbs/BBS.alias`. The `BBS.users` file must be in the same directory as [`Tsmon`](#tsmon) is run
 from. I suggest using `/dd/bbs` to avoid confusion. The `BBS.users` file must have the user name IN
-CAPS, the user password IN CAPS, the command to execute (usually `Menu` or a command file), and
+CAPS, the user password IN CAPS, the command to execute (usually [`Menu`](#menu) or a command file), and
 the user's unique number. You must assign each user a number. Once you have created the user
 file you must create the alias file. This file contains the user's name or alias followed by a comma
 and the user's number. This is the name that the user will be referred to when posting mail and
@@ -1276,8 +1307,8 @@ help prevent the spread of viruses and Trojan horse programs.
 You should set up some way of initiating new users onto your board. This can be achieved
 by putting a special login in the users file called `NEW USER`. You should also assign some
 appropriate password. You can then give the instructions for new users in the `motd` file. The new
-user login should run the `New_user` command. This command will get all of the person's information
-and store it in a file or on the printer. See `New_user` for more information.
+user login should run the [`New_user`](#new_user) command. This command will get all of the person's information
+and store it in a file or on the printer. See [`New_user`](#new_user) for more information.
 
 ## ANSI Editor
 
@@ -1583,10 +1614,10 @@ cannot, it will return an error.
 
 Note that ALL reads and writes to `/Td` are passed through `/Wb` and `/Td`, but set-status and get-status
 calls are sent directly to `ACIAPAK`. What this means is that some things don't work in the window that
-do work on the port. One of these is `Tsmon`. `Tsmon` will NOT accept input from the window to
+do work on the port. One of these is [`Tsmon`](#tsmon). [`Tsmon`](#tsmon) will NOT accept input from the window to
 establish baud rate. It will also NOT accept characters from the window while in chat or conference
 mode. This turns out to be perfectly reasonable in that someone in the window should not be allowed
-to interfere with `Tsmon` and should not need to interfere with the chat or conference modes.
+to interfere with [`Tsmon`](#tsmon) and should not need to interfere with the chat or conference modes.
 
 The modules in the `MODULES` directory are described as follows:
 
@@ -1603,11 +1634,11 @@ patch yourself, call us at the number given below and we can give you the patch 
 
 ### Viewing the BBS
 
-Viewing the BBS while someone is online is very simple: run the `ViewBBS` command,
+Viewing the BBS while someone is online is very simple: run the [`ViewBBS`](#viewbbs) command,
 and a window will pop up displaying what the user is doing. Note that you would think that because
 the BBS runs in a window, you would be able to `<CLEAR>` to that window. But because of the way
 OS-9 handles windows, this is NOT the case. The window will only be accessible through the `<CLEAR>` key some of
-the time. This is a problem with OS-9 and NOT with the BBS system. Using the `ViewBBS` command
+the time. This is a problem with OS-9 and NOT with the BBS system. Using the [`ViewBBS`](#viewbbs) command
 will always show you the window.
 
 ## Troubleshooting
@@ -1625,9 +1656,9 @@ up.
 
 **Solution:**
 
-- Make sure that the `motd` file is in the directory that `Tsmon` was run from.
-- Make sure that the `CMDS` directory contains the `BBS.login` command.
-- Make sure that the file `BBS.users` is in the directory that `Tsmon` was run from.
+- Make sure that the `motd` file is in the directory that [`Tsmon`](#tsmon) was run from.
+- Make sure that the `CMDS` directory contains the [`BBS.login`](#bbslogin) command.
+- Make sure that the file `BBS.users` is in the directory that [`Tsmon`](#tsmon) was run from.
 - Make sure that there is enough remaining memory.
 
 **Problem:** The user gets in, but at a certain menu they get logged off.
