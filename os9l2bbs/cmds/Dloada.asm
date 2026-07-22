@@ -12,6 +12,8 @@
 * Annotated source and normalized comments.
 *          2026/07/21  Codex
 * Refined command annotations and normalized formatting.
+*          2026/07/22  Codex
+* Decoded start gating, line transfer, and inter-line abort polling.
 **********************************************************************
 
                     nam       Dloada
@@ -27,82 +29,91 @@ rev                 set       $01       ; set assembly-time module attribute rev
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_001      rmb       32        ; reserve 32 byte(s) in the module workspace
-WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_002      rmb       599       ; reserve 599 byte(s) in the module workspace
+SourcePathNum       rmb       1
+FilenameBuffer      rmb       32
+TransferBuffer      rmb       1         ; also receives the single-byte abort poll
+TransferBufferTail  rmb       599
 size                equ       .         ; define the assembly-time value for size
 
-name                fcs       /Dloada/ ; store an OS-9 high-bit-terminated string
-Text_001            fcc       "Enter filename to Download-->" ; store literal character data
-Text_002            fcc       "Press <SPACE> to abort" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_003            fcc       "Press <ENTER> to begin" ; store literal character data
-                    fcb       $0D       ; store byte data
-Data_001            fcb       $18       ; store byte data
-Data_002            fcb       $20       ; store byte data
-start               lda       #1        ; set a to the constant 1
-                    os9       I$Open    ; open the path at X using access mode A
-                    bcs       Branch_001 ; branch when carry reports an error or unsigned underflow; target Branch_001
-                    bra       Branch_002 ; continue execution at Branch_002
-Branch_001          leax      >Text_001,pc ; form the address >Text_001,pc in x
-                    ldy       #29       ; set y to the constant 29
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-                    ldy       #32       ; set y to the constant 32
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      Branch_003 ; branch when carry reports an error or unsigned underflow; target Branch_003
-Branch_002          sta       WorkByte_001,u ; store a at WorkByte_001,u
-                    leax      >Text_002,pc ; form the address >Text_002,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >Text_003,pc ; form the address >Text_003,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-Branch_004          leax      <WorkByte_002,u ; form the address <WorkByte_002,u in x
-                    ldy       #1        ; set y to the constant 1
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    lda       <WorkByte_002,u ; load a from <WorkByte_002,u
-                    cmpa      #32       ; compare a with #32 and set the condition codes
-                    lbeq      Branch_005 ; branch when the values are equal or the result is zero; target Branch_005
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    bne       Branch_004 ; branch when the values differ or the result is nonzero; target Branch_004
-                    leax      >Data_001,pc ; form the address >Data_001,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-Branch_006          lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    leax      <WorkByte_002,u ; form the address <WorkByte_002,u in x
-                    ldy       #200      ; set y to the constant 200
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    bcs       Branch_005 ; branch when carry reports an error or unsigned underflow; target Branch_005
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    clra                ; clear a to zero and set the condition codes
-                    ldb       #1        ; set b to the constant 1
-                    os9       I$GetStt  ; query status code B for path A
-                    bcs       Branch_006 ; branch when carry reports an error or unsigned underflow; target Branch_006
-                    ldy       #1        ; set y to the constant 1
-                    leax      <WorkByte_002,u ; form the address <WorkByte_002,u in x
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    lda       ,x        ; load a from ,x
-                    cmpa      #32       ; compare a with #32 and set the condition codes
-                    bne       Branch_006 ; branch when the values differ or the result is nonzero; target Branch_006
-Branch_005          clrb                ; clear b to zero and set the condition codes
-Branch_003          pshs      b         ; save b on the stack
-                    leax      >Data_002,pc ; form the address >Data_002,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    puls      b         ; restore b from the stack
-                    os9       F$Exit    ; terminate the process with status B
+name                fcs       /Dloada/ ; publish the transfer-engine module name
+FilenamePrompt      fcc       "Enter filename to Download-->"
+AbortNotice         fcc       "Press <SPACE> to abort"
+                    fcb       $0D       ; terminate the abort instruction
+BeginNotice         fcc       "Press <ENTER> to begin"
+                    fcb       $0D       ; terminate the start instruction
+StartControlByte    fcb       $18       ; emit ctrl-x immediately before file data
+ExitSpaceByte       fcb       $20       ; emit a final space on every exit path
 
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+* first treat the command line as a pathname.  If it cannot be opened, prompt
+* for a replacement name and propagate failure from that second attempt.
+start               lda       #1        ; request read access to the supplied pathname
+                    os9       I$Open    ; try the filename already addressed by x
+                    bcs       PromptFilename ; interactively recover from a missing argument or bad path
+                    bra       FileReady ; retain the successfully opened source
+PromptFilename      leax      >FilenamePrompt,pc ; prepare the inline filename prompt
+                    ldy       #29       ; write its exact unterminated length
+                    lda       #1        ; direct the prompt to the terminal
+                    os9       I$Write   ; leave the cursor ready for input
+                    leax      FilenameBuffer,u ; receive a replacement pathname
+                    ldy       #32       ; enforce the allocated filename limit
+                    clra                ; select standard input
+                    os9       I$ReadLn  ; read the CR-terminated filename
+                    leax      FilenameBuffer,u ; select the entered pathname
+                    lda       #1        ; request read access
+                    os9       I$Open    ; open the interactively selected source
+                    lbcs      ExitWithStatus ; preserve the open error if recovery fails
+FileReady           sta       SourcePathNum,u ; retain the source-file path number
+                    leax      >AbortNotice,pc ; prepare the transfer cancellation instruction
+                    ldy       #200      ; allow I$WritLn to stop at its CR
+                    lda       #1        ; direct instructions to the terminal
+                    os9       I$WritLn  ; explain the space-bar abort key
+                    leax      >BeginNotice,pc ; prepare the explicit start instruction
+                    ldy       #200      ; allow I$WritLn to stop at its CR
+                    os9       I$WritLn  ; require confirmation before sending file bytes
+
+* wait indefinitely for enter; space cancels cleanly and every other byte is
+* ignored.  The historical ctrl-x byte marks the beginning of outbound data.
+WaitForStart        leax      <TransferBuffer,u ; reuse the first transfer byte for keyboard input
+                    ldy       #1        ; read one decision byte
+                    clra                ; select standard input
+                    os9       I$Read    ; wait for the user's start or abort key
+                    lda       <TransferBuffer,u ; inspect the received byte
+                    cmpa      #32       ; recognize space as cancellation
+                    lbeq      TransferComplete ; leave without transmitting source data
+                    cmpa      #13       ; recognize carriage return as confirmation
+                    bne       WaitForStart ; ignore unrelated input
+                    leax      >StartControlByte,pc ; select the historical ctrl-x transfer marker
+                    ldy       #1        ; send only that marker byte
+                    os9       I$Write   ; announce the start to the receiving terminal
+
+* transfer CR-terminated source lines.  After each complete line, SS.Ready
+* polls standard input without blocking; a queued space aborts between lines.
+SendNextLine        lda       SourcePathNum,u ; select the source file
+                    leax      <TransferBuffer,u ; receive the next outbound line
+                    ldy       #200      ; limit each line read to the active buffer window
+                    os9       I$ReadLn  ; fetch through the source carriage return
+                    bcs       TransferComplete ; treat source EOF or read failure as completion
+                    lda       #1        ; select terminal output
+                    os9       I$WritLn  ; transmit the complete source line
+                    clra                ; select standard input for the readiness query
+                    ldb       #1        ; request the ready-byte count
+                    os9       I$GetStt  ; test whether an abort key is waiting
+                    bcs       SendNextLine ; continue immediately when no input is queued
+                    ldy       #1        ; consume exactly one queued key
+                    leax      <TransferBuffer,u ; reuse the transfer buffer for the key
+                    os9       I$Read    ; remove the queued byte from terminal input
+                    lda       ,x        ; inspect the possible abort key
+                    cmpa      #32       ; recognize only space as an inter-line abort
+                    bne       SendNextLine ; discard other queued keys and keep sending
+TransferComplete    clrb                ; make EOF and user cancellation successful
+ExitWithStatus      pshs      b         ; preserve success or the earlier open error during cleanup
+                    leax      >ExitSpaceByte,pc ; select the historical trailing space
+                    ldy       #1        ; emit exactly one cleanup byte
+                    lda       #1        ; direct cleanup to the terminal
+                    os9       I$Write   ; leave the receiver with the expected trailing space
+                    puls      b         ; restore the final process status
+                    os9       F$Exit    ; return success or the preserved open failure
+
+                    emod                ; emit the OS-9 module CRC and trailer
+eom                 equ       *         ; mark the module end for the size expression
+                    end                 ; end the assembly source
