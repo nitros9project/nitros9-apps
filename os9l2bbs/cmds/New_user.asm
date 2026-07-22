@@ -18,6 +18,8 @@
 * Decoded compiler startup, relocation, stack guards, and process exit.
 *          2026/07/21  Codex
 * Decoded stream-slot allocation and low-level OS-9 file wrappers.
+*          2026/07/21  Codex
+* Decoded mode parsing and fopen/fdopen/freopen stream construction.
 **********************************************************************
 
                     nam       New_user
@@ -42,6 +44,12 @@ RuntimeSeekLow      equ       $01A3     ; low word of the last seek result
 RuntimeHeapEnd      equ       $01A9     ; first byte unavailable to heap allocation
 RuntimeStackLowWater equ       $01AB     ; deepest stack address validated so far
 RuntimeErrorCode    equ       $01AD     ; last library or OS-9 error code
+
+OpenModeRead        equ       $0001     ; permit reads
+OpenModeWrite       equ       $0002     ; permit writes
+OpenModeUpdate      equ       $0003     ; permit both reads and writes
+OpenModeExecute     equ       $0004     ; permit execution access
+OpenModeDirectory   equ       $0080     ; request OS-9 directory access
 ApplicantName       equ       $01AF     ; caller's real name
 ApplicantCity       equ       $01FF     ; caller's city
 ApplicantState      equ       $024F     ; caller's state
@@ -65,6 +73,16 @@ WorkBuffer_003      rmb       3         ; reserve 3 byte(s) in the module worksp
 WorkWord_007        rmb       2         ; reserve 2 byte(s) in the module workspace
 WorkBuffer_004      rmb       1418      ; reserve 1418 byte(s) in the module workspace
 size                equ       .         ; define the assembly-time value for size
+
+* compiler stream descriptor layout; each entry occupies thirteen bytes
+StreamCursor        equ       WorkByte_001 ; next buffered byte or write position
+StreamBufferStart   equ       WorkWord_001 ; first byte in the assigned buffer
+StreamBufferEnd     equ       WorkWord_002 ; byte just beyond the assigned buffer
+StreamFlags         equ       WorkWord_003 ; access and buffering state bits
+StreamPath          equ       WorkWord_004 ; underlying OS-9 path number
+StreamPushbackByte  equ       WorkByte_003 ; one-byte ungetc storage
+StreamBufferSize    equ       WorkWord_005 ; capacity of the assigned buffer
+StreamDescriptorSize equ       WorkBuffer_001 ; distance between descriptor entries
 
 name                fcs       /New_user/ ; module name exposed to OS-9
                     fcb       $01       ; compiler startup-format version byte
@@ -536,11 +554,11 @@ stk_alloc_saved_u   equ       0         ; caller's U after the entry push
 stk_alloc_return    equ       2         ; caller return address
                     pshs      u         ; preserve the caller's descriptor pointer
                     leau      >$000E,y  ; select the first of sixteen stream descriptors
-ScanStreamSlots     ldd       WorkWord_003,u ; inspect this descriptor's state flags
+ScanStreamSlots     ldd       StreamFlags,u ; inspect this descriptor's state flags
                     clra                ; isolate its low-byte open/read bits
                     andb      #3
                     lbeq      ReturnFreeStreamSlot ; reuse an inactive descriptor
-                    leau      WorkBuffer_001,u ; advance by one descriptor structure
+                    leau      StreamDescriptorSize,u ; advance by one descriptor structure
                     pshs      u         ; compare the candidate with the table end
                     leax      >$00DE,y  ; point just beyond the final descriptor
                     cmpx      ,s++
@@ -550,210 +568,222 @@ ScanStreamSlots     ldd       WorkWord_003,u ; inspect this descriptor's state f
                     lbra      StreamSetupFailed
                     fcb       $35       ; store byte data
                     fcb       $C0       ; store byte data
-Routine_016         pshs      u         ; save u on the stack
-                    ldu       $08,s     ; load u from the current stack frame at $08,s
-                    bne       Branch_027 ; branch when the values differ or the result is nonzero; target Branch_027
-                    bsr       AllocateStreamSlot ; call subroutine AllocateStreamSlot
-                    tfr       d,u       ; copy the register values specified by d,u
-Branch_027          stu       -$02,s    ; store u in the current stack frame at -$02,s
-                    beq       StreamSetupFailed ; branch when the values are equal or the result is zero; target StreamSetupFailed
-                    ldd       $04,s     ; load d from the current stack frame at $04,s
-                    std       WorkWord_004,u ; store d at WorkWord_004,u
-                    ldx       $06,s     ; load x from the current stack frame at $06,s
-                    ldb       $01,x     ; load b from $01,x
-                    cmpb      #43       ; compare b with #43 and set the condition codes
-                    beq       Branch_028 ; branch when the values are equal or the result is zero; target Branch_028
-                    ldx       $06,s     ; load x from the current stack frame at $06,s
-                    ldb       $02,x     ; load b from $02,x
-                    cmpb      #43       ; compare b with #43 and set the condition codes
-                    bne       Branch_029 ; branch when the values differ or the result is nonzero; target Branch_029
-Branch_028          ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    orb       #3        ; set selected bits in b using #3
-                    bra       Branch_030 ; continue execution at Branch_030
-Branch_029          ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    pshs      d         ; save d on the stack
-                    ldb       [<$08,s]  ; load b from the current stack frame at [<$08,s]
-                    cmpb      #114      ; compare b with #114 and set the condition codes
-                    beq       Branch_031 ; branch when the values are equal or the result is zero; target Branch_031
-                    ldb       [<$08,s]  ; load b from the current stack frame at [<$08,s]
-                    cmpb      #100      ; compare b with #100 and set the condition codes
-                    bne       Branch_032 ; branch when the values differ or the result is nonzero; target Branch_032
-Branch_031          ldd       #1        ; set d to the constant 1
-                    bra       Branch_033 ; continue execution at Branch_033
-Branch_032          ldd       #2        ; set d to the constant 2
-Branch_033          ora       ,s+       ; set selected bits in a using ,s+
-                    orb       ,s+       ; set selected bits in b using ,s+
-Branch_030          std       WorkWord_003,u ; store d at WorkWord_003,u
-                    ldd       WorkWord_001,u ; load d from WorkWord_001,u
-                    addd      WorkWord_005,u ; add to d using WorkWord_005,u
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    std       WorkByte_001,u ; store d at WorkByte_001,u
+InitializeStreamDescriptor
+stk_init_saved_u    equ       0         ; caller's U after the entry push
+stk_init_return     equ       2         ; caller return address
+stk_init_path       equ       4         ; path number supplied by OS-9
+stk_init_mode       equ       6         ; mode-string pointer
+stk_init_stream     equ       8         ; supplied descriptor or null
+                    pshs      u         ; preserve the caller's descriptor register
+                    ldu       $08,s     ; reuse a caller-supplied stream when present
+                    bne       HaveStreamDescriptor
+                    bsr       AllocateStreamSlot ; otherwise claim an inactive table entry
+                    tfr       d,u       ; use the allocator's descriptor pointer
+HaveStreamDescriptor
+                    stu       -$02,s    ; mirror the pointer in the compiler spill slot and set Z
+                    beq       StreamSetupFailed ; propagate table exhaustion as null
+                    ldd       $04,s     ; attach the already-open OS-9 path
+                    std       StreamPath,u
+                    ldx       $06,s     ; inspect the textual access mode
+                    ldb       $01,x     ; a plus in either modifier position means update access
+                    cmpb      #'+'
+                    beq       MarkStreamForUpdate
+                    ldx       $06,s
+                    ldb       $02,x
+                    cmpb      #'+'
+                    bne       MarkSingleDirection
+MarkStreamForUpdate
+                    ldd       StreamFlags,u ; retain buffering state already assigned to the slot
+                    orb       #OpenModeUpdate ; allow both buffered reads and writes
+                    bra       FinishStreamDescriptor
+MarkSingleDirection
+                    ldd       StreamFlags,u ; preserve all unrelated stream state bits
+                    pshs      d         ; hold those bits while deriving the access direction
+                    ldb       [<$08,s]  ; recover the mode string after the temporary push
+                    cmpb      #'r'
+                    beq       SelectReadDirection
+                    ldb       [<$08,s]
+                    cmpb      #'d'      ; directory streams are read-only
+                    bne       SelectWriteDirection
+SelectReadDirection
+                    ldd       #OpenModeRead
+                    bra       MergeStreamDirection
+SelectWriteDirection
+                    ldd       #OpenModeWrite ; append and write modes produce output streams
+MergeStreamDirection
+                    ora       ,s+       ; restore the existing high flag byte
+                    orb       ,s+       ; merge the access bits into its low byte
+FinishStreamDescriptor
+                    std       StreamFlags,u
+                    ldd       StreamBufferStart,u ; calculate the boundary of any assigned buffer
+                    addd      StreamBufferSize,u
+                    std       StreamBufferEnd,u
+                    std       StreamCursor,u ; an empty stream begins at that boundary
 ReturnFreeStreamSlot
                     tfr       u,d       ; return the available descriptor pointer
                     puls      pc,u
 StreamSetupFailed   clra                ; return a null descriptor pointer
                     clrb
                     puls      pc,u
-Routine_017         pshs      u         ; save u on the stack
-                    ldu       $04,s     ; load u from the current stack frame at $04,s
-                    leas      -$04,s    ; adjust the system stack pointer
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    std       ,s        ; store d in the current stack frame at ,s
-                    ldx       $0A,s     ; load x from the current stack frame at $0A,s
-                    ldb       $01,x     ; load b from $01,x
-                    sex                 ; sign-extend b into d
-                    tfr       d,x       ; copy the register values specified by d,x
-                    bra       Branch_034 ; continue execution at Branch_034
-Branch_035          ldx       $0A,s     ; load x from the current stack frame at $0A,s
-                    ldb       $02,x     ; load b from $02,x
-                    cmpb      #43       ; compare b with #43 and set the condition codes
-                    bne       Branch_036 ; branch when the values differ or the result is nonzero; target Branch_036
-                    ldd       #7        ; set d to the constant 7
-                    bra       Branch_037 ; continue execution at Branch_037
-Branch_036          ldd       #4        ; set d to the constant 4
-                    bra       Branch_037 ; continue execution at Branch_037
-Branch_038          ldd       #3        ; set d to the constant 3
-Branch_037          std       ,s        ; store d in the current stack frame at ,s
-                    bra       Branch_039 ; continue execution at Branch_039
-Branch_040          leax      $04,s     ; form the address $04,s in x
-                    lbra      Branch_041 ; continue execution at Branch_041
-Branch_034          stx       -$02,s    ; store x in the current stack frame at -$02,s
-                    beq       Branch_039 ; branch when the values are equal or the result is zero; target Branch_039
-                    cmpx      #120      ; compare x with #120 and set the condition codes
-                    beq       Branch_035 ; branch when the values are equal or the result is zero; target Branch_035
-                    cmpx      #43       ; compare x with #43 and set the condition codes
-                    beq       Branch_038 ; branch when the values are equal or the result is zero; target Branch_038
-                    bra       Branch_040 ; continue execution at Branch_040
-Branch_039          ldb       [<$0A,s]  ; load b from the current stack frame at [<$0A,s]
-                    sex                 ; sign-extend b into d
-                    tfr       d,x       ; copy the register values specified by d,x
-                    lbra      Branch_042 ; continue execution at Branch_042
-Branch_043          ldd       ,s        ; load d from the current stack frame at ,s
-                    orb       #1        ; set selected bits in b using #1
-                    bra       Branch_044 ; continue execution at Branch_044
-Branch_045          ldd       ,s        ; load d from the current stack frame at ,s
-                    orb       #2        ; set selected bits in b using #2
-                    pshs      d         ; save d on the stack
-                    pshs      u         ; save u on the stack
-                    lbsr      OpenPath  ; call subroutine OpenPath
-                    leas      $04,s     ; adjust the system stack pointer
-                    std       $02,s     ; store d in the current stack frame at $02,s
-                    cmpd      #-1       ; compare d with #-1 and set the condition codes
-                    beq       Branch_046 ; branch when the values are equal or the result is zero; target Branch_046
-                    ldd       #2        ; set d to the constant 2
-                    pshs      d         ; save d on the stack
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    pshs      d         ; save d on the stack
-                    pshs      d         ; save d on the stack
-                    ldd       $08,s     ; load d from the current stack frame at $08,s
-                    pshs      d         ; save d on the stack
-                    lbsr      SeekPath  ; call subroutine SeekPath
-                    leas      $08,s     ; adjust the system stack pointer
-                    bra       Branch_047 ; continue execution at Branch_047
-Branch_046          ldd       ,s        ; load d from the current stack frame at ,s
-                    orb       #2        ; set selected bits in b using #2
-                    pshs      d         ; save d on the stack
-                    pshs      u         ; save u on the stack
-                    lbsr      CreateOrTruncatePath ; call subroutine CreateOrTruncatePath
-                    bra       Branch_048 ; continue execution at Branch_048
-Branch_049          ldd       ,s        ; load d from the current stack frame at ,s
-                    orb       #129      ; set selected bits in b using #129
-Branch_044          pshs      d         ; save d on the stack
-                    pshs      u         ; save u on the stack
-                    lbsr      OpenPath  ; call subroutine OpenPath
-Branch_048          leas      $04,s     ; adjust the system stack pointer
-                    std       $02,s     ; store d in the current stack frame at $02,s
-                    bra       Branch_047 ; continue execution at Branch_047
-Branch_041          leas      -$04,x    ; adjust the system stack pointer
-Branch_050          ldd       #203      ; set d to the constant 203
-                    std       >RuntimeErrorCode,y ; store d at >RuntimeErrorCode,y
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    bra       Branch_051 ; continue execution at Branch_051
-Branch_042          cmpx      #114      ; compare x with #114 and set the condition codes
-                    lbeq      Branch_043 ; branch when the values are equal or the result is zero; target Branch_043
-                    cmpx      #97       ; compare x with #97 and set the condition codes
-                    lbeq      Branch_045 ; branch when the values are equal or the result is zero; target Branch_045
-                    cmpx      #119      ; compare x with #119 and set the condition codes
-                    beq       Branch_046 ; branch when the values are equal or the result is zero; target Branch_046
-                    cmpx      #100      ; compare x with #100 and set the condition codes
-                    beq       Branch_049 ; branch when the values are equal or the result is zero; target Branch_049
-                    bra       Branch_050 ; continue execution at Branch_050
-Branch_047          ldd       $02,s     ; load d from the current stack frame at $02,s
-Branch_051          leas      $04,s     ; adjust the system stack pointer
-                    puls      pc,u      ; restore pc,u and return to the caller
-                    fcc       "4@O_4" ; store literal character data
-                    fcb       $06       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $68       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $68       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $16       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcc       "K" ; store literal character data
-OpenFileStream      pshs      u         ; save u on the stack
-                    ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    ldd       $06,s     ; load d from the current stack frame at $06,s
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_017 ; call subroutine Routine_017
-                    leas      $04,s     ; adjust the system stack pointer
-                    tfr       d,u       ; copy the register values specified by d,u
-                    cmpu      #-1       ; compare u with #-1 and set the condition codes
-                    bne       Branch_052 ; branch when the values differ or the result is nonzero; target Branch_052
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    bra       Branch_053 ; continue execution at Branch_053
-Branch_052          clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    bra       Branch_054 ; continue execution at Branch_054
-                    fcb       $34       ; store byte data
-                    fcb       $40       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $68       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $A3       ; store byte data
-                    fcb       $32       ; store byte data
-                    fcb       $62       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $66       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $17       ; store byte data
-                    fcb       $FE       ; store byte data
-                    fcb       $F4       ; store byte data
-                    fcb       $32       ; store byte data
-                    fcb       $64       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $03       ; store byte data
-                    fcb       $EF       ; store byte data
-                    fcb       $7E       ; store byte data
-                    fcb       $2C       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcc       "O_ " ; store literal character data
-                    fcb       $0F       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $68       ; store byte data
-Branch_054          pshs      d         ; save d on the stack
-                    ldd       $08,s     ; load d from the current stack frame at $08,s
-                    pshs      d         ; save d on the stack
-                    pshs      u         ; save u on the stack
-                    lbsr      Routine_016 ; call subroutine Routine_016
-                    leas      $06,s     ; adjust the system stack pointer
-Branch_053          puls      pc,u      ; restore pc,u and return to the caller
+OpenPathFromMode
+stk_mode_flags      equ       0         ; access mode assembled for OS-9
+stk_mode_result     equ       2         ; returned path number
+stk_mode_saved_u    equ       4         ; caller's U after local allocation
+stk_mode_return     equ       6         ; caller return address
+stk_mode_name       equ       8         ; pathname pointer
+stk_mode_string     equ       10        ; pointer to the C mode string
+                    pshs      u         ; preserve U while it carries the pathname
+                    ldu       $04,s     ; keep the pathname ready for OS-9 wrappers
+                    leas      -$04,s    ; reserve access flags and path-result locals
+                    clra
+                    clrb
+                    std       ,s        ; begin with no access bits selected
+                    ldx       $0A,s     ; inspect the first optional mode character
+                    ldb       $01,x
+                    sex                 ; widen it for the compiler's switch sequence
+                    tfr       d,x
+                    bra       DecodeModeModifier
+DecodeExecuteModifier
+                    ldx       $0A,s     ; an x modifier requests OS-9 execute access
+                    ldb       $02,x
+                    cmpb      #'+'      ; x+ combines execute with read/write access
+                    bne       SelectExecuteMode
+                    ldd       #OpenModeRead+OpenModeWrite+OpenModeExecute
+                    bra       SaveOpenMode
+SelectExecuteMode   ldd       #OpenModeExecute
+                    bra       SaveOpenMode
+DecodeUpdateModifier
+                    ldd       #OpenModeUpdate
+SaveOpenMode        std       ,s
+                    bra       DecodePrimaryMode
+RejectModeModifier  leax      $04,s     ; preserve the compiler-generated frame adjustment
+                    lbra      RestoreModeParserFrame
+DecodeModeModifier  stx       -$02,s    ; retain the widened switch value in its spill slot
+                    beq       DecodePrimaryMode ; an absent modifier leaves the mode at zero
+                    cmpx      #'x'
+                    beq       DecodeExecuteModifier
+                    cmpx      #'+'
+                    beq       DecodeUpdateModifier
+                    bra       RejectModeModifier
+DecodePrimaryMode   ldb       [<$0A,s]  ; dispatch on the leading mode character
+                    sex
+                    tfr       d,x
+                    lbra      SelectPrimaryMode
+SelectReadMode      ldd       ,s
+                    orb       #OpenModeRead ; ensure r includes read access
+                    bra       OpenSelectedPath
+SelectAppendMode    ldd       ,s
+                    orb       #OpenModeWrite ; append requires write access
+                    pshs      d
+                    pshs      u
+                    lbsr      OpenPath  ; preserve existing contents when the file exists
+                    leas      $04,s
+                    std       $02,s
+                    cmpd      #-1
+                    beq       CreateAppendPath ; create the file when opening it fails
+                    ldd       #2        ; seek relative to end-of-file
+                    pshs      d
+                    clra
+                    clrb
+                    pshs      d         ; append adds a zero 32-bit offset
+                    pshs      d
+                    ldd       $08,s     ; recover the opened path number
+                    pshs      d
+                    lbsr      SeekPath
+                    leas      $08,s
+                    bra       ReturnModePath
+CreateAppendPath    ldd       ,s
+                    orb       #OpenModeWrite
+                    pshs      d
+                    pshs      u
+                    lbsr      CreateOrTruncatePath ; create an initially empty target
+                    bra       SaveModePath
+SelectDirectoryMode
+                    ldd       ,s
+                    orb       #OpenModeDirectory+OpenModeRead ; directory records are read-only
+OpenSelectedPath    pshs      d
+                    pshs      u
+                    lbsr      OpenPath
+SaveModePath        leas      $04,s
+                    std       $02,s     ; retain the path while unwinding locals
+                    bra       ReturnModePath
+RestoreModeParserFrame
+                    leas      -$04,x    ; reconstruct the parser's original local stack
+InvalidModeString   ldd       #E$BMode  ; publish the compiler runtime's bad-mode error
+                    std       >RuntimeErrorCode,y
+                    clra
+                    clrb                ; preserve the original runtime's anomalous zero result
+                    bra       FinishModeOpen
+SelectPrimaryMode   cmpx      #'r'
+                    lbeq      SelectReadMode
+                    cmpx      #'a'
+                    lbeq      SelectAppendMode
+                    cmpx      #'w'
+                    beq       CreateAppendPath ; write mode always truncates or creates
+                    cmpx      #'d'
+                    beq       SelectDirectoryMode
+                    bra       InvalidModeString
+ReturnModePath      ldd       $02,s
+FinishModeOpen      leas      $04,s     ; release access and result locals
+                    puls      pc,u
+* encoded fdopen-style entry point: attach a supplied OS-9 path to a free stream.
+AttachExistingPathStream
+                    fcb       $34,$40   ; preserve U
+                    fcb       $4F,$5F   ; select a null descriptor for allocation
+                    fcb       $34,$06   ; pass the null descriptor
+                    fcb       $EC,$68   ; recover the mode-string pointer
+                    fcb       $34,$06   ; pass the mode string
+                    fcb       $EC,$68   ; recover the caller's path number
+                    fcb       $34,$06   ; pass the path number
+                    fcb       $16,$00,$4B ; join AttachOpenedPath
+OpenFileStream
+stk_fopen_saved_u   equ       0         ; caller's U after the entry push
+stk_fopen_return    equ       2         ; caller return address
+stk_fopen_name      equ       4         ; pathname pointer
+stk_fopen_mode      equ       6         ; mode-string pointer
+                    pshs      u         ; preserve U while it carries the opened path
+                    ldd       $06,s     ; pass the textual mode
+                    pshs      d
+                    ldd       $06,s     ; pass the pathname after the first push
+                    pshs      d
+                    lbsr      OpenPathFromMode ; translate the mode and obtain an OS-9 path
+                    leas      $04,s
+                    tfr       d,u       ; retain the path while building its descriptor
+                    cmpu      #-1
+                    bne       PathOpenSucceeded
+                    clra
+                    clrb                ; fopen-style failure returns a null stream
+                    bra       ReturnOpenStream
+PathOpenSucceeded   clra
+                    clrb                ; request allocation of a new descriptor
+                    bra       AttachOpenedPath
+* encoded freopen-style entry point: close a stream, reopen a pathname, then
+* initialize the caller's original descriptor around the replacement path.
+ReopenFileStream
+                    fcb       $34,$40   ; preserve U
+                    fcb       $EC,$68   ; recover the stream being replaced
+                    fcb       $34,$06   ; pass it to CloseStream
+                    fcb       $17,$06,$A3 ; close and release its current path
+                    fcb       $32,$62   ; discard the close argument
+                    fcb       $EC,$66   ; recover the replacement mode string
+                    fcb       $34,$06   ; pass the mode string
+                    fcb       $EC,$66   ; recover the replacement pathname
+                    fcb       $34,$06   ; pass the pathname
+                    fcb       $17,$FE,$F4 ; open the replacement OS-9 path
+                    fcb       $32,$64   ; discard both open arguments
+                    fcb       $1F,$03   ; retain the returned path in U
+                    fcb       $EF,$7E   ; spill U below S and expose its sign
+                    fcb       $2C,$04   ; continue when the path is nonnegative
+                    fcb       $4F,$5F   ; return a null stream after open failure
+                    fcb       $20,$0F   ; join ReturnOpenStream
+                    fcb       $EC,$68   ; reuse the caller's original descriptor
+AttachOpenedPath    pshs      d         ; pass the supplied or null descriptor
+                    ldd       $08,s     ; recover and pass the mode string
+                    pshs      d
+                    pshs      u         ; pass the opened OS-9 path
+                    lbsr      InitializeStreamDescriptor
+                    leas      $06,s
+ReturnOpenStream    puls      pc,u
 ReadInputLine       pshs      u,d       ; save u,d on the stack
                     ldu       $06,s     ; load u from the current stack frame at $06,s
                     bra       Branch_055 ; continue execution at Branch_055
@@ -777,7 +807,7 @@ Branch_057          ldd       ,s        ; load d from the current stack frame at
                     bra       Branch_059 ; continue execution at Branch_059
 Branch_058          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    stb       WorkByte_001,u ; store b at WorkByte_001,u
+                    stb       StreamCursor,u ; store b at StreamCursor,u
                     ldd       $06,s     ; load d from the current stack frame at $06,s
 Branch_059          leas      $02,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
@@ -1229,7 +1259,7 @@ Branch_102          ldd       $04,s     ; load d from the current stack frame at
                     stb       ,u+       ; store b at ,u+
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    stb       WorkByte_001,u ; store b at WorkByte_001,u
+                    stb       StreamCursor,u ; store b at StreamCursor,u
                     ldd       $0A,s     ; load d from the current stack frame at $0A,s
                     leas      $06,s     ; adjust the system stack pointer
                     puls      pc,u      ; restore pc,u and return to the caller
@@ -1252,7 +1282,7 @@ Branch_107          ldd       $06,s     ; load d from the current stack frame at
                     std       $06,s     ; store d in the current stack frame at $06,s
                     bne       Branch_107 ; branch when the values differ or the result is nonzero; target Branch_107
                     bra       Branch_108 ; continue execution at Branch_108
-Branch_109          ldb       WorkByte_001,u ; load b from WorkByte_001,u
+Branch_109          ldb       StreamCursor,u ; load b from StreamCursor,u
                     ldx       ,s        ; load x from the current stack frame at ,s
                     leax      $01,x     ; form the address $01,x in x
                     stx       ,s        ; store x in the current stack frame at ,s
@@ -1304,7 +1334,7 @@ Branch_114          addd      ,s++      ; add to d using ,s++
                     std       $08,s     ; store d in the current stack frame at $08,s
                     bne       Branch_110 ; branch when the values differ or the result is nonzero; target Branch_110
                     bra       Branch_115 ; continue execution at Branch_115
-Branch_116          ldb       WorkByte_001,u ; load b from WorkByte_001,u
+Branch_116          ldb       StreamCursor,u ; load b from StreamCursor,u
                     ldx       $02,s     ; load x from the current stack frame at $02,s
                     leax      $01,x     ; form the address $01,x in x
                     stx       $02,s     ; store x in the current stack frame at $02,s
@@ -1391,7 +1421,7 @@ Branch_128          ldb       ,u+       ; load b from ,u+
                     pshs      d         ; save d on the stack
                     jsr       [<$06,s]  ; call subroutine [<$06,s]
                     leas      $02,s     ; adjust the system stack pointer
-Branch_125          ldb       WorkByte_001,u ; load b from WorkByte_001,u
+Branch_125          ldb       StreamCursor,u ; load b from StreamCursor,u
                     bne       Branch_128 ; branch when the values differ or the result is nonzero; target Branch_128
                     ldd       >$03A5,y  ; load d from >$03A5,y
                     beq       Branch_129 ; branch when the values are equal or the result is zero; target Branch_129
@@ -1650,7 +1680,7 @@ stk_stream_return   equ       4         ; caller return address
                     bra       CheckNextStreamSlot
 CloseNextStreamSlot
                     tfr       u,d       ; pass the current descriptor address
-                    leau      WorkBuffer_001,u ; advance to the next fixed-size descriptor
+                    leau      StreamDescriptorSize,u ; advance to the next fixed-size descriptor
                     pshs      d
                     bsr       CloseStream ; flush and close this occupied stream slot
                     leas      $02,s     ; discard the descriptor argument
@@ -1667,11 +1697,11 @@ CloseStream         pshs      u         ; save u on the stack
                     leas      -$02,s    ; adjust the system stack pointer
                     cmpu      #0        ; compare u with #0 and set the condition codes
                     beq       Branch_135 ; branch when the values are equal or the result is zero; target Branch_135
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    ldd       StreamFlags,u ; load d from StreamFlags,u
                     bne       Branch_136 ; branch when the values differ or the result is nonzero; target Branch_136
 Branch_135          ldd       #-1       ; set d to the constant -1
                     lbra      StreamOperationDone ; continue execution at StreamOperationDone
-Branch_136          ldd       WorkWord_003,u ; load d from WorkWord_003,u
+Branch_136          ldd       StreamFlags,u ; load d from StreamFlags,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #2        ; mask b using #2
                     beq       Branch_137 ; branch when the values are equal or the result is zero; target Branch_137
@@ -1682,26 +1712,26 @@ Branch_136          ldd       WorkWord_003,u ; load d from WorkWord_003,u
 Branch_137          clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
 Branch_138          std       ,s        ; store d in the current stack frame at ,s
-                    ldd       WorkWord_004,u ; load d from WorkWord_004,u
+                    ldd       StreamPath,u ; load d from StreamPath,u
                     pshs      d         ; save d on the stack
                     lbsr      ClosePath ; call subroutine ClosePath
                     leas      $02,s     ; adjust the system stack pointer
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
+                    std       StreamFlags,u ; store d at StreamFlags,u
                     ldd       ,s        ; load d from the current stack frame at ,s
                     bra       StreamOperationDone ; continue execution at StreamOperationDone
 FlushStream         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
                     beq       Branch_139 ; branch when the values are equal or the result is zero; target Branch_139
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    ldd       StreamFlags,u ; load d from StreamFlags,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #34       ; mask b using #34
                     cmpd      #2        ; compare d with #2 and set the condition codes
                     beq       Branch_140 ; branch when the values are equal or the result is zero; target Branch_140
 Branch_139          ldd       #-1       ; set d to the constant -1
                     puls      pc,u      ; restore pc,u and return to the caller
-Branch_140          ldd       WorkWord_003,u ; load d from WorkWord_003,u
+Branch_140          ldd       StreamFlags,u ; load d from StreamFlags,u
                     anda      #128      ; mask a using #128
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
@@ -1716,13 +1746,13 @@ StreamOperationDone leas      $02,s     ; adjust the system stack pointer
 Routine_038         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
                     leas      -$04,s    ; adjust the system stack pointer
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    ldd       StreamFlags,u ; load d from StreamFlags,u
                     anda      #1        ; mask a using #1
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
                     bne       Branch_142 ; branch when the values differ or the result is nonzero; target Branch_142
-                    ldd       WorkByte_001,u ; load d from WorkByte_001,u
-                    cmpd      WorkWord_002,u ; compare d with WorkWord_002,u and set the condition codes
+                    ldd       StreamCursor,u ; load d from StreamCursor,u
+                    cmpd      StreamBufferEnd,u ; compare d with StreamBufferEnd,u and set the condition codes
                     beq       Branch_142 ; branch when the values are equal or the result is zero; target Branch_142
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
@@ -1734,30 +1764,30 @@ Routine_038         pshs      u         ; save u on the stack
                     pshs      d         ; save d on the stack
                     ldd       ,x        ; load d from ,x
                     pshs      d         ; save d on the stack
-                    ldd       WorkWord_004,u ; load d from WorkWord_004,u
+                    ldd       StreamPath,u ; load d from StreamPath,u
                     pshs      d         ; save d on the stack
                     lbsr      SeekPath  ; call subroutine SeekPath
                     leas      $08,s     ; adjust the system stack pointer
-Branch_142          ldd       WorkByte_001,u ; load d from WorkByte_001,u
-                    subd      WorkWord_001,u ; subtract from d using WorkWord_001,u
+Branch_142          ldd       StreamCursor,u ; load d from StreamCursor,u
+                    subd      StreamBufferStart,u ; subtract from d using StreamBufferStart,u
                     std       $02,s     ; store d in the current stack frame at $02,s
                     lbeq      Branch_143 ; branch when the values are equal or the result is zero; target Branch_143
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    ldd       StreamFlags,u ; load d from StreamFlags,u
                     anda      #1        ; mask a using #1
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
                     lbeq      Branch_143 ; branch when the values are equal or the result is zero; target Branch_143
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    ldd       StreamFlags,u ; load d from StreamFlags,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #64       ; mask b using #64
                     beq       Branch_144 ; branch when the values are equal or the result is zero; target Branch_144
-                    ldd       WorkWord_001,u ; load d from WorkWord_001,u
+                    ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
                     bra       Branch_145 ; continue execution at Branch_145
 Branch_146          ldd       $02,s     ; load d from the current stack frame at $02,s
                     pshs      d         ; save d on the stack
-                    ldd       WorkByte_001,u ; load d from WorkByte_001,u
+                    ldd       StreamCursor,u ; load d from StreamCursor,u
                     pshs      d         ; save d on the stack
-                    ldd       WorkWord_004,u ; load d from WorkWord_004,u
+                    ldd       StreamPath,u ; load d from StreamPath,u
                     pshs      d         ; save d on the stack
                     lbsr      WriteLineBytes ; call subroutine WriteLineBytes
                     leas      $06,s     ; adjust the system stack pointer
@@ -1769,17 +1799,17 @@ Branch_146          ldd       $02,s     ; load d from the current stack frame at
 Branch_147          ldd       $02,s     ; load d from the current stack frame at $02,s
                     subd      ,s        ; subtract from d using ,s
                     std       $02,s     ; store d in the current stack frame at $02,s
-                    ldd       WorkByte_001,u ; load d from WorkByte_001,u
+                    ldd       StreamCursor,u ; load d from StreamCursor,u
                     addd      ,s        ; add to d using ,s
-Branch_145          std       WorkByte_001,u ; store d at WorkByte_001,u
+Branch_145          std       StreamCursor,u ; store d at StreamCursor,u
                     ldd       $02,s     ; load d from the current stack frame at $02,s
                     bne       Branch_146 ; branch when the values differ or the result is nonzero; target Branch_146
                     bra       Branch_143 ; continue execution at Branch_143
 Branch_144          ldd       $02,s     ; load d from the current stack frame at $02,s
                     pshs      d         ; save d on the stack
-                    ldd       WorkWord_001,u ; load d from WorkWord_001,u
+                    ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
                     pshs      d         ; save d on the stack
-                    ldd       WorkWord_004,u ; load d from WorkWord_004,u
+                    ldd       StreamPath,u ; load d from StreamPath,u
                     pshs      d         ; save d on the stack
                     lbsr      WriteBytes ; call subroutine WriteBytes
                     leas      $06,s     ; adjust the system stack pointer
@@ -1787,20 +1817,20 @@ Branch_144          ldd       $02,s     ; load d from the current stack frame at
                     beq       Branch_143 ; branch when the values are equal or the result is zero; target Branch_143
                     bra       Branch_149 ; continue execution at Branch_149
 Branch_148          leas      -$04,x    ; adjust the system stack pointer
-Branch_149          ldd       WorkWord_003,u ; load d from WorkWord_003,u
+Branch_149          ldd       StreamFlags,u ; load d from StreamFlags,u
                     orb       #32       ; set selected bits in b using #32
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
-                    ldd       WorkWord_002,u ; load d from WorkWord_002,u
-                    std       WorkByte_001,u ; store d at WorkByte_001,u
+                    std       StreamFlags,u ; store d at StreamFlags,u
+                    ldd       StreamBufferEnd,u ; load d from StreamBufferEnd,u
+                    std       StreamCursor,u ; store d at StreamCursor,u
                     ldd       #-1       ; set d to the constant -1
                     bra       Branch_150 ; continue execution at Branch_150
-Branch_143          ldd       WorkWord_003,u ; load d from WorkWord_003,u
+Branch_143          ldd       StreamFlags,u ; load d from StreamFlags,u
                     ora       #1        ; set selected bits in a using #1
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
-                    ldd       WorkWord_001,u ; load d from WorkWord_001,u
-                    std       WorkByte_001,u ; store d at WorkByte_001,u
-                    addd      WorkWord_005,u ; add to d using WorkWord_005,u
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
+                    std       StreamFlags,u ; store d at StreamFlags,u
+                    ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
+                    std       StreamCursor,u ; store d at StreamCursor,u
+                    addd      StreamBufferSize,u ; add to d using StreamBufferSize,u
+                    std       StreamBufferEnd,u ; store d at StreamBufferEnd,u
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
 Branch_150          leas      $04,s     ; adjust the system stack pointer
@@ -1810,17 +1840,17 @@ Routine_039         pshs      u         ; save u on the stack
 Routine_021         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
                     beq       Branch_151 ; branch when the values are equal or the result is zero; target Branch_151
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    ldd       StreamFlags,u ; load d from StreamFlags,u
                     anda      #1        ; mask a using #1
                     clrb                ; clear b to zero and set the condition codes
                     std       -$02,s    ; store d in the current stack frame at -$02,s
                     bne       Branch_151 ; branch when the values differ or the result is nonzero; target Branch_151
-                    ldd       WorkByte_001,u ; load d from WorkByte_001,u
-                    cmpd      WorkWord_002,u ; compare d with WorkWord_002,u and set the condition codes
+                    ldd       StreamCursor,u ; load d from StreamCursor,u
+                    cmpd      StreamBufferEnd,u ; compare d with StreamBufferEnd,u and set the condition codes
                     bcc       Branch_152 ; branch when carry is clear; target Branch_152
-                    ldd       WorkByte_001,u ; load d from WorkByte_001,u
+                    ldd       StreamCursor,u ; load d from StreamCursor,u
                     addd      #1        ; add to d using #1
-                    std       WorkByte_001,u ; store d at WorkByte_001,u
+                    std       StreamCursor,u ; store d at StreamCursor,u
                     subd      #1        ; subtract from d using #1
                     tfr       d,x       ; copy the register values specified by d,x
                     ldb       ,x        ; load b from ,x
@@ -1930,12 +1960,12 @@ Branch_151          ldd       #-1       ; set d to the constant -1
 Routine_042         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
                     leas      -$02,s    ; adjust the system stack pointer
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    ldd       StreamFlags,u ; load d from StreamFlags,u
                     anda      #128      ; mask a using #128
                     andb      #49       ; mask b using #49
                     cmpd      #-32767   ; compare d with #-32767 and set the condition codes
                     beq       Branch_155 ; branch when the values are equal or the result is zero; target Branch_155
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    ldd       StreamFlags,u ; load d from StreamFlags,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #49       ; mask b using #49
                     cmpd      #1        ; compare d with #1 and set the condition codes
@@ -1947,7 +1977,7 @@ Branch_155          leax      >$000E,y  ; form the address >$000E,y in x
                     pshs      x         ; save x on the stack
                     cmpu      ,s++      ; compare u with ,s++ and set the condition codes
                     bne       Branch_157 ; branch when the values differ or the result is nonzero; target Branch_157
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    ldd       StreamFlags,u ; load d from StreamFlags,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #64       ; mask b using #64
                     beq       Branch_157 ; branch when the values are equal or the result is zero; target Branch_157
@@ -1955,17 +1985,17 @@ Branch_155          leax      >$000E,y  ; form the address >$000E,y in x
                     pshs      x         ; save x on the stack
                     lbsr      FlushStream ; call subroutine FlushStream
                     leas      $02,s     ; adjust the system stack pointer
-Branch_157          ldd       WorkWord_003,u ; load d from WorkWord_003,u
+Branch_157          ldd       StreamFlags,u ; load d from StreamFlags,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #8        ; mask b using #8
                     beq       Branch_158 ; branch when the values are equal or the result is zero; target Branch_158
-                    ldd       WorkWord_005,u ; load d from WorkWord_005,u
+                    ldd       StreamBufferSize,u ; load d from StreamBufferSize,u
                     pshs      d         ; save d on the stack
-                    ldd       WorkWord_001,u ; load d from WorkWord_001,u
+                    ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
                     pshs      d         ; save d on the stack
-                    ldd       WorkWord_004,u ; load d from WorkWord_004,u
+                    ldd       StreamPath,u ; load d from StreamPath,u
                     pshs      d         ; save d on the stack
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    ldd       StreamFlags,u ; load d from StreamFlags,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #64       ; mask b using #64
                     beq       Branch_159 ; branch when the values are equal or the result is zero; target Branch_159
@@ -1978,17 +2008,17 @@ Branch_160          tfr       x,d       ; copy the register values specified by 
                     bra       Branch_161 ; continue execution at Branch_161
 Branch_158          ldd       #1        ; set d to the constant 1
                     pshs      d         ; save d on the stack
-                    leax      WorkByte_003,u ; form the address WorkByte_003,u in x
-                    stx       WorkWord_001,u ; store x at WorkWord_001,u
+                    leax      StreamPushbackByte,u ; form the address StreamPushbackByte,u in x
+                    stx       StreamBufferStart,u ; store x at StreamBufferStart,u
                     pshs      x         ; save x on the stack
-                    ldd       WorkWord_004,u ; load d from WorkWord_004,u
+                    ldd       StreamPath,u ; load d from StreamPath,u
                     pshs      d         ; save d on the stack
                     lbsr      ReadBytes ; call subroutine ReadBytes
 Branch_161          leas      $06,s     ; adjust the system stack pointer
                     std       ,s        ; store d in the current stack frame at ,s
                     ldd       ,s        ; load d from the current stack frame at ,s
                     bgt       Branch_162 ; branch when the signed value is greater; target Branch_162
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    ldd       StreamFlags,u ; load d from StreamFlags,u
                     pshs      d         ; save d on the stack
                     ldd       $02,s     ; load d from the current stack frame at $02,s
                     beq       Branch_163 ; branch when the values are equal or the result is zero; target Branch_163
@@ -1997,36 +2027,36 @@ Branch_161          leas      $06,s     ; adjust the system stack pointer
 Branch_163          ldd       #16       ; set d to the constant 16
 Branch_164          ora       ,s+       ; set selected bits in a using ,s+
                     orb       ,s+       ; set selected bits in b using ,s+
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
+                    std       StreamFlags,u ; store d at StreamFlags,u
 Branch_156          ldd       #-1       ; set d to the constant -1
                     bra       Branch_154 ; continue execution at Branch_154
-Branch_162          ldd       WorkWord_001,u ; load d from WorkWord_001,u
+Branch_162          ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
                     addd      #1        ; add to d using #1
-                    std       WorkByte_001,u ; store d at WorkByte_001,u
-                    ldd       WorkWord_001,u ; load d from WorkWord_001,u
+                    std       StreamCursor,u ; store d at StreamCursor,u
+                    ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
                     addd      ,s        ; add to d using ,s
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
+                    std       StreamBufferEnd,u ; store d at StreamBufferEnd,u
                     ldb       [<$02,u]  ; load b from [<$02,u]
                     clra                ; clear a to zero and set the condition codes
 Branch_154          leas      $02,s     ; adjust the system stack pointer
 Branch_153          puls      pc,u      ; restore pc,u and return to the caller
 Routine_037         pshs      u         ; save u on the stack
                     ldu       $04,s     ; load u from the current stack frame at $04,s
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    ldd       StreamFlags,u ; load d from StreamFlags,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #192      ; mask b using #192
                     bne       Branch_165 ; branch when the values differ or the result is nonzero; target Branch_165
                     leas      -$20,s    ; adjust the system stack pointer
                     leax      ,s        ; form the address ,s in x
                     pshs      x         ; save x on the stack
-                    ldd       WorkWord_004,u ; load d from WorkWord_004,u
+                    ldd       StreamPath,u ; load d from StreamPath,u
                     pshs      d         ; save d on the stack
                     clra                ; clear a to zero and set the condition codes
                     clrb                ; clear b to zero and set the condition codes
                     pshs      d         ; save d on the stack
                     lbsr      Routine_043 ; call subroutine Routine_043
                     leas      $06,s     ; adjust the system stack pointer
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    ldd       StreamFlags,u ; load d from StreamFlags,u
                     pshs      d         ; save d on the stack
                     ldb       $02,s     ; load b from the current stack frame at $02,s
                     bne       Branch_166 ; branch when the values differ or the result is nonzero; target Branch_166
@@ -2035,49 +2065,49 @@ Routine_037         pshs      u         ; save u on the stack
 Branch_166          ldd       #128      ; set d to the constant 128
 Branch_167          ora       ,s+       ; set selected bits in a using ,s+
                     orb       ,s+       ; set selected bits in b using ,s+
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
+                    std       StreamFlags,u ; store d at StreamFlags,u
                     leas      <$0020,s  ; adjust the system stack pointer
-Branch_165          ldd       WorkWord_003,u ; load d from WorkWord_003,u
+Branch_165          ldd       StreamFlags,u ; load d from StreamFlags,u
                     ora       #128      ; set selected bits in a using #128
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
+                    std       StreamFlags,u ; store d at StreamFlags,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #12       ; mask b using #12
                     beq       Branch_168 ; branch when the values are equal or the result is zero; target Branch_168
                     puls      pc,u      ; restore pc,u and return to the caller
-Branch_168          ldd       WorkWord_005,u ; load d from WorkWord_005,u
+Branch_168          ldd       StreamBufferSize,u ; load d from StreamBufferSize,u
                     bne       Branch_169 ; branch when the values differ or the result is nonzero; target Branch_169
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
+                    ldd       StreamFlags,u ; load d from StreamFlags,u
                     clra                ; clear a to zero and set the condition codes
                     andb      #64       ; mask b using #64
                     beq       Branch_170 ; branch when the values are equal or the result is zero; target Branch_170
                     ldd       #128      ; set d to the constant 128
                     bra       Branch_171 ; continue execution at Branch_171
 Branch_170          ldd       #256      ; set d to the constant 256
-Branch_171          std       WorkWord_005,u ; store d at WorkWord_005,u
-Branch_169          ldd       WorkWord_001,u ; load d from WorkWord_001,u
+Branch_171          std       StreamBufferSize,u ; store d at StreamBufferSize,u
+Branch_169          ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
                     bne       Branch_172 ; branch when the values differ or the result is nonzero; target Branch_172
-                    ldd       WorkWord_005,u ; load d from WorkWord_005,u
+                    ldd       StreamBufferSize,u ; load d from StreamBufferSize,u
                     pshs      d         ; save d on the stack
                     lbsr      Routine_044 ; call subroutine Routine_044
                     leas      $02,s     ; adjust the system stack pointer
-                    std       WorkWord_001,u ; store d at WorkWord_001,u
+                    std       StreamBufferStart,u ; store d at StreamBufferStart,u
                     cmpd      #-1       ; compare d with #-1 and set the condition codes
                     beq       Branch_173 ; branch when the values are equal or the result is zero; target Branch_173
-Branch_172          ldd       WorkWord_003,u ; load d from WorkWord_003,u
+Branch_172          ldd       StreamFlags,u ; load d from StreamFlags,u
                     orb       #8        ; set selected bits in b using #8
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
+                    std       StreamFlags,u ; store d at StreamFlags,u
                     bra       Branch_174 ; continue execution at Branch_174
-Branch_173          ldd       WorkWord_003,u ; load d from WorkWord_003,u
+Branch_173          ldd       StreamFlags,u ; load d from StreamFlags,u
                     orb       #4        ; set selected bits in b using #4
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
-                    leax      WorkByte_003,u ; form the address WorkByte_003,u in x
-                    stx       WorkWord_001,u ; store x at WorkWord_001,u
+                    std       StreamFlags,u ; store d at StreamFlags,u
+                    leax      StreamPushbackByte,u ; form the address StreamPushbackByte,u in x
+                    stx       StreamBufferStart,u ; store x at StreamBufferStart,u
                     ldd       #1        ; set d to the constant 1
-                    std       WorkWord_005,u ; store d at WorkWord_005,u
-Branch_174          ldd       WorkWord_001,u ; load d from WorkWord_001,u
-                    addd      WorkWord_005,u ; add to d using WorkWord_005,u
-                    std       WorkWord_002,u ; store d at WorkWord_002,u
-                    std       WorkByte_001,u ; store d at WorkByte_001,u
+                    std       StreamBufferSize,u ; store d at StreamBufferSize,u
+Branch_174          ldd       StreamBufferStart,u ; load d from StreamBufferStart,u
+                    addd      StreamBufferSize,u ; add to d using StreamBufferSize,u
+                    std       StreamBufferEnd,u ; store d at StreamBufferEnd,u
+                    std       StreamCursor,u ; store d at StreamCursor,u
                     puls      pc,u      ; restore pc,u and return to the caller
 Routine_030         pshs      u         ; save u on the stack
                     ldb       $05,s     ; load b from the current stack frame at $05,s
@@ -2412,8 +2442,8 @@ ReturnPathNumber    tfr       a,b       ; place the path number in the low resul
 HandleExistingFile  cmpb      #E$CEF    ; only "creating existing file" is recoverable
                     lbne      StoreRuntimeError
                     lda       $05,s     ; recover the original compiler mode
-                    bita      #$80      ; test its exclusive-create flag
-                    lbne      StoreRuntimeError ; exclusive creation must remain failed
+                    bita      #OpenModeDirectory ; test the directory-access flag
+                    lbne      StoreRuntimeError ; an existing directory is not a truncatable file
                     anda      #7        ; reduce it to OS-9 access-mode bits
                     ldx       $02,s     ; reopen the existing pathname
                     os9       I$Open
