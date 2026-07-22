@@ -12,6 +12,8 @@
 * Annotated source and normalized comments.
 *          2026/07/21  Codex
 * Refined command annotations and normalized formatting.
+*          2026/07/22  Codex
+* Decoded character capture, line prompting, and terminal control keys.
 **********************************************************************
 
                     nam       Uloada
@@ -27,75 +29,81 @@ rev                 set       $01       ; set assembly-time module attribute rev
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_001      rmb       200       ; reserve 200 byte(s) in the module workspace
-WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_002      rmb       599       ; reserve 599 byte(s) in the module workspace
+OutputPathNum       rmb       1
+FilenameBuffer      rmb       200
+InputByte           rmb       1
+UnusedTailBuffer    rmb       599
 size                equ       .         ; define the assembly-time value for size
 
-name                fcs       /Uloada/ ; store an OS-9 high-bit-terminated string
-Text_001            fcc       "Enter filename to upload" ; store literal character data
-Text_002            fcc       "Press <CTRL><T> to terminal upload" ; store literal character data
-                    fcb       $0A       ; store byte data
-                    fcb       $0D       ; store byte data
-                    fcc       "Press <CTRL><X> to cancel" ; store literal character data
-                    fcb       $0A       ; store byte data
-                    fcb       $0D       ; store byte data
-Data_001            fcb       $0A       ; store byte data
-                    fcb       $3A       ; store byte data
-start               lda       ,x        ; load a from ,x
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    bne       Branch_001 ; branch when the values differ or the result is nonzero; target Branch_001
-                    leax      >Text_001,pc ; form the address >Text_001,pc in x
-                    ldy       #24       ; set y to the constant 24
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-                    ldy       #200      ; set y to the constant 200
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-Branch_001          lda       #3        ; set a to the constant 3
-                    ldb       #27       ; set b to the constant 27
-                    os9       I$Create  ; create the path at X with mode A and attributes B
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    sta       WorkByte_001,u ; store a at WorkByte_001,u
-                    leax      >Text_002,pc ; form the address >Text_002,pc in x
-                    ldy       #63       ; set y to the constant 63
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      >Data_001,pc ; form the address >Data_001,pc in x
-                    ldy       #2        ; set y to the constant 2
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-Branch_003          clra                ; clear a to zero and set the condition codes
-                    ldb       #1        ; set b to the constant 1
-                    os9       I$GetStt  ; query status code B for path A
-                    bcs       Branch_003 ; branch when carry reports an error or unsigned underflow; target Branch_003
-                    ldy       #1        ; set y to the constant 1
-                    leax      >WorkByte_002,u ; form the address >WorkByte_002,u in x
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    lda       ,x        ; load a from ,x
-                    cmpa      #20       ; compare a with #20 and set the condition codes
-                    beq       Branch_004 ; branch when the values are equal or the result is zero; target Branch_004
-                    cmpa      #24       ; compare a with #24 and set the condition codes
-                    beq       Branch_005 ; branch when the values are equal or the result is zero; target Branch_005
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    os9       I$Write   ; write Y bytes from X to path A
-                    lda       ,x        ; load a from ,x
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_006 ; branch when the values are equal or the result is zero; target Branch_006
-                    bra       Branch_003 ; continue execution at Branch_003
-Branch_006          leax      >Data_001,pc ; form the address >Data_001,pc in x
-                    ldy       #2        ; set y to the constant 2
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    bra       Branch_003 ; continue execution at Branch_003
-Branch_005          lda       #1        ; set a to the constant 1
-                    bra       Branch_002 ; continue execution at Branch_002
-Branch_004          clrb                ; clear b to zero and set the condition codes
-Branch_002          os9       F$Exit    ; terminate the process with status B
+name                fcs       /Uloada/ ; publish the transfer-engine module name
+FilenamePrompt      fcc       "Enter filename to upload"
+TransferInstructions fcc       "Press <CTRL><T> to terminal upload"
+                    fcb       $0A
+                    fcb       $0D
+                    fcc       "Press <CTRL><X> to cancel"
+                    fcb       $0A
+                    fcb       $0D       ; terminate the two-line control-key notice
+LinePrompt          fcb       $0A
+                    fcb       $3A       ; prompt each incoming line with line feed and colon
 
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+* use a command-line filename when supplied; otherwise collect one from the
+* terminal.  Creation truncates an existing file and returns a read/write path.
+start               lda       ,x        ; inspect the first pathname character
+                    cmpa      #13       ; recognize an empty child command line
+                    bne       CreateOutputFile ; use the caller-supplied filename directly
+                    leax      >FilenamePrompt,pc ; prepare the inline filename prompt
+                    ldy       #24       ; write the exact unterminated prompt
+                    lda       #1        ; direct the prompt to the terminal
+                    os9       I$Write   ; leave the cursor ready for input
+                    leax      FilenameBuffer,u ; receive the destination pathname
+                    ldy       #200      ; retain the original generous filename limit
+                    clra                ; select standard input
+                    os9       I$ReadLn  ; collect the CR-terminated filename
+                    leax      FilenameBuffer,u ; select the interactively entered pathname
+CreateOutputFile    lda       #3        ; request read/write access to the new file
+                    ldb       #27       ; use the package's writable data-file attributes
+                    os9       I$Create  ; create or truncate the upload destination
+                    lbcs      ExitWithStatus ; return the create failure unchanged
+                    sta       OutputPathNum,u ; retain the destination path number
+                    leax      >TransferInstructions,pc ; prepare the completion and cancel keys
+                    ldy       #63       ; write the full two-line instruction block
+                    lda       #1        ; direct instructions to the terminal
+                    os9       I$Write   ; explain ctrl-t completion and ctrl-x cancellation
+                    leax      >LinePrompt,pc ; prepare the first terminal-upload prompt
+                    ldy       #2        ; emit its line feed and colon
+                    lda       #1        ; direct the prompt to the terminal
+                    os9       I$Write   ; mark the start of captured text
+
+* poll SS.Ready, consume one terminal byte, and append it immediately.  Ctrl-T
+* ends successfully; ctrl-X exits with status one and leaves the partial file.
+WaitForInput        clra                ; select standard input for the readiness query
+                    ldb       #1        ; request the ready-byte count
+                    os9       I$GetStt  ; avoid blocking inside the subsequent read
+                    bcs       WaitForInput ; continue polling until a byte is available
+                    ldy       #1        ; consume exactly one terminal byte
+                    leax      >InputByte,u ; receive it in the single-byte work area
+                    os9       I$Read    ; remove the available byte from terminal input
+                    lda       ,x        ; classify the byte before storing it
+                    cmpa      #20       ; ctrl-t terminates a completed terminal upload
+                    beq       CompleteUpload ; omit the control byte and report success
+                    cmpa      #24       ; ctrl-x cancels the upload
+                    beq       CancelUpload ; omit the control byte and report status one
+                    lda       OutputPathNum,u ; select the upload destination
+                    os9       I$Write   ; append the ordinary byte exactly as received
+                    lda       ,x        ; recover the captured byte after the path write
+                    cmpa      #13       ; detect the end of an entered text line
+                    beq       PromptNextLine ; display another line marker after CR
+                    bra       WaitForInput ; capture the next byte without extra terminal output
+PromptNextLine      leax      >LinePrompt,pc ; select the line-feed-and-colon marker
+                    ldy       #2        ; write both marker bytes
+                    lda       #1        ; direct the prompt to the terminal
+                    os9       I$Write   ; identify the beginning of another captured line
+                    bra       WaitForInput ; resume character capture
+CancelUpload        lda       #1        ; return the package's cancellation status
+                    bra       ExitWithStatus ; leave the partial destination in place
+CompleteUpload      clrb                ; report a ctrl-t-terminated upload as successful
+ExitWithStatus      os9       F$Exit    ; return success, cancellation, or a create error
+
+                    emod                ; emit the OS-9 module CRC and trailer
+eom                 equ       *         ; mark the module end for the size expression
+                    end                 ; end the assembly source
