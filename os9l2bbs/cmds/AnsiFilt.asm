@@ -21,81 +21,82 @@
                     use       defsfile
                   ENDC
 
-tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
-atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+tylg                set       Prgrm+Objct
+atrv                set       ReEnt+rev
+rev                 set       $01
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-ReadBuf             rmb       1         ; reserve 1 byte(s) in the module workspace
-ColCount            rmb       1         ; reserve 1 byte(s) in the module workspace
-RowCount            rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
-InEscSeq            rmb       1         ; reserve 1 byte(s) in the module workspace
-XSave               rmb       2         ; reserve 2 byte(s) in the module workspace
-WriteBuf            rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_001      rmb       499       ; reserve 499 byte(s) in the module workspace
-size                equ       .         ; define the assembly-time value for size
+ReadBuf             rmb       1
+ColCount            rmb       1
+RowCount            rmb       1
+SavedColumn         rmb       1
+SavedRow            rmb       1
+InEscSeq            rmb       1
+XSave               rmb       2
+WriteBuf            rmb       1
+EscapeBufferTail    rmb       499
+size                equ       .
 
-name                fcs       /AnsiFilt/ ; store an OS-9 high-bit-terminated string
-                    fcb       $0A       ; store byte data
+name                fcs       /AnsiFilt/
+                    fcb       $0A
 
-start               lbsr      Setup     ; call subroutine Setup
-ReadLoop            clra                ; clear a to zero and set the condition codes
-                    leax      ReadBuf,u ; form the address ReadBuf,u in x
-                    ldy       #1        ; set y to the constant 1
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    bcs       Error     ; branch when carry reports an error or unsigned underflow; target Error
-                    lda       ReadBuf,u ; load a from ReadBuf,u
-                    lbsr      Routine_001 ; call subroutine Routine_001
-                    bra       ReadLoop  ; continue execution at ReadLoop
+start               lbsr      Setup     ; initialize parser and cursor state
+ReadLoop            clra                ; select standard input
+                    leax      ReadBuf,u ; select read buf
+                    ldy       #1        ; read one stream byte at a time
+                    os9       I$Read    ; read the requested fixed-size field
+                    bcs       Error     ; select error when carry reports an error or underflow
+                    lda       ReadBuf,u ; recover read buf
+                    lbsr      ProcessInputByte ; invoke process input byte
+                    bra       ReadLoop  ; continue with read loop
 
-Error               cmpb      #E$EOF    ; compare b with #E$EOF and set the condition codes
-                    lbne      ErrExit   ; branch when the values differ or the result is nonzero; target ErrExit
-                    bra       Exit      ; continue execution at Exit
-Exit                clrb                ; clear b to zero and set the condition codes
+Error               cmpb      #E$EOF    ; distinguish normal end of input from a real failure
+                    lbne      ErrExit   ; select err exit when the requested case does not match
+                    bra       Exit      ; continue with exit
+Exit                clrb                ; report successful translation at end of input
 ErrExit             os9       F$Exit    ; terminate the process with status B
 
-Setup               clr       InEscSeq,u ; clear InEscSeq,u to zero and set the condition codes
-                    leax      WriteBuf,u ; form the address WriteBuf,u in x
-                    stx       XSave,u   ; store x at XSave,u
-                    lda       #1        ; set a to the constant 1
-                    sta       ColCount,u ; store a at ColCount,u
-                    sta       RowCount,u ; store a at RowCount,u
-                    sta       WorkByte_001,u ; store a at WorkByte_001,u
-                    sta       WorkByte_002,u ; store a at WorkByte_002,u
+Setup               clr       InEscSeq,u ; initialize in esc seq
+                    leax      WriteBuf,u ; select write buf
+                    stx       XSave,u   ; retain xsave
+                    lda       #1        ; initialize col count to 1
+                    sta       ColCount,u ; retain col count
+                    sta       RowCount,u ; retain row count
+                    sta       SavedColumn,u ; retain saved column
+                    sta       SavedRow,u ; retain saved row
                     rts                 ; return to the caller
 
-Routine_001         cmpa      #32       ; is it a space?
-                    bcs       Branch_001 ; no, go check others
+ProcessInputByte    cmpa      #32       ; is it a space?
+                    bcs       HandleControlCharacter ; no, go check others
                     tst       <InEscSeq ; in an ESC sequence?
-                    lbne      Branch_002 ; yes, go handle it
+                    lbne      AccumulateEscapeSequence ; yes, go handle it
 
 * Write the character to the output path
-                    pshs      a         ; save a on the stack
-                    leax      ,s        ; form the address ,s in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
+stk_printable_char  equ       0
+                    pshs      a         ; expose the printable byte as a one-byte output buffer
+                    leax      stk_printable_char,s ; point I$Write at the saved character
+                    ldy       #1        ; emit exactly that character
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
 
                     inc       ColCount,u ; increment the number of chars written
-                    lda       ColCount,u ; load a from ColCount,u
-                    cmpa      #128      ; have we written 128?
-                    bls       Branch_003 ; no, so return
+                    lda       ColCount,u ; recover col count
+                    cmpa      #128      ; wrap the filter's logical display width
+                    bls       ReturnAfterPrintable ; no, so return
 
                     lda       #1        ; reset the column count
-                    sta       ColCount,u ; store a at ColCount,u
+                    sta       ColCount,u ; retain col count
                     inc       RowCount,u ; increment the row count
-                    lda       RowCount,u ; load a from RowCount,u
+                    lda       RowCount,u ; recover row count
                     cmpa      #23       ; have we written 24 rows?
-                    bls       Branch_003 ; no, so return
+                    bls       ReturnAfterPrintable ; no, so return
 
                     lda       #23       ; reset the row count
-                    sta       RowCount,u ; store a at RowCount,u
-Branch_003          puls      pc,a      ; clean the stack and return
+                    sta       RowCount,u ; retain row count
+ReturnAfterPrintable puls      pc,a      ; clean the stack and return
 
-Branch_001          cmpa      #27       ; is it an ESC?
+HandleControlCharacter cmpa      #27       ; is it an ESC?
                     beq       HandleESC ; yes, go handle it
                     cmpa      #7        ; is it a BEL character?
                     beq       HandleBEL ; yes, go handle it
@@ -108,76 +109,80 @@ Branch_001          cmpa      #27       ; is it an ESC?
                     rts                 ; something else, so return
 
 HandleESC           lda       #1        ; parsing an ESC seq, so set the flag
-                    sta       InEscSeq,u ; store a at InEscSeq,u
-                    leax      WriteBuf,u ; set X to the buffer
+                    sta       InEscSeq,u ; retain in esc seq
+                    leax      WriteBuf,u ; select write buf
                     lda       #27       ; save the ESC code in the buffer
                     sta       ,x+       ; increment the buffer pointer
                     stx       XSave,u   ; save a copy of the pointer
                     rts                 ; ... and return
 
 * Write the BEL to the output path
-HandleBEL           pshs      a         ; save a on the stack
-                    leax      ,s        ; form the address ,s in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
+stk_bell_char       equ       0
+HandleBEL           pshs      a         ; expose BEL as a one-byte output buffer
+                    leax      stk_bell_char,s ; point I$Write at the saved BEL
+                    ldy       #1        ; emit exactly one control byte
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
                     puls      pc,a      ; restore pc,a and return to the caller
 
-HandleBS            pshs      a         ; save a on the stack
+HandleBS            pshs      a         ; preserve a across the operation
                     dec       ColCount,u ; decrement the column count
                     bne       bs1       ; branch if col count not zero
                     lda       #1        ; reset the column count
-                    sta       ColCount,u ; store a at ColCount,u
+                    sta       ColCount,u ; retain col count
                     bra       bsret     ; ... and return
 
 * Write the BS to the output path
-bs1                 leax      ,s        ; form the address ,s in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
+stk_backspace_char  equ       0
+bs1                 leax      stk_backspace_char,s ; point I$Write at the saved backspace
+                    ldy       #1        ; emit exactly one control byte
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
 bsret               puls      pc,a      ; clean the stack and return
 
 * Write the LF to the output path
-HandleLF            pshs      a         ; save a on the stack
-                    leax      ,s        ; form the address ,s in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
+stk_linefeed_char   equ       0
+HandleLF            pshs      a         ; expose LF as a one-byte output buffer
+                    leax      stk_linefeed_char,s ; point I$Write at the saved LF
+                    ldy       #1        ; emit exactly one control byte
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
 
                     inc       RowCount,u ; increment the row count
-                    lda       RowCount,u ; load a from RowCount,u
-                    cmpa      #23       ; compare a with #23 and set the condition codes
+                    lda       RowCount,u ; recover row count
+                    cmpa      #23       ; establish the handle lf loop or field bound (23)
                     bls       lfret     ; return if less than 24 rows
                     lda       #23       ; reset the row count
-                    sta       RowCount,u ; store a at RowCount,u
+                    sta       RowCount,u ; retain row count
 lfret               puls      pc,a      ; clean the stack and return
 
 * Write the CR to the output path
-HandleCR            pshs      a         ; save a on the stack
-                    leax      ,s        ; form the address ,s in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
+stk_return_char     equ       0
+HandleCR            pshs      a         ; expose CR as a one-byte output buffer
+                    leax      stk_return_char,s ; point I$Write at the saved CR
+                    ldy       #1        ; emit exactly one control byte
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
 
                     lda       #1        ; reset the col count
-                    sta       ColCount,u ; store a at ColCount,u
+                    sta       ColCount,u ; retain col count
                     puls      pc,a      ; clean the stack and return
 
-Branch_002          cmpa      #65       ; is it less than 'A'?
-                    bcs       Branch_004 ; yes, append it to the save sequence
+AccumulateEscapeSequence cmpa      #65       ; is it less than 'A'?
+                    bcs       AppendEscapeByte ; yes, append it to the save sequence
                     cmpa      #91       ; it is a '['?
-                    beq       Branch_004 ; yes, append it to the save sequence
+                    beq       AppendEscapeByte ; yes, append it to the save sequence
                     cmpa      #122      ; is it greater than 'z'?
-                    bhi       Branch_004 ; yes, append it to the save sequence
-                    lbra      Branch_005 ; continue execution at Branch_005
+                    bhi       AppendEscapeByte ; yes, append it to the save sequence
+                    lbra      DispatchEscapeFinal ; continue with dispatch escape final
 
 * Append the char to the ESC sequence buffer
-Branch_004          ldx       XSave,u   ; load x from XSave,u
-                    sta       ,x+       ; store a at ,x+
-                    stx       XSave,u   ; store x at XSave,u
+AppendEscapeByte    ldx       XSave,u   ; recover the next free escape-buffer position
+                    sta       ,x+       ; append this intermediate escape byte
+                    stx       XSave,u   ; retain xsave
                     rts                 ; return to the caller
 
-Branch_005          clr       InEscSeq,u ; reset the ESC sequence flag
+DispatchEscapeFinal clr       InEscSeq,u ; reset the ESC sequence flag
                     ldx       XSave,u   ; get the buffer pointer
                     sta       ,x+       ; save the current character
                     stx       XSave,u   ; ... and save the new pointer
@@ -188,366 +193,367 @@ Branch_005          clr       InEscSeq,u ; reset the ESC sequence flag
                     cmpa      #66       ; is it a 'B'?
                     lbeq      Esc_B     ; yes, handle it
                     cmpa      #67       ; is it a 'C'?
-                    lbeq      Esc_C     ; branch when the values are equal or the result is zero; target Esc_C
-                    cmpa      #68       ; compare a with #68 and set the condition codes
-                    lbeq      Esc_D     ; branch when the values are equal or the result is zero; target Esc_D
-                    cmpa      #102      ; compare a with #102 and set the condition codes
-                    lbeq      Esc_Hf    ; branch when the values are equal or the result is zero; target Esc_Hf
-                    cmpa      #115      ; compare a with #115 and set the condition codes
-                    lbeq      Esc_s     ; branch when the values are equal or the result is zero; target Esc_s
-                    cmpa      #117      ; compare a with #117 and set the condition codes
-                    lbeq      Esc_u     ; branch when the values are equal or the result is zero; target Esc_u
-                    cmpa      #74       ; compare a with #74 and set the condition codes
-                    lbeq      Esc_J     ; branch when the values are equal or the result is zero; target Esc_J
-                    cmpa      #107      ; compare a with #107 and set the condition codes
-                    lbeq      Esc_k     ; branch when the values are equal or the result is zero; target Esc_k
-                    cmpa      #109      ; compare a with #109 and set the condition codes
-                    lbeq      Esc_m     ; branch when the values are equal or the result is zero; target Esc_m
+                    lbeq      Esc_C     ; select esc c when the requested case matches
+                    cmpa      #68       ; establish the dispatch escape final loop or field bound (68)
+                    lbeq      Esc_D     ; select esc d when the requested case matches
+                    cmpa      #102      ; establish the dispatch escape final loop or field bound (102)
+                    lbeq      Esc_Hf    ; select esc hf when the requested case matches
+                    cmpa      #115      ; establish the dispatch escape final loop or field bound (115)
+                    lbeq      Esc_s     ; select esc s when the requested case matches
+                    cmpa      #117      ; establish the dispatch escape final loop or field bound (117)
+                    lbeq      Esc_u     ; select esc u when the requested case matches
+                    cmpa      #74       ; establish the dispatch escape final loop or field bound (74)
+                    lbeq      Esc_J     ; select esc j when the requested case matches
+                    cmpa      #107      ; establish the dispatch escape final loop or field bound (107)
+                    lbeq      Esc_k     ; select esc k when the requested case matches
+                    cmpa      #109      ; establish the dispatch escape final loop or field bound (109)
+                    lbeq      Esc_m     ; select esc m when the requested case matches
 
 * Write the buffer to the output path
-Branch_006          leax      WriteBuf,u ; form the address WriteBuf,u in x
-                    pshs      x         ; save x on the stack
-                    ldd       XSave,u   ; load d from XSave,u
-                    subd      ,s        ; subtract from d using ,s
-                    leas      $02,s     ; adjust the system stack pointer
-                    tfr       d,y       ; copy the register values specified by d,y
-                    leax      WriteBuf,u ; form the address WriteBuf,u in x
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    clr       InEscSeq,u ; clear InEscSeq,u to zero and set the condition codes
+FlushEscapeLiteral  leax      WriteBuf,u ; recover the escape sequence's starting address
+stk_escape_start    equ       0
+                    pshs      x         ; retain it while computing the buffered length
+                    ldd       XSave,u   ; recover xsave
+                    subd      stk_escape_start,s ; convert end pointer minus start into length
+                    leas      $02,s     ; discard the temporary start pointer
+                    tfr       d,y       ; transfer d,y
+                    leax      WriteBuf,u ; select write buf
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
+                    clr       InEscSeq,u ; initialize in esc seq
                     rts                 ; return to the caller
 
 * Clear the screen
-Data_001            fcb       $0C       ; store byte data
-Esc_J               lbsr      Code_001  ; call subroutine Code_001
-                    lda       ,x+       ; load a from ,x+
-                    cmpa      #50       ; compare a with #50 and set the condition codes
-                    bne       Branch_006 ; branch when the values differ or the result is nonzero; target Branch_006
-                    leax      >Data_001,pc ; form the address >Data_001,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    lda       #1        ; set a to the constant 1
-                    sta       ColCount,u ; store a at ColCount,u
-                    sta       RowCount,u ; store a at RowCount,u
+ClearScreenCode     fcb       $0C
+Esc_J               lbsr      LocateCsiParameters ; invoke locate csi parameters
+                    lda       ,x+       ; consume the next byte while esc j
+                    cmpa      #50       ; establish the esc j loop or field bound (50)
+                    bne       FlushEscapeLiteral ; select flush escape literal when the requested case does not match
+                    leax      >ClearScreenCode,pc ; select clear screen code
+                    ldy       #1        ; cap this output request at 1 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
+                    lda       #1        ; initialize col count to 1
+                    sta       ColCount,u ; retain col count
+                    sta       RowCount,u ; retain row count
                     rts                 ; return to the caller
 
-Data_002            fcb       $04       ; store byte data
-Esc_k               lbsr      Code_001  ; call subroutine Code_001
-                    leax      >Data_002,pc ; form the address >Data_002,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
+ClearToEolCode      fcb       $04
+Esc_k               lbsr      LocateCsiParameters ; invoke locate csi parameters
+                    leax      >ClearToEolCode,pc ; select clear to eol code
+                    ldy       #1        ; cap this output request at 1 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
                     rts                 ; return to the caller
 
-Data_003            fcb       $02       ; store byte data
-Esc_Hf              lbsr      Code_001  ; call subroutine Code_001
-                    lbsr      Routine_002 ; call subroutine Routine_002
-                    sta       RowCount,u ; store a at RowCount,u
+SetCursorCode       fcb       $02
+Esc_Hf              lbsr      LocateCsiParameters ; invoke locate csi parameters
+                    lbsr      ParseAnsiParameter ; invoke parse ansi parameter
+                    sta       RowCount,u ; retain row count
                     adda      #31       ; add to a using #31
-                    pshs      a         ; save a on the stack
-                    lda       ,x+       ; load a from ,x+
-                    cmpa      #59       ; compare a with #59 and set the condition codes
-                    beq       Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
-                    puls      a         ; restore a from the stack
-                    lbra      Branch_006 ; continue execution at Branch_006
-Branch_007          lbsr      Routine_002 ; call subroutine Routine_002
-                    sta       ColCount,u ; store a at ColCount,u
+                    pshs      a         ; preserve a across the operation
+                    lda       ,x+       ; consume the next byte while esc hf
+                    cmpa      #59       ; establish the esc hf loop or field bound (59)
+                    beq       ParseCursorColumn ; enter parse cursor column when the terminating condition is met
+                    puls      a         ; restore a
+                    lbra      FlushEscapeLiteral ; continue with flush escape literal
+ParseCursorColumn   lbsr      ParseAnsiParameter ; invoke parse ansi parameter
+                    sta       ColCount,u ; retain col count
                     adda      #31       ; add to a using #31
-                    pshs      a         ; save a on the stack
-                    leax      >Data_003,pc ; form the address >Data_003,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      ,s        ; form the address ,s in x
-                    ldy       #2        ; set y to the constant 2
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leas      $02,s     ; adjust the system stack pointer
+                    pshs      a         ; preserve a across the operation
+                    leax      >SetCursorCode,pc ; select set cursor code
+                    ldy       #1        ; cap this output request at 1 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
+                    leax      ,s        ; select
+                    ldy       #2        ; cap this output request at 2 bytes
+                    os9       I$Write   ; write the requested fixed-size field
+                    leas      $02,s     ; release $02,s bytes of stack state
                     rts                 ; return to the caller
 
-Data_004            fcb       $09       ; store byte data
-Esc_A               lbsr      Code_001  ; call subroutine Code_001
-                    lbsr      Routine_002 ; call subroutine Routine_002
-                    pshs      a         ; save a on the stack
-                    lda       RowCount,u ; load a from RowCount,u
+CursorUpCode        fcb       $09
+Esc_A               lbsr      LocateCsiParameters ; invoke locate csi parameters
+                    lbsr      ParseAnsiParameter ; invoke parse ansi parameter
+                    pshs      a         ; preserve a across the operation
+                    lda       RowCount,u ; recover row count
                     suba      ,s        ; subtract from a using ,s
-                    bgt       Branch_008 ; branch when the signed value is greater; target Branch_008
-                    lda       #1        ; set a to the constant 1
-Branch_008          sta       RowCount,u ; store a at RowCount,u
-                    leax      >Data_004,pc ; form the address >Data_004,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-Branch_009          tst       ,s        ; set condition codes from ,s without changing it
-                    beq       Branch_010 ; branch when the values are equal or the result is zero; target Branch_010
-                    os9       I$Write   ; write Y bytes from X to path A
-                    dec       ,s        ; decrement the value at ,s
-                    bne       Branch_009 ; branch when the values differ or the result is nonzero; target Branch_009
-Branch_010          leas      $01,s     ; adjust the system stack pointer
+                    bgt       CursorUpClamped
+                    lda       #1        ; initialize row count to 1
+CursorUpClamped     sta       RowCount,u ; retain row count
+                    leax      >CursorUpCode,pc ; select cursor up code
+                    ldy       #1        ; cap this output request at 1 bytes
+                    lda       #1        ; select standard output
+EmitRepeatedCursorMove tst       ,s        ; set condition codes from ,s without changing it
+                    beq       CursorMoveDone ; select cursor move done when the requested case matches
+                    os9       I$Write   ; write the requested fixed-size field
+                    dec       ,s        ; consume one
+                    bne       EmitRepeatedCursorMove ; select emit repeated cursor move when the requested case does not match
+CursorMoveDone      leas      $01,s     ; release $01,s bytes of stack state
                     rts                 ; return to the caller
 
-Data_005            fcb       $0A       ; store byte data
-Esc_B               lbsr      Code_001  ; call subroutine Code_001
-                    lbsr      Routine_002 ; call subroutine Routine_002
-                    pshs      a         ; save a on the stack
-                    lda       RowCount,u ; load a from RowCount,u
+CursorDownCode      fcb       $0A
+Esc_B               lbsr      LocateCsiParameters ; invoke locate csi parameters
+                    lbsr      ParseAnsiParameter ; invoke parse ansi parameter
+                    pshs      a         ; preserve a across the operation
+                    lda       RowCount,u ; recover row count
                     adda      ,s        ; add to a using ,s
-                    cmpa      #23       ; compare a with #23 and set the condition codes
-                    bls       Branch_011 ; branch when the unsigned value is lower or equal; target Branch_011
+                    cmpa      #23       ; establish the esc b loop or field bound (23)
+                    bls       CursorDownClamped ; select cursor down clamped at or below the unsigned boundary
                     suba      #23       ; subtract from a using #23
-                    pshs      a         ; save a on the stack
-                    lda       $01,s     ; load a from the current stack frame at $01,s
+                    pshs      a         ; preserve a across the operation
+                    lda       $01,s     ; recover $01
                     suba      ,s        ; subtract from a using ,s
-                    leas      $01,s     ; adjust the system stack pointer
+                    leas      $01,s     ; release $01,s bytes of stack state
                     sta       ,s        ; store a in the current stack frame at ,s
-                    lda       #23       ; set a to the constant 23
-Branch_011          sta       RowCount,u ; store a at RowCount,u
-                    leax      >Data_005,pc ; form the address >Data_005,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    bra       Branch_009 ; continue execution at Branch_009
+                    lda       #23       ; initialize row count to 23
+CursorDownClamped   sta       RowCount,u ; retain row count
+                    leax      >CursorDownCode,pc ; select cursor down code
+                    ldy       #1        ; establish the cursor down clamped loop or field bound (1)
+                    lda       #1        ; establish the cursor down clamped loop or field bound (1)
+                    bra       EmitRepeatedCursorMove ; continue with emit repeated cursor move
 
-Data_006            fcb       $06       ; store byte data
-Esc_C               lbsr      Code_001  ; call subroutine Code_001
-                    lbsr      Routine_002 ; call subroutine Routine_002
-                    pshs      a         ; save a on the stack
-                    lda       ColCount,u ; load a from ColCount,u
+CursorRightCode     fcb       $06
+Esc_C               lbsr      LocateCsiParameters ; invoke locate csi parameters
+                    lbsr      ParseAnsiParameter ; invoke parse ansi parameter
+                    pshs      a         ; preserve a across the operation
+                    lda       ColCount,u ; recover col count
                     adda      ,s        ; add to a using ,s
-                    cmpa      #80       ; compare a with #80 and set the condition codes
-                    bls       Branch_012 ; branch when the unsigned value is lower or equal; target Branch_012
+                    cmpa      #80       ; establish the esc c loop or field bound (80)
+                    bls       CursorRightClamped ; select cursor right clamped at or below the unsigned boundary
                     suba      #80       ; subtract from a using #80
-                    pshs      a         ; save a on the stack
-                    lda       $01,s     ; load a from the current stack frame at $01,s
+                    pshs      a         ; preserve a across the operation
+                    lda       $01,s     ; recover $01
                     suba      ,s        ; subtract from a using ,s
                     sta       $01,s     ; store a in the current stack frame at $01,s
-                    leas      $01,s     ; adjust the system stack pointer
-                    lda       #80       ; set a to the constant 80
-Branch_012          sta       ColCount,u ; store a at ColCount,u
-                    leax      >Data_006,pc ; form the address >Data_006,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    lbra      Branch_009 ; continue execution at Branch_009
+                    leas      $01,s     ; release $01,s bytes of stack state
+                    lda       #80       ; initialize col count to 80
+CursorRightClamped  sta       ColCount,u ; retain col count
+                    leax      >CursorRightCode,pc ; select cursor right code
+                    ldy       #1        ; establish the cursor right clamped loop or field bound (1)
+                    lda       #1        ; establish the cursor right clamped loop or field bound (1)
+                    lbra      EmitRepeatedCursorMove ; continue with emit repeated cursor move
 
-Data_007            fcb       $08       ; store byte data
-Esc_D               lbsr      Code_001  ; call subroutine Code_001
-                    lbsr      Routine_002 ; call subroutine Routine_002
-                    pshs      a         ; save a on the stack
-                    lda       ColCount,u ; load a from ColCount,u
+CursorLeftCode      fcb       $08
+Esc_D               lbsr      LocateCsiParameters ; invoke locate csi parameters
+                    lbsr      ParseAnsiParameter ; invoke parse ansi parameter
+                    pshs      a         ; preserve a across the operation
+                    lda       ColCount,u ; recover col count
                     suba      ,s        ; subtract from a using ,s
-                    bgt       Branch_013 ; branch when the signed value is greater; target Branch_013
+                    bgt       CursorLeftClamped
                     deca                ; decrement a
                     adda      ,s        ; add to a using ,s
                     sta       ,s        ; store a in the current stack frame at ,s
-                    lda       #1        ; set a to the constant 1
-Branch_013          sta       ColCount,u ; store a at ColCount,u
-                    leax      >Data_007,pc ; form the address >Data_007,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    lbra      Branch_009 ; continue execution at Branch_009
+                    lda       #1        ; initialize col count to 1
+CursorLeftClamped   sta       ColCount,u ; retain col count
+                    leax      >CursorLeftCode,pc ; select cursor left code
+                    ldy       #1        ; establish the cursor left clamped loop or field bound (1)
+                    lda       #1        ; initialize saved column to 1
+                    lbra      EmitRepeatedCursorMove ; continue with emit repeated cursor move
 
-Esc_s               lda       ColCount,u ; load a from ColCount,u
-                    sta       WorkByte_001,u ; store a at WorkByte_001,u
-                    lda       RowCount,u ; load a from RowCount,u
-                    sta       WorkByte_002,u ; store a at WorkByte_002,u
+Esc_s               lda       ColCount,u ; recover col count
+                    sta       SavedColumn,u ; retain saved column
+                    lda       RowCount,u ; recover row count
+                    sta       SavedRow,u ; retain saved row
                     rts                 ; return to the caller
 
-Esc_u               lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    sta       RowCount,u ; store a at RowCount,u
+Esc_u               lda       SavedRow,u ; recover saved row
+                    sta       RowCount,u ; retain row count
                     adda      #31       ; add to a using #31
-                    pshs      a         ; save a on the stack
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    sta       ColCount,u ; store a at ColCount,u
+                    pshs      a         ; preserve a across the operation
+                    lda       SavedColumn,u ; recover saved column
+                    sta       ColCount,u ; retain col count
                     adda      #31       ; add to a using #31
-                    pshs      a         ; save a on the stack
-                    leax      >Data_003,pc ; form the address >Data_003,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      ,s        ; form the address ,s in x
-                    ldy       #2        ; set y to the constant 2
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leas      $02,s     ; adjust the system stack pointer
+                    pshs      a         ; preserve a across the operation
+                    leax      >SetCursorCode,pc ; select set cursor code
+                    ldy       #1        ; cap this output request at 1 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
+                    leax      ,s        ; select
+                    ldy       #2        ; cap this output request at 2 bytes
+                    os9       I$Write   ; write the requested fixed-size field
+                    leas      $02,s     ; release $02,s bytes of stack state
                     rts                 ; return to the caller
 
-Esc_m               lbsr      Code_001  ; call subroutine Code_001
-Branch_014          lda       ,x        ; load a from ,x
-                    cmpa      #109      ; compare a with #109 and set the condition codes
-                    beq       Branch_015 ; branch when the values are equal or the result is zero; target Branch_015
-                    lbsr      Routine_002 ; call subroutine Routine_002
-                    bsr       Routine_003 ; call subroutine Routine_003
-                    lda       ,x+       ; load a from ,x+
-                    cmpa      #59       ; compare a with #59 and set the condition codes
-                    beq       Branch_014 ; branch when the values are equal or the result is zero; target Branch_014
-Branch_015          rts                 ; return to the caller
+Esc_m               lbsr      LocateCsiParameters ; invoke locate csi parameters
+ParseSgrParameter   lda       ,x        ; recover
+                    cmpa      #109      ; establish the parse sgr parameter loop or field bound (109)
+                    beq       ReturnFromSgr ; select return from sgr when the requested case matches
+                    lbsr      ParseAnsiParameter ; invoke parse ansi parameter
+                    bsr       ApplySgrAttribute ; invoke apply sgr attribute
+                    lda       ,x+       ; consume the next byte while parse sgr parameter
+                    cmpa      #59       ; establish the parse sgr parameter loop or field bound (59)
+                    beq       ParseSgrParameter ; enter parse sgr parameter when the terminating condition is met
+ReturnFromSgr       rts                 ; return to the caller
 
-Routine_003         pshs      x         ; save x on the stack
-                    cmpa      #0        ; compare a with #0 and set the condition codes
-                    beq       Branch_016 ; branch when the values are equal or the result is zero; target Branch_016
-                    cmpa      #4        ; compare a with #4 and set the condition codes
-                    beq       Branch_017 ; branch when the values are equal or the result is zero; target Branch_017
-                    cmpa      #5        ; compare a with #5 and set the condition codes
-                    beq       Branch_018 ; branch when the values are equal or the result is zero; target Branch_018
-                    cmpa      #7        ; compare a with #7 and set the condition codes
-                    beq       Branch_019 ; branch when the values are equal or the result is zero; target Branch_019
-                    cmpa      #8        ; compare a with #8 and set the condition codes
-                    beq       Branch_020 ; branch when the values are equal or the result is zero; target Branch_020
-                    cmpa      #40       ; compare a with #40 and set the condition codes
-                    lbge      Branch_021 ; branch when the signed value is greater than or equal; target Branch_021
-                    cmpa      #30       ; compare a with #30 and set the condition codes
-                    bge       Branch_022 ; branch when the signed value is greater than or equal; target Branch_022
+ApplySgrAttribute   pshs      x         ; preserve x across the operation
+                    cmpa      #0        ; establish the apply sgr attribute loop or field bound (0)
+                    beq       ResetAttributes ; select reset attributes when the requested case matches
+                    cmpa      #4        ; establish the apply sgr attribute loop or field bound (4)
+                    beq       SetUnderline ; select set underline when the requested case matches
+                    cmpa      #5        ; establish the apply sgr attribute loop or field bound (5)
+                    beq       SetBlink  ; select set blink when the requested case matches
+                    cmpa      #7        ; establish the apply sgr attribute loop or field bound (7)
+                    beq       SetReverseVideo ; select set reverse video when the requested case matches
+                    cmpa      #8        ; establish the apply sgr attribute loop or field bound (8)
+                    beq       SetConceal ; select set conceal when the requested case matches
+                    cmpa      #40       ; establish the apply sgr attribute loop or field bound (40)
+                    lbge      MapBackgroundColor ; continue with map background color at or above the signed limit
+                    cmpa      #30       ; establish the apply sgr attribute loop or field bound (30)
+                    bge       MapForegroundColor ; continue with map foreground color at or above the signed limit
                     puls      pc,x      ; restore pc,x and return to the caller
 
-Data_008            fcb       $1B       ; store byte data
-                    fcb       $32       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $1B       ; store byte data
-                    fcb       $33       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $21       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $23       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $25       ; store byte data
+ResetAttributeCodes fcb       $1B
+                    fcb       $32
+                    fcb       $00
+                    fcb       $1B
+                    fcb       $33
+                    fcb       $02
+                    fcb       $1F
+                    fcb       $21
+                    fcb       $1F
+                    fcb       $23
+                    fcb       $1F
+                    fcb       $25
 
-Branch_016          leax      >Data_008,pc ; form the address >Data_008,pc in x
-                    ldy       #12       ; set y to the constant 12
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
+ResetAttributes     leax      >ResetAttributeCodes,pc ; select reset attribute codes
+                    ldy       #12       ; cap this output request at 12 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
                     puls      pc,x      ; restore pc,x and return to the caller
 
-Data_009            fcb       $1F       ; store byte data
-                    fcb       $22       ; store byte data
+UnderlineCode       fcb       $1F
+                    fcb       $22
 
-Branch_017          leax      >Data_009,pc ; form the address >Data_009,pc in x
-Branch_023          ldy       #2        ; set y to the constant 2
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
+SetUnderline        leax      >UnderlineCode,pc ; select underline code
+EmitTwoByteAttribute ldy       #2        ; cap this output request at 2 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
                     puls      pc,x      ; restore pc,x and return to the caller
 
-Data_010            fcb       $1F       ; store byte data
-                    fcb       $24       ; store byte data
+BlinkCode           fcb       $1F
+                    fcb       $24
 
-Branch_018          leax      >Data_010,pc ; form the address >Data_010,pc in x
-                    bra       Branch_023 ; continue execution at Branch_023
+SetBlink            leax      >BlinkCode,pc ; select blink code
+                    bra       EmitTwoByteAttribute ; continue with emit two byte attribute
 
-Data_011            fcb       $1F       ; store byte data
-                    fcb       $20       ; store byte data
+ReverseVideoCode    fcb       $1F
+                    fcb       $20
 
-Branch_019          leax      >Data_011,pc ; form the address >Data_011,pc in x
-                    bra       Branch_023 ; continue execution at Branch_023
+SetReverseVideo     leax      >ReverseVideoCode,pc ; select reverse video code
+                    bra       EmitTwoByteAttribute ; continue with emit two byte attribute
 
-Data_012            fcb       $1B       ; store byte data
-                    fcb       $32       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $1B       ; store byte data
-                    fcb       $33       ; store byte data
-                    fcb       $02       ; store byte data
+ConcealCodes        fcb       $1B
+                    fcb       $32
+                    fcb       $02
+                    fcb       $1B
+                    fcb       $33
+                    fcb       $02
 
-Branch_020          leax      >Data_012,pc ; form the address >Data_012,pc in x
-                    ldy       #6        ; set y to the constant 6
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
+SetConceal          leax      >ConcealCodes,pc ; select conceal codes
+                    ldy       #6        ; cap this output request at 6 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
                     puls      pc,x      ; restore pc,x and return to the caller
 
-Data_013            fcb       $1B       ; store byte data
-                    fcb       $32       ; store byte data
+ForegroundPrefix    fcb       $1B
+                    fcb       $32
 
-Branch_022          cmpa      #37       ; compare a with #37 and set the condition codes
-                    ble       Branch_024 ; branch when the signed value is less than or equal; target Branch_024
+MapForegroundColor  cmpa      #37       ; establish the map foreground color loop or field bound (37)
+                    ble       EmitForegroundColor
                     puls      pc,x      ; restore pc,x and return to the caller
 
-Branch_024          suba      #30       ; subtract from a using #30
-                    pshs      a         ; save a on the stack
-                    leax      >Data_013,pc ; form the address >Data_013,pc in x
-                    ldy       #2        ; set y to the constant 2
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    puls      a         ; restore a from the stack
-                    leax      >Data_014,pc ; form the address >Data_014,pc in x
-                    leax      a,x       ; form the address a,x in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
+EmitForegroundColor suba      #30       ; subtract from a using #30
+                    pshs      a         ; preserve a across the operation
+                    leax      >ForegroundPrefix,pc ; select foreground prefix
+                    ldy       #2        ; cap this output request at 2 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
+                    puls      a         ; restore a
+                    leax      >ColorTranslationTable,pc ; select color translation table
+                    leax      a,x       ; select a
+                    ldy       #1        ; cap this output request at 1 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
                     puls      pc,x      ; restore pc,x and return to the caller
 
-Data_015            fcb       $1B       ; store byte data
-                    fcb       $33       ; store byte data
+BackgroundPrefix    fcb       $1B
+                    fcb       $33
 
-Branch_021          cmpa      #47       ; compare a with #47 and set the condition codes
-                    ble       Branch_025 ; branch when the signed value is less than or equal; target Branch_025
+MapBackgroundColor  cmpa      #47       ; establish the map background color loop or field bound (47)
+                    ble       EmitBackgroundColor
                     puls      pc,x      ; restore pc,x and return to the caller
 
-Branch_025          suba      #40       ; subtract from a using #40
-                    pshs      a         ; save a on the stack
-                    leax      >Data_015,pc ; form the address >Data_015,pc in x
-                    ldy       #2        ; set y to the constant 2
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      >Data_014,pc ; form the address >Data_014,pc in x
-                    puls      a         ; restore a from the stack
-                    leax      a,x       ; form the address a,x in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
+EmitBackgroundColor suba      #40       ; subtract from a using #40
+                    pshs      a         ; preserve a across the operation
+                    leax      >BackgroundPrefix,pc ; select background prefix
+                    ldy       #2        ; cap this output request at 2 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
+                    leax      >ColorTranslationTable,pc ; select color translation table
+                    puls      a         ; restore a
+                    leax      a,x       ; select a
+                    ldy       #1        ; cap this output request at 1 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
 
                     puls      pc,x      ; restore pc,x and return to the caller
 
-Data_014            fcb       $02       ; store byte data
-                    fcb       $04       ; store byte data
-                    fcb       $03       ; store byte data
-                    fcb       $05       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $07       ; store byte data
-                    fcb       $00       ; store byte data
+ColorTranslationTable fcb       $02
+                    fcb       $04
+                    fcb       $03
+                    fcb       $05
+                    fcb       $01
+                    fcb       $06
+                    fcb       $07
+                    fcb       $00
 
-Code_001            leax      WriteBuf,u ; form the address WriteBuf,u in x
-                    leax      $01,x     ; form the address $01,x in x
-                    lda       ,x+       ; load a from ,x+
-                    cmpa      #91       ; compare a with #91 and set the condition codes
-                    beq       Branch_026 ; branch when the values are equal or the result is zero; target Branch_026
-                    leas      $02,s     ; adjust the system stack pointer
-                    lbra      Branch_006 ; continue execution at Branch_006
-Branch_026          rts                 ; return to the caller
+LocateCsiParameters leax      WriteBuf,u ; select write buf
+                    leax      $01,x     ; select $01
+                    lda       ,x+       ; consume the next byte while locate csi parameters
+                    cmpa      #91       ; establish the locate csi parameters loop or field bound (91)
+                    beq       CsiParametersReady ; select csi parameters ready when the requested case matches
+                    leas      $02,s     ; release $02,s bytes of stack state
+                    lbra      FlushEscapeLiteral ; continue with flush escape literal
+CsiParametersReady  rts                 ; return to the caller
 
-Routine_002         lda       ,x        ; load a from ,x
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    blt       Branch_027 ; branch when the signed value is less; target Branch_027
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bgt       Branch_027 ; branch when the signed value is greater; target Branch_027
-Branch_028          lda       ,x+       ; load a from ,x+
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    blt       Branch_029 ; branch when the signed value is less; target Branch_029
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bgt       Branch_029 ; branch when the signed value is greater; target Branch_029
-                    bra       Branch_028 ; continue execution at Branch_028
-Branch_029          leax      -$01,x    ; form the address -$01,x in x
-                    tfr       x,y       ; copy the register values specified by x,y
-                    pshs      x         ; save x on the stack
-                    ldb       #1        ; set b to the constant 1
-                    ldx       #0        ; set x to the constant 0
-Branch_030          pshs      b         ; save b on the stack
-                    lda       ,-y       ; load a from ,-y
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    blt       Branch_031 ; branch when the signed value is less; target Branch_031
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bgt       Branch_031 ; branch when the signed value is greater; target Branch_031
+ParseAnsiParameter  lda       ,x        ; recover
+                    cmpa      #48       ; recognize or generate ASCII zero
+                    blt       DefaultParameter ; continue with default parameter below the signed limit
+                    cmpa      #57       ; recognize ASCII nine as the upper digit bound
+                    bgt       DefaultParameter
+FindParameterEnd    lda       ,x+       ; consume the next byte while find parameter end
+                    cmpa      #48       ; recognize or generate ASCII zero
+                    blt       ConvertParameterDigits ; continue with convert parameter digits below the signed limit
+                    cmpa      #57       ; recognize ASCII nine as the upper digit bound
+                    bgt       ConvertParameterDigits
+                    bra       FindParameterEnd ; continue with find parameter end
+ConvertParameterDigits leax      -$01,x    ; select -$01
+                    tfr       x,y       ; transfer x,y
+                    pshs      x         ; preserve x across the operation
+                    ldb       #1        ; establish the convert parameter digits loop or field bound (1)
+                    ldx       #0        ; establish the convert parameter digits loop or field bound (0)
+AccumulateParameterDigit pshs      b         ; preserve b across the operation
+                    lda       ,-y       ; recover
+                    cmpa      #48       ; recognize or generate ASCII zero
+                    blt       ReturnParsedParameter ; continue with return parsed parameter below the signed limit
+                    cmpa      #57       ; recognize ASCII nine as the upper digit bound
+                    bgt       ReturnParsedParameter
                     suba      #48       ; subtract from a using #48
-                    mul                 ; multiply a by b and return the product in d
+                    mul                 ; form the byte-product in D
                     abx                 ; advance x by the unsigned offset in b
-                    puls      b         ; restore b from the stack
-                    lda       #10       ; set a to the constant 10
-                    mul                 ; multiply a by b and return the product in d
-                    bra       Branch_030 ; continue execution at Branch_030
+                    puls      b         ; restore b
+                    lda       #10       ; select the line-feed control byte
+                    mul                 ; form the byte-product in D
+                    bra       AccumulateParameterDigit ; continue with accumulate parameter digit
 
-Branch_031          puls      b         ; restore b from the stack
-                    tfr       x,d       ; copy the register values specified by x,d
-                    tfr       b,a       ; copy the register values specified by b,a
+ReturnParsedParameter puls      b         ; restore b
+                    tfr       x,d       ; transfer x,d
+                    tfr       b,a       ; transfer b,a
                     puls      pc,x      ; restore pc,x and return to the caller
 
-Branch_027          lda       #1        ; set a to the constant 1
+DefaultParameter    lda       #1        ; establish the default parameter loop or field bound (1)
                     rts                 ; return to the caller
 
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+                    emod                ; emit the OS-9 module CRC and trailer
+eom                 equ       *
+                    end                 ; end the assembly source

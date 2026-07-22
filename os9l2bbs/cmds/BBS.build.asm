@@ -23,533 +23,536 @@
                     use       defsfile
                   ENDC
 
-tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
-atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
+tylg                set       Prgrm+Objct
+atrv                set       ReEnt+rev
 rev                 set       $02       ; interactive terminal-options revision
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_003        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_002        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkByte_004        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_005        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_003        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkByte_006        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_007        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_004        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_005        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkBuffer_001      rmb       3         ; reserve 3 byte(s) in the module workspace
-WorkBuffer_002      rmb       80        ; reserve 80 byte(s) in the module workspace
-WorkBuffer_003      rmb       32        ; reserve 32 byte(s) in the module workspace
-WorkByte_008        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_004      rmb       8199      ; reserve 8199 byte(s) in the module workspace
+OutputPathNum       rmb       2
+DigitValue          rmb       1
+EditorInputByte     rmb       1
+EditorCarryLength   rmb       1
+OutputNamePtr       rmb       2
+DescriptionLineCount rmb       1
+DescriptionLineCountLow rmb       1
+ListLineNumber      rmb       2
+NumericValue        rmb       1
+NumericValueLow     rmb       1
+DecimalPlaceValue   rmb       2
+SelectedLineNumber  rmb       2
+LineNumberText      rmb       3
+EditorCarryBuffer   rmb       80
+TerminalOptionScratch rmb       32
+LongDescriptionBuffer rmb       1
+LongDescriptionBufferTail rmb       8199
 TerminalOptions     rmb       32        ; SS.Opt packet kept last to preserve existing workspace offsets
-size                equ       .         ; define the assembly-time value for size
+size                equ       .
 
-name                fcs       /BBS.build/ ; store an OS-9 high-bit-terminated string
-                    fcc       "Copyright (C) 1988" ; store literal character data
-                    fcc       "By Keith Alphonso" ; store literal character data
-                    fcc       "Licenced to Alpha Software Technologies" ; store literal character data
-                    fcc       "All rights reserved" ; store literal character data
-                    fcb       $EC       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $EA       ; store byte data
-                    fcb       $F5       ; store byte data
-                    fcb       $E9       ; store byte data
-                    fcb       $A0       ; store byte data
-                    fcb       $E2       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $F1       ; store byte data
-                    fcb       $E9       ; store byte data
-                    fcb       $F0       ; store byte data
-                    fcb       $EF       ; store byte data
-                    fcb       $F4       ; store byte data
-                    fcb       $F0       ; store byte data
-Data_001            fcb       $0A       ; store byte data
-                    fcb       $0A       ; store byte data
-                    fcc       "    Please enter message now            (Blank line ends)" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_001            fcc       "----------------------------------------------------------------" ; store literal character data
-                    fcb       $0D       ; store byte data
-Data_002            fcb       $0A       ; store byte data
-                    fcc       "[A]bort [D]one [E]dit [C]ontinue or [L]ist" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_002            fcc       "Enter line #" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_003            fcc       ">" ; store literal character data
-Data_003            fcb       $0A       ; store byte data
-                    fcb       $0D       ; store byte data
-Data_004            fcb       $08       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $08       ; store byte data
+name                fcs       /BBS.build/
+                    fcc       "Copyright (C) 1988"
+                    fcc       "By Keith Alphonso"
+                    fcc       "Licenced to Alpha Software Technologies"
+                    fcc       "All rights reserved"
+                    fcb       $EC
+                    fcb       $E6
+                    fcb       $EA
+                    fcb       $F5
+                    fcb       $E9
+                    fcb       $A0
+                    fcb       $E2
+                    fcb       $ED
+                    fcb       $F1
+                    fcb       $E9
+                    fcb       $F0
+                    fcb       $EF
+                    fcb       $F4
+                    fcb       $F0
+MessageEntryPrompt  fcb       $0A
+                    fcb       $0A
+                    fcc       "    Please enter message now            (Blank line ends)"
+                    fcb       $0D
+MessageRule         fcc       "----------------------------------------------------------------"
+                    fcb       $0D
+CompositionPrompt   fcb       $0A
+                    fcc       "[A]bort [D]one [E]dit [C]ontinue or [L]ist"
+                    fcb       $0D
+EditLinePrompt      fcc       "Enter line #"
+                    fcb       $0D
+PromptMarker        fcc       ">"
+PromptReturn        fcb       $0A
+                    fcb       $0D
+EraseSequence       fcb       $08
+                    fcb       $20
+                    fcb       $08
 
 start               lbsr      InitializeTerminalInput ; configure the stdin supplied by Shellplus </1
-                    stx       WorkWord_002,u ; store x at WorkWord_002,u
-                    lda       #2        ; set a to the constant 2
-                    ldb       #27       ; set b to the constant 27
-                    os9       I$Create  ; create the path at X with mode A and attributes B
-                    lbcs      ErrExit   ; branch when carry reports an error or unsigned underflow; target ErrExit
-                    sta       WorkWord_001,u ; store a at WorkWord_001,u
-                    leax      >Data_001,pc ; form the address >Data_001,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
+                    stx       OutputNamePtr,u ; retain output name ptr
+                    lda       #2        ; request write access for the new text file
+                    ldb       #27       ; use the package's writable data-file attributes
+                    os9       I$Create  ; create the requested output file
+                    lbcs      ErrExit   ; select err exit when carry reports an error or underflow
+                    sta       OutputPathNum,u ; retain output path num
+                    leax      >MessageEntryPrompt,pc ; select message entry prompt
+                    ldy       #200      ; let WritLn stop at the embedded CR
+                    lda       #1        ; direct the prompt to the terminal
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lbcs      ErrExit   ; branch when carry reports an error or unsigned underflow; target ErrExit
-                    leax      >Text_001,pc ; form the address >Text_001,pc in x
-                    ldy       #80       ; set y to the constant 80
+                    lbcs      ErrExit   ; select err exit when carry reports an error or underflow
+                    leax      >MessageRule,pc ; select message rule
+                    ldy       #80       ; preserve the original overlong write bound
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lbcs      ErrExit   ; branch when carry reports an error or unsigned underflow; target ErrExit
-                    ldd       #0        ; set d to the constant 0
-                    std       WorkByte_004,u ; store d at WorkByte_004,u
-                    sta       WorkByte_003,u ; store a at WorkByte_003,u
-Branch_001          ldd       WorkByte_004,u ; load d from WorkByte_004,u
-                    addd      #1        ; add to d using #1
-                    std       WorkByte_004,u ; store d at WorkByte_004,u
-                    cmpd      #99       ; compare d with #99 and set the condition codes
-                    bge       Branch_002 ; branch when the signed value is greater than or equal; target Branch_002
-                    lbsr      Routine_001 ; call subroutine Routine_001
-                    cmpy      #1        ; compare y with #1 and set the condition codes
-                    bls       Branch_002 ; branch when the unsigned value is lower or equal; target Branch_002
-                    bra       Branch_001 ; continue execution at Branch_001
+                    lbcs      ErrExit   ; select err exit when carry reports an error or underflow
+                    ldd       #0        ; initialize description line count to 0
+                    std       DescriptionLineCount,u ; retain description line count
+                    sta       EditorCarryLength,u ; begin with no wrapped carry text
+ReadDescriptionLines ldd       DescriptionLineCount,u ; recover description line count
+                    addd      #1        ; advance to the next 80-byte line slot
+                    std       DescriptionLineCount,u ; retain description line count
+                    cmpd      #99       ; stop before the 100-line editor limit
+                    bge       PromptCompositionAction ; continue with prompt composition action at or above the signed limit
+                    lbsr      ReadLongDescriptionLine ; edit one logical description line
+                    cmpy      #1        ; detect a blank CR-only line
+                    bls       PromptCompositionAction ; ask again at prompt composition action
+                    bra       ReadDescriptionLines ; continue collecting description text
 
-Branch_002          leax      >Data_002,pc ; form the address >Data_002,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >Text_003,pc ; form the address >Text_003,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      WorkByte_002,u ; form the address WorkByte_002,u in x
-                    clra                ; clear a to zero and set the condition codes
-                    ldy       #1        ; set y to the constant 1
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    leax      >Data_003,pc ; form the address >Data_003,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    anda      #223      ; mask a using #223
-                    cmpa      #65       ; compare a with #65 and set the condition codes
-                    lbeq      Branch_003 ; branch when the values are equal or the result is zero; target Branch_003
-                    cmpa      #68       ; compare a with #68 and set the condition codes
-                    lbeq      Branch_004 ; branch when the values are equal or the result is zero; target Branch_004
-                    cmpa      #69       ; compare a with #69 and set the condition codes
-                    beq       Branch_005 ; branch when the values are equal or the result is zero; target Branch_005
-                    cmpa      #67       ; compare a with #67 and set the condition codes
-                    beq       Branch_006 ; branch when the values are equal or the result is zero; target Branch_006
-                    cmpa      #76       ; compare a with #76 and set the condition codes
-                    beq       Branch_007 ; branch when the values are equal or the result is zero; target Branch_007
-                    bra       Branch_002 ; continue execution at Branch_002
+PromptCompositionAction leax      >CompositionPrompt,pc ; select composition prompt
+                    ldy       #200      ; allow I$WritLn to find the menu terminator
+                    lda       #1        ; direct the menu to the terminal
+                    os9       I$WritLn  ; display the review choices
+                    leax      >PromptMarker,pc ; place a marker before the one-key choice
+                    ldy       #1        ; emit only the marker byte
+                    os9       I$Write   ; leave the cursor after the marker
+                    leax      EditorInputByte,u ; receive the review menu keystroke
+                    clra                ; read from standard input
+                    ldy       #1        ; accept exactly one choice byte
+                    os9       I$Read    ; wait for the review action
+                    leax      >PromptReturn,pc ; advance the terminal after the choice
+                    ldy       #1        ; emit one line-control byte
+                    lda       #1        ; direct it to the terminal
+                    os9       I$WritLn  ; move below the entered choice
+                    lda       EditorInputByte,u ; recover the raw choice
+                    anda      #223      ; fold lowercase ASCII to uppercase
+                    cmpa      #'A       ; test for abort
+                    lbeq      AbortAndDelete ; select abort and delete when the requested case matches
+                    cmpa      #68       ; test for done
+                    lbeq      CommitFile ; select commit file when the requested case matches
+                    cmpa      #69       ; test for edit
+                    beq       EditDescription ; replace a selected line
+                    cmpa      #67       ; test for continue
+                    beq       ContinueDescription ; reopen entry at the current end
+                    cmpa      #76       ; test for list
+                    beq       ListDescription ; enter list description when the terminating condition is met
+                    bra       PromptCompositionAction ; continue with prompt composition action
 
-Branch_006          ldd       WorkByte_004,u ; load d from WorkByte_004,u
-                    subd      #1        ; subtract from d using #1
-                    std       WorkByte_004,u ; store d at WorkByte_004,u
-                    bra       Branch_001 ; continue execution at Branch_001
+ContinueDescription ldd       DescriptionLineCount,u ; recover description line count
+                    subd      #1        ; reopen the prior terminator slot
+                    std       DescriptionLineCount,u ; retain description line count
+                    bra       ReadDescriptionLines ; resume multiline entry
 
-Branch_005          leax      >Text_002,pc ; form the address >Text_002,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >Text_003,pc ; form the address >Text_003,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    clra                ; clear a to zero and set the condition codes
-                    leax      <WorkBuffer_001,u ; form the address <WorkBuffer_001,u in x
-                    ldy       #3        ; set y to the constant 3
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    lbsr      Routine_002 ; call subroutine Routine_002
-                    cmpd      WorkByte_004,u ; compare d with WorkByte_004,u and set the condition codes
-                    lbcc      Branch_002 ; branch when carry is clear; target Branch_002
-                    std       WorkWord_005,u ; store d at WorkWord_005,u
-                    leax      <WorkBuffer_001,u ; form the address <WorkBuffer_001,u in x
-                    lbsr      Routine_003 ; call subroutine Routine_003
-                    leax      <WorkBuffer_001,u ; form the address <WorkBuffer_001,u in x
-                    lda       #58       ; set a to the constant 58
-                    sta       $02,x     ; store a at $02,x
-                    ldy       #3        ; set y to the constant 3
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    ldd       WorkWord_005,u ; load d from WorkWord_005,u
-                    leax      >WorkByte_008,u ; form the address >WorkByte_008,u in x
-                    lda       #80       ; set a to the constant 80
-                    mul                 ; multiply a by b and return the product in d
-                    leax      d,x       ; form the address d,x in x
-                    ldy       #80       ; set y to the constant 80
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    tfr       y,d       ; copy the register values specified by y,d
-                    stb       WorkByte_003,u ; store b at WorkByte_003,u
-                    dec       WorkByte_003,u ; decrement the value at WorkByte_003,u
-                    leay      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in y
-Branch_008          lda       ,x+       ; load a from ,x+
-                    sta       ,y+       ; store a at ,y+
-                    decb                ; decrement b
-                    bne       Branch_008 ; branch when the values differ or the result is nonzero; target Branch_008
-                    ldd       WorkWord_005,u ; load d from WorkWord_005,u
-                    bsr       Routine_001 ; call subroutine Routine_001
-                    lbra      Branch_002 ; continue execution at Branch_002
+EditDescription     leax      >EditLinePrompt,pc ; ask which buffered line to replace
+                    ldy       #200      ; allow I$WritLn to find the prompt terminator
+                    lda       #1        ; direct the prompt to the terminal
+                    os9       I$WritLn  ; request a line number
+                    leax      >PromptMarker,pc ; place a marker before numeric input
+                    ldy       #1        ; emit only the marker byte
+                    os9       I$Write   ; leave the cursor on the response line
+                    clra                ; read from standard input
+                    leax      <LineNumberText,u ; select line number text
+                    ldy       #3        ; bound the line-number response
+                    os9       I$ReadLn  ; collect the requested line number
+                    lbsr      ParseDecimal ; convert its decimal digit run to D
+                    cmpd      DescriptionLineCount,u ; test against description line count
+                    lbcc      PromptCompositionAction ; ask again at prompt composition action
+                    std       SelectedLineNumber,u ; retain selected line number
+                    leax      <LineNumberText,u ; select line number text
+                    lbsr      FormatTwoDigit ; render D as two decimal digits
+                    leax      <LineNumberText,u ; select line number text
+                    lda       #58       ; select the colon separator
+                    sta       $02,x     ; complete the displayed line-number prefix
+                    ldy       #3        ; emit two digits and colon
+                    lda       #1        ; direct the prefix to the terminal
+                    os9       I$Write   ; label the existing selected line
+                    ldd       SelectedLineNumber,u ; recover selected line number
+                    leax      >LongDescriptionBuffer,u ; start at the description array
+                    lda       #80       ; convert line index to byte offset
+                    mul                 ; form the byte-product in D
+                    leax      d,x       ; address the selected line
+                    ldy       #80       ; bound display at one line slot
+                    lda       #1        ; direct the line to the terminal
+                    os9       I$WritLn  ; show the text that will be edited
+                    tfr       y,d       ; recover the displayed line length
+                    stb       EditorCarryLength,u ; retain editor carry length
+                    dec       EditorCarryLength,u ; exclude the terminating CR
+                    leay      <EditorCarryBuffer,u ; select editor carry buffer
+CopyEditedLineToScratch lda       ,x+       ; consume the next byte while copy edited line to scratch
+                    sta       ,y+       ; append it to the prefill buffer
+                    decb                ; count one copied character
+                    bne       CopyEditedLineToScratch ; retain the entire existing line
+                    ldd       SelectedLineNumber,u ; recover selected line number
+                    bsr       ReadLongDescriptionLine ; re-edit that line in place
+                    lbra      PromptCompositionAction ; continue with prompt composition action
 
-Branch_007          ldd       #0        ; set d to the constant 0
-                    std       WorkByte_004,u ; store d at WorkByte_004,u
-Branch_009          ldd       WorkByte_004,u ; load d from WorkByte_004,u
-                    addd      #1        ; add to d using #1
-                    std       WorkByte_004,u ; store d at WorkByte_004,u
-                    leax      <WorkBuffer_001,u ; form the address <WorkBuffer_001,u in x
-                    lbsr      Routine_003 ; call subroutine Routine_003
-                    leax      <WorkBuffer_001,u ; form the address <WorkBuffer_001,u in x
-                    lda       #58       ; set a to the constant 58
-                    sta       $02,x     ; store a at $02,x
-                    lda       #1        ; set a to the constant 1
-                    ldy       #3        ; set y to the constant 3
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      >WorkByte_008,u ; form the address >WorkByte_008,u in x
-                    ldd       WorkByte_004,u ; load d from WorkByte_004,u
-                    lda       #80       ; set a to the constant 80
-                    mul                 ; multiply a by b and return the product in d
-                    leax      d,x       ; form the address d,x in x
-                    ldy       #80       ; set y to the constant 80
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    cmpy      #1        ; compare y with #1 and set the condition codes
-                    bhi       Branch_009 ; branch when the unsigned value is higher; target Branch_009
-                    lbra      Branch_002 ; continue execution at Branch_002
+ListDescription     ldd       #0        ; initialize description line count to 0
+                    std       DescriptionLineCount,u ; retain description line count
+ListEachLine        ldd       DescriptionLineCount,u ; recover description line count
+                    addd      #1        ; advance to the next displayed line number
+                    std       DescriptionLineCount,u ; retain description line count
+                    leax      <LineNumberText,u ; select line number text
+                    lbsr      FormatTwoDigit ; render the current line number
+                    leax      <LineNumberText,u ; select line number text
+                    lda       #58       ; select the colon separator
+                    sta       $02,x     ; replace the formatter's CR with colon
+                    lda       #1        ; direct the prefix to the terminal
+                    ldy       #3        ; emit two digits and colon
+                    os9       I$Write   ; label the line being displayed
+                    leax      >LongDescriptionBuffer,u ; start at the description array
+                    ldd       DescriptionLineCount,u ; recover description line count
+                    lda       #80       ; convert it to an array byte offset
+                    mul                 ; form the byte-product in D
+                    leax      d,x       ; address the line to display
+                    ldy       #80       ; bound the display at one array slot
+                    lda       #1        ; direct the line to the terminal
+                    os9       I$WritLn  ; display until its stored CR
+                    cmpy      #1        ; detect the blank terminator line
+                    bhi       ListEachLine ; continue list each line while the range test permits it
+                    lbra      PromptCompositionAction ; continue with prompt composition action
 
-Routine_001         leax      <WorkBuffer_001,u ; form the address <WorkBuffer_001,u in x
-                    pshs      d         ; save d on the stack
-                    lbsr      Routine_003 ; call subroutine Routine_003
-                    leax      <WorkBuffer_001,u ; form the address <WorkBuffer_001,u in x
-                    lda       #58       ; set a to the constant 58
-                    sta       $02,x     ; store a at $02,x
-                    lda       #1        ; set a to the constant 1
-                    ldy       #3        ; set y to the constant 3
-                    os9       I$Write   ; write Y bytes from X to path A
-                    lbcs      ErrExit   ; branch when carry reports an error or unsigned underflow; target ErrExit
-                    leax      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in x
-                    ldb       WorkByte_003,u ; load b from WorkByte_003,u
-                    clra                ; clear a to zero and set the condition codes
-                    tfr       d,y       ; copy the register values specified by d,y
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    puls      d         ; restore d from the stack
-                    lda       #80       ; set a to the constant 80
-                    mul                 ; multiply a by b and return the product in d
-                    leax      >WorkByte_008,u ; form the address >WorkByte_008,u in x
-                    leax      d,x       ; form the address d,x in x
-                    leay      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in y
-                    ldb       #80       ; set b to the constant 80
-                    lda       WorkByte_003,u ; load a from WorkByte_003,u
-                    beq       Branch_010 ; branch when the values are equal or the result is zero; target Branch_010
-                    sta       WorkByte_006,u ; store a at WorkByte_006,u
-Branch_011          lda       ,y+       ; load a from ,y+
-                    sta       ,x+       ; store a at ,x+
-                    decb                ; decrement b
-                    dec       WorkByte_006,u ; decrement the value at WorkByte_006,u
-                    bne       Branch_011 ; branch when the values differ or the result is nonzero; target Branch_011
-Branch_010          clra                ; clear a to zero and set the condition codes
-                    tfr       d,y       ; copy the register values specified by d,y
-                    lbsr      Routine_004 ; call subroutine Routine_004
-                    rts                 ; return to the caller
+ReadLongDescriptionLine leax      <LineNumberText,u ; select line number text
+                    pshs      d         ; preserve the array index across formatting
+                    lbsr      FormatTwoDigit ; render the line number as two digits
+                    leax      <LineNumberText,u ; select line number text
+                    lda       #58       ; select the colon separator
+                    sta       $02,x     ; replace the formatter's CR with colon
+                    lda       #1        ; direct the prefix to the terminal
+                    ldy       #3        ; emit two digits and colon
+                    os9       I$Write   ; label the interactive line
+                    lbcs      ErrExit   ; select err exit when carry reports an error or underflow
+                    leax      <EditorCarryBuffer,u ; select editor carry buffer
+                    ldb       EditorCarryLength,u ; obtain its byte count
+                    clra                ; extend the count to a word
+                    tfr       d,y       ; use that count for terminal prefill output
+                    lda       #1        ; direct retained text to the terminal
+                    os9       I$Write   ; prefill the interactive line display
+                    puls      d         ; recover the array index
+                    lda       #80       ; convert it to an array byte offset
+                    mul                 ; form the byte-product in D
+                    leax      >LongDescriptionBuffer,u ; start at the description array
+                    leax      d,x       ; address the target line slot
+                    leay      <EditorCarryBuffer,u ; select editor carry buffer
+                    ldb       #80       ; track remaining capacity in the destination line
+                    lda       EditorCarryLength,u ; determine whether prefill text exists
+                    beq       NoCarryText ; enter the editor with an empty line
+                    sta       NumericValue,u ; retain numeric value
+CopyCarryText       lda       ,y+       ; fetch the next prefill byte
+                    sta       ,x+       ; seed it into the target line
+                    decb                ; reduce remaining line capacity
+                    dec       NumericValue,u ; consume one numeric value
+                    bne       CopyCarryText ; copy all retained text
+NoCarryText         clra                ; extend remaining capacity to a word
+                    tfr       d,y       ; pass capacity in Y to the line editor
+                    lbsr      EditLine  ; accept interactive edits at X
+                    rts                 ; return the edited line length in Y
 
-Branch_004          lda       #0        ; set a to the constant 0
-                    sta       WorkWord_003,u ; store a at WorkWord_003,u
-Branch_012          lda       WorkWord_003,u ; load a from WorkWord_003,u
-                    inca                ; increment a
-                    sta       WorkWord_003,u ; store a at WorkWord_003,u
-                    cmpa      WorkByte_005,u ; compare a with WorkByte_005,u and set the condition codes
-                    bhi       Exit      ; branch when the unsigned value is higher; target Exit
-                    ldb       #80       ; set b to the constant 80
-                    mul                 ; multiply a by b and return the product in d
-                    leax      >WorkByte_008,u ; form the address >WorkByte_008,u in x
-                    leax      d,x       ; form the address d,x in x
-                    ldy       #80       ; set y to the constant 80
-                    lda       WorkWord_001,u ; load a from WorkWord_001,u
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lbcs      ErrExit   ; branch when carry reports an error or unsigned underflow; target ErrExit
-                    cmpy      #1        ; compare y with #1 and set the condition codes
-                    bls       Exit      ; branch when the unsigned value is lower or equal; target Exit
-                    tfr       y,d       ; copy the register values specified by y,d
-                    bra       Branch_012 ; continue execution at Branch_012
+CommitFile          lda       #0        ; begin writing with the first stored line
+                    sta       ListLineNumber,u ; retain list line number
+WriteDescriptionLines lda       ListLineNumber,u ; recover the output line index
+                    inca                ; advance to the next line slot
+                    sta       ListLineNumber,u ; retain list line number
+                    cmpa      DescriptionLineCountLow,u ; test against description line count low
+                    bhi       Exit      ; finish the command successfully
+                    ldb       #80       ; convert the line number to a byte offset
+                    mul                 ; form the byte-product in D
+                    leax      >LongDescriptionBuffer,u ; start at the line array
+                    leax      d,x       ; address the next output line
+                    ldy       #80       ; bound output at one array slot
+                    lda       OutputPathNum,u ; recover output path num
+                    os9       I$WritLn  ; append one CR-terminated description line
+                    lbcs      ErrExit   ; select err exit when carry reports an error or underflow
+                    cmpy      #1        ; detect the blank terminator line
+                    bls       Exit      ; finish the command successfully
+                    tfr       y,d       ; preserve the original harmless length transfer
+                    bra       WriteDescriptionLines ; append the next buffered line
 
-Exit                clrb                ; clear b to zero and set the condition codes
-ErrExit             os9       F$Exit    ; terminate the process with status B
+Exit                clrb                ; report successful validation processing
+ErrExit             os9       F$Exit    ; return success or the preserved OS-9 status
 
-Branch_003          lda       WorkWord_001,u ; load a from WorkWord_001,u
-                    os9       I$Close   ; close path A
-                    ldx       WorkWord_002,u ; load x from WorkWord_002,u
-                    lda       #1        ; set a to the constant 1
+AbortAndDelete      lda       OutputPathNum,u ; recover output path num
+                    os9       I$Close   ; close the selected path
+                    ldx       OutputNamePtr,u ; recover output name ptr
+                    lda       #1        ; establish the abort and delete loop or field bound (1)
                     os9       I$Delete  ; delete the path named at X
-                    bcs       ErrExit   ; branch when carry reports an error or unsigned underflow; target ErrExit
-                    bra       Exit      ; continue execution at Exit
+                    bcs       ErrExit   ; select err exit when carry reports an error or underflow
+                    bra       Exit      ; continue with exit
 
-Routine_004         lbsr      Code_001  ; call subroutine Code_001
-                    ldb       WorkByte_003,u ; load b from WorkByte_003,u
-                    leay      b,y       ; form the address b,y in y
-                    pshs      y         ; save y on the stack
+EditLine            lbsr      DisableAutoEcho ; take control of character echoing
+                    ldb       EditorCarryLength,u ; include wrapped or prefilled characters
+                    leay      b,y       ; reconstruct the slot's original total capacity
+stk_editor_capacity equ       0
+                    pshs      y         ; retain the line's total editable capacity
                     negb                ; negate b
                     sex                 ; sign-extend b into d
-                    leay      d,y       ; form the address d,y in y
-                    clr       WorkByte_003,u ; clear WorkByte_003,u to zero and set the condition codes
-                    cmpy      #0        ; compare y with #0 and set the condition codes
-                    lbeq      Branch_013 ; branch when the values are equal or the result is zero; target Branch_013
-                    pshs      y,x       ; save y,x on the stack
-                    lda       #13       ; set a to the constant 13
-Branch_014          sta       ,x+       ; store a at ,x+
-                    leay      -$01,y    ; form the address -$01,y in y
-                    bne       Branch_014 ; branch when the values differ or the result is nonzero; target Branch_014
-                    puls      y,x       ; restore y,x from the stack
-Branch_015          pshs      y,x       ; save y,x on the stack
-                    leax      WorkByte_002,u ; form the address WorkByte_002,u in x
-                    ldy       #1        ; set y to the constant 1
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    bcs       Branch_016 ; branch when carry reports an error or unsigned underflow; target Branch_016
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    cmpa      #1        ; compare a with #1 and set the condition codes
-                    beq       Branch_017 ; branch when the values are equal or the result is zero; target Branch_017
-                    cmpa      #8        ; compare a with #8 and set the condition codes
-                    beq       Branch_018 ; branch when the values are equal or the result is zero; target Branch_018
-                    cmpa      #24       ; compare a with #24 and set the condition codes
-                    beq       Branch_019 ; branch when the values are equal or the result is zero; target Branch_019
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    lbeq      Branch_020 ; branch when the values are equal or the result is zero; target Branch_020
-                    cmpa      #32       ; compare a with #32 and set the condition codes
-                    bcs       Branch_016 ; branch when carry reports an error or unsigned underflow; target Branch_016
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    puls      y,x       ; restore y,x from the stack
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    sta       ,x+       ; store a at ,x+
-                    leay      -$01,y    ; form the address -$01,y in y
-                    lbeq      Branch_021 ; branch when the values are equal or the result is zero; target Branch_021
-                    bra       Branch_015 ; continue execution at Branch_015
+                    leay      d,y       ; restore remaining capacity after prefill
+                    clr       EditorCarryLength,u ; consume the prefill state
+                    cmpy      #0        ; detect an already full line
+                    lbeq      FinishEditedLine ; terminate it without reading more input
+                    pshs      y,x       ; preserve insertion state while padding
+                    lda       #13       ; use CR as the unused-slot sentinel
+PadEditorBuffer     sta       ,x+       ; mark the next unused character position
+                    leay      -$01,y    ; count one padded byte
+                    bne       PadEditorBuffer ; initialize the entire unused tail
+                    puls      y,x       ; restore insertion pointer and capacity
+ReadEditorChar      pshs      y,x       ; protect editor state during terminal I/O
+                    leax      EditorInputByte,u ; receive one keystroke in workspace
+                    ldy       #1        ; request exactly one byte
+                    clra                ; read from standard input
+                    os9       I$Read    ; wait for the next editing command or character
+                    bcs       IgnoreEditorInput ; ignore transient terminal read errors
+                    lda       EditorInputByte,u ; classify the received byte
+                    cmpa      #1        ; ctrl-A advances through existing text
+                    beq       HandleCursorRight ; reveal the next stored character
+                    cmpa      #8        ; backspace deletes one character
+                    beq       HandleBackspace ; erase when not at the left boundary
+                    cmpa      #24       ; ctrl-X clears backward to the line start
+                    beq       HandleCtrlX ; repeat the backspace action
+                    cmpa      #13       ; carriage return accepts the current line
+                    lbeq      AcceptEditedLine ; terminate the buffer and return its length
+                    cmpa      #32       ; reject other control characters
+                    bcs       IgnoreEditorInput ; wait for another meaningful byte
+                    lda       #1        ; echo printable input to the terminal
+                    os9       I$Write   ; display the staged input byte
+                    puls      y,x       ; recover insertion state
+                    lda       EditorInputByte,u ; recover the accepted printable byte
+                    sta       ,x+       ; append it to the line buffer
+                    leay      -$01,y    ; consume one byte of remaining capacity
+                    lbeq      EditorBufferFull ; wrap cleanly when column 80 is filled
+                    bra       ReadEditorChar ; continue interactive entry
 
-Branch_016          puls      y,x       ; restore y,x from the stack
-                    bra       Branch_015 ; continue execution at Branch_015
+IgnoreEditorInput   puls      y,x       ; discard I/O-temporary state
+                    bra       ReadEditorChar ; wait for another key
 
-Branch_017          puls      y,x       ; restore y,x from the stack
-                    leay      -$01,y    ; form the address -$01,y in y
-                    beq       Branch_022 ; branch when the values are equal or the result is zero; target Branch_022
-                    lda       ,x+       ; load a from ,x+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       Branch_023 ; branch when the values are equal or the result is zero; target Branch_023
-                    pshs      y,x       ; save y,x on the stack
-                    leax      -$01,x    ; form the address -$01,x in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    bra       Branch_017 ; continue execution at Branch_017
+HandleCursorRight   puls      y,x       ; recover current insertion state
+                    leay      -$01,y    ; reserve one more displayed character
+                    beq       EditorAtRightEdge ; refuse motion beyond column 80
+                    lda       ,x+       ; inspect the next preexisting character
+                    cmpa      #13       ; stop at the stored line terminator
+                    beq       CursorReachedReturn ; leave the cursor before the CR
+                    pshs      y,x       ; preserve advanced editor state during echo
+                    leax      -$01,x    ; point at the character just traversed
+                    ldy       #1        ; echo exactly that character
+                    lda       #1        ; direct it to the terminal
+                    os9       I$Write   ; visually advance through existing text
+                    bra       HandleCursorRight ; recover state through the common path
 
-Branch_023          leax      -$01,x    ; form the address -$01,x in x
-Branch_022          leay      $01,y     ; form the address $01,y in y
-                    lbra      Branch_015 ; continue execution at Branch_015
+CursorReachedReturn leax      -$01,x    ; back up over the unconsumed terminator
+EditorAtRightEdge   leay      $01,y     ; undo the speculative capacity decrement
+                    lbra      ReadEditorChar ; resume input at the valid cursor position
 
-Branch_018          puls      y,x       ; restore y,x from the stack
-                    leay      $01,y     ; form the address $01,y in y
-                    cmpy      ,s        ; compare y with ,s and set the condition codes
-                    bhi       Branch_024 ; branch when the unsigned value is higher; target Branch_024
-                    pshs      y,x       ; save y,x on the stack
-                    leax      >Data_004,pc ; form the address >Data_004,pc in x
-                    ldy       #3        ; set y to the constant 3
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    puls      y,x       ; restore y,x from the stack
-                    leax      -$01,x    ; form the address -$01,x in x
-                    lbra      Branch_015 ; continue execution at Branch_015
+HandleBackspace     puls      y,x       ; recover current insertion state
+                    leay      $01,y     ; reclaim one byte of line capacity
+                    cmpy      stk_editor_capacity,s ; test against the original left edge
+                    bhi       RejectDeleteAtStart ; select reject delete at start above the unsigned boundary
+                    pshs      y,x       ; protect updated state during terminal erase
+                    leax      >EraseSequence,pc ; choose backspace-space-backspace
+                    ldy       #3        ; emit the full visual erase sequence
+                    lda       #1        ; direct it to the terminal
+                    os9       I$Write   ; remove one displayed character
+                    puls      y,x       ; recover updated editor state
+                    leax      -$01,x    ; move the insertion pointer left one byte
+                    lbra      ReadEditorChar ; continue editing
 
-Branch_024          leay      -$01,y    ; form the address -$01,y in y
-                    lbra      Branch_015 ; continue execution at Branch_015
+RejectDeleteAtStart leay      -$01,y    ; undo the invalid capacity increment
+                    lbra      ReadEditorChar ; ignore deletion at the left edge
 
-Branch_019          puls      y,x       ; restore y,x from the stack
-                    leay      $01,y     ; form the address $01,y in y
-                    cmpy      ,s        ; compare y with ,s and set the condition codes
-                    bhi       Branch_024 ; branch when the unsigned value is higher; target Branch_024
-                    pshs      y,x       ; save y,x on the stack
-                    leax      >Data_004,pc ; form the address >Data_004,pc in x
-                    ldy       #3        ; set y to the constant 3
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    puls      y,x       ; restore y,x from the stack
-                    leax      -$01,x    ; form the address -$01,x in x
-                    cmpy      ,s        ; compare y with ,s and set the condition codes
-                    lbhi      Branch_015 ; branch when the unsigned value is higher; target Branch_015
-                    pshs      y,x       ; save y,x on the stack
-                    bra       Branch_019 ; continue execution at Branch_019
+HandleCtrlX         puls      y,x       ; recover current insertion state
+                    leay      $01,y     ; reclaim one byte as for backspace
+                    cmpy      stk_editor_capacity,s ; test against the original left edge
+                    bhi       RejectDeleteAtStart ; select reject delete at start above the unsigned boundary
+                    pshs      y,x       ; protect state during visual erase
+                    leax      >EraseSequence,pc ; choose backspace-space-backspace
+                    ldy       #3        ; emit the complete erase sequence
+                    lda       #1        ; direct it to the terminal
+                    os9       I$Write   ; erase one displayed character
+                    puls      y,x       ; recover updated state
+                    leax      -$01,x    ; move the insertion pointer left
+                    cmpy      stk_editor_capacity,s ; see whether the left edge was reached
+                    lbhi      ReadEditorChar ; continue read editor char while the range test permits it
+                    pshs      y,x       ; recreate the I/O-state shape for another erase
+                    bra       HandleCtrlX ; continue clearing toward the left edge
 
-Branch_020          puls      y,x       ; restore y,x from the stack
-Branch_013          lda       #13       ; set a to the constant 13
-                    sta       ,x+       ; store a at ,x+
-                    pshs      y,x       ; save y,x on the stack
-                    leax      >Data_003,pc ; form the address >Data_003,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    puls      y,x       ; restore y,x from the stack
-                    puls      d         ; restore d from the stack
-                    pshs      y         ; save y on the stack
-                    subd      ,s        ; subtract from d using ,s
-                    leas      $02,s     ; adjust the system stack pointer
-                    tfr       d,y       ; copy the register values specified by d,y
-                    leay      $01,y     ; form the address $01,y in y
-                    lbsr      Routine_005 ; call subroutine Routine_005
-                    rts                 ; return to the caller
+AcceptEditedLine    puls      y,x       ; recover state from the input read
+FinishEditedLine    lda       #13       ; terminate the edited line with CR
+                    sta       ,x+       ; store the logical line terminator
+                    pshs      y,x       ; protect final editor state during output
+                    leax      >PromptReturn,pc ; move the terminal to a fresh line
+                    ldy       #1        ; output only the leading line-control byte
+                    lda       #1        ; direct it to the terminal
+                    os9       I$WritLn  ; finish the interactive edit display
+                    puls      y,x       ; recover final state
+                    puls      d         ; recover the original capacity
+stk_editor_remaining equ       0
+                    pshs      y         ; expose remaining capacity for subtraction
+                    subd      stk_editor_remaining,s ; derive bytes used from total minus remaining
+                    leas      $02,s     ; discard the temporary remaining-capacity word
+                    tfr       d,y       ; return the accepted line length in Y
+                    leay      $01,y     ; include the stored CR terminator
+                    lbsr      EnableAutoEcho ; restore normal terminal echo
+                    rts                 ; return the completed line and its length
 
-                    fcc       "50" ; store literal character data
+                    fcc       "50"
 
-Branch_021          puls      d         ; restore d from the stack
-                    pshs      y         ; save y on the stack
-                    subd      ,s        ; subtract from d using ,s
-                    leas      $02,s     ; adjust the system stack pointer
-                    addd      #1        ; add to d using #1
-                    tfr       d,y       ; copy the register values specified by d,y
-                    clrb                ; clear b to zero and set the condition codes
-Branch_025          leay      -$01,y    ; form the address -$01,y in y
-                    beq       Branch_026 ; branch when the values are equal or the result is zero; target Branch_026
-                    lda       ,-x       ; load a from ,-x
-                    cmpa      #32       ; compare a with #32 and set the condition codes
-                    beq       Branch_027 ; branch when the values are equal or the result is zero; target Branch_027
-                    pshs      y,x       ; save y,x on the stack
-                    leax      >Data_004,pc ; form the address >Data_004,pc in x
-                    ldy       #3        ; set y to the constant 3
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    incb                ; increment b
-                    puls      y,x       ; restore y,x from the stack
-                    bra       Branch_025 ; continue execution at Branch_025
+EditorBufferFull    puls      d         ; recover the original capacity
+stk_full_remaining  equ       0
+                    pshs      y         ; expose remaining capacity for length arithmetic
+                    subd      stk_full_remaining,s ; derive the filled line length
+                    leas      $02,s     ; discard the temporary remaining-capacity word
+                    addd      #1        ; include the position following the full line
+                    tfr       d,y       ; scan backward across the entered text
+                    clrb                ; count characters moved to the next line
+TrimTrailingSpaces  leay      -$01,y    ; count one candidate character from the right
+                    beq       PrintTrimmedLine ; emit an unsplittable full line
+                    lda       ,-x       ; inspect the previous entered character
+                    cmpa      #32       ; search for the last word boundary
+                    beq       SplitAtSpace ; wrap the suffix after that space
+                    pshs      y,x       ; protect scan state during visual erase
+                    leax      >EraseSequence,pc ; choose backspace-space-backspace
+                    ldy       #3        ; emit one visual deletion
+                    lda       #1        ; direct it to the terminal
+                    os9       I$Write   ; erase the suffix character from the display
+                    incb                ; count one byte moved to carryover
+                    puls      y,x       ; recover the backward scan
+                    bra       TrimTrailingSpaces ; keep searching for a space
 
-Branch_026          lda       #13       ; set a to the constant 13
-                    sta       <$004F,x  ; store a at <$004F,x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    puls      y         ; restore y from the stack
-                    rts                 ; return to the caller
+PrintTrimmedLine    lda       #13       ; terminate the full unsplittable line
+                    sta       <$004F,x  ; place CR at its fixed final column
+                    ldy       #200      ; allow I$WritLn to find that terminator
+                    lda       #1        ; direct the completed line to the terminal
+                    os9       I$WritLn  ; advance after automatic line completion
+                    puls      y         ; discard the saved original capacity
+                    rts                 ; return with no carryover text
 
-Branch_027          lda       #13       ; set a to the constant 13
-                    sta       ,x+       ; store a at ,x+
-                    pshs      y,x       ; save y,x on the stack
-                    stb       WorkByte_003,u ; store b at WorkByte_003,u
-                    leay      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in y
-Branch_028          lda       ,x+       ; load a from ,x+
-                    sta       ,y+       ; store a at ,y+
-                    decb                ; decrement b
-                    bne       Branch_028 ; branch when the values differ or the result is nonzero; target Branch_028
-                    leax      >Data_003,pc ; form the address >Data_003,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    puls      y,x       ; restore y,x from the stack
-                    lbsr      Routine_005 ; call subroutine Routine_005
-                    rts                 ; return to the caller
+SplitAtSpace        lda       #13       ; terminate the line at the word boundary
+                    sta       ,x+       ; replace the separating space with CR
+                    pshs      y,x       ; preserve split position and return length
+                    stb       EditorCarryLength,u ; retain editor carry length
+                    leay      <EditorCarryBuffer,u ; select editor carry buffer
+CopyRemainder       lda       ,x+       ; fetch the next wrapped character
+                    sta       ,y+       ; append it to carryover storage
+                    decb                ; count one suffix byte copied
+                    bne       CopyRemainder ; preserve the complete wrapped word
+                    leax      >PromptReturn,pc ; advance the terminal after wrapping
+                    ldy       #1        ; emit one line-control byte
+                    lda       #1        ; direct it to the terminal
+                    os9       I$WritLn  ; begin the next visual line
+                    puls      y,x       ; recover split state
+                    lbsr      EnableAutoEcho ; restore normal terminal input behavior
+                    rts                 ; return the shortened line and carryover suffix
 
-Code_001            pshs      y,x,d     ; save y,x,d on the stack
-                    leax      <WorkBuffer_003,u ; form the address <WorkBuffer_003,u in x
-                    clra                ; clear a to zero and set the condition codes
-                    ldb       #0        ; set b to the constant 0
-                    os9       I$GetStt  ; query status code B for path A
-                    leax      -$20,x    ; form the address -$20,x in x
-                    clr       <$0024,x  ; clear <$0024,x to zero and set the condition codes
-                    leax      <$0020,x  ; form the address <$0020,x in x
-                    os9       I$SetStt  ; apply status operation B to path A
-                    puls      pc,y,x,d  ; restore pc,y,x,d and return to the caller
+DisableAutoEcho     pshs      y,x,d     ; preserve the caller's working registers
+                    leax      <TerminalOptionScratch,u ; select terminal option scratch
+                    clra                ; select standard input
+                    ldb       #0        ; select SS.Opt
+                    os9       I$GetStt  ; fetch the current terminal options
+                    leax      -$20,x    ; address the packet's base
+                    clr       <$0024,x  ; disable automatic input echo
+                    leax      <$0020,x  ; restore the option-packet pointer expected by OS-9
+                    os9       I$SetStt  ; apply explicit-echo editing mode
+                    puls      pc,y,x,d  ; restore registers and return
 
-Routine_005         pshs      y,x,d     ; save y,x,d on the stack
-                    leax      <WorkBuffer_003,u ; form the address <WorkBuffer_003,u in x
-                    clra                ; clear a to zero and set the condition codes
-                    ldb       #0        ; set b to the constant 0
-                    os9       I$GetStt  ; query status code B for path A
-                    leax      -$20,x    ; form the address -$20,x in x
-                    lda       #1        ; set a to the constant 1
-                    sta       <$0024,x  ; store a at <$0024,x
-                    leax      <$0020,x  ; form the address <$0020,x in x
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$SetStt  ; apply status operation B to path A
-                    puls      pc,y,x,d  ; restore pc,y,x,d and return to the caller
+EnableAutoEcho      pshs      y,x,d     ; preserve the caller's working registers
+                    leax      <TerminalOptionScratch,u ; select terminal option scratch
+                    clra                ; select standard input
+                    ldb       #0        ; select SS.Opt
+                    os9       I$GetStt  ; fetch the current terminal options
+                    leax      -$20,x    ; address the packet's base
+                    lda       #1        ; select enabled echo
+                    sta       <$0024,x  ; restore automatic input echo
+                    leax      <$0020,x  ; restore the OS-9 option-packet pointer
+                    clra                ; apply options to standard input
+                    os9       I$SetStt  ; return the terminal to normal echo behavior
+                    puls      pc,y,x,d  ; restore registers and return
 
-Routine_002         pshs      y         ; save y on the stack
-Branch_029          lda       ,x+       ; load a from ,x+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    lbeq      Branch_030 ; branch when the values are equal or the result is zero; target Branch_030
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       Branch_029 ; branch when carry reports an error or unsigned underflow; target Branch_029
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       Branch_029 ; branch when the unsigned value is higher; target Branch_029
-                    leax      -$01,x    ; form the address -$01,x in x
-Branch_031          lda       ,x+       ; load a from ,x+
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       Branch_032 ; branch when carry reports an error or unsigned underflow; target Branch_032
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       Branch_032 ; branch when the unsigned value is higher; target Branch_032
-                    bra       Branch_031 ; continue execution at Branch_031
+ParseDecimal        pshs      y         ; preserve the caller's y
+FindFirstDigit      lda       ,x+       ; scan the next response byte
+                    cmpa      #13       ; stop when no digit run was present
+                    lbeq      NoDecimalDigits ; report an invalid line number
+                    cmpa      #48       ; ignore bytes below ASCII zero
+                    bcs       FindFirstDigit ; continue searching
+                    cmpa      #57       ; ignore bytes above ASCII nine
+                    bhi       FindFirstDigit ; continue find first digit while the range test permits it
+                    leax      -$01,x    ; return to the first digit
+FindDigitRunEnd     lda       ,x+       ; locate the byte following the digit run
+                    cmpa      #48       ; stop below ASCII zero
+                    bcs       ParseDigitRun ; convert the complete run
+                    cmpa      #57       ; stop above ASCII nine
+                    bhi       ParseDigitRun ; continue parse digit run while the range test permits it
+                    bra       FindDigitRunEnd ; continue across decimal digits
 
-Branch_032          pshs      x         ; save x on the stack
-                    leax      -$01,x    ; form the address -$01,x in x
-                    clr       WorkByte_006,u ; clear WorkByte_006,u to zero and set the condition codes
-                    clr       WorkByte_007,u ; clear WorkByte_007,u to zero and set the condition codes
-                    ldd       #1        ; set d to the constant 1
-                    std       WorkWord_004,u ; store d at WorkWord_004,u
-Branch_033          lda       ,-x       ; load a from ,-x
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       Branch_034 ; branch when carry reports an error or unsigned underflow; target Branch_034
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       Branch_034 ; branch when the unsigned value is higher; target Branch_034
+ParseDigitRun       pshs      x         ; retain the caller's post-run pointer
+                    leax      -$01,x    ; begin with the least-significant digit
+                    clr       NumericValue,u ; initialize numeric value
+                    clr       NumericValueLow,u ; initialize numeric value low
+                    ldd       #1        ; initialize decimal place value to 1
+                    std       DecimalPlaceValue,u ; retain decimal place value
+AccumulatePreviousDigit lda       ,-x       ; recover
+                    cmpa      #48       ; finish before the digit run
+                    bcs       ReturnNumericValue ; return the accumulated value
+                    cmpa      #57       ; guard the upper digit boundary
+                    bhi       ReturnNumericValue ; select return numeric value above the unsigned boundary
                     suba      #48       ; subtract from a using #48
-                    sta       WorkByte_001,u ; store a at WorkByte_001,u
-                    ldd       #0        ; set d to the constant 0
-Branch_035          tst       WorkByte_001,u ; set condition codes from WorkByte_001,u without changing it
-                    beq       Branch_036 ; branch when the values are equal or the result is zero; target Branch_036
-                    addd      WorkWord_004,u ; add to d using WorkWord_004,u
-                    dec       WorkByte_001,u ; decrement the value at WorkByte_001,u
-                    bra       Branch_035 ; continue execution at Branch_035
+                    sta       DigitValue,u ; retain the remaining multiplier count
+                    ldd       #0        ; establish the accumulate previous digit loop or field bound (0)
+MultiplyDigitByPlace tst       DigitValue,u ; test whether all copies were accumulated
+                    beq       AddDigitValue ; merge this digit's contribution
+                    addd      DecimalPlaceValue,u ; add to d using DecimalPlaceValue,u
+                    dec       DigitValue,u ; consume one multiplier unit
+                    bra       MultiplyDigitByPlace ; implement digit multiplication by addition
 
-Branch_036          addd      WorkByte_006,u ; add to d using WorkByte_006,u
-                    std       WorkByte_006,u ; store d at WorkByte_006,u
-                    lda       #10       ; set a to the constant 10
-                    sta       WorkByte_001,u ; store a at WorkByte_001,u
-                    ldd       #0        ; set d to the constant 0
-Branch_037          tst       WorkByte_001,u ; set condition codes from WorkByte_001,u without changing it
-                    beq       Branch_038 ; branch when the values are equal or the result is zero; target Branch_038
-                    addd      WorkWord_004,u ; add to d using WorkWord_004,u
-                    dec       WorkByte_001,u ; decrement the value at WorkByte_001,u
-                    bra       Branch_037 ; continue execution at Branch_037
+AddDigitValue       addd      NumericValue,u ; add to d using NumericValue,u
+                    std       NumericValue,u ; retain numeric value
+                    lda       #10       ; prepare to multiply the place by ten
+                    sta       DigitValue,u ; set the repeated-addition count
+                    ldd       #0        ; establish the add digit value loop or field bound (0)
+MultiplyPlaceByTen  tst       DigitValue,u ; test whether ten copies were accumulated
+                    beq       SaveNextDecimalPlace ; retain the next power of ten
+                    addd      DecimalPlaceValue,u ; add to d using DecimalPlaceValue,u
+                    dec       DigitValue,u ; consume one of the ten copies
+                    bra       MultiplyPlaceByTen ; complete multiplication by ten
 
-Branch_038          std       WorkWord_004,u ; store d at WorkWord_004,u
-                    bra       Branch_033 ; continue execution at Branch_033
-Branch_034          ldd       WorkByte_006,u ; load d from WorkByte_006,u
-                    puls      x         ; restore x from the stack
-                    puls      pc,y      ; restore pc,y and return to the caller
+SaveNextDecimalPlace std       DecimalPlaceValue,u ; retain decimal place value
+                    bra       AccumulatePreviousDigit ; consume the next digit to the left
+ReturnNumericValue  ldd       NumericValue,u ; recover numeric value
+                    puls      x         ; restore the caller's post-run pointer
+                    puls      pc,y      ; restore y and return
 
-Routine_003         pshs      y         ; save y on the stack
-                    std       WorkByte_006,u ; store d at WorkByte_006,u
-                    lda       #48       ; set a to the constant 48
-                    sta       ,x        ; store a at ,x
-                    sta       $01,x     ; store a at $01,x
-                    ldd       #10       ; set d to the constant 10
-                    std       WorkWord_004,u ; store d at WorkWord_004,u
-                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
-                    bsr       Routine_006 ; call subroutine Routine_006
-                    ldd       #1        ; set d to the constant 1
-                    std       WorkWord_004,u ; store d at WorkWord_004,u
-                    ldd       WorkByte_006,u ; load d from WorkByte_006,u
-                    bsr       Routine_006 ; call subroutine Routine_006
-                    lda       #13       ; set a to the constant 13
-                    sta       ,x        ; store a at ,x
-                    puls      pc,y      ; restore pc,y and return to the caller
+FormatTwoDigit      pshs      y         ; preserve the caller's y
+                    std       NumericValue,u ; retain numeric value
+                    lda       #48       ; initialize both output digits to ASCII zero
+                    sta       ,x        ; seed the tens digit
+                    sta       $01,x     ; seed the units digit
+                    ldd       #10       ; select the line-feed control byte
+                    std       DecimalPlaceValue,u ; retain decimal place value
+                    ldd       NumericValue,u ; recover numeric value
+                    bsr       EmitDecimalDigit ; count tens into the first digit
+                    ldd       #1        ; initialize decimal place value to 1
+                    std       DecimalPlaceValue,u ; retain decimal place value
+                    ldd       NumericValue,u ; recover numeric value
+                    bsr       EmitDecimalDigit ; count units into the second digit
+                    lda       #13       ; terminate the formatted prefix
+                    sta       ,x        ; append CR after the two digits
+                    puls      pc,y      ; restore y and return
 
-Routine_006         subd      WorkWord_004,u ; subtract from d using WorkWord_004,u
-                    bcs       Branch_039 ; branch when carry reports an error or unsigned underflow; target Branch_039
-                    inc       ,x        ; increment the value at ,x
-                    bra       Routine_006 ; continue execution at Routine_006
+EmitDecimalDigit    subd      DecimalPlaceValue,u ; subtract from d using DecimalPlaceValue,u
+                    bcs       RestoreDivisionRemainder ; stop when subtraction underflows
+                    inc       ,x        ; increment this ASCII output digit
+                    bra       EmitDecimalDigit ; count another divisor unit
 
-Branch_039          addd      WorkWord_004,u ; add to d using WorkWord_004,u
-                    std       WorkByte_006,u ; store d at WorkByte_006,u
-                    leax      $01,x     ; form the address $01,x in x
-                    rts                 ; return to the caller
+RestoreDivisionRemainder addd      DecimalPlaceValue,u ; add to d using DecimalPlaceValue,u
+                    std       NumericValue,u ; retain numeric value
+                    leax      $01,x     ; advance to the next output position
+                    rts                 ; return the remainder in workspace
 
-Branch_030          ldd       #-1       ; set d to the constant -1
-                    puls      pc,y      ; restore pc,y and return to the caller
+NoDecimalDigits     ldd       #-1       ; establish the no decimal digits loop or field bound (-1)
+                    puls      pc,y      ; restore y and return
 
 * Enable the SCF behavior required by the interactive line editor.
 InitializeTerminalInput
@@ -569,6 +572,6 @@ InitializeTerminalInput
 InitializeTerminalDone
                     puls      pc,y,x,d  ; restore the caller and continue
 
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+                    emod                ; emit the OS-9 module CRC and trailer
+eom                 equ       *
+                    end                 ; end the assembly source
