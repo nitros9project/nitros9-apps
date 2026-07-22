@@ -23,747 +23,747 @@
                     use       defsfile
                   ENDC
 
-tylg                set       Prgrm+Objct ; set assembly-time module attribute tylg
-atrv                set       ReEnt+rev ; set assembly-time module attribute atrv
-rev                 set       $01       ; set assembly-time module attribute rev
+tylg                set       Prgrm+Objct
+atrv                set       ReEnt+rev
+rev                 set       $01
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-IndexPathNum        rmb       1         ; reserve 1 byte(s) in the module workspace
-BodyPathNum         rmb       1         ; reserve 1 byte(s) in the module workspace
-AliasPathNum        rmb       1         ; reserve 1 byte(s) in the module workspace
-IndexShiftCount     rmb       1         ; reserve 1 byte(s) in the module workspace
-DecimalCounter      rmb       1         ; reserve 1 byte(s) in the module workspace
-EditorCommand       rmb       1         ; reserve 1 byte(s) in the module workspace
-InputLineLength     rmb       1         ; reserve 1 byte(s) in the module workspace
-CallerUserId        rmb       2         ; reserve 2 byte(s) in the module workspace
-MessageLineNumber   rmb       1         ; reserve 1 byte(s) in the module workspace
-MessageLineCount    rmb       1         ; reserve 1 byte(s) in the module workspace
-IndexOffsetTop      rmb       1         ; reserve 1 byte(s) in the module workspace
-IndexOffsetHigh     rmb       1         ; reserve 1 byte(s) in the module workspace
-IndexOffsetLow      rmb       2         ; reserve 2 byte(s) in the module workspace
-BodyLineIndex       rmb       2         ; reserve 2 byte(s) in the module workspace
-BodyByteCount       rmb       2         ; reserve 2 byte(s) in the module workspace
-ParsedNumber        rmb       1         ; reserve 1 byte(s) in the module workspace
-ParsedNumberLow     rmb       1         ; reserve 1 byte(s) in the module workspace
-DecimalPlace        rmb       2         ; reserve 2 byte(s) in the module workspace
-SelectedEditLine    rmb       2         ; reserve 2 byte(s) in the module workspace
-AliasLineBuffer     rmb       200       ; reserve 200 byte(s) in the module workspace
-RecipientInputBuffer rmb       200       ; reserve 200 byte(s) in the module workspace
-ReservedStateByte1  rmb       1         ; reserve 1 byte(s) in the module workspace
-LineNumberText      rmb       5         ; reserve 5 byte(s) in the module workspace
-ReservedStateByte2  rmb       1         ; reserve 1 byte(s) in the module workspace
-NewMessageNumber    rmb       2         ; reserve 2 byte(s) in the module workspace
-BodyEndOffsetHigh   rmb       2         ; reserve 2 byte(s) in the module workspace
-IndexHeaderTail     rmb       60        ; reserve 60 byte(s) in the module workspace
-NewBodyOffsetHigh   rmb       2         ; reserve 2 byte(s) in the module workspace
-NewBodyOffsetLow    rmb       2         ; reserve 2 byte(s) in the module workspace
-AuthorAlias         rmb       20        ; reserve 20 byte(s) in the module workspace
-MessageSubject      rmb       30        ; reserve 30 byte(s) in the module workspace
-MessageTimestamp    rmb       6         ; reserve 6 byte(s) in the module workspace
-AuthorUserId        rmb       2         ; reserve 2 byte(s) in the module workspace
-RecipientUserId     rmb       2         ; reserve 2 byte(s) in the module workspace
-MessageLineBuffer   rmb       8000      ; reserve 8000 byte(s) in the module workspace
-EditLineBuffer      rmb       80        ; reserve 80 byte(s) in the module workspace
-TerminalOptions     rmb       1         ; reserve 1 byte(s) in the module workspace
-TerminalOptionsRemainder rmb       231       ; reserve 231 byte(s) in the module workspace
-size                equ       .         ; define the assembly-time value for size
+IndexPathNum        rmb       1
+BodyPathNum         rmb       1
+AliasPathNum        rmb       1
+IndexShiftCount     rmb       1
+DecimalCounter      rmb       1
+EditorCommand       rmb       1
+InputLineLength     rmb       1
+CallerUserId        rmb       2
+MessageLineNumber   rmb       1
+MessageLineCount    rmb       1
+IndexOffsetTop      rmb       1
+IndexOffsetHigh     rmb       1
+IndexOffsetLow      rmb       2
+BodyLineIndex       rmb       2
+BodyByteCount       rmb       2
+ParsedNumber        rmb       1
+ParsedNumberLow     rmb       1
+DecimalPlace        rmb       2
+SelectedEditLine    rmb       2
+AliasLineBuffer     rmb       200
+RecipientInputBuffer rmb       200
+ReservedStateByte1  rmb       1
+LineNumberText      rmb       5
+ReservedStateByte2  rmb       1
+NewMessageNumber    rmb       2
+BodyEndOffsetHigh   rmb       2
+IndexHeaderTail     rmb       60
+NewBodyOffsetHigh   rmb       2
+NewBodyOffsetLow    rmb       2
+AuthorAlias         rmb       20
+MessageSubject      rmb       30
+MessageTimestamp    rmb       6
+AuthorUserId        rmb       2
+RecipientUserId     rmb       2
+MessageLineBuffer   rmb       8000
+EditLineBuffer      rmb       80
+TerminalOptions     rmb       1
+TerminalOptionsRemainder rmb       231
+size                equ       .
 
-name                fcs       /BBS.mail.post/ ; store an OS-9 high-bit-terminated string
-                    fcc       "Copyright (C) 1988" ; store literal character data
-                    fcc       "By Keith Alphonso" ; store literal character data
-                    fcc       "Licenced to Alpha Software Technologies" ; store literal character data
-                    fcc       "All rights reserved" ; store literal character data
-                    fcb       $EC       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $EA       ; store byte data
-                    fcb       $F5       ; store byte data
-                    fcb       $E9       ; store byte data
-                    fcb       $A0       ; store byte data
-                    fcb       $E2       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $F1       ; store byte data
-                    fcb       $E9       ; store byte data
-                    fcb       $F0       ; store byte data
-                    fcb       $EF       ; store byte data
-                    fcb       $F4       ; store byte data
-                    fcb       $F0       ; store byte data
-MailIndexPath       fcc       "BBS.mail.inx" ; store literal character data
-                    fcb       $0D       ; store byte data
-MailBodyPath        fcc       "BBS.mail" ; store literal character data
-                    fcb       $0D       ; store byte data
-SubjectPrompt       fcc       "Enter subject of message" ; store literal character data
-                    fcb       $0D       ; store byte data
-                    fcb       $0A       ; store byte data
-                    fcc       ">" ; store literal character data
-SubjectPromptLength fcb       $00       ; store byte data
-                    fcb       $1B       ; store byte data
-MessageEntryPrompt  fcb       $0A       ; store byte data
-                    fcb       $0A       ; store byte data
-                    fcc       "    Please enter message now            (Blank line ends)" ; store literal character data
-                    fcb       $0D       ; store byte data
-MessageRule         fcc       "----------------------------------------------------------------" ; store literal character data
-                    fcb       $0D       ; store byte data
-AliasPath           fcc       "/dd/bbs/BBS.alias" ; store literal character data
-                    fcb       $0D       ; store byte data
-CompositionPrompt   fcb       $0A       ; store byte data
-                    fcc       "[A]bort [D]one [E]dit [C]ontinue or [L]ist" ; store literal character data
-                    fcb       $0D       ; store byte data
-EditLinePrompt      fcc       "Enter line #" ; store literal character data
-                    fcb       $0D       ; store byte data
-InputPrompt         fcc       ">" ; store literal character data
-BlankLine           fcb       $0A       ; store byte data
-                    fcb       $0D       ; store byte data
-UserNotFoundText    fcc       "Sorry...cannot locate that name" ; store literal character data
-                    fcb       $0D       ; store byte data
-RecipientPrompt     fcc       "Enter the name of the Person to send mail to" ; store literal character data
-                    fcb       $0D       ; store byte data
-EraseSequence       fcb       $08       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $08       ; store byte data
+name                fcs       /BBS.mail.post/
+                    fcc       "Copyright (C) 1988"
+                    fcc       "By Keith Alphonso"
+                    fcc       "Licenced to Alpha Software Technologies"
+                    fcc       "All rights reserved"
+                    fcb       $EC
+                    fcb       $E6
+                    fcb       $EA
+                    fcb       $F5
+                    fcb       $E9
+                    fcb       $A0
+                    fcb       $E2
+                    fcb       $ED
+                    fcb       $F1
+                    fcb       $E9
+                    fcb       $F0
+                    fcb       $EF
+                    fcb       $F4
+                    fcb       $F0
+MailIndexPath       fcc       "BBS.mail.inx"
+                    fcb       $0D
+MailBodyPath        fcc       "BBS.mail"
+                    fcb       $0D
+SubjectPrompt       fcc       "Enter subject of message"
+                    fcb       $0D
+                    fcb       $0A
+                    fcc       ">"
+SubjectPromptLength fcb       $00
+                    fcb       $1B
+MessageEntryPrompt  fcb       $0A
+                    fcb       $0A
+                    fcc       "    Please enter message now            (Blank line ends)"
+                    fcb       $0D
+MessageRule         fcc       "----------------------------------------------------------------"
+                    fcb       $0D
+AliasPath           fcc       "/dd/bbs/BBS.alias"
+                    fcb       $0D
+CompositionPrompt   fcb       $0A
+                    fcc       "[A]bort [D]one [E]dit [C]ontinue or [L]ist"
+                    fcb       $0D
+EditLinePrompt      fcc       "Enter line #"
+                    fcb       $0D
+InputPrompt         fcc       ">"
+BlankLine           fcb       $0A
+                    fcb       $0D
+UserNotFoundText    fcc       "Sorry...cannot locate that name"
+                    fcb       $0D
+RecipientPrompt     fcc       "Enter the name of the Person to send mail to"
+                    fcb       $0D
+EraseSequence       fcb       $08
+                    fcb       $20
+                    fcb       $08
 
 * resolve a mandatory private recipient before opening the mail base.
 start               clr       >ReservedStateByte2,u ; initialize retained state from the original module
-                    clr       >ReservedStateByte1,u ; clear >ReservedStateByte1,u to zero and set the condition codes
-                    clr       InputLineLength,u ; clear InputLineLength,u to zero and set the condition codes
+                    clr       >ReservedStateByte1,u ; initialize reserved state byte1
+                    clr       InputLineLength,u ; initialize input line length
                     os9       F$ID      ; retrieve the current process and user IDs
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    sty       CallerUserId,u ; store y at CallerUserId,u
-                    ldy       #0        ; set y to the constant 0
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    sty       CallerUserId,u ; retain caller user id
+                    ldy       #0        ; establish the start loop or field bound (0)
                     os9       F$SUser   ; change the process user ID to Y
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
+                    lbcs      ExitWithStatus ; return immediately with the selected status
 PromptForRecipient  leax      >RecipientPrompt,pc ; request the private-mail addressee
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
+                    ldy       #200      ; cap this output request at 200 bytes
+                    lda       #1        ; select standard output
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >InputPrompt,pc ; form the address >InputPrompt,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    clra                ; clear a to zero and set the condition codes
-                    leax      >RecipientInputBuffer,u ; form the address >RecipientInputBuffer,u in x
-                    ldy       #200      ; set y to the constant 200
+                    leax      >InputPrompt,pc ; select input prompt
+                    ldy       #1        ; cap this output request at 1 bytes
+                    os9       I$Write   ; write the requested fixed-size field
+                    clra                ; select standard input
+                    leax      >RecipientInputBuffer,u ; select recipient input buffer
+                    ldy       #200      ; cap this input field at 200 bytes
                     os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    cmpy      #1        ; compare y with #1 and set the condition codes
-                    lbls      ExitSuccessfully ; branch when the unsigned value is lower or equal; target ExitSuccessfully
-UppercaseRecipient  lda       ,x+       ; load a from ,x+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       OpenAliasFile ; branch when the values are equal or the result is zero; target OpenAliasFile
-                    cmpa      #97       ; compare a with #97 and set the condition codes
-                    bcs       UppercaseRecipient ; branch when carry reports an error or unsigned underflow; target UppercaseRecipient
+                    cmpy      #1        ; test against #1
+                    lbls      ExitSuccessfully ; finish the command successfully
+UppercaseRecipient  lda       ,x+       ; consume the next byte while uppercase recipient
+                    cmpa      #13       ; recognize the carriage-return terminator
+                    beq       OpenAliasFile ; select open alias file when the requested case matches
+                    cmpa      #97       ; establish the uppercase recipient loop or field bound (97)
+                    bcs       UppercaseRecipient ; enter uppercase recipient on error or unsigned underflow
                     anda      #223      ; mask a using #223
-                    sta       -$01,x    ; store a at -$01,x
-                    bra       UppercaseRecipient ; continue execution at UppercaseRecipient
-OpenAliasFile       leax      >AliasPath,pc ; form the address >AliasPath,pc in x
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    sta       AliasPathNum,u ; store a at AliasPathNum,u
-ScanAliasFile       leax      <AliasLineBuffer,u ; form the address <AliasLineBuffer,u in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       AliasPathNum,u ; load a from AliasPathNum,u
+                    sta       -$01,x    ; replace the byte just examined in place
+                    bra       UppercaseRecipient ; continue with uppercase recipient
+OpenAliasFile       leax      >AliasPath,pc ; select alias path
+                    lda       #1        ; request OS-9 access mode 1
+                    os9       I$Open    ; open the selected OS-9 path
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    sta       AliasPathNum,u ; retain alias path num
+ScanAliasFile       leax      <AliasLineBuffer,u ; select alias line buffer
+                    ldy       #200      ; cap this input field at 200 bytes
+                    lda       AliasPathNum,u ; recover alias path num
                     os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    bcs       RecipientNotFound ; branch when carry reports an error or unsigned underflow; target RecipientNotFound
-UppercaseAliasName  lda       ,x+       ; load a from ,x+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       CompareRecipientName ; branch when the values are equal or the result is zero; target CompareRecipientName
-                    cmpa      #97       ; compare a with #97 and set the condition codes
-                    bcs       UppercaseAliasName ; branch when carry reports an error or unsigned underflow; target UppercaseAliasName
+                    bcs       RecipientNotFound ; select recipient not found when carry reports an error or underflow
+UppercaseAliasName  lda       ,x+       ; consume the next byte while uppercase alias name
+                    cmpa      #13       ; recognize the carriage-return terminator
+                    beq       CompareRecipientName ; enter compare recipient name when the terminating condition is met
+                    cmpa      #97       ; establish the uppercase alias name loop or field bound (97)
+                    bcs       UppercaseAliasName ; enter uppercase alias name on error or unsigned underflow
                     anda      #223      ; mask a using #223
-                    sta       -$01,x    ; store a at -$01,x
-                    bra       UppercaseAliasName ; continue execution at UppercaseAliasName
-CompareRecipientName leax      <AliasLineBuffer,u ; form the address <AliasLineBuffer,u in x
-                    leay      >RecipientInputBuffer,u ; form the address >RecipientInputBuffer,u in y
-CompareNextNameCharacter lda       ,y+       ; load a from ,y+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       AliasNameMatched ; branch when the values are equal or the result is zero; target AliasNameMatched
-                    cmpa      ,x+       ; compare a with ,x+ and set the condition codes
-                    beq       CompareNextNameCharacter ; branch when the values are equal or the result is zero; target CompareNextNameCharacter
-                    bra       ScanAliasFile ; continue execution at ScanAliasFile
-AliasNameMatched    lda       ,x+       ; load a from ,x+
-                    cmpa      #44       ; compare a with #44 and set the condition codes
-                    bne       ScanAliasFile ; branch when the values differ or the result is nonzero; target ScanAliasFile
-                    lbsr      ParseDecimalNumber ; call subroutine ParseDecimalNumber
-                    std       >RecipientUserId,u ; store d at >RecipientUserId,u
-                    bra       OpenMailFiles ; continue execution at OpenMailFiles
-RecipientNotFound   cmpb      #211      ; compare b with #211 and set the condition codes
-                    lbne      ExitWithStatus ; branch when the values differ or the result is nonzero; target ExitWithStatus
-                    leax      >UserNotFoundText,pc ; form the address >UserNotFoundText,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
+                    sta       -$01,x    ; replace the byte just examined in place
+                    bra       UppercaseAliasName ; continue with uppercase alias name
+CompareRecipientName leax      <AliasLineBuffer,u ; select alias line buffer
+                    leay      >RecipientInputBuffer,u ; select recipient input buffer
+CompareNextNameCharacter lda       ,y+       ; consume the next byte while compare next name character
+                    cmpa      #13       ; recognize the carriage-return terminator
+                    beq       AliasNameMatched ; select alias name matched when the requested case matches
+                    cmpa      ,x+       ; test against
+                    beq       CompareNextNameCharacter ; enter compare next name character when the terminating condition is met
+                    bra       ScanAliasFile ; continue with scan alias file
+AliasNameMatched    lda       ,x+       ; consume the next byte while alias name matched
+                    cmpa      #44       ; establish the alias name matched loop or field bound (44)
+                    bne       ScanAliasFile ; repeat scan alias file until the terminating condition is met
+                    lbsr      ParseDecimalNumber ; invoke parse decimal number
+                    std       >RecipientUserId,u ; retain recipient user id
+                    bra       OpenMailFiles ; continue with open mail files
+RecipientNotFound   cmpb      #211      ; recognize the OS-9 end-of-file status
+                    lbne      ExitWithStatus ; return immediately with the selected status
+                    leax      >UserNotFoundText,pc ; select user not found text
+                    ldy       #200      ; cap this output request at 200 bytes
+                    lda       #1        ; select standard output
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lbra      PromptForRecipient ; continue execution at PromptForRecipient
+                    lbra      PromptForRecipient ; continue with prompt for recipient
 * open the mail index, creating both index and body files when the base is new.
 OpenMailFiles       leax      >MailIndexPath,pc ; open record zero of BBS.mail.inx
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      CreateMailFiles ; branch when carry reports an error or unsigned underflow; target CreateMailFiles
-                    sta       IndexPathNum,u ; store a at IndexPathNum,u
-                    leax      >NewMessageNumber,u ; form the address >NewMessageNumber,u in x
-                    ldy       #64       ; set y to the constant 64
-                    lda       IndexPathNum,u ; load a from IndexPathNum,u
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    lda       IndexPathNum,u ; load a from IndexPathNum,u
-                    os9       I$Close   ; close path A
-                    leax      >MailIndexPath,pc ; form the address >MailIndexPath,pc in x
-                    lda       #3        ; set a to the constant 3
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    sta       IndexPathNum,u ; store a at IndexPathNum,u
-                    lda       #6        ; set a to the constant 6
-                    sta       IndexShiftCount,u ; store a at IndexShiftCount,u
-                    ldd       >NewMessageNumber,u ; load d from >NewMessageNumber,u
+                    lda       #1        ; request OS-9 access mode 1
+                    os9       I$Open    ; open the selected OS-9 path
+                    lbcs      CreateMailFiles ; select create mail files when carry reports an error or underflow
+                    sta       IndexPathNum,u ; retain index path num
+                    leax      >NewMessageNumber,u ; select new message number
+                    ldy       #64       ; cap this input field at 64 bytes
+                    lda       IndexPathNum,u ; recover index path num
+                    os9       I$Read    ; read the requested fixed-size field
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    lda       IndexPathNum,u ; recover index path num
+                    os9       I$Close   ; close the selected path
+                    leax      >MailIndexPath,pc ; select mail index path
+                    lda       #3        ; request OS-9 access mode 3
+                    os9       I$Open    ; open the selected OS-9 path
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    sta       IndexPathNum,u ; retain index path num
+                    lda       #6        ; initialize index shift count to 6
+                    sta       IndexShiftCount,u ; retain index shift count
+                    ldd       >NewMessageNumber,u ; recover new message number
                     addd      #1        ; add to d using #1
-                    std       >NewMessageNumber,u ; store d at >NewMessageNumber,u
-                    clr       IndexOffsetTop,u ; clear IndexOffsetTop,u to zero and set the condition codes
-                    clr       IndexOffsetHigh,u ; clear IndexOffsetHigh,u to zero and set the condition codes
+                    std       >NewMessageNumber,u ; retain new message number
+                    clr       IndexOffsetTop,u ; initialize index offset top
+                    clr       IndexOffsetHigh,u ; initialize index offset high
 ShiftNewIndexOffset aslb                ; shift b left arithmetically
                     rola                ; rotate a left through carry
                     rol       IndexOffsetHigh,u ; rotate left through carry the value at IndexOffsetHigh,u
-                    dec       IndexShiftCount,u ; decrement the value at IndexShiftCount,u
-                    bne       ShiftNewIndexOffset ; branch when the values differ or the result is nonzero; target ShiftNewIndexOffset
-                    std       IndexOffsetLow,u ; store d at IndexOffsetLow,u
-                    lda       IndexPathNum,u ; load a from IndexPathNum,u
-                    ldx       IndexOffsetTop,u ; load x from IndexOffsetTop,u
-                    pshs      u         ; save u on the stack
-                    ldu       IndexOffsetLow,u ; load u from IndexOffsetLow,u
+                    dec       IndexShiftCount,u ; consume one index shift count
+                    bne       ShiftNewIndexOffset ; repeat shift new index offset until the terminating condition is met
+                    std       IndexOffsetLow,u ; retain index offset low
+                    lda       IndexPathNum,u ; recover index path num
+                    ldx       IndexOffsetTop,u ; recover index offset top
+                    pshs      u         ; preserve u across the operation
+                    ldu       IndexOffsetLow,u ; recover index offset low
                     os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    puls      u         ; restore u from the stack
-                    leax      >MessageTimestamp,u ; form the address >MessageTimestamp,u in x
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    puls      u         ; restore u
+                    leax      >MessageTimestamp,u ; select message timestamp
                     os9       F$Time    ; read the current system date and time
-                    leax      >SubjectPrompt,pc ; form the address >SubjectPrompt,pc in x
-                    ldy       >SubjectPromptLength,pc ; load y from >SubjectPromptLength,pc
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    clra                ; clear a to zero and set the condition codes
-                    leax      >MessageSubject,u ; form the address >MessageSubject,u in x
-                    ldy       #30       ; set y to the constant 30
+                    leax      >SubjectPrompt,pc ; select subject prompt
+                    ldy       >SubjectPromptLength,pc ; recover subject prompt length
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    clra                ; select standard input
+                    leax      >MessageSubject,u ; select message subject
+                    ldy       #30       ; cap this input field at 30 bytes
                     os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    leax      >MessageEntryPrompt,pc ; form the address >MessageEntryPrompt,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
+                    leax      >MessageEntryPrompt,pc ; select message entry prompt
+                    ldy       #200      ; cap this output request at 200 bytes
+                    lda       #1        ; select standard output
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    leax      >MessageRule,pc ; form the address >MessageRule,pc in x
-                    ldy       #80       ; set y to the constant 80
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    leax      >MessageRule,pc ; select message rule
+                    ldy       #80       ; cap this output request at 80 bytes
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    ldd       #0        ; set d to the constant 0
-                    std       MessageLineNumber,u ; store d at MessageLineNumber,u
-ReadNextMessageLine ldd       MessageLineNumber,u ; load d from MessageLineNumber,u
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    ldd       #0        ; initialize message line number to 0
+                    std       MessageLineNumber,u ; retain message line number
+ReadNextMessageLine ldd       MessageLineNumber,u ; recover message line number
                     addd      #1        ; add to d using #1
-                    std       MessageLineNumber,u ; store d at MessageLineNumber,u
-                    cmpd      #99       ; compare d with #99 and set the condition codes
-                    bge       PromptCompositionAction ; branch when the signed value is greater than or equal; target PromptCompositionAction
-                    lbsr      ReadMessageLine ; call subroutine ReadMessageLine
-                    cmpy      #1        ; compare y with #1 and set the condition codes
-                    bls       PromptCompositionAction ; branch when the unsigned value is lower or equal; target PromptCompositionAction
-                    bra       ReadNextMessageLine ; continue execution at ReadNextMessageLine
-PromptCompositionAction leax      >CompositionPrompt,pc ; form the address >CompositionPrompt,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
+                    std       MessageLineNumber,u ; retain message line number
+                    cmpd      #99       ; test against #99
+                    bge       PromptCompositionAction ; continue with prompt composition action at or above the signed limit
+                    lbsr      ReadMessageLine ; invoke read message line
+                    cmpy      #1        ; test against #1
+                    bls       PromptCompositionAction ; ask again at prompt composition action
+                    bra       ReadNextMessageLine ; continue with read next message line
+PromptCompositionAction leax      >CompositionPrompt,pc ; select composition prompt
+                    ldy       #200      ; cap this output request at 200 bytes
+                    lda       #1        ; select standard output
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >InputPrompt,pc ; form the address >InputPrompt,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      EditorCommand,u ; form the address EditorCommand,u in x
-                    clra                ; clear a to zero and set the condition codes
-                    ldy       #1        ; set y to the constant 1
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    leax      >BlankLine,pc ; form the address >BlankLine,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
+                    leax      >InputPrompt,pc ; select input prompt
+                    ldy       #1        ; cap this output request at 1 bytes
+                    os9       I$Write   ; write the requested fixed-size field
+                    leax      EditorCommand,u ; select editor command
+                    clra                ; select standard input
+                    ldy       #1        ; cap this input field at 1 bytes
+                    os9       I$Read    ; read the requested fixed-size field
+                    leax      >BlankLine,pc ; select blank line
+                    ldy       #1        ; cap this output request at 1 bytes
+                    lda       #1        ; select standard output
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lda       EditorCommand,u ; load a from EditorCommand,u
+                    lda       EditorCommand,u ; recover editor command
                     anda      #223      ; mask a using #223
-                    cmpa      #65       ; compare a with #65 and set the condition codes
-                    lbeq      ExitSuccessfully ; branch when the values are equal or the result is zero; target ExitSuccessfully
-                    cmpa      #68       ; compare a with #68 and set the condition codes
-                    lbeq      FinishMail ; branch when the values are equal or the result is zero; target FinishMail
-                    cmpa      #69       ; compare a with #69 and set the condition codes
-                    beq       EditStoredLine ; branch when the values are equal or the result is zero; target EditStoredLine
-                    cmpa      #67       ; compare a with #67 and set the condition codes
-                    beq       ContinueMessageEntry ; branch when the values are equal or the result is zero; target ContinueMessageEntry
-                    cmpa      #76       ; compare a with #76 and set the condition codes
-                    lbeq      ListMessageFromStart ; branch when the values are equal or the result is zero; target ListMessageFromStart
-                    bra       PromptCompositionAction ; continue execution at PromptCompositionAction
-ContinueMessageEntry ldd       MessageLineNumber,u ; load d from MessageLineNumber,u
+                    cmpa      #65       ; establish the prompt composition action loop or field bound (65)
+                    lbeq      ExitSuccessfully ; finish the command successfully
+                    cmpa      #68       ; establish the prompt composition action loop or field bound (68)
+                    lbeq      FinishMail ; select finish mail when the requested case matches
+                    cmpa      #69       ; establish the prompt composition action loop or field bound (69)
+                    beq       EditStoredLine ; select edit stored line when the requested case matches
+                    cmpa      #67       ; establish the prompt composition action loop or field bound (67)
+                    beq       ContinueMessageEntry ; select continue message entry when the requested case matches
+                    cmpa      #76       ; establish the prompt composition action loop or field bound (76)
+                    lbeq      ListMessageFromStart ; enter list message from start when the terminating condition is met
+                    bra       PromptCompositionAction ; continue with prompt composition action
+ContinueMessageEntry ldd       MessageLineNumber,u ; recover message line number
                     subd      #1        ; subtract from d using #1
-                    std       MessageLineNumber,u ; store d at MessageLineNumber,u
-                    bra       ReadNextMessageLine ; continue execution at ReadNextMessageLine
-EditStoredLine      leax      >EditLinePrompt,pc ; form the address >EditLinePrompt,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
+                    std       MessageLineNumber,u ; retain message line number
+                    bra       ReadNextMessageLine ; continue with read next message line
+EditStoredLine      leax      >EditLinePrompt,pc ; select edit line prompt
+                    ldy       #200      ; cap this output request at 200 bytes
+                    lda       #1        ; select standard output
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >InputPrompt,pc ; form the address >InputPrompt,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    clra                ; clear a to zero and set the condition codes
-                    leax      >LineNumberText,u ; form the address >LineNumberText,u in x
-                    ldy       #3        ; set y to the constant 3
+                    leax      >InputPrompt,pc ; select input prompt
+                    ldy       #1        ; cap this output request at 1 bytes
+                    os9       I$Write   ; write the requested fixed-size field
+                    clra                ; select standard input
+                    leax      >LineNumberText,u ; select line number text
+                    ldy       #3        ; cap this input field at 3 bytes
                     os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    lbsr      ParseDecimalNumber ; call subroutine ParseDecimalNumber
-                    cmpd      MessageLineNumber,u ; compare d with MessageLineNumber,u and set the condition codes
-                    lbcc      PromptCompositionAction ; branch when carry is clear; target PromptCompositionAction
-                    std       <SelectedEditLine,u ; store d at <SelectedEditLine,u
-                    leax      >LineNumberText,u ; form the address >LineNumberText,u in x
-                    lbsr      FormatLineNumber ; call subroutine FormatLineNumber
-                    leax      >LineNumberText,u ; form the address >LineNumberText,u in x
-                    lda       #58       ; set a to the constant 58
-                    sta       $02,x     ; store a at $02,x
-                    ldy       #3        ; set y to the constant 3
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    ldd       <SelectedEditLine,u ; load d from <SelectedEditLine,u
-                    leax      >MessageLineBuffer,u ; form the address >MessageLineBuffer,u in x
-                    lda       #80       ; set a to the constant 80
-                    mul                 ; multiply a by b and return the product in d
-                    leax      d,x       ; form the address d,x in x
-                    ldy       #80       ; set y to the constant 80
-                    lda       #1        ; set a to the constant 1
+                    lbsr      ParseDecimalNumber ; invoke parse decimal number
+                    cmpd      MessageLineNumber,u ; test against message line number
+                    lbcc      PromptCompositionAction ; ask again at prompt composition action
+                    std       <SelectedEditLine,u ; retain selected edit line
+                    leax      >LineNumberText,u ; select line number text
+                    lbsr      FormatLineNumber ; invoke format line number
+                    leax      >LineNumberText,u ; select line number text
+                    lda       #58       ; initialize $02 to 58
+                    sta       $02,x     ; retain $02
+                    ldy       #3        ; cap this output request at 3 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
+                    ldd       <SelectedEditLine,u ; recover selected edit line
+                    leax      >MessageLineBuffer,u ; select message line buffer
+                    lda       #80       ; establish the edit stored line loop or field bound (80)
+                    mul                 ; form the byte-product in D
+                    leax      d,x       ; select d
+                    ldy       #80       ; cap this output request at 80 bytes
+                    lda       #1        ; select standard output
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    tfr       y,d       ; copy the register values specified by y,d
-                    stb       InputLineLength,u ; store b at InputLineLength,u
-                    dec       InputLineLength,u ; decrement the value at InputLineLength,u
-                    leay      >EditLineBuffer,u ; form the address >EditLineBuffer,u in y
-CopyEditRemainder   lda       ,x+       ; load a from ,x+
-                    sta       ,y+       ; store a at ,y+
+                    tfr       y,d       ; transfer y,d
+                    stb       InputLineLength,u ; retain input line length
+                    dec       InputLineLength,u ; consume one input line length
+                    leay      >EditLineBuffer,u ; select edit line buffer
+CopyEditRemainder   lda       ,x+       ; consume the next byte while copy edit remainder
+                    sta       ,y+       ; retain
                     decb                ; decrement b
-                    bne       CopyEditRemainder ; branch when the values differ or the result is nonzero; target CopyEditRemainder
-                    ldd       <SelectedEditLine,u ; load d from <SelectedEditLine,u
-                    bsr       ReadMessageLine ; call subroutine ReadMessageLine
-                    lbra      PromptCompositionAction ; continue execution at PromptCompositionAction
-ListMessageFromStart ldd       #0        ; set d to the constant 0
-                    std       MessageLineNumber,u ; store d at MessageLineNumber,u
-ListNextMessageLine ldd       MessageLineNumber,u ; load d from MessageLineNumber,u
+                    bne       CopyEditRemainder ; repeat copy edit remainder until the terminating condition is met
+                    ldd       <SelectedEditLine,u ; recover selected edit line
+                    bsr       ReadMessageLine ; invoke read message line
+                    lbra      PromptCompositionAction ; continue with prompt composition action
+ListMessageFromStart ldd       #0        ; initialize message line number to 0
+                    std       MessageLineNumber,u ; retain message line number
+ListNextMessageLine ldd       MessageLineNumber,u ; recover message line number
                     addd      #1        ; add to d using #1
-                    std       MessageLineNumber,u ; store d at MessageLineNumber,u
-                    leax      >LineNumberText,u ; form the address >LineNumberText,u in x
-                    lbsr      FormatLineNumber ; call subroutine FormatLineNumber
-                    leax      >LineNumberText,u ; form the address >LineNumberText,u in x
-                    lda       #58       ; set a to the constant 58
-                    sta       $02,x     ; store a at $02,x
-                    lda       #1        ; set a to the constant 1
-                    ldy       #3        ; set y to the constant 3
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      >MessageLineBuffer,u ; form the address >MessageLineBuffer,u in x
-                    ldd       MessageLineNumber,u ; load d from MessageLineNumber,u
-                    lda       #80       ; set a to the constant 80
-                    mul                 ; multiply a by b and return the product in d
-                    leax      d,x       ; form the address d,x in x
-                    ldy       #80       ; set y to the constant 80
-                    lda       #1        ; set a to the constant 1
+                    std       MessageLineNumber,u ; retain message line number
+                    leax      >LineNumberText,u ; select line number text
+                    lbsr      FormatLineNumber ; invoke format line number
+                    leax      >LineNumberText,u ; select line number text
+                    lda       #58       ; initialize $02 to 58
+                    sta       $02,x     ; retain $02
+                    lda       #1        ; select standard output
+                    ldy       #3        ; cap this output request at 3 bytes
+                    os9       I$Write   ; write the requested fixed-size field
+                    leax      >MessageLineBuffer,u ; select message line buffer
+                    ldd       MessageLineNumber,u ; recover message line number
+                    lda       #80       ; establish the list next message line loop or field bound (80)
+                    mul                 ; form the byte-product in D
+                    leax      d,x       ; select d
+                    ldy       #80       ; cap this output request at 80 bytes
+                    lda       #1        ; select standard output
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    cmpy      #1        ; compare y with #1 and set the condition codes
-                    bhi       ListNextMessageLine ; branch when the unsigned value is higher; target ListNextMessageLine
-                    lbra      PromptCompositionAction ; continue execution at PromptCompositionAction
-ReadMessageLine     leax      >LineNumberText,u ; form the address >LineNumberText,u in x
-                    pshs      d         ; save d on the stack
-                    lbsr      FormatLineNumber ; call subroutine FormatLineNumber
-                    leax      >LineNumberText,u ; form the address >LineNumberText,u in x
-                    lda       #58       ; set a to the constant 58
-                    sta       $02,x     ; store a at $02,x
-                    lda       #1        ; set a to the constant 1
-                    ldy       #3        ; set y to the constant 3
-                    os9       I$Write   ; write Y bytes from X to path A
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    leax      >EditLineBuffer,u ; form the address >EditLineBuffer,u in x
-                    ldb       InputLineLength,u ; load b from InputLineLength,u
-                    clra                ; clear a to zero and set the condition codes
-                    tfr       d,y       ; copy the register values specified by d,y
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    puls      d         ; restore d from the stack
-                    lda       #80       ; set a to the constant 80
-                    mul                 ; multiply a by b and return the product in d
-                    leax      >MessageLineBuffer,u ; form the address >MessageLineBuffer,u in x
-                    leax      d,x       ; form the address d,x in x
-                    leay      >EditLineBuffer,u ; form the address >EditLineBuffer,u in y
-                    ldb       #80       ; set b to the constant 80
-                    lda       InputLineLength,u ; load a from InputLineLength,u
-                    beq       FinishStoredLine ; branch when the values are equal or the result is zero; target FinishStoredLine
-                    sta       <ParsedNumber,u ; store a at <ParsedNumber,u
-CopyStoredLine      lda       ,y+       ; load a from ,y+
-                    sta       ,x+       ; store a at ,x+
+                    cmpy      #1        ; test against #1
+                    bhi       ListNextMessageLine ; continue list next message line while the range test permits it
+                    lbra      PromptCompositionAction ; continue with prompt composition action
+ReadMessageLine     leax      >LineNumberText,u ; select line number text
+                    pshs      d         ; preserve d across the operation
+                    lbsr      FormatLineNumber ; invoke format line number
+                    leax      >LineNumberText,u ; select line number text
+                    lda       #58       ; initialize $02 to 58
+                    sta       $02,x     ; retain $02
+                    lda       #1        ; select standard output
+                    ldy       #3        ; cap this output request at 3 bytes
+                    os9       I$Write   ; write the requested fixed-size field
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    leax      >EditLineBuffer,u ; select edit line buffer
+                    ldb       InputLineLength,u ; recover input line length
+                    clra                ; select standard input
+                    tfr       d,y       ; transfer d,y
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
+                    puls      d         ; restore d
+                    lda       #80       ; establish the read message line loop or field bound (80)
+                    mul                 ; form the byte-product in D
+                    leax      >MessageLineBuffer,u ; select message line buffer
+                    leax      d,x       ; select d
+                    leay      >EditLineBuffer,u ; select edit line buffer
+                    ldb       #80       ; initialize parsed number to 80
+                    lda       InputLineLength,u ; recover input line length
+                    beq       FinishStoredLine ; select finish stored line when the requested case matches
+                    sta       <ParsedNumber,u ; retain parsed number
+CopyStoredLine      lda       ,y+       ; consume the next byte while copy stored line
+                    sta       ,x+       ; retain
                     decb                ; decrement b
-                    dec       <ParsedNumber,u ; decrement the value at <ParsedNumber,u
-                    bne       CopyStoredLine ; branch when the values differ or the result is nonzero; target CopyStoredLine
-FinishStoredLine    clra                ; clear a to zero and set the condition codes
-                    tfr       d,y       ; copy the register values specified by d,y
-                    lbsr      EditTerminalLine ; call subroutine EditTerminalLine
+                    dec       <ParsedNumber,u ; consume one parsed number
+                    bne       CopyStoredLine ; repeat copy stored line until the terminating condition is met
+FinishStoredLine    clra                ; select standard input
+                    tfr       d,y       ; transfer d,y
+                    lbsr      EditTerminalLine ; invoke edit terminal line
                     rts                 ; return to the caller
 * resolve the author's alias, append the 64-byte index record and body, then
 * publish the new high-message record at the start of BBS.mail.inx.
 FinishMail          leax      >AliasPath,pc ; reopen aliases for the author lookup
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    sta       AliasPathNum,u ; store a at AliasPathNum,u
-FindAuthorAlias     leax      <AliasLineBuffer,u ; form the address <AliasLineBuffer,u in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       AliasPathNum,u ; load a from AliasPathNum,u
+                    lda       #1        ; request OS-9 access mode 1
+                    os9       I$Open    ; open the selected OS-9 path
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    sta       AliasPathNum,u ; retain alias path num
+FindAuthorAlias     leax      <AliasLineBuffer,u ; select alias line buffer
+                    ldy       #200      ; cap this input field at 200 bytes
+                    lda       AliasPathNum,u ; recover alias path num
                     os9       I$ReadLn  ; read a CR-terminated line from path A into X
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-FindAliasIdSeparator lda       ,x+       ; load a from ,x+
-                    cmpa      #44       ; compare a with #44 and set the condition codes
-                    bne       FindAliasIdSeparator ; branch when the values differ or the result is nonzero; target FindAliasIdSeparator
-                    lbsr      ParseDecimalNumber ; call subroutine ParseDecimalNumber
-                    cmpd      CallerUserId,u ; compare d with CallerUserId,u and set the condition codes
-                    bne       FindAuthorAlias ; branch when the values differ or the result is nonzero; target FindAuthorAlias
-                    leax      <AliasLineBuffer,u ; form the address <AliasLineBuffer,u in x
-                    leay      >AuthorAlias,u ; form the address >AuthorAlias,u in y
-CopyAuthorAlias     lda       ,x+       ; load a from ,x+
-                    cmpa      #44       ; compare a with #44 and set the condition codes
-                    beq       AuthorAliasCopied ; branch when the values are equal or the result is zero; target AuthorAliasCopied
-                    sta       ,y+       ; store a at ,y+
-                    bra       CopyAuthorAlias ; continue execution at CopyAuthorAlias
-AuthorAliasCopied   lda       #13       ; set a to the constant 13
-                    sta       ,y        ; store a at ,y
-                    ldd       >BodyEndOffsetHigh,u ; load d from >BodyEndOffsetHigh,u
-                    std       >NewBodyOffsetHigh,u ; store d at >NewBodyOffsetHigh,u
-                    ldd       >IndexHeaderTail,u ; load d from >IndexHeaderTail,u
-                    std       >NewBodyOffsetLow,u ; store d at >NewBodyOffsetLow,u
-                    ldd       CallerUserId,u ; load d from CallerUserId,u
-                    std       >AuthorUserId,u ; store d at >AuthorUserId,u
-                    leax      >NewBodyOffsetHigh,u ; form the address >NewBodyOffsetHigh,u in x
-                    lda       IndexPathNum,u ; load a from IndexPathNum,u
-                    ldy       #64       ; set y to the constant 64
-                    os9       I$Write   ; write Y bytes from X to path A
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    leax      >MailBodyPath,pc ; form the address >MailBodyPath,pc in x
-                    lda       #3        ; set a to the constant 3
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    sta       BodyPathNum,u ; store a at BodyPathNum,u
-                    pshs      u         ; save u on the stack
-                    ldx       >BodyEndOffsetHigh,u ; load x from >BodyEndOffsetHigh,u
-                    lda       BodyPathNum,u ; load a from BodyPathNum,u
-                    ldu       >IndexHeaderTail,u ; load u from >IndexHeaderTail,u
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+FindAliasIdSeparator lda       ,x+       ; consume the next byte while find alias id separator
+                    cmpa      #44       ; establish the find alias id separator loop or field bound (44)
+                    bne       FindAliasIdSeparator ; repeat find alias id separator until the terminating condition is met
+                    lbsr      ParseDecimalNumber ; invoke parse decimal number
+                    cmpd      CallerUserId,u ; test against caller user id
+                    bne       FindAuthorAlias ; repeat find author alias until the terminating condition is met
+                    leax      <AliasLineBuffer,u ; select alias line buffer
+                    leay      >AuthorAlias,u ; select author alias
+CopyAuthorAlias     lda       ,x+       ; consume the next byte while copy author alias
+                    cmpa      #44       ; establish the copy author alias loop or field bound (44)
+                    beq       AuthorAliasCopied ; select author alias copied when the requested case matches
+                    sta       ,y+       ; retain
+                    bra       CopyAuthorAlias ; continue with copy author alias
+AuthorAliasCopied   lda       #13       ; recognize the carriage-return terminator
+                    sta       ,y        ; retain
+                    ldd       >BodyEndOffsetHigh,u ; recover body end offset high
+                    std       >NewBodyOffsetHigh,u ; retain new body offset high
+                    ldd       >IndexHeaderTail,u ; recover index header tail
+                    std       >NewBodyOffsetLow,u ; retain new body offset low
+                    ldd       CallerUserId,u ; recover caller user id
+                    std       >AuthorUserId,u ; retain author user id
+                    leax      >NewBodyOffsetHigh,u ; select new body offset high
+                    lda       IndexPathNum,u ; recover index path num
+                    ldy       #64       ; cap this output request at 64 bytes
+                    os9       I$Write   ; write the requested fixed-size field
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    leax      >MailBodyPath,pc ; select mail body path
+                    lda       #3        ; request OS-9 access mode 3
+                    os9       I$Open    ; open the selected OS-9 path
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    sta       BodyPathNum,u ; retain body path num
+                    pshs      u         ; preserve u across the operation
+                    ldx       >BodyEndOffsetHigh,u ; recover body end offset high
+                    lda       BodyPathNum,u ; recover body path num
+                    ldu       >IndexHeaderTail,u ; recover index header tail
                     os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    puls      u         ; restore u from the stack
-                    lda       #0        ; set a to the constant 0
-                    sta       BodyLineIndex,u ; store a at BodyLineIndex,u
-                    ldd       #1        ; set d to the constant 1
-                    std       <BodyByteCount,u ; store d at <BodyByteCount,u
-AppendNextBodyLine  lda       BodyLineIndex,u ; load a from BodyLineIndex,u
-                    inca                ; increment a
-                    sta       BodyLineIndex,u ; store a at BodyLineIndex,u
-                    cmpa      MessageLineCount,u ; compare a with MessageLineCount,u and set the condition codes
-                    bhi       BodyAppendComplete ; branch when the unsigned value is higher; target BodyAppendComplete
-                    ldb       #80       ; set b to the constant 80
-                    mul                 ; multiply a by b and return the product in d
-                    leax      >MessageLineBuffer,u ; form the address >MessageLineBuffer,u in x
-                    leax      d,x       ; form the address d,x in x
-                    ldy       #80       ; set y to the constant 80
-                    lda       BodyPathNum,u ; load a from BodyPathNum,u
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    puls      u         ; restore u
+                    lda       #0        ; initialize body line index to 0
+                    sta       BodyLineIndex,u ; retain body line index
+                    ldd       #1        ; initialize body byte count to 1
+                    std       <BodyByteCount,u ; retain body byte count
+AppendNextBodyLine  lda       BodyLineIndex,u ; recover body line index
+                    inca                ; preserve the flags or register state required by the following operation
+                    sta       BodyLineIndex,u ; retain body line index
+                    cmpa      MessageLineCount,u ; test against message line count
+                    bhi       BodyAppendComplete ; select body append complete above the unsigned boundary
+                    ldb       #80       ; establish the append next body line loop or field bound (80)
+                    mul                 ; form the byte-product in D
+                    leax      >MessageLineBuffer,u ; select message line buffer
+                    leax      d,x       ; select d
+                    ldy       #80       ; cap this output request at 80 bytes
+                    lda       BodyPathNum,u ; recover body path num
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    cmpy      #1        ; compare y with #1 and set the condition codes
-                    bls       BodyAppendComplete ; branch when the unsigned value is lower or equal; target BodyAppendComplete
-                    tfr       y,d       ; copy the register values specified by y,d
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    cmpy      #1        ; test against #1
+                    bls       BodyAppendComplete ; select body append complete at or below the unsigned boundary
+                    tfr       y,d       ; transfer y,d
                     addd      <BodyByteCount,u ; add to d using <BodyByteCount,u
-                    std       <BodyByteCount,u ; store d at <BodyByteCount,u
-                    bra       AppendNextBodyLine ; continue execution at AppendNextBodyLine
-BodyAppendComplete  ldd       >IndexHeaderTail,u ; load d from >IndexHeaderTail,u
+                    std       <BodyByteCount,u ; retain body byte count
+                    bra       AppendNextBodyLine ; continue with append next body line
+BodyAppendComplete  ldd       >IndexHeaderTail,u ; recover index header tail
                     addd      <BodyByteCount,u ; add to d using <BodyByteCount,u
-                    std       >IndexHeaderTail,u ; store d at >IndexHeaderTail,u
-                    bcc       RewriteIndexHeader ; branch when carry is clear; target RewriteIndexHeader
-                    ldd       >BodyEndOffsetHigh,u ; load d from >BodyEndOffsetHigh,u
+                    std       >IndexHeaderTail,u ; retain index header tail
+                    bcc       RewriteIndexHeader ; select rewrite index header when carry remains clear
+                    ldd       >BodyEndOffsetHigh,u ; recover body end offset high
                     addd      #1        ; add to d using #1
-                    std       >BodyEndOffsetHigh,u ; store d at >BodyEndOffsetHigh,u
-RewriteIndexHeader  pshs      u         ; save u on the stack
-                    lda       IndexPathNum,u ; load a from IndexPathNum,u
-                    ldx       #0        ; set x to the constant 0
-                    ldu       #0        ; set u to the constant 0
+                    std       >BodyEndOffsetHigh,u ; retain body end offset high
+RewriteIndexHeader  pshs      u         ; preserve u across the operation
+                    lda       IndexPathNum,u ; recover index path num
+                    ldx       #0        ; establish the rewrite index header loop or field bound (0)
+                    ldu       #0        ; establish the rewrite index header loop or field bound (0)
                     os9       I$Seek    ; position path A at the 32-bit offset in X:U
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    puls      u         ; restore u from the stack
-                    leax      >NewMessageNumber,u ; form the address >NewMessageNumber,u in x
-                    ldy       #64       ; set y to the constant 64
-                    lda       IndexPathNum,u ; load a from IndexPathNum,u
-                    os9       I$Write   ; write Y bytes from X to path A
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-ExitSuccessfully    clrb                ; clear b to zero and set the condition codes
-                    ldy       CallerUserId,u ; load y from CallerUserId,u
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    puls      u         ; restore u
+                    leax      >NewMessageNumber,u ; select new message number
+                    ldy       #64       ; cap this output request at 64 bytes
+                    lda       IndexPathNum,u ; recover index path num
+                    os9       I$Write   ; write the requested fixed-size field
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+ExitSuccessfully    clrb                ; clear the byte accumulator for counting
+                    ldy       CallerUserId,u ; recover caller user id
                     os9       F$SUser   ; change the process user ID to Y
 ExitWithStatus      os9       F$Exit    ; terminate the process with status B
 * edit one 80-column line with terminal echo temporarily disabled.
 EditTerminalLine    lbsr      DisableTerminalEcho ; enter character-at-a-time terminal mode
-                    ldb       InputLineLength,u ; load b from InputLineLength,u
-                    leay      b,y       ; form the address b,y in y
-                    pshs      y         ; save y on the stack
+                    ldb       InputLineLength,u ; recover input line length
+                    leay      b,y       ; select b
+                    pshs      y         ; preserve y across the operation
                     negb                ; negate b
                     sex                 ; sign-extend b into d
-                    leay      d,y       ; form the address d,y in y
-                    clr       InputLineLength,u ; clear InputLineLength,u to zero and set the condition codes
-                    cmpy      #0        ; compare y with #0 and set the condition codes
-                    lbeq      AcceptEditedLine ; branch when the values are equal or the result is zero; target AcceptEditedLine
+                    leay      d,y       ; select d
+                    clr       InputLineLength,u ; initialize input line length
+                    cmpy      #0        ; test against #0
+                    lbeq      AcceptEditedLine ; select accept edited line when the requested case matches
                     pshs      y,x       ; save y,x on the stack
-                    lda       #13       ; set a to the constant 13
-PadUnusedInput      sta       ,x+       ; store a at ,x+
-                    leay      -$01,y    ; form the address -$01,y in y
-                    bne       PadUnusedInput ; branch when the values differ or the result is nonzero; target PadUnusedInput
+                    lda       #13       ; recognize the carriage-return terminator
+PadUnusedInput      sta       ,x+       ; retain
+                    leay      -$01,y    ; select -$01
+                    bne       PadUnusedInput ; select pad unused input when the requested case does not match
                     puls      y,x       ; restore y,x from the stack
 EditCharacterLoop   pshs      y,x       ; save y,x on the stack
-                    leax      EditorCommand,u ; form the address EditorCommand,u in x
-                    ldy       #1        ; set y to the constant 1
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    bcs       RetryCharacterRead ; branch when carry reports an error or unsigned underflow; target RetryCharacterRead
-                    lda       EditorCommand,u ; load a from EditorCommand,u
-                    cmpa      #1        ; compare a with #1 and set the condition codes
-                    beq       MoveCursorRight ; branch when the values are equal or the result is zero; target MoveCursorRight
-                    cmpa      #8        ; compare a with #8 and set the condition codes
-                    beq       ErasePreviousCharacter ; branch when the values are equal or the result is zero; target ErasePreviousCharacter
-                    cmpa      #24       ; compare a with #24 and set the condition codes
-                    beq       EraseCurrentCharacter ; branch when the values are equal or the result is zero; target EraseCurrentCharacter
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    lbeq      FinishEditedLine ; branch when the values are equal or the result is zero; target FinishEditedLine
-                    cmpa      #32       ; compare a with #32 and set the condition codes
-                    bcs       RetryCharacterRead ; branch when carry reports an error or unsigned underflow; target RetryCharacterRead
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
+                    leax      EditorCommand,u ; select editor command
+                    ldy       #1        ; cap this input field at 1 bytes
+                    clra                ; select standard input
+                    os9       I$Read    ; read the requested fixed-size field
+                    bcs       RetryCharacterRead ; select retry character read when carry reports an error or underflow
+                    lda       EditorCommand,u ; recover editor command
+                    cmpa      #1        ; establish the edit character loop loop or field bound (1)
+                    beq       MoveCursorRight ; select move cursor right when the requested case matches
+                    cmpa      #8        ; establish the edit character loop loop or field bound (8)
+                    beq       ErasePreviousCharacter ; select erase previous character when the requested case matches
+                    cmpa      #24       ; establish the edit character loop loop or field bound (24)
+                    beq       EraseCurrentCharacter ; select erase current character when the requested case matches
+                    cmpa      #13       ; recognize the carriage-return terminator
+                    lbeq      FinishEditedLine ; select finish edited line when the requested case matches
+                    cmpa      #32       ; recognize the first printable ASCII value
+                    bcs       RetryCharacterRead ; select retry character read when carry reports an error or underflow
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
                     puls      y,x       ; restore y,x from the stack
-                    lda       EditorCommand,u ; load a from EditorCommand,u
-                    sta       ,x+       ; store a at ,x+
-                    leay      -$01,y    ; form the address -$01,y in y
-                    lbeq      WrapFullInputLine ; branch when the values are equal or the result is zero; target WrapFullInputLine
-                    bra       EditCharacterLoop ; continue execution at EditCharacterLoop
+                    lda       EditorCommand,u ; recover editor command
+                    sta       ,x+       ; retain
+                    leay      -$01,y    ; select -$01
+                    lbeq      WrapFullInputLine ; select wrap full input line when the requested case matches
+                    bra       EditCharacterLoop ; continue with edit character loop
 RetryCharacterRead  puls      y,x       ; restore y,x from the stack
-                    bra       EditCharacterLoop ; continue execution at EditCharacterLoop
+                    bra       EditCharacterLoop ; continue with edit character loop
 MoveCursorRight     puls      y,x       ; restore y,x from the stack
-                    leay      -$01,y    ; form the address -$01,y in y
-                    beq       ResumeCharacterInput ; branch when the values are equal or the result is zero; target ResumeCharacterInput
-                    lda       ,x+       ; load a from ,x+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    beq       BackOverTerminator ; branch when the values are equal or the result is zero; target BackOverTerminator
+                    leay      -$01,y    ; select -$01
+                    beq       ResumeCharacterInput ; select resume character input when the requested case matches
+                    lda       ,x+       ; consume the next byte while move cursor right
+                    cmpa      #13       ; recognize the carriage-return terminator
+                    beq       BackOverTerminator ; select back over terminator when the requested case matches
                     pshs      y,x       ; save y,x on the stack
-                    leax      -$01,x    ; form the address -$01,x in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    bra       MoveCursorRight ; continue execution at MoveCursorRight
-BackOverTerminator  leax      -$01,x    ; form the address -$01,x in x
-ResumeCharacterInput leay      $01,y     ; form the address $01,y in y
-                    lbra      EditCharacterLoop ; continue execution at EditCharacterLoop
+                    leax      -$01,x    ; select -$01
+                    ldy       #1        ; cap this output request at 1 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
+                    bra       MoveCursorRight ; continue with move cursor right
+BackOverTerminator  leax      -$01,x    ; select -$01
+ResumeCharacterInput leay      $01,y     ; select $01
+                    lbra      EditCharacterLoop ; continue with edit character loop
 ErasePreviousCharacter puls      y,x       ; restore y,x from the stack
-                    leay      $01,y     ; form the address $01,y in y
-                    cmpy      ,s        ; compare y with ,s and set the condition codes
-                    bhi       KeepCursorAtStart ; branch when the unsigned value is higher; target KeepCursorAtStart
+                    leay      $01,y     ; select $01
+                    cmpy      ,s        ; test against
+                    bhi       KeepCursorAtStart ; select keep cursor at start above the unsigned boundary
                     pshs      y,x       ; save y,x on the stack
-                    leax      >EraseSequence,pc ; form the address >EraseSequence,pc in x
-                    ldy       #3        ; set y to the constant 3
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
+                    leax      >EraseSequence,pc ; select erase sequence
+                    ldy       #3        ; cap this output request at 3 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
                     puls      y,x       ; restore y,x from the stack
-                    leax      -$01,x    ; form the address -$01,x in x
-                    lbra      EditCharacterLoop ; continue execution at EditCharacterLoop
-KeepCursorAtStart   leay      -$01,y    ; form the address -$01,y in y
-                    lbra      EditCharacterLoop ; continue execution at EditCharacterLoop
+                    leax      -$01,x    ; select -$01
+                    lbra      EditCharacterLoop ; continue with edit character loop
+KeepCursorAtStart   leay      -$01,y    ; select -$01
+                    lbra      EditCharacterLoop ; continue with edit character loop
 EraseCurrentCharacter puls      y,x       ; restore y,x from the stack
-                    leay      $01,y     ; form the address $01,y in y
-                    cmpy      ,s        ; compare y with ,s and set the condition codes
-                    bhi       KeepCursorAtStart ; branch when the unsigned value is higher; target KeepCursorAtStart
+                    leay      $01,y     ; select $01
+                    cmpy      ,s        ; test against
+                    bhi       KeepCursorAtStart ; select keep cursor at start above the unsigned boundary
                     pshs      y,x       ; save y,x on the stack
-                    leax      >EraseSequence,pc ; form the address >EraseSequence,pc in x
-                    ldy       #3        ; set y to the constant 3
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
+                    leax      >EraseSequence,pc ; select erase sequence
+                    ldy       #3        ; cap this output request at 3 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
                     puls      y,x       ; restore y,x from the stack
-                    leax      -$01,x    ; form the address -$01,x in x
-                    cmpy      ,s        ; compare y with ,s and set the condition codes
-                    lbhi      EditCharacterLoop ; branch when the unsigned value is higher; target EditCharacterLoop
+                    leax      -$01,x    ; select -$01
+                    cmpy      ,s        ; test against
+                    lbhi      EditCharacterLoop ; select edit character loop above the unsigned boundary
                     pshs      y,x       ; save y,x on the stack
-                    bra       EraseCurrentCharacter ; continue execution at EraseCurrentCharacter
+                    bra       EraseCurrentCharacter ; continue with erase current character
 FinishEditedLine    puls      y,x       ; restore y,x from the stack
-AcceptEditedLine    lda       #13       ; set a to the constant 13
-                    sta       ,x+       ; store a at ,x+
+AcceptEditedLine    lda       #13       ; recognize the carriage-return terminator
+                    sta       ,x+       ; retain
                     pshs      y,x       ; save y,x on the stack
-                    leax      >BlankLine,pc ; form the address >BlankLine,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
+                    leax      >BlankLine,pc ; select blank line
+                    ldy       #1        ; cap this output request at 1 bytes
+                    lda       #1        ; select standard output
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
                     puls      y,x       ; restore y,x from the stack
-                    puls      d         ; restore d from the stack
-                    pshs      y         ; save y on the stack
+                    puls      d         ; restore d
+                    pshs      y         ; preserve y across the operation
                     subd      ,s        ; subtract from d using ,s
-                    leas      $02,s     ; adjust the system stack pointer
-                    tfr       d,y       ; copy the register values specified by d,y
-                    leay      $01,y     ; form the address $01,y in y
-                    lbsr      RestoreTerminalEcho ; call subroutine RestoreTerminalEcho
+                    leas      $02,s     ; release $02,s bytes of stack state
+                    tfr       d,y       ; transfer d,y
+                    leay      $01,y     ; select $01
+                    lbsr      RestoreTerminalEcho ; invoke restore terminal echo
                     rts                 ; return to the caller
-                    fcc       "50" ; store literal character data
-WrapFullInputLine   puls      d         ; restore d from the stack
-                    pshs      y         ; save y on the stack
+                    fcc       "50"
+WrapFullInputLine   puls      d         ; restore d
+                    pshs      y         ; preserve y across the operation
                     subd      ,s        ; subtract from d using ,s
-                    leas      $02,s     ; adjust the system stack pointer
+                    leas      $02,s     ; release $02,s bytes of stack state
                     addd      #1        ; add to d using #1
-                    tfr       d,y       ; copy the register values specified by d,y
-                    clrb                ; clear b to zero and set the condition codes
-FindWrapPoint       leay      -$01,y    ; form the address -$01,y in y
-                    beq       WriteFullInputLine ; branch when the values are equal or the result is zero; target WriteFullInputLine
-                    lda       ,-x       ; load a from ,-x
-                    cmpa      #32       ; compare a with #32 and set the condition codes
-                    beq       CarryWrappedWord ; branch when the values are equal or the result is zero; target CarryWrappedWord
+                    tfr       d,y       ; transfer d,y
+                    clrb                ; clear the byte accumulator for counting
+FindWrapPoint       leay      -$01,y    ; select -$01
+                    beq       WriteFullInputLine ; enter write full input line when the terminating condition is met
+                    lda       ,-x       ; recover
+                    cmpa      #32       ; recognize the first printable ASCII value
+                    beq       CarryWrappedWord ; select carry wrapped word when the requested case matches
                     pshs      y,x       ; save y,x on the stack
-                    leax      >EraseSequence,pc ; form the address >EraseSequence,pc in x
-                    ldy       #3        ; set y to the constant 3
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    incb                ; increment b
+                    leax      >EraseSequence,pc ; select erase sequence
+                    ldy       #3        ; cap this output request at 3 bytes
+                    lda       #1        ; select standard output
+                    os9       I$Write   ; write the requested fixed-size field
+                    incb                ; preserve the flags or register state required by the following operation
                     puls      y,x       ; restore y,x from the stack
-                    bra       FindWrapPoint ; continue execution at FindWrapPoint
-WriteFullInputLine  lda       #13       ; set a to the constant 13
-                    sta       <$004F,x  ; store a at <$004F,x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
+                    bra       FindWrapPoint ; continue with find wrap point
+WriteFullInputLine  lda       #13       ; recognize the carriage-return terminator
+                    sta       <$004F,x  ; retain $004 f
+                    ldy       #200      ; cap this output request at 200 bytes
+                    lda       #1        ; select standard output
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    puls      y         ; restore y from the stack
+                    puls      y         ; restore y
                     rts                 ; return to the caller
-CarryWrappedWord    lda       #13       ; set a to the constant 13
-                    sta       ,x+       ; store a at ,x+
+CarryWrappedWord    lda       #13       ; recognize the carriage-return terminator
+                    sta       ,x+       ; retain
                     pshs      y,x       ; save y,x on the stack
-                    stb       InputLineLength,u ; store b at InputLineLength,u
-                    leay      >EditLineBuffer,u ; form the address >EditLineBuffer,u in y
-CopyWrappedWord     lda       ,x+       ; load a from ,x+
-                    sta       ,y+       ; store a at ,y+
+                    stb       InputLineLength,u ; retain input line length
+                    leay      >EditLineBuffer,u ; select edit line buffer
+CopyWrappedWord     lda       ,x+       ; consume the next byte while copy wrapped word
+                    sta       ,y+       ; retain
                     decb                ; decrement b
-                    bne       CopyWrappedWord ; branch when the values differ or the result is nonzero; target CopyWrappedWord
-                    leax      >BlankLine,pc ; form the address >BlankLine,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
+                    bne       CopyWrappedWord ; repeat copy wrapped word until the terminating condition is met
+                    leax      >BlankLine,pc ; select blank line
+                    ldy       #1        ; cap this output request at 1 bytes
+                    lda       #1        ; select standard output
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
                     puls      y,x       ; restore y,x from the stack
-                    lbsr      RestoreTerminalEcho ; call subroutine RestoreTerminalEcho
+                    lbsr      RestoreTerminalEcho ; invoke restore terminal echo
                     rts                 ; return to the caller
 DisableTerminalEcho pshs      y,x,d     ; save y,x,d on the stack
-                    leax      >TerminalOptions,u ; form the address >TerminalOptions,u in x
-                    clra                ; clear a to zero and set the condition codes
-                    ldb       #0        ; set b to the constant 0
-                    os9       I$GetStt  ; query status code B for path A
-                    leax      -$20,x    ; form the address -$20,x in x
-                    clr       <$0024,x  ; clear <$0024,x to zero and set the condition codes
-                    leax      <$0020,x  ; form the address <$0020,x in x
-                    os9       I$SetStt  ; apply status operation B to path A
+                    leax      >TerminalOptions,u ; select terminal options
+                    clra                ; select standard input
+                    ldb       #0        ; select status operation 0
+                    os9       I$GetStt  ; query the selected path status
+                    leax      -$20,x    ; select -$20
+                    clr       <$0024,x  ; initialize $0024
+                    leax      <$0020,x  ; select $0020
+                    os9       I$SetStt  ; apply the selected path status operation
                     puls      pc,y,x,d  ; restore pc,y,x,d and return to the caller
 RestoreTerminalEcho pshs      y,x,d     ; save y,x,d on the stack
-                    leax      >TerminalOptions,u ; form the address >TerminalOptions,u in x
-                    clra                ; clear a to zero and set the condition codes
-                    ldb       #0        ; set b to the constant 0
-                    os9       I$GetStt  ; query status code B for path A
-                    leax      -$20,x    ; form the address -$20,x in x
-                    lda       #1        ; set a to the constant 1
-                    sta       <$0024,x  ; store a at <$0024,x
-                    leax      <$0020,x  ; form the address <$0020,x in x
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$SetStt  ; apply status operation B to path A
+                    leax      >TerminalOptions,u ; select terminal options
+                    clra                ; select standard input
+                    ldb       #0        ; select status operation 0
+                    os9       I$GetStt  ; query the selected path status
+                    leax      -$20,x    ; select -$20
+                    lda       #1        ; initialize $0024 to 1
+                    sta       <$0024,x  ; retain $0024
+                    leax      <$0020,x  ; select $0020
+                    clra                ; select standard input
+                    os9       I$SetStt  ; apply the selected path status operation
                     puls      pc,y,x,d  ; restore pc,y,x,d and return to the caller
-ParseDecimalNumber  pshs      y         ; save y on the stack
-FindFirstDigit      lda       ,x+       ; load a from ,x+
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    lbeq      NoDecimalNumber ; branch when the values are equal or the result is zero; target NoDecimalNumber
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       FindFirstDigit ; branch when carry reports an error or unsigned underflow; target FindFirstDigit
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       FindFirstDigit ; branch when the unsigned value is higher; target FindFirstDigit
-                    leax      -$01,x    ; form the address -$01,x in x
-FindDigitRunEnd     lda       ,x+       ; load a from ,x+
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       AccumulateDigits ; branch when carry reports an error or unsigned underflow; target AccumulateDigits
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       AccumulateDigits ; branch when the unsigned value is higher; target AccumulateDigits
-                    bra       FindDigitRunEnd ; continue execution at FindDigitRunEnd
-AccumulateDigits    pshs      x         ; save x on the stack
-                    leax      -$01,x    ; form the address -$01,x in x
-                    clr       <ParsedNumber,u ; clear <ParsedNumber,u to zero and set the condition codes
-                    clr       <ParsedNumberLow,u ; clear <ParsedNumberLow,u to zero and set the condition codes
-                    ldd       #1        ; set d to the constant 1
-                    std       <DecimalPlace,u ; store d at <DecimalPlace,u
-AccumulatePreviousDigit lda       ,-x       ; load a from ,-x
-                    cmpa      #48       ; compare a with #48 and set the condition codes
-                    bcs       ReturnParsedNumber ; branch when carry reports an error or unsigned underflow; target ReturnParsedNumber
-                    cmpa      #57       ; compare a with #57 and set the condition codes
-                    bhi       ReturnParsedNumber ; branch when the unsigned value is higher; target ReturnParsedNumber
+ParseDecimalNumber  pshs      y         ; preserve y across the operation
+FindFirstDigit      lda       ,x+       ; consume the next byte while find first digit
+                    cmpa      #13       ; recognize the carriage-return terminator
+                    lbeq      NoDecimalNumber ; select no decimal number when the requested case matches
+                    cmpa      #48       ; recognize or generate ASCII zero
+                    bcs       FindFirstDigit ; enter find first digit on error or unsigned underflow
+                    cmpa      #57       ; recognize ASCII nine as the upper digit bound
+                    bhi       FindFirstDigit ; continue find first digit while the range test permits it
+                    leax      -$01,x    ; select -$01
+FindDigitRunEnd     lda       ,x+       ; consume the next byte while find digit run end
+                    cmpa      #48       ; recognize or generate ASCII zero
+                    bcs       AccumulateDigits ; enter accumulate digits on error or unsigned underflow
+                    cmpa      #57       ; recognize ASCII nine as the upper digit bound
+                    bhi       AccumulateDigits ; continue accumulate digits while the range test permits it
+                    bra       FindDigitRunEnd ; continue with find digit run end
+AccumulateDigits    pshs      x         ; preserve x across the operation
+                    leax      -$01,x    ; select -$01
+                    clr       <ParsedNumber,u ; initialize parsed number
+                    clr       <ParsedNumberLow,u ; initialize parsed number low
+                    ldd       #1        ; initialize decimal place to 1
+                    std       <DecimalPlace,u ; retain decimal place
+AccumulatePreviousDigit lda       ,-x       ; recover
+                    cmpa      #48       ; recognize or generate ASCII zero
+                    bcs       ReturnParsedNumber ; select return parsed number when carry reports an error or underflow
+                    cmpa      #57       ; recognize ASCII nine as the upper digit bound
+                    bhi       ReturnParsedNumber ; select return parsed number above the unsigned boundary
                     suba      #48       ; subtract from a using #48
-                    sta       DecimalCounter,u ; store a at DecimalCounter,u
-                    ldd       #0        ; set d to the constant 0
+                    sta       DecimalCounter,u ; retain decimal counter
+                    ldd       #0        ; establish the accumulate previous digit loop or field bound (0)
 AddDigitPlace       tst       DecimalCounter,u ; set condition codes from DecimalCounter,u without changing it
-                    beq       StoreDigitSum ; branch when the values are equal or the result is zero; target StoreDigitSum
+                    beq       StoreDigitSum ; select store digit sum when the requested case matches
                     addd      <DecimalPlace,u ; add to d using <DecimalPlace,u
-                    dec       DecimalCounter,u ; decrement the value at DecimalCounter,u
-                    bra       AddDigitPlace ; continue execution at AddDigitPlace
+                    dec       DecimalCounter,u ; consume one decimal counter
+                    bra       AddDigitPlace ; continue with add digit place
 StoreDigitSum       addd      <ParsedNumber,u ; add to d using <ParsedNumber,u
-                    std       <ParsedNumber,u ; store d at <ParsedNumber,u
-                    lda       #10       ; set a to the constant 10
-                    sta       DecimalCounter,u ; store a at DecimalCounter,u
-                    ldd       #0        ; set d to the constant 0
+                    std       <ParsedNumber,u ; retain parsed number
+                    lda       #10       ; select the line-feed control byte
+                    sta       DecimalCounter,u ; retain decimal counter
+                    ldd       #0        ; establish the store digit sum loop or field bound (0)
 MultiplyPlaceByTen  tst       DecimalCounter,u ; set condition codes from DecimalCounter,u without changing it
-                    beq       UseNextDecimalPlace ; branch when the values are equal or the result is zero; target UseNextDecimalPlace
+                    beq       UseNextDecimalPlace ; select use next decimal place when the requested case matches
                     addd      <DecimalPlace,u ; add to d using <DecimalPlace,u
-                    dec       DecimalCounter,u ; decrement the value at DecimalCounter,u
-                    bra       MultiplyPlaceByTen ; continue execution at MultiplyPlaceByTen
-UseNextDecimalPlace std       <DecimalPlace,u ; store d at <DecimalPlace,u
-                    bra       AccumulatePreviousDigit ; continue execution at AccumulatePreviousDigit
-ReturnParsedNumber  ldd       <ParsedNumber,u ; load d from <ParsedNumber,u
-                    puls      x         ; restore x from the stack
+                    dec       DecimalCounter,u ; consume one decimal counter
+                    bra       MultiplyPlaceByTen ; continue with multiply place by ten
+UseNextDecimalPlace std       <DecimalPlace,u ; retain decimal place
+                    bra       AccumulatePreviousDigit ; continue with accumulate previous digit
+ReturnParsedNumber  ldd       <ParsedNumber,u ; recover parsed number
+                    puls      x         ; restore x
                     puls      pc,y      ; restore pc,y and return to the caller
-FormatLineNumber    pshs      y         ; save y on the stack
-                    std       <ParsedNumber,u ; store d at <ParsedNumber,u
-                    lda       #48       ; set a to the constant 48
-                    sta       ,x        ; store a at ,x
-                    sta       $01,x     ; store a at $01,x
-                    ldd       #10       ; set d to the constant 10
-                    std       <DecimalPlace,u ; store d at <DecimalPlace,u
-                    ldd       <ParsedNumber,u ; load d from <ParsedNumber,u
-                    bsr       EmitDecimalDigit ; call subroutine EmitDecimalDigit
-                    ldd       #1        ; set d to the constant 1
-                    std       <DecimalPlace,u ; store d at <DecimalPlace,u
-                    ldd       <ParsedNumber,u ; load d from <ParsedNumber,u
-                    bsr       EmitDecimalDigit ; call subroutine EmitDecimalDigit
-                    lda       #13       ; set a to the constant 13
-                    sta       ,x        ; store a at ,x
+FormatLineNumber    pshs      y         ; preserve y across the operation
+                    std       <ParsedNumber,u ; retain parsed number
+                    lda       #48       ; recognize or generate ASCII zero
+                    sta       ,x        ; retain
+                    sta       $01,x     ; retain $01
+                    ldd       #10       ; select the line-feed control byte
+                    std       <DecimalPlace,u ; retain decimal place
+                    ldd       <ParsedNumber,u ; recover parsed number
+                    bsr       EmitDecimalDigit ; invoke emit decimal digit
+                    ldd       #1        ; initialize decimal place to 1
+                    std       <DecimalPlace,u ; retain decimal place
+                    ldd       <ParsedNumber,u ; recover parsed number
+                    bsr       EmitDecimalDigit ; invoke emit decimal digit
+                    lda       #13       ; recognize the carriage-return terminator
+                    sta       ,x        ; retain
                     puls      pc,y      ; restore pc,y and return to the caller
 EmitDecimalDigit    subd      <DecimalPlace,u ; subtract from d using <DecimalPlace,u
-                    bcs       DecimalDigitComplete ; branch when carry reports an error or unsigned underflow; target DecimalDigitComplete
+                    bcs       DecimalDigitComplete ; select decimal digit complete when carry reports an error or underflow
                     inc       ,x        ; increment the value at ,x
-                    bra       EmitDecimalDigit ; continue execution at EmitDecimalDigit
+                    bra       EmitDecimalDigit ; continue with emit decimal digit
 DecimalDigitComplete addd      <DecimalPlace,u ; add to d using <DecimalPlace,u
-                    std       <ParsedNumber,u ; store d at <ParsedNumber,u
-                    leax      $01,x     ; form the address $01,x in x
+                    std       <ParsedNumber,u ; retain parsed number
+                    leax      $01,x     ; select $01
                     rts                 ; return to the caller
-NoDecimalNumber     ldd       #-1       ; set d to the constant -1
+NoDecimalNumber     ldd       #-1       ; establish the no decimal number loop or field bound (-1)
                     puls      pc,y      ; restore pc,y and return to the caller
-CreateMailFiles     leax      >MailIndexPath,pc ; form the address >MailIndexPath,pc in x
-                    lda       #11       ; set a to the constant 11
-                    tfr       a,b       ; copy the register values specified by a,b
+CreateMailFiles     leax      >MailIndexPath,pc ; select mail index path
+                    lda       #11       ; initialize index path num to 11
+                    tfr       a,b       ; transfer a,b
                     os9       I$Create  ; create the path at X with mode A and attributes B
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    sta       IndexPathNum,u ; store a at IndexPathNum,u
-                    leax      >MailBodyPath,pc ; form the address >MailBodyPath,pc in x
-                    lda       #11       ; set a to the constant 11
-                    tfr       a,b       ; copy the register values specified by a,b
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    sta       IndexPathNum,u ; retain index path num
+                    leax      >MailBodyPath,pc ; select mail body path
+                    lda       #11       ; initialize body path num to 11
+                    tfr       a,b       ; transfer a,b
                     os9       I$Create  ; create the path at X with mode A and attributes B
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    sta       BodyPathNum,u ; store a at BodyPathNum,u
-                    leax      >NewMessageNumber,u ; form the address >NewMessageNumber,u in x
-                    ldd       #0        ; set d to the constant 0
-                    std       ,x        ; store d at ,x
-                    std       $02,x     ; store d at $02,x
-                    std       $04,x     ; store d at $04,x
-                    lda       IndexPathNum,u ; load a from IndexPathNum,u
-                    ldy       #64       ; set y to the constant 64
-                    os9       I$Write   ; write Y bytes from X to path A
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    os9       I$Close   ; close path A
-                    lbcs      ExitWithStatus ; branch when carry reports an error or unsigned underflow; target ExitWithStatus
-                    lda       IndexPathNum,u ; load a from IndexPathNum,u
-                    os9       I$Close   ; close path A
-                    lda       BodyPathNum,u ; load a from BodyPathNum,u
-                    os9       I$Close   ; close path A
-                    lbra      OpenMailFiles ; continue execution at OpenMailFiles
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    sta       BodyPathNum,u ; retain body path num
+                    leax      >NewMessageNumber,u ; select new message number
+                    ldd       #0        ; initialize  to 0
+                    std       ,x        ; retain
+                    std       $02,x     ; retain $02
+                    std       $04,x     ; retain $04
+                    lda       IndexPathNum,u ; recover index path num
+                    ldy       #64       ; cap this output request at 64 bytes
+                    os9       I$Write   ; write the requested fixed-size field
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    os9       I$Close   ; close the selected path
+                    lbcs      ExitWithStatus ; return immediately with the selected status
+                    lda       IndexPathNum,u ; recover index path num
+                    os9       I$Close   ; close the selected path
+                    lda       BodyPathNum,u ; recover body path num
+                    os9       I$Close   ; close the selected path
+                    lbra      OpenMailFiles ; continue with open mail files
 
                     emod                ; emit the OS-9 module CRC and trailer
 eom                 equ       *         ; mark the module end for the size expression
