@@ -2,8 +2,8 @@
 * Dloady - OS-9 Level 2 BBS command
 *
 * Syntax: Dloady [file]
-* Purpose: Send a YMODEM filename/size header followed by protected data blocks.
-* Handles batch header, block sequencing, retry, cancel, and termination.
+* Purpose: Send STX-framed 1K data blocks with checksum or CRC-16 protection.
+* Despite its YMODEM name, this module does not construct a block-zero file header.
 *
 * Edt/Rev  YYYY/MM/DD  Modified by
 * Comment
@@ -12,6 +12,8 @@
 * Annotated source and normalized comments.
 *          2026/07/21  Codex
 * Refined command annotations and normalized formatting.
+*          2026/07/22  Codex
+* Decoded 1K framing, protection negotiation, and retransmission flow.
 **********************************************************************
 
                     nam       Dloady
@@ -27,390 +29,395 @@ rev                 set       $01       ; set assembly-time module attribute rev
 
                     mod       eom,name,tylg,atrv,start,size ; emit the OS-9 module header
 
-WorkByte_001        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_002        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_003        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_001        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_002        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkByte_004        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkWord_003        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkWord_004        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkBuffer_001      rmb       10        ; reserve 10 byte(s) in the module workspace
-WorkByte_005        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_006        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_007        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_002      rmb       1024      ; reserve 1024 byte(s) in the module workspace
-WorkByte_008        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkByte_009        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_003      rmb       32        ; reserve 32 byte(s) in the module workspace
-WorkWord_005        rmb       2         ; reserve 2 byte(s) in the module workspace
-WorkByte_010        rmb       1         ; reserve 1 byte(s) in the module workspace
-WorkBuffer_004      rmb       231       ; reserve 231 byte(s) in the module workspace
+SourcePathNum       rmb       1
+ReceiverByte        rmb       1
+UseCrcFlag          rmb       1         ; zero for checksum, nonzero for CRC-16
+CrcByteCounter      rmb       2
+CrcBitCounterArea   rmb       2
+SizeShiftCounter    rmb       1
+DecimalRemainder    rmb       2
+DecimalDivisor      rmb       2
+BlockCountText      rmb       10
+* contiguous STX-framed 1K packet
+PacketStart         rmb       1
+BlockNumber         rmb       1
+InverseBlockNumber  rmb       1
+PacketData          rmb       1024
+PacketCheckHigh     rmb       1
+PacketCheckLow      rmb       1
+FilenameBuffer      rmb       32
+FilenamePointer     rmb       2
+TerminalOptions     rmb       1         ; 32-byte ss.opt packet begins here
+TerminalOptionsTail rmb       231
 size                equ       .         ; define the assembly-time value for size
 
 name                fcs       /Dloady/ ; store an OS-9 high-bit-terminated string
-                    fcc       "Copyright (C) 1988By Keith AlphonsoLicenced to Alpha Software TechnologiesAll rights reserved" ; store literal character data
-                    fcb       $EC       ; store byte data
-                    fcb       $E6       ; store byte data
-                    fcb       $EA       ; store byte data
-                    fcb       $F5       ; store byte data
-                    fcb       $E9       ; store byte data
-                    fcb       $A0       ; store byte data
-                    fcb       $E2       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $F1       ; store byte data
-                    fcb       $E9       ; store byte data
-                    fcb       $F0       ; store byte data
-                    fcb       $EF       ; store byte data
-                    fcb       $F4       ; store byte data
-                    fcb       $F0       ; store byte data
-Text_001            fcc       "Enter filename to download-->" ; store literal character data
-Data_001            fcb       $00       ; store byte data
-                    fcb       $1D       ; store byte data
-Text_002            fcc       "File open, ready to send..." ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_003            fcc       "File transfer successful" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_004            fcc       "File transfer unsuccessful" ; store literal character data
-                    fcb       $0D       ; store byte data
-Text_005            fcc       "Press <CTRL><X> to abort" ; store literal character data
-                    fcb       $0D       ; store byte data
-Data_002            fcb       $04       ; store byte data
-Data_003            fcb       $0A       ; store byte data
-                    fcb       $0D       ; store byte data
-Text_006            fcc       "Total number of blocks to download:" ; store literal character data
-Routine_001         clr       WorkByte_003,u ; clear WorkByte_003,u to zero and set the condition codes
-                    leax      >WorkByte_010,u ; form the address >WorkByte_010,u in x
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    os9       I$GetStt  ; query status code B for path A
-                    leax      -$20,x    ; form the address -$20,x in x
-                    clr       <$0024,x  ; clear <$0024,x to zero and set the condition codes
-                    leax      >WorkByte_010,u ; form the address >WorkByte_010,u in x
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    os9       I$SetStt  ; apply status operation B to path A
-                    rts                 ; return to the caller
-start               lda       ,x        ; load a from ,x
-                    cmpa      #13       ; compare a with #13 and set the condition codes
-                    bne       Branch_001 ; branch when the values differ or the result is nonzero; target Branch_001
-                    leax      >Text_001,pc ; form the address >Text_001,pc in x
-                    ldy       >Data_001,pc ; load y from >Data_001,pc
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      >WorkBuffer_003,u ; form the address >WorkBuffer_003,u in x
-                    ldy       #32       ; set y to the constant 32
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$ReadLn  ; read a CR-terminated line from path A into X
-Branch_001          stx       >WorkWord_005,u ; store x at >WorkWord_005,u
-                    lbsr      Routine_001 ; call subroutine Routine_001
-                    lda       #1        ; set a to the constant 1
-                    ldx       >WorkWord_005,u ; load x from >WorkWord_005,u
-                    os9       I$Open    ; open the path at X using access mode A
-                    lbcs      Branch_002 ; branch when carry reports an error or unsigned underflow; target Branch_002
-                    sta       WorkByte_001,u ; store a at WorkByte_001,u
-                    leax      >Text_006,pc ; form the address >Text_006,pc in x
-                    ldy       #35       ; set y to the constant 35
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    ldb       #2        ; set b to the constant 2
-                    pshs      u         ; save u on the stack
-                    os9       I$GetStt  ; query status code B for path A
-                    tfr       u,y       ; copy the register values specified by u,y
-                    puls      u         ; restore u from the stack
-                    lda       #10       ; set a to the constant 10
-                    sta       WorkByte_004,u ; store a at WorkByte_004,u
-Branch_003          tfr       x,d       ; copy the register values specified by x,d
-                    lsra                ; shift a right logically
-                    rorb                ; rotate b right through carry
-                    tfr       d,x       ; copy the register values specified by d,x
-                    tfr       y,d       ; copy the register values specified by y,d
-                    rora                ; rotate a right through carry
-                    rorb                ; rotate b right through carry
-                    tfr       d,y       ; copy the register values specified by d,y
-                    dec       WorkByte_004,u ; decrement the value at WorkByte_004,u
-                    bne       Branch_003 ; branch when the values differ or the result is nonzero; target Branch_003
-                    tfr       y,d       ; copy the register values specified by y,d
-                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-                    addd      #1        ; add to d using #1
-                    lbsr      Routine_002 ; call subroutine Routine_002
-                    leax      WorkBuffer_001,u ; form the address WorkBuffer_001,u in x
-                    ldy       #5        ; set y to the constant 5
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      >Data_003,pc ; form the address >Data_003,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >Text_005,pc ; form the address >Text_005,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    leax      >Text_002,pc ; form the address >Text_002,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-Branch_004          leax      WorkByte_002,u ; form the address WorkByte_002,u in x
-                    ldy       #1        ; set y to the constant 1
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    cmpa      #67       ; compare a with #67 and set the condition codes
-                    beq       Branch_005 ; branch when the values are equal or the result is zero; target Branch_005
-                    cmpa      #24       ; compare a with #24 and set the condition codes
-                    lbeq      Branch_006 ; branch when the values are equal or the result is zero; target Branch_006
-                    cmpa      #21       ; compare a with #21 and set the condition codes
-                    bne       Branch_004 ; branch when the values differ or the result is nonzero; target Branch_004
-                    bra       Branch_007 ; continue execution at Branch_007
-Branch_005          lda       #1        ; set a to the constant 1
-                    sta       WorkByte_003,u ; store a at WorkByte_003,u
-Branch_007          lda       #2        ; set a to the constant 2
-                    sta       <WorkByte_005,u ; store a at <WorkByte_005,u
-                    lda       #1        ; set a to the constant 1
-                    sta       <WorkByte_006,u ; store a at <WorkByte_006,u
-                    coma                ; complement every bit in a
-                    sta       <WorkByte_007,u ; store a at <WorkByte_007,u
-Branch_008          leax      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in x
-                    ldy       #1024     ; set y to the constant 1024
-                    lda       WorkByte_001,u ; load a from WorkByte_001,u
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    lbcs      Branch_009 ; branch when carry reports an error or unsigned underflow; target Branch_009
-                    cmpy      #1024     ; compare y with #1024 and set the condition codes
-                    beq       Branch_010 ; branch when the values are equal or the result is zero; target Branch_010
-                    tfr       y,d       ; copy the register values specified by y,d
-                    leax      d,x       ; form the address d,x in x
-                    clra                ; clear a to zero and set the condition codes
-Branch_011          sta       ,x+       ; store a at ,x+
-                    leay      $01,y     ; form the address $01,y in y
-                    cmpy      #1024     ; compare y with #1024 and set the condition codes
-                    bcs       Branch_011 ; branch when carry reports an error or unsigned underflow; target Branch_011
-                    leax      <WorkBuffer_002,u ; form the address <WorkBuffer_002,u in x
-Branch_010          tst       WorkByte_003,u ; set condition codes from WorkByte_003,u without changing it
-                    bne       Branch_012 ; branch when the values differ or the result is nonzero; target Branch_012
-                    clr       >WorkByte_008,u ; clear >WorkByte_008,u to zero and set the condition codes
-                    ldy       #1024     ; set y to the constant 1024
-Branch_013          lda       ,x+       ; load a from ,x+
-                    adda      >WorkByte_008,u ; add to a using >WorkByte_008,u
-                    sta       >WorkByte_008,u ; store a at >WorkByte_008,u
-                    leay      -$01,y    ; form the address -$01,y in y
-                    bne       Branch_013 ; branch when the values differ or the result is nonzero; target Branch_013
-                    bra       Branch_014 ; continue execution at Branch_014
-Branch_012          ldd       #0        ; set d to the constant 0
-                    std       >WorkByte_008,u ; store d at >WorkByte_008,u
-                    ldy       #1024     ; set y to the constant 1024
-                    sty       WorkWord_001,u ; store y at WorkWord_001,u
-Branch_015          lda       ,x+       ; load a from ,x+
-                    clrb                ; clear b to zero and set the condition codes
-                    eora      >WorkByte_008,u ; toggle selected bits in a using >WorkByte_008,u
-                    eorb      >WorkByte_009,u ; toggle selected bits in b using >WorkByte_009,u
-                    std       >WorkByte_008,u ; store d at >WorkByte_008,u
-                    lda       #8        ; set a to the constant 8
-                    sta       WorkWord_002,u ; store a at WorkWord_002,u
-Branch_016          lda       >WorkByte_008,u ; load a from >WorkByte_008,u
+                    fcc       "Copyright (C) 1988By Keith AlphonsoLicenced to Alpha Software TechnologiesAll rights reserved"
+                    fcb       $EC
+                    fcb       $E6
+                    fcb       $EA
+                    fcb       $F5
+                    fcb       $E9
+                    fcb       $A0
+                    fcb       $E2
+                    fcb       $ED
+                    fcb       $F1
+                    fcb       $E9
+                    fcb       $F0
+                    fcb       $EF
+                    fcb       $F4
+                    fcb       $F0
+FilenamePrompt      fcc       "Enter filename to download-->"
+FilenamePromptLength fcb       $00
+                    fcb       $1D
+ReadyText           fcc       "File open, ready to send..."
+                    fcb       $0D
+SuccessText         fcc       "File transfer successful"
+                    fcb       $0D
+FailureText         fcc       "File transfer unsuccessful"
+                    fcb       $0D
+AbortText           fcc       "Press <CTRL><X> to abort"
+                    fcb       $0D
+EndOfTransferByte   fcb       $04
+BlankLine           fcb       $0A
+                    fcb       $0D
+BlockCountLabel     fcc       "Total number of blocks to download:"
+ConfigureTerminalInput clr       UseCrcFlag,u ; default negotiation to one-byte checksum mode
+                    leax      >TerminalOptions,u ; select the saved 32-byte ss.opt packet
+                    clra                ; select standard input
+                    clrb                ; request SS.Opt
+                    os9       I$GetStt  ; preserve the caller's terminal configuration
+                    leax      -$20,x    ; use the original packet-relative addressing pattern
+                    clr       <$0024,x  ; clear option byte four for raw protocol input
+                    leax      >TerminalOptions,u ; select the saved 32-byte ss.opt packet
+                    clra                ; target standard input
+                    clrb                ; request SS.Opt
+                    os9       I$SetStt  ; apply raw-input behavior
+                    rts                 ; return with the saved packet in workspace
+start               lda       ,x        ; inspect the first command-line character
+                    cmpa      #13       ; recognize the CR-only parameter from BBS.download
+                    bne       OpenSourceFile ; use a supplied pathname directly
+                    leax      >FilenamePrompt,pc ; prepare the inline filename prompt
+                    ldy       >FilenamePromptLength,pc ; load its adjacent 16-bit length
+                    lda       #1        ; direct the prompt to the terminal
+                    os9       I$Write   ; leave the cursor ready for input
+                    leax      >FilenameBuffer,u ; receive the requested source pathname
+                    ldy       #32       ; enforce the allocated filename limit
+                    clra                ; select standard input
+                    os9       I$ReadLn  ; collect the CR-terminated filename
+OpenSourceFile      stx       >FilenamePointer,u ; preserve the selected pathname across setup
+                    lbsr      ConfigureTerminalInput ; switch standard input to protocol mode
+                    lda       #1        ; request read access to the source
+                    ldx       >FilenamePointer,u ; recover the selected pathname
+                    os9       I$Open    ; open the download source
+                    lbcs      ExitWithStatus ; restore terminal input before returning the error
+                    sta       SourcePathNum,u ; retain the source path number
+                    leax      >BlockCountLabel,pc ; prepare the transfer-size caption
+                    ldy       #35       ; write its exact unterminated length
+                    lda       #1        ; direct the caption to the terminal
+                    os9       I$Write   ; leave the cursor ready for the decimal count
+                    lda       SourcePathNum,u ; select the source file
+                    ldb       #2        ; request SS.Size
+                    pshs      u         ; preserve workspace u while GetStat returns size in x:u
+                    os9       I$GetStt  ; obtain the 32-bit source length
+                    tfr       u,y       ; retain the low size word outside u
+                    puls      u         ; recover the workspace pointer
+                    lda       #10       ; divide the 32-bit source size by 1024
+                    sta       SizeShiftCounter,u ; count seven cross-word right shifts
+DivideSizeBy1024    tfr       x,d       ; move the high size word into the shift pair
+                    lsra                ; shift the most-significant byte right
+                    rorb                ; carry into the high word's low byte
+                    tfr       d,x       ; retain the shifted high word
+                    tfr       y,d       ; move the low size word into the shift pair
+                    rora                ; carry the high word's low bit into the low word
+                    rorb                ; complete this 32-bit right shift
+                    tfr       d,y       ; retain the shifted low word
+                    dec       SizeShiftCounter,u ; account for one factor of two
+                    bne       DivideSizeBy1024 ; perform all ten cross-word right shifts
+                    tfr       y,d       ; format the low 16 bits of the quotient
+                    leax      BlockCountText,u ; select the five-digit output field
+                    addd      #1        ; display one padded final block beyond the quotient
+                    lbsr      FormatDecimalNumber ; render the count as five decimal digits
+                    leax      BlockCountText,u ; select the rendered count
+                    ldy       #5        ; omit its trailing carriage return
+                    lda       #1        ; direct the count to the terminal
+                    os9       I$Write   ; complete the transfer-size line
+                    leax      >BlankLine,pc ; select the following line break
+                    ldy       #1        ; let WritLn stop at the CR in the two-byte sequence
+                    lda       #1        ; direct spacing to the terminal
+                    os9       I$WritLn  ; emit the leading line-feed byte before instructions
+                    leax      >AbortText,pc ; prepare the sender-abort instruction
+                    ldy       #200      ; allow WritLn to stop at its CR
+                    lda       #1        ; direct the notice to the terminal
+                    os9       I$WritLn  ; identify ctrl-x as cancellation
+                    leax      >ReadyText,pc ; prepare the ready notice
+                    ldy       #200      ; allow WritLn to stop at its CR
+                    lda       #1        ; direct the notice to the terminal
+                    os9       I$WritLn  ; announce that receiver negotiation may begin
+* "C" negotiates CRC-16, NAK accepts checksum protection, and ctrl-x cancels.
+WaitForReceiverStart leax      ReceiverByte,u ; receive one receiver-control byte
+                    ldy       #1        ; read exactly one byte
+                    clra                ; select standard input
+                    os9       I$Read    ; wait synchronously for receiver negotiation
+                    lda       ReceiverByte,u ; classify the received control byte
+                    cmpa      #67       ; recognize the receiver's CRC-mode request
+                    beq       SelectCrcMode ; clear the checksum fallback flag
+                    cmpa      #24       ; ctrl-x cancels before the first packet
+                    lbeq      TransferFailed ; report the cancelled transfer
+                    cmpa      #21       ; nak requests checksum-protected 1K startup
+                    bne       WaitForReceiverStart ; ignore all other negotiation bytes
+                    bra       InitializePacket ; initialize the common STX and block-number header
+SelectCrcMode       lda       #1        ; select the nonzero CRC mode flag
+                    sta       UseCrcFlag,u ; select CRC-16 after the receiver sends "C"
+InitializePacket    lda       #2        ; place STX at the start of a 1K frame
+                    sta       <PacketStart,u ; place STX at packet byte zero
+                    lda       #1        ; begin data blocks at sequence number one
+                    sta       <BlockNumber,u ; number the first packet one
+                    coma                ; form the required ones-complement block number
+                    sta       <InverseBlockNumber,u ; complete the three-byte packet header
+ReadNextBlock       leax      <PacketData,u ; receive data directly into the packet body
+                    ldy       #1024     ; cover one complete 1K data field
+                    lda       SourcePathNum,u ; select the source file
+                    os9       I$Read    ; fill as much of the next packet as remains
+                    lbcs      SourceReadEnded ; finish normally only when the read status is EOF
+                    cmpy      #1024     ; detect a complete 1K data field
+                    beq       PacketDataReady ; checksum a full source block immediately
+                    tfr       y,d       ; convert the short byte count to an index
+                    leax      d,x       ; address the first unused packet byte
+                    clra                ; use zero as the historical padding byte
+PadPartialBlock     sta       ,x+       ; pad one missing data position
+                    leay      $01,y     ; include it in the packet byte count
+                    cmpy      #1024     ; detect a complete 1K data field
+                    bcs       PadPartialBlock ; fill through all 1024 packet bytes
+                    leax      <PacketData,u ; return to the start of packet data
+PacketDataReady     tst       UseCrcFlag,u ; set condition codes from UseCrcFlag,u without changing it
+                    bne       ComputeCrc16 ; generate CRC-16 when receiver negotiation selected it
+                    clr       >PacketCheckHigh,u ; initialize the one-byte checksum
+                    ldy       #1024     ; cover one complete 1K data field
+SumNextDataByte     lda       ,x+       ; fetch the next packet data byte
+                    adda      >PacketCheckHigh,u ; add to a using >PacketCheckHigh,u
+                    sta       >PacketCheckHigh,u ; retain the running frame check
+                    leay      -$01,y    ; account for one data byte
+                    bne       SumNextDataByte ; cover the complete data field
+                    bra       FrameCheckReady ; transmit the completed checksum byte
+ComputeCrc16        ldd       #0        ; initialize the 16-bit CRC remainder
+                    std       >PacketCheckHigh,u ; retain the 16-bit CRC remainder
+                    ldy       #1024     ; cover one complete 1K data field
+                    sty       CrcByteCounter,u ; retain the remaining 1K byte count
+CrcNextDataByte     lda       ,x+       ; fetch the next packet data byte
+                    clrb                ; place the injected data byte in the high half of d
+                    eora      >PacketCheckHigh,u ; inject the data byte into the CRC high byte
+                    eorb      >PacketCheckLow,u ; combine it with the low remainder byte
+                    std       >PacketCheckHigh,u ; retain the 16-bit CRC remainder
+                    lda       #8        ; process eight bits from this data byte
+                    sta       CrcBitCounterArea,u ; process eight bits for this data byte
+CrcNextBit          lda       >PacketCheckHigh,u ; test the remainder high bit for polynomial feedback
                     bita      #128      ; test selected bits in a using #128
-                    beq       Branch_017 ; branch when the values are equal or the result is zero; target Branch_017
-                    ldd       >WorkByte_008,u ; load d from >WorkByte_008,u
-                    aslb                ; shift b left arithmetically
-                    rola                ; rotate a left through carry
-                    eora      #16       ; toggle selected bits in a using #16
-                    eorb      #33       ; toggle selected bits in b using #33
-                    std       >WorkByte_008,u ; store d at >WorkByte_008,u
-                    bra       Branch_018 ; continue execution at Branch_018
-Branch_017          aslb                ; shift b left arithmetically
-                    rola                ; rotate a left through carry
-                    std       >WorkByte_008,u ; store d at >WorkByte_008,u
-Branch_018          dec       WorkWord_002,u ; decrement the value at WorkWord_002,u
-                    bne       Branch_016 ; branch when the values differ or the result is nonzero; target Branch_016
-                    ldy       WorkWord_001,u ; load y from WorkWord_001,u
-                    leay      -$01,y    ; form the address -$01,y in y
-                    sty       WorkWord_001,u ; store y at WorkWord_001,u
-                    bne       Branch_015 ; branch when the values differ or the result is nonzero; target Branch_015
-                    ldd       >WorkByte_008,u ; load d from >WorkByte_008,u
-Branch_014          leax      <WorkByte_005,u ; form the address <WorkByte_005,u in x
-                    tst       WorkByte_003,u ; set condition codes from WorkByte_003,u without changing it
-                    beq       Branch_019 ; branch when the values are equal or the result is zero; target Branch_019
-                    ldy       #1029     ; set y to the constant 1029
-                    bra       Branch_020 ; continue execution at Branch_020
-Branch_019          ldy       #1028     ; set y to the constant 1028
-Branch_020          lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      WorkByte_002,u ; form the address WorkByte_002,u in x
-                    ldy       #1        ; set y to the constant 1
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    cmpa      #21       ; compare a with #21 and set the condition codes
-                    beq       Branch_014 ; branch when the values are equal or the result is zero; target Branch_014
-                    cmpa      #6        ; compare a with #6 and set the condition codes
-                    beq       Branch_021 ; branch when the values are equal or the result is zero; target Branch_021
-                    cmpa      #24       ; compare a with #24 and set the condition codes
-                    beq       Branch_006 ; branch when the values are equal or the result is zero; target Branch_006
-                    cmpa      #67       ; compare a with #67 and set the condition codes
-                    beq       Branch_014 ; branch when the values are equal or the result is zero; target Branch_014
-                    ldb       #1        ; set b to the constant 1
-                    bra       Branch_002 ; continue execution at Branch_002
-Branch_021          lda       <WorkByte_006,u ; load a from <WorkByte_006,u
-                    inca                ; increment a
-                    sta       <WorkByte_006,u ; store a at <WorkByte_006,u
-                    coma                ; complement every bit in a
-                    sta       <WorkByte_007,u ; store a at <WorkByte_007,u
-                    lbra      Branch_008 ; continue execution at Branch_008
-Branch_009          cmpb      #211      ; compare b with #211 and set the condition codes
-                    lbne      Branch_002 ; branch when the values differ or the result is nonzero; target Branch_002
-                    leax      >Data_002,pc ; form the address >Data_002,pc in x
-                    ldy       #1        ; set y to the constant 1
-                    lda       #1        ; set a to the constant 1
-                    os9       I$Write   ; write Y bytes from X to path A
-                    leax      WorkByte_002,u ; form the address WorkByte_002,u in x
-                    ldy       #1        ; set y to the constant 1
-                    clra                ; clear a to zero and set the condition codes
-                    os9       I$Read    ; read up to Y bytes from path A into X
-                    lda       WorkByte_002,u ; load a from WorkByte_002,u
-                    cmpa      #6        ; compare a with #6 and set the condition codes
-                    bne       Branch_006 ; branch when the values differ or the result is nonzero; target Branch_006
-                    leax      >Text_003,pc ; form the address >Text_003,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-                    bra       Branch_022 ; continue execution at Branch_022
-Branch_006          leax      >Text_004,pc ; form the address >Text_004,pc in x
-                    ldy       #200      ; set y to the constant 200
-                    lda       #1        ; set a to the constant 1
-                    os9       I$WritLn  ; write a CR-terminated line from X to path A
-Branch_022          clrb                ; clear b to zero and set the condition codes
-Branch_002          pshs      b         ; save b on the stack
-                    bsr       Routine_003 ; call subroutine Routine_003
-                    puls      b         ; restore b from the stack
-                    os9       F$Exit    ; terminate the process with status B
-Routine_003         leax      >WorkByte_010,u ; form the address >WorkByte_010,u in x
-                    leax      -$20,x    ; form the address -$20,x in x
-                    lda       #1        ; set a to the constant 1
-                    sta       <$0024,x  ; store a at <$0024,x
-                    leax      >WorkByte_010,u ; form the address >WorkByte_010,u in x
-                    clra                ; clear a to zero and set the condition codes
-                    clrb                ; clear b to zero and set the condition codes
-                    os9       I$SetStt  ; apply status operation B to path A
-                    rts                 ; return to the caller
-                    fcb       $34       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $A6       ; store byte data
-                    fcb       $80       ; store byte data
-                    fcb       $81       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $25       ; store byte data
-                    fcb       $FA       ; store byte data
-                    fcb       $81       ; store byte data
-                    fcb       $39       ; store byte data
-                    fcb       $22       ; store byte data
-                    fcb       $F6       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcb       $A6       ; store byte data
-                    fcb       $80       ; store byte data
-                    fcb       $81       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $25       ; store byte data
-                    fcb       $06       ; store byte data
-                    fcb       $81       ; store byte data
-                    fcb       $39       ; store byte data
-                    fcb       $22       ; store byte data
-                    fcb       $02       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $F4       ; store byte data
-                    fcb       $34       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $1F       ; store byte data
-                    fcc       "oHoI" ; store literal character data
-                    fcb       $CC       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $01       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $4A       ; store byte data
-                    fcb       $A6       ; store byte data
-                    fcb       $82       ; store byte data
-                    fcb       $81       ; store byte data
-                    fcc       "0%." ; store literal character data
-                    fcb       $81       ; store byte data
-                    fcc       /9"*/ ; store literal character data
-                    fcb       $80       ; store byte data
-                    fcb       $30       ; store byte data
-                    fcb       $A7       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcc       "mF'" ; store literal character data
-                    fcb       $06       ; store byte data
-                    fcb       $E3       ; store byte data
-                    fcc       "JjF " ; store literal character data
-                    fcb       $F6       ; store byte data
-                    fcb       $E3       ; store byte data
-                    fcb       $48       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $48       ; store byte data
-                    fcb       $86       ; store byte data
-                    fcb       $0A       ; store byte data
-                    fcb       $A7       ; store byte data
-                    fcb       $46       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcb       $00       ; store byte data
-                    fcc       "mF'" ; store literal character data
-                    fcb       $06       ; store byte data
-                    fcb       $E3       ; store byte data
-                    fcc       "JjF " ; store literal character data
-                    fcb       $F6       ; store byte data
-                    fcb       $ED       ; store byte data
-                    fcb       $4A       ; store byte data
-                    fcb       $20       ; store byte data
-                    fcb       $CC       ; store byte data
-                    fcb       $EC       ; store byte data
-                    fcb       $48       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $10       ; store byte data
-                    fcb       $35       ; store byte data
-                    fcb       $A0       ; store byte data
-Routine_002         std       WorkWord_003,u ; store d at WorkWord_003,u
-                    lda       #48       ; set a to the constant 48
-                    sta       ,x        ; store a at ,x
-                    sta       $01,x     ; store a at $01,x
-                    sta       $02,x     ; store a at $02,x
-                    sta       $03,x     ; store a at $03,x
-                    sta       $04,x     ; store a at $04,x
-                    ldd       #10000    ; set d to the constant 10000
-                    std       WorkWord_004,u ; store d at WorkWord_004,u
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    lbsr      Routine_004 ; call subroutine Routine_004
-                    ldd       #1000     ; set d to the constant 1000
-                    std       WorkWord_004,u ; store d at WorkWord_004,u
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    bsr       Routine_004 ; call subroutine Routine_004
-                    ldd       #100      ; set d to the constant 100
-                    std       WorkWord_004,u ; store d at WorkWord_004,u
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    bsr       Routine_004 ; call subroutine Routine_004
-                    ldd       #10       ; set d to the constant 10
-                    std       WorkWord_004,u ; store d at WorkWord_004,u
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    bsr       Routine_004 ; call subroutine Routine_004
-                    ldd       #1        ; set d to the constant 1
-                    std       WorkWord_004,u ; store d at WorkWord_004,u
-                    ldd       WorkWord_003,u ; load d from WorkWord_003,u
-                    bsr       Routine_004 ; call subroutine Routine_004
-                    lda       #13       ; set a to the constant 13
-                    sta       ,x        ; store a at ,x
-                    rts                 ; return to the caller
-Routine_004         subd      WorkWord_004,u ; subtract from d using WorkWord_004,u
-                    bcs       Branch_023 ; branch when carry reports an error or unsigned underflow; target Branch_023
-                    inc       ,x        ; increment the value at ,x
-                    bra       Routine_004 ; continue execution at Routine_004
-Branch_023          addd      WorkWord_004,u ; add to d using WorkWord_004,u
-                    std       WorkWord_003,u ; store d at WorkWord_003,u
-                    leax      $01,x     ; form the address $01,x in x
-                    rts                 ; return to the caller
+                    beq       CrcShiftOnly ; omit polynomial feedback when the outgoing bit is clear
+                    ldd       >PacketCheckHigh,u ; fetch the complete CRC remainder
+                    aslb                ; shift the CRC remainder toward its outgoing bit
+                    rola                ; complete the 16-bit left shift through carry
+                    eora      #16       ; apply the high byte of polynomial $1021
+                    eorb      #33       ; apply the low byte of polynomial $1021
+                    std       >PacketCheckHigh,u ; retain the 16-bit CRC remainder
+                    bra       CrcBitComplete ; join the common bit-counter path
+CrcShiftOnly        aslb                ; shift the CRC remainder toward its outgoing bit
+                    rola                ; complete the 16-bit left shift through carry
+                    std       >PacketCheckHigh,u ; retain the 16-bit CRC remainder
+CrcBitComplete      dec       CrcBitCounterArea,u ; account for one processed bit
+                    bne       CrcNextBit ; complete all eight bits of this data byte
+                    ldy       CrcByteCounter,u ; recover the remaining CRC byte count
+                    leay      -$01,y    ; account for one data byte
+                    sty       CrcByteCounter,u ; retain the remaining 1K byte count
+                    bne       CrcNextDataByte ; process every byte in the packet body
+                    ldd       >PacketCheckHigh,u ; fetch the complete CRC remainder
+FrameCheckReady     leax      <PacketStart,u ; select the contiguous packet frame
+                    tst       UseCrcFlag,u ; set condition codes from UseCrcFlag,u without changing it
+                    beq       UseChecksumFrameLength ; omit the second check byte in checksum mode
+                    ldy       #1029     ; send header, 1K data, and two CRC bytes
+                    bra       TransmitPacket ; use the common frame write
+UseChecksumFrameLength ldy       #1028     ; send header, 1K data, and one checksum byte
+TransmitPacket      lda       #1        ; direct the frame to the communications path
+                    os9       I$Write   ; transmit one protected 1K packet
+                    leax      ReceiverByte,u ; receive its acknowledgment
+                    ldy       #1        ; read one receiver-control byte
+                    clra                ; select standard input
+                    os9       I$Read    ; wait synchronously for the packet response
+                    lda       ReceiverByte,u ; classify the response
+                    cmpa      #21       ; nak requests the identical packet again
+                    beq       FrameCheckReady ; resend the unchanged protected frame
+                    cmpa      #6        ; ack accepts this packet
+                    beq       PacketAccepted ; advance to the next source block
+                    cmpa      #24       ; ctrl-x cancels the transfer
+                    beq       TransferFailed ; display the failure result
+                    cmpa      #67       ; treat another "C" as a retransmission request
+                    beq       FrameCheckReady ; resend the unchanged protected frame
+                    ldb       #1        ; return status one for an unknown receiver response
+                    bra       ExitWithStatus ; restore terminal input and return immediately
+PacketAccepted      lda       <BlockNumber,u ; fetch the acknowledged block number
+                    inca                ; advance modulo 256
+                    sta       <BlockNumber,u ; number the next packet
+                    coma                ; form its required complement
+                    sta       <InverseBlockNumber,u ; keep the packet header self-checking
+                    lbra      ReadNextBlock ; fetch data for the next acknowledged block
+SourceReadEnded     cmpb      #211      ; recognize OS-9 end-of-file as transfer completion
+                    lbne      ExitWithStatus ; propagate an actual source read error
+                    leax      >EndOfTransferByte,pc ; select the EOT marker
+                    ldy       #1        ; send exactly one control byte
+                    lda       #1        ; direct EOT to the communications path
+                    os9       I$Write   ; terminate the packet stream
+                    leax      ReceiverByte,u ; receive the final acknowledgment
+                    ldy       #1        ; read one control byte
+                    clra                ; select standard input
+                    os9       I$Read    ; wait for the receiver's EOT response
+                    lda       ReceiverByte,u ; classify the final response
+                    cmpa      #6        ; require ACK to declare success
+                    bne       TransferFailed ; treat every other response as failure
+                    leax      >SuccessText,pc ; prepare the completion message
+                    ldy       #200      ; allow WritLn to stop at its CR
+                    lda       #1        ; direct the message to the terminal
+                    os9       I$WritLn  ; report a receiver-acknowledged transfer
+                    bra       ExitAfterMessage ; share successful status setup
+TransferFailed      leax      >FailureText,pc ; prepare the failure message
+                    ldy       #200      ; allow WritLn to stop at its CR
+                    lda       #1        ; direct the message to the terminal
+                    os9       I$WritLn  ; report cancellation or handshake failure
+ExitAfterMessage    clrb                ; historical message paths both return status zero
+ExitWithStatus      pshs      b         ; preserve the selected status during terminal cleanup
+                    bsr       RestoreTerminalInput ; restore the modified terminal option byte
+                    puls      b         ; recover the final process status
+                    os9       F$Exit    ; return success or the preserved I/O error
+RestoreTerminalInput leax      >TerminalOptions,u ; select the saved 32-byte ss.opt packet
+                    leax      -$20,x    ; reproduce its original packet-relative indexing
+                    lda       #1        ; restore option byte four to one
+                    sta       <$0024,x  ; re-enable the terminal behavior disabled at startup
+                    leax      >TerminalOptions,u ; select the saved 32-byte ss.opt packet
+                    clra                ; target standard input
+                    clrb                ; request SS.Opt
+                    os9       I$SetStt  ; apply the restored terminal configuration
+                    rts                 ; return to status-preserving exit cleanup
 
-                    emod      ;         emit the OS-9 module CRC and trailer
-eom                 equ       *         ; define the assembly-time value for eom
-                    end       ;         end the assembly source
+* unreachable 6809 decimal-parser image retained byte-for-byte from the original
+* module; no live branch or call enters it.
+EmbeddedDecimalParser fcb       $34       ; encoded pshs y parser prologue
+                    fcb       $20
+                    fcb       $A6
+                    fcb       $80
+                    fcb       $81
+                    fcb       $30
+                    fcb       $25
+                    fcb       $FA
+                    fcb       $81
+                    fcb       $39
+                    fcb       $22
+                    fcb       $F6
+                    fcb       $30
+                    fcb       $1F
+                    fcb       $A6
+                    fcb       $80
+                    fcb       $81
+                    fcb       $30
+                    fcb       $25
+                    fcb       $06
+                    fcb       $81
+                    fcb       $39
+                    fcb       $22
+                    fcb       $02
+                    fcb       $20
+                    fcb       $F4
+                    fcb       $34
+                    fcb       $10
+                    fcb       $30
+                    fcb       $1F
+                    fcc       "oHoI"
+                    fcb       $CC
+                    fcb       $00
+                    fcb       $01
+                    fcb       $ED
+                    fcb       $4A
+                    fcb       $A6
+                    fcb       $82
+                    fcb       $81
+                    fcc       "0%."
+                    fcb       $81
+                    fcc       /9"*/
+                    fcb       $80
+                    fcb       $30
+                    fcb       $A7
+                    fcb       $46
+                    fcb       $CC
+                    fcb       $00
+                    fcb       $00
+                    fcc       "mF'"
+                    fcb       $06
+                    fcb       $E3
+                    fcc       "JjF "
+                    fcb       $F6
+                    fcb       $E3
+                    fcb       $48
+                    fcb       $ED
+                    fcb       $48
+                    fcb       $86
+                    fcb       $0A
+                    fcb       $A7
+                    fcb       $46
+                    fcb       $CC
+                    fcb       $00
+                    fcb       $00
+                    fcc       "mF'"
+                    fcb       $06
+                    fcb       $E3
+                    fcc       "JjF "
+                    fcb       $F6
+                    fcb       $ED
+                    fcb       $4A
+                    fcb       $20
+                    fcb       $CC
+                    fcb       $EC
+                    fcb       $48
+                    fcb       $35
+                    fcb       $10
+                    fcb       $35
+                    fcb       $A0
+FormatDecimalNumber std       DecimalRemainder,u ; retain the unformatted block count
+                    lda       #48       ; seed each display column with ASCII zero
+                    sta       ,x        ; initialize the ten-thousands column
+                    sta       $01,x     ; initialize the thousands column
+                    sta       $02,x     ; initialize the hundreds column
+                    sta       $03,x     ; initialize the tens column
+                    sta       $04,x     ; initialize the ones column
+                    ldd       #10000    ; select the ten-thousands place
+                    std       DecimalDivisor,u ; publish the ten-thousands divisor
+                    ldd       DecimalRemainder,u ; recover the current decimal remainder
+                    lbsr      EmitDecimalDigit ; count ten-thousands by subtraction
+                    ldd       #1000     ; select the thousands place
+                    std       DecimalDivisor,u ; publish its divisor
+                    ldd       DecimalRemainder,u ; recover the current decimal remainder
+                    bsr       EmitDecimalDigit ; count thousands by subtraction
+                    ldd       #100      ; select the hundreds place
+                    std       DecimalDivisor,u ; publish its divisor
+                    ldd       DecimalRemainder,u ; recover the current decimal remainder
+                    bsr       EmitDecimalDigit ; count hundreds by subtraction
+                    ldd       #10       ; select the tens place
+                    std       DecimalDivisor,u ; publish its divisor
+                    ldd       DecimalRemainder,u ; recover the current decimal remainder
+                    bsr       EmitDecimalDigit ; count tens by subtraction
+                    ldd       #1        ; select the ones place
+                    std       DecimalDivisor,u ; publish its divisor
+                    ldd       DecimalRemainder,u ; recover the current decimal remainder
+                    bsr       EmitDecimalDigit ; emit the ones digit
+                    lda       #13       ; terminate the numeric field with CR
+                    sta       ,x        ; append the terminator after five digits
+                    rts                 ; return with the formatted field complete
+EmitDecimalDigit    subd      DecimalDivisor,u ; test another unit of this decimal place
+                    bcs       DecimalDigitComplete ; stop before the remainder underflows
+                    inc       ,x        ; advance this ASCII digit by one
+                    bra       EmitDecimalDigit ; count additional units of the same place
+DecimalDigitComplete addd      DecimalDivisor,u ; undo the subtraction that underflowed
+                    std       DecimalRemainder,u ; retain the remainder for the next place
+                    leax      $01,x     ; advance to the following output digit
+                    rts                 ; return with d and workspace holding the remainder
+
+                    emod                ; emit the OS-9 module CRC and trailer
+eom                 equ       *         ; mark the module end for the size expression
+                    end                 ; end the assembly source
