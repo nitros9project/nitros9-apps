@@ -46,7 +46,7 @@ EditorCarryBuffer   rmb       80
 TerminalOptionScratch rmb       32
 LongDescriptionBuffer rmb       1
 LongDescriptionBufferTail rmb       8199
-TerminalOptions     rmb       32        ; SS.Opt packet kept last to preserve existing workspace offsets
+TerminalOptions     rmb       32        ; keep the SS.Opt packet last to preserve workspace offsets
 size                equ       .
 
 name                fcs       /BBS.build/
@@ -279,7 +279,7 @@ ErrExit             os9       F$Exit    ; return success or the preserved OS-9 s
 AbortAndDelete      lda       OutputPathNum,u ; recover output path num
                     os9       I$Close   ; close the selected path
                     ldx       OutputNamePtr,u ; recover output name ptr
-                    lda       #1        ; establish the abort and delete loop or field bound (1)
+                    lda       #1        ; supply 1 as the control, count, or argument value required here
                     os9       I$Delete  ; delete the path named at X
                     bcs       ErrExit   ; select err exit when carry reports an error or underflow
                     bra       Exit      ; continue with exit
@@ -500,7 +500,7 @@ AccumulatePreviousDigit lda       ,-x       ; recover
                     bhi       ReturnNumericValue ; select return numeric value above the unsigned boundary
                     suba      #48       ; subtract from a using #48
                     sta       DigitValue,u ; retain the remaining multiplier count
-                    ldd       #0        ; establish the accumulate previous digit loop or field bound (0)
+                    ldd       #0        ; supply 0 as the control, count, or argument value required here
 MultiplyDigitByPlace tst       DigitValue,u ; test whether all copies were accumulated
                     beq       AddDigitValue ; merge this digit's contribution
                     addd      DecimalPlaceValue,u ; add to d using DecimalPlaceValue,u
@@ -511,7 +511,7 @@ AddDigitValue       addd      NumericValue,u ; add to d using NumericValue,u
                     std       NumericValue,u ; retain numeric value
                     lda       #10       ; prepare to multiply the place by ten
                     sta       DigitValue,u ; set the repeated-addition count
-                    ldd       #0        ; establish the add digit value loop or field bound (0)
+                    ldd       #0        ; supply 0 as the control, count, or argument value required here
 MultiplyPlaceByTen  tst       DigitValue,u ; test whether ten copies were accumulated
                     beq       SaveNextDecimalPlace ; retain the next power of ten
                     addd      DecimalPlaceValue,u ; add to d using DecimalPlaceValue,u
@@ -551,7 +551,7 @@ RestoreDivisionRemainder addd      DecimalPlaceValue,u ; add to d using DecimalP
                     leax      $01,x     ; advance to the next output position
                     rts                 ; return the remainder in workspace
 
-NoDecimalDigits     ldd       #-1       ; establish the no decimal digits loop or field bound (-1)
+NoDecimalDigits     ldd       #-1       ; supply failure or frame value -1 to the following operation
                     puls      pc,y      ; restore y and return
 
 * Enable the SCF behavior required by the interactive line editor.
@@ -572,6 +572,6 @@ InitializeTerminalInput
 InitializeTerminalDone
                     puls      pc,y,x,d  ; restore the caller and continue
 
-                    emod                ; emit the OS-9 module CRC and trailer
-eom                 equ       *
-                    end                 ; end the assembly source
+                    emod      ;         emit the OS-9 module CRC and trailer
+eom                 equ       *         ; mark the module end for the size expression
+                    end       ;         end the assembly source

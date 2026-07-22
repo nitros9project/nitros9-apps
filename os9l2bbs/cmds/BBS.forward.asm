@@ -158,7 +158,7 @@ start               os9       F$ID      ; obtain the caller's user ID in Y
                     sty       CallerUserId,u ; retain caller user id
                     ldd       #0        ; initialize session read count to 0
                     std       SessionReadCount,u ; retain session read count
-                    ldy       #0        ; establish the start loop or field bound (0)
+                    ldy       #0        ; initialize the pointer or index for this state transition
                     os9       F$SUser   ; change the process user ID to Y
                     leax      >MessageIndexPath,pc ; select message index path
                     lda       #1        ; request OS-9 access mode 1
@@ -169,7 +169,7 @@ start               os9       F$ID      ; obtain the caller's user ID in Y
                     lda       #3        ; request OS-9 access mode 3
                     os9       I$Open    ; open the selected OS-9 path
                     bcc       MessageListReady ; use the open last-read file
-                    cmpb      #216      ; establish the start loop or field bound (216)
+                    cmpb      #216      ; recognize 216 as a meaningful value in this parser state
                     lbne      ExitWithStatus ; return the OS-9 status in B
                     ldb       #11       ; initialize message list path num to 11
                     os9       I$Create  ; create the path at X with mode A and attributes B
@@ -339,7 +339,7 @@ ScanAliasRecords    leax      >AliasLineFirstByte,u ; select alias line first by
                     bcs       PrintUnknownRecipient ; fall back when no alias matches
                     leax      >AliasLineFirstByte,u ; select alias line first byte
 FindAliasSeparator  lda       ,x+       ; consume the next byte while find alias separator
-                    cmpa      #44       ; establish the find alias separator loop or field bound (44)
+                    cmpa      #44       ; recognize 44 as a meaningful value in this parser state
                     bne       FindAliasSeparator ; locate the numeric field separator
                     lda       #13       ; recognize the carriage-return terminator
                     sta       -$01,x    ; replace the byte just examined in place
@@ -579,7 +579,7 @@ AccumulatePreviousDigit lda       ,-x       ; recover
                     bhi       ReturnParsedNumber ; return the accumulated value
                     suba      #48       ; subtract from a using #48
                     sta       DecimalCounter,u ; retain decimal counter
-                    ldd       #0        ; establish the accumulate previous digit loop or field bound (0)
+                    ldd       #0        ; supply 0 as the control, count, or argument value required here
 AddDigitPlace       tst       DecimalCounter,u ; set condition codes from DecimalCounter,u without changing it
                     beq       StoreDigitSum ; merge this digit into the result
                     addd      <DecimalPlace,u ; add to d using <DecimalPlace,u
@@ -589,7 +589,7 @@ StoreDigitSum       addd      <ParsedNumber,u ; add to d using <ParsedNumber,u
                     std       <ParsedNumber,u ; retain parsed number
                     lda       #10       ; select the line-feed control byte
                     sta       DecimalCounter,u ; retain decimal counter
-                    ldd       #0        ; establish the store digit sum loop or field bound (0)
+                    ldd       #0        ; supply 0 as the control, count, or argument value required here
 MultiplyPlaceByTen  tst       DecimalCounter,u ; set condition codes from DecimalCounter,u without changing it
                     beq       UseNextDecimalPlace ; use the next power of ten
                     addd      <DecimalPlace,u ; add to d using <DecimalPlace,u
@@ -654,9 +654,9 @@ DecimalDigitComplete addd      <DecimalPlace,u ; add to d using <DecimalPlace,u
                     std       <ParsedNumber,u ; retain parsed number
                     leax      $01,x     ; select $01
                     rts                 ; return to the caller
-NoDecimalNumber     ldd       #-1       ; establish the no decimal number loop or field bound (-1)
+NoDecimalNumber     ldd       #-1       ; supply failure or frame value -1 to the following operation
                     puls      pc,y      ; restore pc,y and return to the caller
 
-                    emod                ; emit the OS-9 module CRC and trailer
+                    emod      ;         emit the OS-9 module CRC and trailer
 eom                 equ       *         ; mark the module end for the size expression
-                    end                 ; end the assembly source
+                    end       ;         end the assembly source

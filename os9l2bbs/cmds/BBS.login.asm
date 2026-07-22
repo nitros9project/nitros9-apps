@@ -668,7 +668,7 @@ CommandFinished
                     leax      >EotdFilename,pc ; locate the exit bulletin
                     lda       #1        ; open it for reading
                     os9       I$Open    ; continue accounting if it is absent
-                    bcs       EotdDisplayedAfterCommand
+                    bcs       EotdDisplayedAfterCommand ; continue at EotdDisplayedAfterCommand when carry reports an error or unsigned overflow
                     sta       EotdPath,u ; remember its path number
 CopyEotdAfterCommand
                     leax      <LineBuffer,u ; receive one bulletin line
@@ -703,18 +703,18 @@ EotdDisplayedAfterCommand
                     cmpd      #0        ; zero denotes unlimited access
                     beq       WriteUpdatedStats ; unlimited users need no debit
                     lda       <LoginYear,u ; compare the session's calendar year
-                    cmpa      <LogoutYear,u
+                    cmpa      <LogoutYear,u ; compare the current year with the stored logout year
                     bne       ResetDailyAllowance ; crossing midnight starts a new day
                     ldd       <LoginMonthDay,u ; compare packed month and day
-                    cmpd      <LogoutMonth,u
+                    cmpd      <LogoutMonth,u ; compare month and day with the stored logout date
                     bne       ResetDailyAllowance ; do not carry yesterday's balance
                     lda       <LogoutHour,u ; find elapsed whole hours
-                    suba      <LoginHour,u
+                    suba      <LoginHour,u ; measure complete hours since login
                     ldb       #60       ; convert the hour difference to minutes
                     mul                 ; form the unsigned minute subtotal
                     std       <DailyTimeLimit,u ; reuse the limit slot as elapsed time
                     lda       <LogoutMinuteSecond,u ; find the signed minute difference
-                    suba      <LoginMinuteSecond,u
+                    suba      <LoginMinuteSecond,u ; measure the remaining minutes since login
                     tfr       a,b       ; prepare it for sign extension
                     sex                 ; preserve a negative minute difference
                     addd      <DailyTimeLimit,u ; complete the elapsed-minute count
@@ -725,7 +725,7 @@ EotdDisplayedAfterCommand
                     ldd       #1        ; one is the persistent exhausted marker
 ClampRemainingTime
                     std       <MinutesRemainingArea,u ; store the revised balance
-                    bra       WriteUpdatedStats
+                    bra       WriteUpdatedStats ; continue the established control flow at WriteUpdatedStats
 ResetDailyAllowance
                     ldd       <DailyTimeLimit,u ; recover the configured allowance
                     std       <MinutesRemainingArea,u ; begin the new day at full time
@@ -750,7 +750,7 @@ AppendUserlog
                     leax      >UserlogFilename,pc ; locate the caller log
                     lda       #3        ; request update access
                     os9       I$Open    ; reuse an existing log when present
-                    bcc       UserlogReady
+                    bcc       UserlogReady ; continue at UserlogReady when carry confirms success or no unsigned overflow
                     cmpb      #E$PNNF   ; creation is valid only when it is absent
                     lbne      ExitWithStatus ; propagate other open failures
                     leax      >UserlogFilename,pc ; restore the pathname consumed above
@@ -816,10 +816,10 @@ WriteTwoDigitValue
                     clrb                ; start the tens digit at zero
 DivideByTen
                     cmpa      #10       ; stop when A contains the ones digit
-                    blt       WriteTwoDigits
+                    blt       WriteTwoDigits ; continue at WriteTwoDigits when the signed value is below the limit
                     incb                ; count one group of ten
                     suba      #10       ; leave the unconverted remainder in A
-                    bra       DivideByTen
+                    bra       DivideByTen ; continue the established control flow at DivideByTen
 WriteTwoDigits
                     addb      #'0       ; translate the tens count to ASCII
                     stb       TensDigit,u ; place it first in the output pair
@@ -839,12 +839,12 @@ FoldLineUppercase
 FoldCaseLoop
                     lda       ,x+       ; inspect the next input byte
                     cmpa      #C$CR     ; the line terminator is not converted
-                    beq       FoldCaseDone
+                    beq       FoldCaseDone ; continue at FoldCaseDone when the requested case matches
                     cmpa      #'Z       ; uppercase and punctuation already compare
-                    bls       FoldCaseLoop
+                    bls       FoldCaseLoop ; continue at FoldCaseLoop when the unsigned byte remains in range
                     anda      #$DF      ; fold lowercase ASCII to uppercase
                     sta       -$01,x    ; replace the byte just inspected
-                    bra       FoldCaseLoop
+                    bra       FoldCaseLoop ; continue the established control flow at FoldCaseLoop
 FoldCaseDone
                     puls      pc,x      ; restore X and return
 

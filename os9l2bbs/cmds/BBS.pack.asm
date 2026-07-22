@@ -32,7 +32,7 @@ OldMessagePath      rmb       1         ; read path for the original BBS.msg
 NewIndexPath        rmb       1         ; output path for msg.scratch, the rebuilt index
 NewMessagePath      rmb       1         ; output path for inx.scratch, the rebuilt body store
 MessageListPath     rmb       1         ; update path for optional BBs.msg.lst
-RenameDirectoryPath rmb      1         ; raw update path for the current directory
+RenameDirectoryPath rmb       1         ; raw update path for the current directory
 RenamePathReserved  rmb       2         ; unused remainder of the original path workspace
 DeletedBeforeCount  rmb       2         ; deleted message numbers at or below a saved position
 CallerUserId        rmb       2         ; original identity restored after privileged packing
@@ -41,19 +41,19 @@ NewBodyOffsetLow    rmb       2         ; low word of the rebuilt body's end off
 MessageListRecord   rmb       2         ; leading word of one four-byte saved-position record
 LastReadMessage     rmb       2         ; message number adjusted after compaction
 DeletedNumberCursor rmb       2         ; next free word in DeletedMessageNumbers
-CurrentMessageNumber rmb      2         ; original index-record number currently being scanned
+CurrentMessageNumber rmb       2         ; original index-record number currently being scanned
 DirectoryEntry      rmb       32        ; one raw 32-byte OS-9 directory entry
 DirectoryEntryIndex rmb       1         ; one-based directory slot number during rename scans
-DirectoryScanReserved rmb     231       ; retained tail of the original directory workspace
+DirectoryScanReserved rmb       231       ; retained tail of the original directory workspace
 IndexHeader         rmb       2         ; packed high message number at header offset 0
 PackedBodyEndHigh   rmb       2         ; rebuilt body EOF high word at header offset 2
 PackedBodyEndLow    rmb       2         ; rebuilt body EOF low word at header offset 4
 IndexHeaderReserved rmb       58        ; remaining bytes of the 64-byte index header
 MessageLine         rmb       80        ; one CR-terminated message-body line
 IndexRecord         rmb       2         ; packed body offset high word at record offset 0
-PackedRecordBodyOffsetLow rmb 2         ; packed body offset low word at record offset 2
+PackedRecordBodyOffsetLow rmb       2         ; packed body offset low word at record offset 2
 IndexRecordMetadata rmb       60        ; author, subject, timestamp, and user IDs
-DeletedMessageNumbers rmb     400       ; up to 200 original message numbers removed by packing
+DeletedMessageNumbers rmb       400       ; up to 200 original message numbers removed by packing
 size                equ       .         ; total per-process workspace size
 
 name                fcs       /BBS.pack/ ; os-9 module name
@@ -72,15 +72,15 @@ MessageListFilename fcc       "BBs.msg.lst" ; optional per-user saved-message po
 PleaseWaitMessage   fcb       C$LF      ; begin the progress notice on a fresh line
                     fcc       "One moment please..." ; packing startup notice
                     fcb       C$LF,C$CR ; leave a blank line after the notice
-IndexScratchFilename fcc      "msg.scratch" ; temporary rebuilt index despite the historical name
+IndexScratchFilename fcc       "msg.scratch" ; temporary rebuilt index despite the historical name
                     fcb       C$CR      ; terminate the OS-9 pathname
-MessageScratchFilename fcc    "inx.scratch" ; temporary rebuilt body store despite the historical name
+MessageScratchFilename fcc       "inx.scratch" ; temporary rebuilt body store despite the historical name
                     fcb       C$CR      ; terminate the OS-9 pathname
-CurrentDirectoryName fcc      "."       ; raw directory opened by the rename helper
+CurrentDirectoryName fcc       "."       ; raw directory opened by the rename helper
                     fcb       C$CR      ; terminate the pathname
 LegacyRenameText    fcc       "Rename" ; retained unreferenced text from the original module
                     fcb       C$CR      ; terminate the legacy text
-PackingMessageNotice fcc      "Packing message..." ; shown once for every removed record
+PackingMessageNotice fcc       "Packing message..." ; shown once for every removed record
                     fcb       C$CR      ; terminate the status line
 
 start               lda       ,x        ; inspect the optional board-directory argument
@@ -132,7 +132,7 @@ InitializePack      leax      >DeletedMessageNumbers,u ; initialize the removed-
                     sta       NewMessagePath,u ; retain the rebuilt-body path
 
 * initialize the packed body position and copy the old header as a placeholder.
-                    clr       NewBodyOffset,u ; clear body EOF byte zero
+                    clr       NewBodyOffset,u ; terminate the compacted body at its new end
                     clr       NewBodyOffset+1,u ; clear body EOF byte one
                     clr       NewBodyOffsetLow,u ; clear body EOF byte two
                     clr       NewBodyOffsetLow+1,u ; clear body EOF byte three
@@ -257,7 +257,7 @@ FinalizePackedFiles ldd       NewBodyOffset,u ; fetch the rebuilt body's high EO
                     os9       I$Open    ; open BBs.msg.lst when present
                     lbcs      FinishListAdjustment ; absence does not make packing fail
                     sta       MessageListPath,u ; retain the shared read/write path
-AdjustNextListRecord lda      MessageListPath,u ; select the saved-position stream
+AdjustNextListRecord lda       MessageListPath,u ; select the saved-position stream
                     leax      <MessageListRecord,u ; receive one four-byte record
                     ldy       #4        ; preserve its fixed record boundary
                     os9       I$Read    ; load the leading word and last-read message
@@ -268,7 +268,7 @@ CountDeletedBefore  ldd       ,x++      ; fetch the next removed original messag
                     cmpd      <LastReadMessage,u ; compare it with this user's saved position
                     bhi       ContinueDeletedCount ; do not count deletions above that position
                     inc       DeletedBeforeCount+1,u ; account for a deletion at or below it
-ContinueDeletedCount cmpx     <DeletedNumberCursor,u ; test against the array's exclusive end
+ContinueDeletedCount cmpx      <DeletedNumberCursor,u ; test against the array's exclusive end
                     bcs       CountDeletedBefore ; examine every recorded deletion
                     ldd       <LastReadMessage,u ; recover the old saved position
                     subd      DeletedBeforeCount,u ; renumber it for the compacted index
@@ -284,7 +284,7 @@ ContinueDeletedCount cmpx     <DeletedNumberCursor,u ; test against the array's 
                     ldy       #2        ; preserve the leading list-record word
                     os9       I$Write   ; replace the saved message position
                     bra       AdjustNextListRecord ; correct the following user record
-FinishListAdjustment clrb               ; report successful packing even without a list file
+FinishListAdjustment clrb                ; report successful packing even without a list file
 ExitRestoringUser   pshs      b         ; protect the pending exit status
                     ldy       CallerUserId,u ; recover the original process identity
                     os9       F$SUser   ; drop temporary superuser privileges
@@ -299,7 +299,7 @@ RenameScratchFile   leax      >CurrentDirectoryName,pc ; select the current dire
                     lbcs      ExitRestoringUser ; preserve raw-directory open errors
                     sta       RenameDirectoryPath,u ; retain the directory path
                     clr       <DirectoryEntryIndex,u ; begin before directory slot one
-ReadNextDirectoryEntry pshs   u         ; protect workspace U while it becomes a seek offset
+ReadNextDirectoryEntry pshs      u         ; protect workspace U while it becomes a seek offset
                     lda       <DirectoryEntryIndex,u ; recover the current one-byte slot index
                     inca                ; advance to the next directory entry
                     sta       <DirectoryEntryIndex,u ; retain the slot being inspected
@@ -318,25 +318,25 @@ ReadNextDirectoryEntry pshs   u         ; protect workspace U while it becomes a
                     bcs       EndDirectoryScan ; eof or error ends this rename invocation
                     leay      >IndexScratchFilename,pc ; compare against msg.scratch
                     leax      <DirectoryEntry,u ; begin at the raw entry name
-CompareIndexScratchName lda    ,x+       ; fetch the next high-bit-terminated entry byte
+CompareIndexScratchName lda       ,x+       ; fetch the next high-bit-terminated entry byte
                     bmi       IndexScratchNameMatched ; validate its final character separately
                     cmpa      ,y+       ; require the corresponding scratch-name byte
                     bne       TryMessageScratchName ; fall back to the other scratch name
                     bra       CompareIndexScratchName ; compare through the name terminator
-TryMessageScratchName leax    <DirectoryEntry,u ; restart at the raw entry name
+TryMessageScratchName leax      <DirectoryEntry,u ; restart at the raw entry name
                     leay      >MessageScratchFilename,pc ; compare against inx.scratch
-CompareMessageScratchName lda ,x+       ; fetch the next high-bit-terminated entry byte
+CompareMessageScratchName lda       ,x+       ; fetch the next high-bit-terminated entry byte
                     bmi       MessageScratchNameMatched ; validate its final character separately
                     cmpa      ,y+       ; require the corresponding scratch-name byte
                     bne       ContinueDirectoryScan ; unrelated entry; scan the next slot
                     bra       CompareMessageScratchName ; compare through the name terminator
-ContinueDirectoryScan bra     ReadNextDirectoryEntry ; inspect the following directory slot
+ContinueDirectoryScan bra       ReadNextDirectoryEntry ; inspect the following directory slot
 EndDirectoryScan    cmpb      #E$EOF    ; eof is normal after a rename or full scan
                     lbne      ExitRestoringUser ; preserve other raw-directory errors
                     lda       RenameDirectoryPath,u ; select the raw directory path
                     os9       I$Close   ; release it before returning to the packer
                     rts                 ; finish this rename invocation
-IndexScratchNameMatched anda  #$7F      ; remove the directory end marker for comparison
+IndexScratchNameMatched anda      #$7F      ; remove the directory end marker for comparison
                     cmpa      ,y+       ; require the final msg.scratch character
                     bne       TryMessageScratchName ; reject a shorter prefix match
                     lda       ,y+       ; inspect the source pathname byte after the match
@@ -345,7 +345,7 @@ IndexScratchNameMatched anda  #$7F      ; remove the directory end marker for co
                     leax      <DirectoryEntry,u ; overwrite the raw name field
                     leay      >IndexFilename,pc ; rename this entry BBS.msg.inx
                     bra       CopyReplacementName ; share directory-name encoding
-MessageScratchNameMatched anda #$7F     ; remove the directory end marker for comparison
+MessageScratchNameMatched anda      #$7F      ; remove the directory end marker for comparison
                     cmpa      ,y+       ; require the final inx.scratch character
                     bne       ContinueDirectoryScan ; reject a shorter prefix match
                     lda       #C$CR     ; compare against the source pathname terminator
@@ -353,7 +353,7 @@ MessageScratchNameMatched anda #$7F     ; remove the directory end marker for co
                     bne       ContinueDirectoryScan ; reject a longer source name
                     leax      <DirectoryEntry,u ; overwrite the raw name field
                     leay      >MessageFilename,pc ; rename this entry BBS.msg
-CopyReplacementName lda      ,y+       ; fetch the next permanent-name character
+CopyReplacementName lda       ,y+       ; fetch the next permanent-name character
                     cmpa      #C$CR     ; stop before the OS-9 pathname terminator
                     beq       WriteRenamedEntry ; encode the raw directory terminator
                     sta       ,x+       ; copy the character into the entry name
@@ -381,6 +381,6 @@ WriteRenamedEntry   lda       ,-x       ; recover the final copied name characte
                     lbra      EndDirectoryScan ; close the directory and return
 OpaqueTrailer       fcb       $16,$FF,$40 ; unreachable bytes preserved from the original module
 
-                    emod                ; append the OS-9 module CRC placeholder and trailer
+                    emod      ;         append the OS-9 module CRC placeholder and trailer
 eom                 equ       *         ; mark the module's end for the header
-                    end                 ; finish this assembly unit
+                    end       ;         finish this assembly unit

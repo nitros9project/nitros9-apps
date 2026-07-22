@@ -111,7 +111,7 @@ CommandRecordTable  rmb       3200      ; 40 command records of 80 bytes each
 PromptPrefix        rmb       2         ; lf/cr prefix immediately before the prompt buffer
 PromptBuffer        rmb       80        ; 80-byte prompt line from the command-definition terminator
 MenuImage           rmb       4450      ; storage for the in-memory menu text and trailing spare bytes
-TerminalOptions     rmb       32        ; SS.Opt packet kept last to preserve existing workspace offsets
+TerminalOptions     rmb       32        ; keep the SS.Opt packet last to preserve workspace offsets
 size                equ       .
 
 name                fcs       /menu/ ; os-9 module name followed by the original copyright payload

@@ -58,13 +58,13 @@ ResponseNewline     fcb       C$CR      ; move past the single-key response
 start               leax      >UsersFilename,pc ; locate the account database
                     lda       #UPDAT.   ; require append-capable access
                     os9       I$Open    ; use the existing BBS.users when present
-                    bcc       UsersFileReady
+                    bcc       UsersFileReady ; continue at UsersFileReady when carry confirms success or no unsigned overflow
                     cmpb      #E$PNNF   ; create only when the file is absent
                     lbne      ExitWithStatus ; preserve any other open error
                     os9       F$ID      ; creation is restricted to the sysop
                     ldb       #E$FNA    ; prepare a meaningful non-sysop status
                     cmpy      #0        ; user zero owns the BBS databases
-                    lbne      ExitWithStatus
+                    lbne      ExitWithStatus ; continue at ExitWithStatus when more data or a different case remains
                     ldb       #3        ; owner read/write attributes
                     os9       I$Create  ; initialize an empty BBS.users
                     lbcs      ExitWithStatus ; report creation failure
@@ -72,13 +72,13 @@ UsersFileReady      sta       UsersPath,u ; retain the account stream
                     leax      >AliasFilename,pc ; locate the alias database
                     lda       #UPDAT.   ; require append-capable access
                     os9       I$Open    ; use the existing bbs.alias when present
-                    bcc       AliasFileReady
+                    bcc       AliasFileReady ; continue at AliasFileReady when carry confirms success or no unsigned overflow
                     cmpb      #E$PNNF   ; create only when the file is absent
                     lbne      ExitWithStatus ; preserve any other open error
                     os9       F$ID      ; creation is restricted to the sysop
                     ldb       #E$FNA    ; prepare a meaningful non-sysop status
                     cmpy      #0        ; user zero owns the BBS databases
-                    lbne      ExitWithStatus
+                    lbne      ExitWithStatus ; continue at ExitWithStatus when more data or a different case remains
                     ldb       #11       ; owner read/write and public read attributes
                     os9       I$Create  ; initialize an empty alias database
                     lbcs      ExitWithStatus ; report creation failure
@@ -90,17 +90,17 @@ AliasFileReady      sta       AliasPath,u ; retain the alias stream
                     ldb       #SS.Size  ; request its append offset
                     pshs      u         ; free U for the low position word
                     os9       I$GetStt  ; obtain the current file length
-                    lbcs      ExitWithStatus
+                    lbcs      ExitWithStatus ; continue at ExitWithStatus when carry reports an error or unsigned overflow
                     os9       I$Seek    ; establish the account append position
-                    lbcs      ExitWithStatus
+                    lbcs      ExitWithStatus ; continue at ExitWithStatus when carry reports an error or unsigned overflow
                     puls      u         ; recover the workspace pointer
                     lda       AliasPath,u ; select bbs.alias
                     ldb       #SS.Size  ; request its append offset
                     pshs      u         ; free U for the low position word
                     os9       I$GetStt  ; obtain the current file length
-                    lbcs      ExitWithStatus
+                    lbcs      ExitWithStatus ; continue at ExitWithStatus when carry reports an error or unsigned overflow
                     os9       I$Seek    ; establish the alias append position
-                    lbcs      ExitWithStatus
+                    lbcs      ExitWithStatus ; continue at ExitWithStatus when carry reports an error or unsigned overflow
                     puls      u         ; recover the workspace pointer
 PromptForAccount    leax      >NamePrompt,pc ; begin a fresh candidate record
                     ldy       #28       ; every field prompt is 28 bytes
@@ -113,11 +113,11 @@ PromptForAccount    leax      >NamePrompt,pc ; begin a fresh candidate record
                     pshs      x         ; preserve the field's starting address
 FoldNameLoop        lda       ,x        ; inspect the next name byte
                     cmpa      #'a       ; bytes below lowercase need no folding
-                    bcs       StoreNameByte
+                    bcs       StoreNameByte ; continue at StoreNameByte when carry reports an error or unsigned overflow
                     anda      #$DF      ; normalize lowercase ASCII for login matching
 StoreNameByte       sta       ,x+       ; replace the byte and advance
                     cmpa      #C$CR     ; process through the line terminator
-                    bne       FoldNameLoop
+                    bne       FoldNameLoop ; continue at FoldNameLoop when more data or a different case remains
                     puls      x         ; recover the name's starting address
                     tfr       y,d       ; use its actual input length
                     leax      d,x       ; advance to the byte after the name
@@ -136,11 +136,11 @@ StoreNameByte       sta       ,x+       ; replace the byte and advance
                     pshs      x         ; preserve the field's starting address
 FoldPasswordLoop    lda       ,x        ; inspect the next password byte
                     cmpa      #'a       ; bytes below lowercase need no folding
-                    bcs       StorePasswordByte
+                    bcs       StorePasswordByte ; continue at StorePasswordByte when carry reports an error or unsigned overflow
                     anda      #$DF      ; match BBS.login's uppercase comparison form
 StorePasswordByte   sta       ,x+       ; replace the byte and advance
                     cmpa      #C$CR     ; process through the line terminator
-                    bne       FoldPasswordLoop
+                    bne       FoldPasswordLoop ; continue at FoldPasswordLoop when more data or a different case remains
                     puls      x         ; recover the password's start
                     tfr       y,d       ; use its actual input length
                     leax      d,x       ; advance to the next free record byte
@@ -188,7 +188,7 @@ CopyUserNumberToAlias
                     lda       ,x+       ; copy the next number byte
                     sta       ,y+       ; append it to the alias record
                     cmpa      #C$CR     ; include the terminating carriage return
-                    bne       CopyUserNumberToAlias
+                    bne       CopyUserNumberToAlias ; continue at CopyUserNumberToAlias when more data or a different case remains
                     lda       #','      ; authentication records have one final optional field
                     sta       -1,x      ; replace its user-number terminator
                     pshs      x         ; retain the time-limit insertion point
@@ -238,6 +238,6 @@ CopyUserNumberToAlias
                     clrb                ; both related records were accepted
 ExitWithStatus      os9       F$Exit    ; return B as the process status
 
-                    emod                ; emit the OS-9 module CRC and trailer
+                    emod      ;         emit the OS-9 module CRC and trailer
 eom                 equ       *         ; mark the module end for the size expression
-                    end                 ; end the assembly source
+                    end       ;         end the assembly source

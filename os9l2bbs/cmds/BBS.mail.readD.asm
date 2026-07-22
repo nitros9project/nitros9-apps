@@ -130,7 +130,7 @@ DeleteMailCommand   fcc       "BBS.mail.delete"
 start               lbsr      InitializeTerminalInput ; configure redirected interactive input
                     os9       F$ID      ; retrieve the current process and user IDs
                     sty       CallerUserArea,u ; retain caller user area
-                    ldy       #0        ; establish the start loop or field bound (0)
+                    ldy       #0        ; initialize the pointer or index for this state transition
                     os9       F$SUser   ; change the process user ID to Y
                     leax      >MailIndexPath,pc ; select mail index path
                     lda       #1        ; request OS-9 access mode 1
@@ -178,10 +178,10 @@ MailScanEnded       cmpb      #211      ; distinguish normal end-of-file from an
                     ldy       CallerUserArea,u ; recover caller user area
                     os9       F$SUser   ; change the process user ID to Y
                     leax      >DeleteMailCommand,pc ; select delete mail command
-                    ldy       #1        ; establish the mail scan ended loop or field bound (1)
+                    ldy       #1        ; supply 1 as the control, count, or argument value required here
                     leau      >DeleteParameterArea,u ; select delete parameter area
-                    lda       #17       ; establish the mail scan ended loop or field bound (17)
-                    ldb       #3        ; establish the mail scan ended loop or field bound (3)
+                    lda       #17       ; supply 17 as the control, count, or argument value required here
+                    ldb       #3        ; supply 3 as the control, count, or argument value required here
                     os9       F$Chain   ; replace this process with the module at X
 ReportNoMail        leax      >NoMailText,pc ; select no mail text
                     ldy       #200      ; cap this output request at 200 bytes
@@ -292,9 +292,9 @@ CopyBodyLine        lda       BodyPathArea,u ; recover body path area
                     lda       #1        ; select standard output
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
                     lda       RereadResponse,u ; recover reread response
-                    cmpa      #121      ; establish the copy body line loop or field bound (121)
+                    cmpa      #121      ; recognize 121 as a meaningful value in this parser state
                     lbeq      DisplayMailBody ; reread the same body from its saved offset
-                    cmpa      #89       ; establish the copy body line loop or field bound (89)
+                    cmpa      #89       ; recognize 89 as a meaningful value in this parser state
                     lbeq      DisplayMailBody ; reread the same body from its saved offset
                     lbra      FindNextRecipientMail ; continue in the named workflow
 ExitSuccessfully    clrb                ; clear the byte accumulator for counting
@@ -333,7 +333,7 @@ AccumulatePreviousDigit lda       ,-x       ; recover
                     bhi       ReturnParsedNumber ; return the accumulated value
                     suba      #48       ; subtract from a using #48
                     sta       DecimalCounter,u ; retain decimal counter
-                    ldd       #0        ; establish the accumulate previous digit loop or field bound (0)
+                    ldd       #0        ; supply 0 as the control, count, or argument value required here
 AddDigitPlace       tst       DecimalCounter,u ; set condition codes from DecimalCounter,u without changing it
                     beq       StoreDigitSum ; merge this digit into the result
                     addd      DecimalPlace,u ; add to d using DecimalPlace,u
@@ -343,7 +343,7 @@ StoreDigitSum       addd      ParsedNumber,u ; add to d using ParsedNumber,u
                     std       ParsedNumber,u ; retain parsed number
                     lda       #10       ; select the line-feed control byte
                     sta       DecimalCounter,u ; retain decimal counter
-                    ldd       #0        ; establish the store digit sum loop or field bound (0)
+                    ldd       #0        ; supply 0 as the control, count, or argument value required here
 MultiplyPlaceByTen  tst       DecimalCounter,u ; set condition codes from DecimalCounter,u without changing it
                     beq       UseNextDecimalPlace ; use the next power of ten
                     addd      DecimalPlace,u ; add to d using DecimalPlace,u
@@ -408,7 +408,7 @@ DecimalDigitComplete addd      DecimalPlace,u ; add to d using DecimalPlace,u
                     std       ParsedNumber,u ; retain parsed number
                     leax      $01,x     ; select $01
                     rts                 ; return to the caller
-NoDecimalNumber     ldd       #-1       ; establish the no decimal number loop or field bound (-1)
+NoDecimalNumber     ldd       #-1       ; supply failure or frame value -1 to the following operation
                     puls      pc,y      ; restore pc,y and return to the caller
 
 * enable the SCF behavior required for interactive mail prompts.
@@ -429,6 +429,6 @@ InitializeTerminalInput
 InitializeTerminalDone
                     puls      pc,y,x,d  ; restore the caller and continue
 
-                    emod                ; emit the OS-9 module CRC and trailer
+                    emod      ;         emit the OS-9 module CRC and trailer
 eom                 equ       *         ; mark the module end for the size expression
-                    end                 ; end the assembly source
+                    end       ;         end the assembly source

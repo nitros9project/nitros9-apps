@@ -37,7 +37,7 @@ AnswerCursor        rmb       2         ; next free byte in the assembled prompt
 ReservedFormWorkspace rmb       400       ; retained gap in the original workspace layout
 AnswersStart        rmb       1         ; first byte of the 7,780-byte response buffer
 AnswerBufferTail    rmb       7779      ; remainder of the response buffer
-TerminalOptions     rmb       32        ; SS.Opt packet kept last to preserve existing workspace offsets
+TerminalOptions     rmb       32        ; keep the SS.Opt packet last to preserve workspace offsets
 size                equ       .         ; total per-process workspace size
 
 name                fcs       /BBS.Form/ ; os-9 module name

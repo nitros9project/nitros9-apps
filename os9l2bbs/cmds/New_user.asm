@@ -594,11 +594,11 @@ HaveStreamDescriptor
                     std       StreamPath,u ; preserve the flags or register state required by the following operation
                     ldx       $06,s     ; inspect the textual access mode
                     ldb       $01,x     ; a plus in either modifier position means update access
-                    cmpb      #'+'      ; establish the scan stream slots loop or field bound ('+')
+                    cmpb      #'+'      ; recognize '+' as a meaningful value in this parser state
                     beq       MarkStreamForUpdate ; select mark stream for update when the requested case matches
                     ldx       $06,s     ; preserve the flags or register state required by the following operation
                     ldb       $02,x     ; preserve the flags or register state required by the following operation
-                    cmpb      #'+'      ; establish the scan stream slots loop or field bound ('+')
+                    cmpb      #'+'      ; recognize '+' as a meaningful value in this parser state
                     bne       MarkSingleDirection ; select mark single direction when the requested case does not match
 MarkStreamForUpdate
                     ldd       StreamFlags,u ; retain buffering state already assigned to the slot
@@ -608,13 +608,13 @@ MarkSingleDirection
                     ldd       StreamFlags,u ; preserve all unrelated stream state bits
                     pshs      d         ; hold those bits while deriving the access direction
                     ldb       [<$08,s]  ; recover the mode string after the temporary push
-                    cmpb      #'r'      ; establish the scan stream slots loop or field bound ('r')
+                    cmpb      #'r'      ; recognize 'r' as a meaningful value in this parser state
                     beq       SelectReadDirection ; select select read direction when the requested case matches
                     ldb       [<$08,s]  ; preserve the flags or register state required by the following operation
                     cmpb      #'d'      ; directory streams are read-only
                     bne       SelectWriteDirection ; select select write direction when the requested case does not match
 SelectReadDirection
-                    ldd       #OpenModeRead ; establish the scan stream slots loop or field bound (OpenModeRead)
+                    ldd       #OpenModeRead ; supply OpenModeRead as the control, count, or argument value required here
                     bra       MergeStreamDirection ; continue at merge stream direction
 SelectWriteDirection
                     ldd       #OpenModeWrite ; append and write modes produce output streams
@@ -656,7 +656,7 @@ DecodeExecuteModifier
                     ldb       $02,x     ; preserve the flags or register state required by the following operation
                     cmpb      #'+'      ; x+ combines execute with read/write access
                     bne       SelectExecuteMode ; select select execute mode when the requested case does not match
-                    ldd       #OpenModeRead+OpenModeWrite+OpenModeExecute ; establish the stream setup failed loop or field bound (OpenModeRead+OpenModeWrite+OpenModeExecute)
+                    ldd       #OpenModeRead+OpenModeWrite+OpenModeExecute ; supply OpenModeRead+OpenModeWrite+OpenModeExecute as the control, count, or argument value required here
                     bra       SaveOpenMode ; continue at save open mode
 SelectExecuteMode   ldd       #OpenModeExecute ; initialize  to OpenModeExecute
                     bra       SaveOpenMode ; continue at save open mode
@@ -757,7 +757,7 @@ stk_fopen_mode      equ       6         ; mode-string pointer
                     lbsr      OpenPathFromMode ; translate the mode and obtain an OS-9 path
                     leas      $04,s     ; preserve the flags or register state required by the following operation
                     tfr       d,u       ; retain the path while building its descriptor
-                    cmpu      #-1
+                    cmpu      #-1       ; detect failure to allocate or open the requested stream
                     bne       PathOpenSucceeded ; select path open succeeded when the requested case does not match
                     clra                ; select standard input
                     clrb                ; fopen-style failure returns a null stream
@@ -940,11 +940,11 @@ EmitLiteralFormatByte ldb       $08,s     ; recover $08
                     ldb       $08,s     ; recover $08
                     sex                 ; sign-extend b into d
                     pshs      d         ; preserve d across the operation
-                    jsr       [<$11,s]
+                    jsr       [<$11,s]  ; emit the next field byte through the caller-selected callback
                     leas      $02,s     ; release $02,s bytes of stack state
 ScanFormatString    ldb       ,u+       ; consume the next byte while scan format string
                     stb       $08,s     ; store b in the current stack frame at $08,s
-                    cmpb      #37       ; establish the scan format string loop or field bound (37)
+                    cmpb      #37       ; recognize 37 as a meaningful value in this parser state
                     bne       EmitLiteralFormatByte ; select emit literal format byte when the requested case does not match
                     ldb       ,u+       ; consume the next byte while scan format string
                     stb       $08,s     ; store b in the current stack frame at $08,s
@@ -953,7 +953,7 @@ ScanFormatString    ldb       ,u+       ; consume the next byte while scan forma
                     std       $02,s     ; store d in the current stack frame at $02,s
                     std       $06,s     ; store d in the current stack frame at $06,s
                     ldb       $08,s     ; recover $08
-                    cmpb      #45       ; establish the scan format string loop or field bound (45)
+                    cmpb      #45       ; recognize 45 as a meaningful value in this parser state
                     bne       NoLeftJustifyFlag ; select no left justify flag when the requested case does not match
                     ldd       #1        ; initialize $03 a5 to 1
                     std       >$03A5,y  ; retain $03 a5
@@ -992,7 +992,7 @@ ParseFieldWidth     ldb       $08,s     ; recover $08
                     andb      #8        ; mask b using #8
                     bne       AccumulateFieldWidth ; repeat accumulate field width until the terminating condition is met
                     ldb       $08,s     ; recover $08
-                    cmpb      #46       ; establish the parse field width loop or field bound (46)
+                    cmpb      #46       ; recognize 46 as a meaningful value in this parser state
                     bne       NoPrecisionSpecified ; select no precision specified when the requested case does not match
                     ldd       #1        ; initialize $04 to 1
                     std       $04,s     ; store d in the current stack frame at $04,s
@@ -1152,7 +1152,7 @@ ResumeFormatScan    lbra      ScanFormatString ; continue with scan format strin
 EmitUnknownSpecifier ldb       $08,s     ; recover $08
                     sex                 ; sign-extend b into d
 EmitScalarValue     pshs      d         ; preserve d across the operation
-                    jsr       [<$11,s]
+                    jsr       [<$11,s]  ; emit the next field byte through the caller-selected callback
                     leas      $02,s     ; release $02,s bytes of stack state
                     lbra      ScanFormatString ; continue with scan format string
 MatchConversionType cmpx      #100      ; test against #100
@@ -1318,12 +1318,12 @@ ExtractHexDigit     ldd       $08,s     ; recover $08
                     pshs      d         ; preserve d across the operation
                     ldd       $02,s     ; recover $02
                     cmpd      #9        ; test against #9
-                    ble       UseNumericHexDigit
+                    ble       UseNumericHexDigit ; continue at UseNumericHexDigit when the signed value is at or below the limit
                     ldd       $0C,s     ; recover $0 c
                     beq       UseLowercaseHexBase ; select use lowercase hex base when the requested case matches
-                    ldd       #65       ; establish the extract hex digit loop or field bound (65)
+                    ldd       #65       ; supply 65 as the control, count, or argument value required here
                     bra       AdjustHexAlphabeticDigit ; continue with adjust hex alphabetic digit
-UseLowercaseHexBase ldd       #97       ; establish the use lowercase hex base loop or field bound (97)
+UseLowercaseHexBase ldd       #97       ; supply 97 as the control, count, or argument value required here
 AdjustHexAlphabeticDigit addd      #-10      ; add to d using #-10
                     bra       StoreHexDigit ; continue with store hex digit
 UseNumericHexDigit  ldd       #48       ; recognize or generate ASCII zero
@@ -1368,18 +1368,18 @@ WritePaddedField    pshs      u         ; preserve u across the operation
                     bra       EmitLeadingPadding ; continue with emit leading padding
 EmitLeadingPadByte  ldd       >$03A7,y  ; recover $03 a7
                     pshs      d         ; preserve d across the operation
-                    jsr       [<$06,s]
+                    jsr       [<$06,s]  ; emit the next field byte through the caller-selected callback
                     leas      $02,s     ; release $02,s bytes of stack state
 EmitLeadingPadding  ldd       $0A,s     ; recover $0 a
                     addd      #-1       ; add to d using #-1
                     std       $0A,s     ; store d in the current stack frame at $0A,s
                     subd      #-1       ; subtract from d using #-1
-                    bgt       EmitLeadingPadByte
+                    bgt       EmitLeadingPadByte ; continue at EmitLeadingPadByte when the signed value is above the limit
                     bra       EmitFieldBytes ; continue with emit field bytes
 EmitNextFieldByte   ldb       ,u+       ; consume the next byte while emit next field byte
                     sex                 ; sign-extend b into d
                     pshs      d         ; preserve d across the operation
-                    jsr       [<$06,s]
+                    jsr       [<$06,s]  ; emit the next field byte through the caller-selected callback
                     leas      $02,s     ; release $02,s bytes of stack state
 EmitFieldBytes      ldd       $08,s     ; recover $08
                     addd      #-1       ; add to d using #-1
@@ -1391,13 +1391,13 @@ EmitFieldBytes      ldd       $08,s     ; recover $08
                     bra       EmitTrailingPadding ; continue with emit trailing padding
 EmitTrailingPadByte ldd       >$03A7,y  ; recover $03 a7
                     pshs      d         ; preserve d across the operation
-                    jsr       [<$06,s]
+                    jsr       [<$06,s]  ; emit the next field byte through the caller-selected callback
                     leas      $02,s     ; release $02,s bytes of stack state
 EmitTrailingPadding ldd       $0A,s     ; recover $0 a
                     addd      #-1       ; add to d using #-1
                     std       $0A,s     ; store d in the current stack frame at $0A,s
                     subd      #-1       ; subtract from d using #-1
-                    bgt       EmitTrailingPadByte
+                    bgt       EmitTrailingPadByte ; continue at EmitTrailingPadByte when the signed value is above the limit
 ReturnPaddedField   puls      pc,u      ; restore pc,u and return to the caller
 WritePaddedString   pshs      u         ; preserve u across the operation
                     ldu       $06,s     ; recover $06
@@ -1416,18 +1416,18 @@ WritePaddedString   pshs      u         ; preserve u across the operation
                     bra       EmitStringLeadingPadding ; continue with emit string leading padding
 EmitStringLeadingPadByte ldd       >$03A7,y  ; recover $03 a7
                     pshs      d         ; preserve d across the operation
-                    jsr       [<$06,s]
+                    jsr       [<$06,s]  ; emit the next field byte through the caller-selected callback
                     leas      $02,s     ; release $02,s bytes of stack state
 EmitStringLeadingPadding ldd       $08,s     ; recover $08
                     addd      #-1       ; add to d using #-1
                     std       $08,s     ; store d in the current stack frame at $08,s
                     subd      #-1       ; subtract from d using #-1
-                    bgt       EmitStringLeadingPadByte
+                    bgt       EmitStringLeadingPadByte ; continue at EmitStringLeadingPadByte when the signed value is above the limit
                     bra       EmitStringBytes ; continue with emit string bytes
 EmitNextStringByte  ldb       ,u+       ; consume the next byte while emit next string byte
                     sex                 ; sign-extend b into d
                     pshs      d         ; preserve d across the operation
-                    jsr       [<$06,s]
+                    jsr       [<$06,s]  ; emit the next field byte through the caller-selected callback
                     leas      $02,s     ; release $02,s bytes of stack state
 EmitStringBytes     ldb       StreamCursor,u ; recover stream cursor
                     bne       EmitNextStringByte ; select emit next string byte when the requested case does not match
@@ -1436,13 +1436,13 @@ EmitStringBytes     ldb       StreamCursor,u ; recover stream cursor
                     bra       EmitStringTrailingPadding ; continue with emit string trailing padding
 EmitStringTrailingPadByte ldd       >$03A7,y  ; recover $03 a7
                     pshs      d         ; preserve d across the operation
-                    jsr       [<$06,s]
+                    jsr       [<$06,s]  ; emit the next field byte through the caller-selected callback
                     leas      $02,s     ; release $02,s bytes of stack state
 EmitStringTrailingPadding ldd       $08,s     ; recover $08
                     addd      #-1       ; add to d using #-1
                     std       $08,s     ; store d in the current stack frame at $08,s
                     subd      #-1       ; subtract from d using #-1
-                    bgt       EmitStringTrailingPadByte
+                    bgt       EmitStringTrailingPadByte ; continue at EmitStringTrailingPadByte when the signed value is above the limit
 ReturnPaddedString  puls      pc,u      ; restore pc,u and return to the caller
 EncodedFormatWrapper fcb       $34
                     fcb       $40
@@ -2189,7 +2189,7 @@ MultiplyUnsignedWords tsta                ; set condition codes from a without c
                     std       ,s        ; store d in the current stack frame at ,s
                     puls      pc,d      ; restore pc,d and return to the caller
 MultiplyFullWidth   pshs      d         ; preserve d across the operation
-                    ldd       #0        ; establish the multiply full width loop or field bound (0)
+                    ldd       #0        ; supply 0 as the control, count, or argument value required here
                     pshs      d         ; preserve d across the operation
                     pshs      d         ; preserve d across the operation
                     lda       $05,s     ; recover $05
@@ -2487,7 +2487,7 @@ stk_seek_origin     equ       10        ; zero=start, one=current, two=end
                     ldd       $0A,s     ; select the requested origin
                     bne       SeekFromCurrentOrEnd ; select seek from current or end when the requested case does not match
                     ldu       #0        ; absolute seeks start from zero
-                    ldx       #0        ; establish the finish write loop or field bound (0)
+                    ldx       #0        ; initialize the pointer or index for this state transition
                     bra       ApplySeekOffset ; continue at apply seek offset
 SeekFromCurrentOrEnd
                     cmpd      #1        ; one requests the current position
@@ -2517,7 +2517,7 @@ ApplySeekOffset     tfr       u,d       ; begin with the base position's low wor
                     tfr       d,u       ; supply it to I$Seek
                     tfr       x,d       ; continue with the base high word
                     adcb      $07,s     ; propagate carry through the requested high word
-                    adca      $06,s
+                    adca      $06,s     ; propagate the low-word carry into the high product byte
                     bmi       SeekFailed ; reject a negative final file position
                     tfr       d,x       ; supply the high word to I$Seek
                     std       >RuntimeSeekHigh,y ; publish the complete result
@@ -2965,6 +2965,6 @@ RuntimeInitializerImage
                     fcc       "New_user"
                     fcb       $00
 
-                    emod                ; emit the OS-9 module CRC and trailer
+                    emod      ;         emit the OS-9 module CRC and trailer
 eom                 equ       *         ; mark the module end for the size expression
-                    end                 ; end the assembly source
+                    end       ;         end the assembly source

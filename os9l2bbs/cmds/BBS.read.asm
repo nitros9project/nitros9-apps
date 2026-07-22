@@ -219,15 +219,15 @@ RetryCommandRead    os9       I$ReadLn  ; read a CR-terminated line from path A 
                     cmpa      #57       ; recognize ASCII nine as the upper digit bound
                     blt       ParseSelectedMessage ; treat non-command input as a message number
                     anda      #223      ; mask a using #223
-                    cmpa      #81       ; establish the retry command read loop or field bound (81)
+                    cmpa      #81       ; recognize 81 as a meaningful value in this parser state
                     lbeq      QuitAndSaveStats ; save this session and quit
-                    cmpa      #78       ; establish the retry command read loop or field bound (78)
+                    cmpa      #78       ; recognize 78 as a meaningful value in this parser state
                     lbeq      SelectNextMessage ; select the next message
-                    cmpa      #80       ; establish the retry command read loop or field bound (80)
+                    cmpa      #80       ; recognize 80 as a meaningful value in this parser state
                     lbeq      SelectPreviousMessage ; select the previous message
-                    cmpa      #84       ; establish the retry command read loop or field bound (84)
+                    cmpa      #84       ; recognize 84 as a meaningful value in this parser state
                     lbeq      FindNextThreadMessage ; search forward for this subject
-                    cmpa      #82       ; establish the retry command read loop or field bound (82)
+                    cmpa      #82       ; recognize 82 as a meaningful value in this parser state
                     lbeq      ReplyToMessage ; invoke the reply command
 ParseSelectedMessage clr       <ParseScratch,u ; initialize parse scratch
                     leax      <CommandInput,u ; select command input
@@ -280,10 +280,10 @@ ThreadSubjectMatched ldd       <CurrentMessage,u ; recover current message
 * their parameter area.  A successful reply adds one to the high-message mark.
 ReplyToMessage      ldy       CallerUserId,u ; restore the caller before forking BBS.reply
                     os9       F$SUser   ; change the process user ID to Y
-                    lda       #17       ; establish the reply to message loop or field bound (17)
-                    ldb       #3        ; establish the reply to message loop or field bound (3)
+                    lda       #17       ; supply 17 as the control, count, or argument value required here
+                    ldb       #3        ; supply 3 as the control, count, or argument value required here
                     leax      >ReplyCommand,pc ; select reply command
-                    ldy       #80       ; establish the reply to message loop or field bound (80)
+                    ldy       #80       ; supply 80 as the control, count, or argument value required here
                     pshs      u         ; preserve u across the operation
                     leau      >MessageSubject,u ; select message subject
                     os9       F$Fork    ; spawn the module at X with parameters at U
@@ -406,7 +406,7 @@ ScanAliasRecords    leax      >AliasLineFirstByte,u ; select alias line first by
                     bcs       PrintUnknownRecipient ; fall back when the user ID has no alias
                     leax      >AliasLineFirstByte,u ; select alias line first byte
 FindAliasSeparator  lda       ,x+       ; consume the next byte while find alias separator
-                    cmpa      #44       ; establish the find alias separator loop or field bound (44)
+                    cmpa      #44       ; recognize 44 as a meaningful value in this parser state
                     bne       FindAliasSeparator ; find the comma after the numeric user ID
                     lda       #13       ; recognize the carriage-return terminator
                     sta       -$01,x    ; replace the byte just examined in place
@@ -633,7 +633,7 @@ AccumulatePreviousDigit lda       ,-x       ; recover
                     bhi       ReturnParsedNumber ; return the accumulated value
                     suba      #48       ; subtract from a using #48
                     sta       DecimalCounter,u ; retain decimal counter
-                    ldd       #0        ; establish the accumulate previous digit loop or field bound (0)
+                    ldd       #0        ; supply 0 as the control, count, or argument value required here
 AddDigitPlace       tst       DecimalCounter,u ; set condition codes from DecimalCounter,u without changing it
                     beq       StoreDigitSum ; merge this digit into the result
                     addd      DecimalPlace,u ; add to d using DecimalPlace,u
@@ -643,7 +643,7 @@ StoreDigitSum       addd      ParsedNumber,u ; add to d using ParsedNumber,u
                     std       ParsedNumber,u ; retain parsed number
                     lda       #10       ; select the line-feed control byte
                     sta       DecimalCounter,u ; retain decimal counter
-                    ldd       #0        ; establish the store digit sum loop or field bound (0)
+                    ldd       #0        ; supply 0 as the control, count, or argument value required here
 MultiplyPlaceByTen  tst       DecimalCounter,u ; set condition codes from DecimalCounter,u without changing it
                     beq       UseNextDecimalPlace ; use the next power of ten
                     addd      DecimalPlace,u ; add to d using DecimalPlace,u
@@ -708,9 +708,9 @@ DecimalDigitComplete addd      DecimalPlace,u ; add to d using DecimalPlace,u
                     std       ParsedNumber,u ; retain parsed number
                     leax      $01,x     ; select $01
                     rts                 ; return to the caller
-NoDecimalNumber     ldd       #-1       ; establish the no decimal number loop or field bound (-1)
+NoDecimalNumber     ldd       #-1       ; supply failure or frame value -1 to the following operation
                     puls      pc,y      ; restore pc,y and return to the caller
 
-                    emod                ; emit the OS-9 module CRC and trailer
+                    emod      ;         emit the OS-9 module CRC and trailer
 eom                 equ       *         ; mark the module end for the size expression
-                    end                 ; end the assembly source
+                    end       ;         end the assembly source

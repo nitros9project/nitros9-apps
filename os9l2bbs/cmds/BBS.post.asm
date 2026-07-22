@@ -139,7 +139,7 @@ start               clr       >ReservedStateByte2,u ; initialize retained state 
                     os9       F$ID      ; retrieve the current process and user IDs
                     lbcs      ExitWithStatus ; return the OS-9 status in B
                     sty       CallerUserId,u ; retain caller user id
-                    ldy       #0        ; establish the start loop or field bound (0)
+                    ldy       #0        ; initialize the pointer or index for this state transition
                     os9       F$SUser   ; change the process user ID to Y
                     lbcs      ExitWithStatus ; return the OS-9 status in B
                     leax      >MessageIndexPath,pc ; select message index path
@@ -220,7 +220,7 @@ ScanAliasFile       leax      <AliasLineBuffer,u ; select alias line buffer
                     leay      >RecipientInputBuffer,u ; select recipient input buffer
                     leax      <AliasLineBuffer,u ; select alias line buffer
 CompareAliasName    lda       ,x+       ; consume the next byte while compare alias name
-                    cmpa      #44       ; establish the compare alias name loop or field bound (44)
+                    cmpa      #44       ; recognize 44 as a meaningful value in this parser state
                     beq       AliasNameMatched ; parse the matching alias user ID
                     anda      #223      ; mask a using #223
                     cmpa      ,y+       ; test against
@@ -233,8 +233,8 @@ AliasNameMatched    lda       ,y+       ; consume the next byte while alias name
                     std       >RecipientUserId,u ; retain recipient user id
                     lda       AliasPathNum,u ; recover alias path num
                     pshs      u         ; preserve u across the operation
-                    ldu       #0        ; establish the alias name matched loop or field bound (0)
-                    ldx       #0        ; establish the alias name matched loop or field bound (0)
+                    ldu       #0        ; initialize the pointer or index for this state transition
+                    ldx       #0        ; initialize the pointer or index for this state transition
                     os9       I$Seek    ; position path A at the 32-bit offset in X:U
                     puls      u         ; restore u
                     bra       BeginMessageEntry ; continue in the named workflow
@@ -244,7 +244,7 @@ RecipientNotFound   leax      >UserNotFoundText,pc ; select user not found text
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
                     lda       AliasPathNum,u ; recover alias path num
                     pshs      u         ; preserve u across the operation
-                    ldu       #0        ; establish the recipient not found loop or field bound (0)
+                    ldu       #0        ; initialize the pointer or index for this state transition
                     ldx       #0        ; initialize recipient user id to 0
                     os9       I$Seek    ; position path A at the 32-bit offset in X:U
                     lbra      PromptForRecipient ; continue in the named workflow
@@ -289,15 +289,15 @@ PromptCompositionAction leax      >CompositionPrompt,pc ; select composition pro
                     os9       I$WritLn  ; write a CR-terminated line from X to path A
                     lda       EditorCommand,u ; recover editor command
                     anda      #223      ; mask a using #223
-                    cmpa      #65       ; establish the prompt composition action loop or field bound (65)
+                    cmpa      #65       ; recognize 65 as a meaningful value in this parser state
                     lbeq      ExitSuccessfully ; restore the caller and exit successfully
-                    cmpa      #68       ; establish the prompt composition action loop or field bound (68)
+                    cmpa      #68       ; recognize 68 as a meaningful value in this parser state
                     lbeq      FinishPost ; commit the completed post
-                    cmpa      #69       ; establish the prompt composition action loop or field bound (69)
+                    cmpa      #69       ; recognize 69 as a meaningful value in this parser state
                     beq       EditStoredLine ; replace a selected draft line
-                    cmpa      #67       ; establish the prompt composition action loop or field bound (67)
+                    cmpa      #67       ; recognize 67 as a meaningful value in this parser state
                     beq       ContinueMessageEntry ; resume body entry
-                    cmpa      #76       ; establish the prompt composition action loop or field bound (76)
+                    cmpa      #76       ; recognize 76 as a meaningful value in this parser state
                     lbeq      ListMessageFromStart ; list the draft from its first line
                     bra       PromptCompositionAction ; continue in the named workflow
 ContinueMessageEntry ldd       MessageLineNumber,u ; recover message line number
@@ -329,7 +329,7 @@ EditStoredLine      leax      >EditLinePrompt,pc ; select edit line prompt
                     os9       I$Write   ; write the requested fixed-size field
                     ldd       <SelectedEditLine,u ; recover selected edit line
                     leax      >MessageLineBuffer,u ; select message line buffer
-                    lda       #80       ; establish the edit stored line loop or field bound (80)
+                    lda       #80       ; supply 80 as the control, count, or argument value required here
                     mul                 ; form the byte-product in D
                     leax      d,x       ; select d
                     ldy       #80       ; cap this output request at 80 bytes
@@ -361,7 +361,7 @@ ListNextMessageLine ldd       MessageLineNumber,u ; recover message line number
                     os9       I$Write   ; write the requested fixed-size field
                     leax      >MessageLineBuffer,u ; select message line buffer
                     ldd       MessageLineNumber,u ; recover message line number
-                    lda       #80       ; establish the list next message line loop or field bound (80)
+                    lda       #80       ; supply 80 as the control, count, or argument value required here
                     mul                 ; form the byte-product in D
                     leax      d,x       ; select d
                     ldy       #80       ; cap this output request at 80 bytes
@@ -387,7 +387,7 @@ ReadMessageLine     leax      >LineNumberText,u ; select line number text
                     lda       #1        ; select standard output
                     os9       I$Write   ; write the requested fixed-size field
                     puls      d         ; restore d
-                    lda       #80       ; establish the read message line loop or field bound (80)
+                    lda       #80       ; supply 80 as the control, count, or argument value required here
                     mul                 ; form the byte-product in D
                     leax      >MessageLineBuffer,u ; select message line buffer
                     leax      d,x       ; select d
@@ -413,7 +413,7 @@ FinishPost          leax      <AliasLineBuffer,u ; scan aliases again for the ca
                     os9       I$ReadLn  ; read a CR-terminated line from path A into X
                     lbcs      ExitWithStatus ; return the OS-9 status in B
 FindAliasIdSeparator lda       ,x+       ; consume the next byte while find alias id separator
-                    cmpa      #44       ; establish the find alias id separator loop or field bound (44)
+                    cmpa      #44       ; recognize 44 as a meaningful value in this parser state
                     bne       FindAliasIdSeparator ; locate the numeric field in this alias record
                     lbsr      ParseDecimalNumber ; invoke parse decimal number
                     cmpd      CallerUserId,u ; test against caller user id
@@ -421,7 +421,7 @@ FindAliasIdSeparator lda       ,x+       ; consume the next byte while find alia
                     leax      <AliasLineBuffer,u ; select alias line buffer
                     leay      >AuthorAlias,u ; select author alias
 CopyAuthorAlias     lda       ,x+       ; consume the next byte while copy author alias
-                    cmpa      #44       ; establish the copy author alias loop or field bound (44)
+                    cmpa      #44       ; recognize 44 as a meaningful value in this parser state
                     beq       AuthorAliasCopied ; finalize the author field
                     sta       ,y+       ; retain
                     bra       CopyAuthorAlias ; continue in the named workflow
@@ -459,7 +459,7 @@ AppendNextBodyLine  lda       <BodyLineIndex,u ; recover body line index
                     sta       <BodyLineIndex,u ; retain body line index
                     cmpa      MessageLineCount,u ; test against message line count
                     bhi       BodyAppendComplete ; update the body-file end offset
-                    ldb       #80       ; establish the append next body line loop or field bound (80)
+                    ldb       #80       ; supply 80 as the control, count, or argument value required here
                     mul                 ; form the byte-product in D
                     leax      >MessageLineBuffer,u ; select message line buffer
                     leax      d,x       ; select d
@@ -482,8 +482,8 @@ BodyAppendComplete  ldd       >IndexHeaderTail,u ; recover index header tail
                     std       >BodyEndOffsetHigh,u ; retain body end offset high
 RewriteIndexHeader  pshs      u         ; preserve u across the operation
                     lda       IndexPathNum,u ; recover index path num
-                    ldx       #0        ; establish the rewrite index header loop or field bound (0)
-                    ldu       #0        ; establish the rewrite index header loop or field bound (0)
+                    ldx       #0        ; initialize the pointer or index for this state transition
+                    ldu       #0        ; initialize the pointer or index for this state transition
                     os9       I$Seek    ; position path A at the 32-bit offset in X:U
                     lbcs      ExitWithStatus ; return the OS-9 status in B
                     puls      u         ; restore u
@@ -582,11 +582,11 @@ EditCharacterLoop   pshs      y,x       ; save y,x on the stack
                     os9       I$Read    ; read the requested fixed-size field
                     bcs       RetryCharacterRead ; ignore the failed or control input
                     lda       EditorCommand,u ; recover editor command
-                    cmpa      #1        ; establish the edit character loop loop or field bound (1)
+                    cmpa      #1        ; recognize 1 as a meaningful value in this parser state
                     beq       MoveCursorRight ; advance across existing text
-                    cmpa      #8        ; establish the edit character loop loop or field bound (8)
+                    cmpa      #8        ; recognize 8 as a meaningful value in this parser state
                     beq       ErasePreviousCharacter ; process backspace
-                    cmpa      #24       ; establish the edit character loop loop or field bound (24)
+                    cmpa      #24       ; recognize 24 as a meaningful value in this parser state
                     beq       EraseCurrentCharacter ; process delete
                     cmpa      #13       ; recognize the carriage-return terminator
                     lbeq      FinishEditedLine ; accept the line on carriage return
@@ -759,7 +759,7 @@ AccumulatePreviousDigit lda       ,-x       ; recover
                     bhi       ReturnParsedNumber ; return the accumulated value
                     suba      #48       ; subtract from a using #48
                     sta       DecimalCounter,u ; retain decimal counter
-                    ldd       #0        ; establish the accumulate previous digit loop or field bound (0)
+                    ldd       #0        ; supply 0 as the control, count, or argument value required here
 AddDigitPlace       tst       DecimalCounter,u ; set condition codes from DecimalCounter,u without changing it
                     beq       StoreDigitSum ; merge this digit into the result
                     addd      <DecimalPlace,u ; add to d using <DecimalPlace,u
@@ -769,7 +769,7 @@ StoreDigitSum       addd      <ParsedNumber,u ; add to d using <ParsedNumber,u
                     std       <ParsedNumber,u ; retain parsed number
                     lda       #10       ; select the line-feed control byte
                     sta       DecimalCounter,u ; retain decimal counter
-                    ldd       #0        ; establish the store digit sum loop or field bound (0)
+                    ldd       #0        ; supply 0 as the control, count, or argument value required here
 MultiplyPlaceByTen  tst       DecimalCounter,u ; set condition codes from DecimalCounter,u without changing it
                     beq       UseNextDecimalPlace ; use the next power of ten
                     addd      <DecimalPlace,u ; add to d using <DecimalPlace,u
@@ -804,9 +804,9 @@ DecimalDigitComplete addd      <DecimalPlace,u ; add to d using <DecimalPlace,u
                     std       <ParsedNumber,u ; retain parsed number
                     leax      $01,x     ; select $01
                     rts                 ; return to the caller
-NoDecimalNumber     ldd       #-1       ; establish the no decimal number loop or field bound (-1)
+NoDecimalNumber     ldd       #-1       ; supply failure or frame value -1 to the following operation
                     puls      pc,y      ; restore pc,y and return to the caller
 
-                    emod                ; emit the OS-9 module CRC and trailer
+                    emod      ;         emit the OS-9 module CRC and trailer
 eom                 equ       *         ; mark the module end for the size expression
-                    end                 ; end the assembly source
+                    end       ;         end the assembly source
