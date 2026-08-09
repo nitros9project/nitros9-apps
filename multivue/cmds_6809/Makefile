@@ -2,9 +2,8 @@ include $(NITROS9DIR)/rules.mak
 
 DEPENDS		= ./Makefile
 
-OSCMDS		= $(LEVEL2)/coco3/cmds/shell $(LEVEL2)/coco3/cmds/utilpak1 \
-		$(LEVEL2)/coco3/cmds/grfdrv $(LEVEL2)/coco3/cmds/backup \
-		$(LEVEL2)/coco3/cmds/format $(LEVEL2)/coco3/cmds/free $(LEVEL2)/coco3/cmds/help
+OSCMDS_DIR	= ../.nitros9-6809/.mods
+OSCMDS		= $(addprefix $(OSCMDS_DIR)/,shell utilpak1 grfdrv backup format free help)
 CMDS		= gshell cocopr control demo fstat \
 		gcal gcalc gclock gport gprint gsort
 
@@ -15,7 +14,7 @@ all:	dependencies $(CMDS)
 .PHONY: dependencies
 
 dependencies:
-	$(MAKE) -C $(LEVEL2)/coco3/cmds $(notdir $(OSCMDS))
+	$(MAKE) -C .. dependencies
 
 gshell: gshell.asm
 	$(AS) $(ASOUT)$@ $< $(AFLAGS)

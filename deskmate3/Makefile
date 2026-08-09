@@ -6,8 +6,11 @@ AS := $(subst --6309,--6809,$(AS))
 
 DSK	= DeskMate3.dsk
 
-CD	= $(LEVEL2)/coco3/cmds
-MD	= $(LEVEL2)/coco3/modules
+COCO3_RECIPE	= $(NITROS9DIR)/recipes/coco3/coco3.mak
+COCO3_DEFS	= $(NITROS9DIR)/recipes/coco3/floppy/defsfile
+BUILDDIR	= .nitros9
+MD	= $(BUILDDIR)/.mods
+CD	= $(MD)
 
 UTILS	= $(CD)/shell $(CD)/format $(CD)/rename
 SYSGO	= $(MD)/sysgo_dd
@@ -33,12 +36,19 @@ OS9BOOT	= $(MD)/krnp2 $(MD)/ioman $(MD)/init \
 
 all: $(DSK)
 
-dependencies:
-	$(MAKE) -C $(MD) $(notdir $(KERNEL) $(OS9BOOT) $(SYSGO))
-	$(MAKE) -C $(CD) $(notdir $(UTILS))
+$(BUILDDIR):
+	mkdir -p $@
+
+$(BUILDDIR)/defsfile: $(COCO3_DEFS) | $(BUILDDIR)
+	$(CP) $< $@
+
+dependencies: | $(BUILDDIR)/defsfile
+	$(MAKE) -C $(BUILDDIR) -f $(COCO3_RECIPE) LEVEL=2 CPU=6809 \
+		TERM_COLS=32 $(addprefix .mods/,$(notdir $(KERNEL) $(OS9BOOT) $(SYSGO) $(UTILS)))
 
 clean:
 	$(RM) os9boot kernel $(DSK) *.list *.map
+	rm -rf $(BUILDDIR)
 
 $(DSK): $(CMDS) $(HELP) $(ROOTFILES) | dependencies
 	$(RM) $@
