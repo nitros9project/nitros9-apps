@@ -4,6 +4,7 @@
 *.o
 *.r
 os9boot
+.nitros9*/
 
 # Historical package inputs that use generated-artifact extensions.
 !os9l2bbs/os9l2bbs.dsk

@@ -3,6 +3,11 @@ include $(NITROS9DIR)/rules.mak
 DSK68_FLOPPY	= MultiVue_6809.dsk
 DSK63_FLOPPY	= MultiVue_6309.dsk
 
+COCO3_RECIPE	= $(NITROS9DIR)/recipes/coco3/coco3.mak
+COCO3_DEFS	= $(NITROS9DIR)/recipes/coco3/floppy/defsfile
+BUILD68	= .nitros9-6809
+BUILD63	= .nitros9-6309
+
 CMDS68	= $(shell $(MAKE) -C cmds_6809 --no-print-directory showobjs)
 CMDS63	= $(shell $(MAKE) -C cmds_6309 --no-print-directory showobjs)
 ICONS	= icon.demo
@@ -10,11 +15,12 @@ SYSBIN	= $(shell $(MAKE) -C sys --no-print-directory showbinobjs)
 SYSTEXT	= $(shell $(MAKE) -C sys --no-print-directory showtextobjs)
 DEMO	= aif.dmo
 ROOTFILES = startup
+OSCMDS = shell utilpak1 grfdrv backup format free help
 
 DSKS	= $(DSK68_FLOPPY) $(DSK63_FLOPPY)
 
-MD68	= $(LEVEL2)/coco3/modules
-MD63	= $(LEVEL2)/coco3_6309/modules
+MD68	= $(BUILD68)/.mods
+MD63	= $(BUILD63)/.mods
 
 KERNEL68_FLOPPY	= $(MD68)/rel_40 $(MD68)/boot_1773_6ms $(MD68)/krn
 KERNEL63_FLOPPY	= $(MD63)/rel_40 $(MD63)/boot_1773_6ms $(MD63)/krn
@@ -47,9 +53,20 @@ BOOTFILE63_FLOPPY	= $(MD63)/krnp2 $(MD63)/ioman $(MD63)/init \
 
 all: $(DSKS)
 
-dependencies:
-	$(MAKE) -C $(MD68) $(sort $(notdir $(KERNEL68_FLOPPY) $(BOOTFILE68_FLOPPY)))
-	$(MAKE) -C $(MD63) $(sort $(notdir $(KERNEL63_FLOPPY) $(BOOTFILE63_FLOPPY)))
+$(BUILD68) $(BUILD63):
+	mkdir -p $@
+
+$(BUILD68)/defsfile: $(COCO3_DEFS) | $(BUILD68)
+	$(CP) $< $@
+
+$(BUILD63)/defsfile: $(COCO3_DEFS) | $(BUILD63)
+	$(CP) $< $@
+
+dependencies: | $(BUILD68)/defsfile $(BUILD63)/defsfile
+	$(MAKE) -C $(BUILD68) -f $(COCO3_RECIPE) LEVEL=2 CPU=6809 \
+		TERM_COLS=40 $(addprefix .mods/,$(sort $(notdir $(KERNEL68_FLOPPY) $(BOOTFILE68_FLOPPY)) $(OSCMDS)))
+	$(MAKE) -C $(BUILD63) -f $(COCO3_RECIPE) LEVEL=2 CPU=6309 \
+		TERM_COLS=40 $(addprefix .mods/,$(sort $(notdir $(KERNEL63_FLOPPY) $(BOOTFILE63_FLOPPY)) $(OSCMDS)))
 
 components: dependencies
 	@$(ECHO) "**************************************************"
@@ -63,6 +80,7 @@ components: dependencies
 
 clean:
 	$(RM) os9boot kernel $(DSKS) *.list *.map
+	rm -rf $(BUILD68) $(BUILD63)
 	$(MAKE) -C cmds_6809 clean
 	$(MAKE) -C cmds_6309 clean
 	$(MAKE) -C sys clean

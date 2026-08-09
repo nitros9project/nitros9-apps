@@ -5,10 +5,8 @@ vpath %.asm ../cmds_6809
 #AFLAGS		+= -e
 DEPENDS		= ./Makefile
 
-OSCMDS		= $(LEVEL2)/coco3_6309/cmds/shell $(LEVEL2)/coco3_6309/cmds/utilpak1 \
-		$(LEVEL2)/coco3_6309/cmds/grfdrv $(LEVEL2)/coco3_6309/cmds/backup \
-		$(LEVEL2)/coco3_6309/cmds/format $(LEVEL2)/coco3_6309/cmds/free \
-		$(LEVEL2)/coco3_6309/cmds/help
+OSCMDS_DIR	= ../.nitros9-6309/.mods
+OSCMDS		= $(addprefix $(OSCMDS_DIR)/,shell utilpak1 grfdrv backup format free help)
 CMDS		= gshell cocopr control demo fstat \
 		gcal gcalc gclock gport gprint gsort
 
@@ -19,7 +17,7 @@ all:	dependencies $(CMDS)
 .PHONY: dependencies
 
 dependencies:
-	$(MAKE) -C $(LEVEL2)/coco3_6309/cmds $(notdir $(OSCMDS))
+	$(MAKE) -C .. dependencies
 
 gshell: gshell.asm
 	$(AS) $(ASOUT)$@ $< $(AFLAGS)
