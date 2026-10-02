@@ -1,0 +1,5841 @@
+--- a/adduser.c
++++ b/adduser.c
+@@ -102,7 +102,7 @@
+ #define   OFF       0
+ 
+ /* made direct page -- REB */
+-QQ char *daemon = "daemon",
++QQ char *uucpbb_daemon = "daemon",
+         *Sorry = "Sorry, only the Superuser can use this utility!",
+         *NewID = "Enter new user ID number\n    ('Q' to quit) or press <ENTER> and I'll pick: ";
+ 
+@@ -143,7 +143,7 @@
+ int argc;
+ char *argv[];
+ {
+-     register int i;                                /* made register -- REB */
++      int i;                                /* made register -- REB */
+      int path, uloginpath;
+      flag ipickit;                                  /* added --REB */
+      unsigned userid;
+@@ -224,7 +224,7 @@
+        }
+      while ( chk_name() );                     /* name already in use? */
+ 
+-     if (strucmp (tempstr, daemon) == 0)       /* user 'daemon' is special */
++     if (strucmp (tempstr, uucpbb_daemon) == 0)       /* user 'daemon' is special */
+           isdaemon = TRUE;
+ 
+      strcat (pw[DIRW], tempstr);
+@@ -318,7 +318,7 @@
+      sprintf (dirname, "%s/%s", userdir, strupr (tempstr));
+      setuid (atoi (pw[ID]));                      /* set uid to new user */
+ 
+-     if ((mknod (dirname, S_IREAD+S_IWRITE+S_IEXEC)) == ERROR)
++     if ((uucpbb_mknod (dirname, S_IREAD+S_IWRITE+S_IEXEC)) == ERROR)
+        {
+           sprintf (tempstr, "can't create user's home directory...error %d\n",
+                    errno);
+@@ -329,7 +329,7 @@
+      /* CoCo user needs a UUCP directory in their home directory for UUCPbb */
+      sprintf (tempstr, "%s/UUCP", dirname);
+ 
+-     if ((mknod (tempstr, S_IREAD+S_IWRITE+S_IEXEC)) == ERROR)
++     if ((uucpbb_mknod (tempstr, S_IREAD+S_IWRITE+S_IEXEC)) == ERROR)
+        {
+           sprintf (tempstr, "can't create user's home UUCP directory...error %d\n",
+                             errno);
+@@ -346,7 +346,7 @@
+           strcpy (tempstr, pw[NAME]);
+           sprintf (mailname, "%s/%s", maildir, strupr (tempstr));
+ 
+-          if ((mknod (mailname, S_IREAD+S_IWRITE+S_IEXEC)) == ERROR)
++          if ((uucpbb_mknod (mailname, S_IREAD+S_IWRITE+S_IEXEC)) == ERROR)
+             {
+                sprintf (tempstr,
+                         "can't create user's mail directory '%s'...error %d\n",
+@@ -397,7 +397,7 @@
+ 
+ int get_entries()
+ {
+-     register char *p;
++      char *p;
+      char tmpstr[PWSIZ];
+      int line, badline;
+ 
+@@ -460,7 +460,7 @@
+ int ipickit;
+ unsigned *uid;
+ {
+-     register int i;                            /* made register -- REB */
++      int i;                            /* made register -- REB */
+      unsigned j;                                /* added -- REB */
+ 
+      /* UID was passed to us, is it taken? */
+@@ -505,14 +505,14 @@
+ 
+ int chk_name()
+ {
+-     register int i;                           /* made register -- REB */
++      int i;                           /* made register -- REB */
+ 
+      for (i = 0; i < entries; i++)
+           if ((strucmp (tempstr, u_name[i])) == 0)
+             {
+                fprintf (stderr, "\nUsername '%s' already exists\n", tempstr);
+ 
+-               if (strucmp (tempstr, daemon) == 0)
++               if (strucmp (tempstr, uucpbb_daemon) == 0)
+                     exit (0);
+                else
+                     *tempstr = '\0';
+@@ -709,7 +709,7 @@
+ char *strupr (string)
+ char *string;
+ {
+-     register char *p;
++      char *p;
+ 
+      p = string;
+      while (*p)
+@@ -725,7 +725,7 @@
+ int usage()
+ {
+      char temp[80], *strdetab();
+-     register char **use;
++      char **use;
+      static char *usetext[] = {
+             "ADDUSER: add a user to or remove a user from the system",
+             "Usage: adduser [opts] [<username> [<userid>] ]",
+--- a/chksched.c
++++ b/chksched.c
+@@ -55,17 +55,17 @@
+ {
+      static char *days[]={"Su","Mo","Tu","We","Th","Fr","Sa"};
+      struct tm *local_time;
+-     register char *p; 
++      char *p; 
+      char *com, *dash;
+      int day, miltime, after, before;
+ #ifdef _OSK
+      time_t t;
+ #else
+-     long t;
++     time_t t;
+ #endif
+ 
+-     time(&t);
+-     local_time = localtime(&t);
++     uucpbb_time(&t);
++     local_time = gmtime(&t);
+      day = local_time->tm_wday;
+      miltime = local_time->tm_hour * 100 + local_time->tm_min;
+      strcpy (temp, sched);
+--- a/chown.c
++++ b/chown.c
+@@ -52,7 +52,7 @@
+ char **argv;
+ {
+      unsigned uid;
+-     register int i;
++      int i;
+      int result;
+ 
+      if (argc < 3)
+@@ -98,7 +98,7 @@
+ 
+                default:
+                     fprintf (stderr, "can't change ownership of %s...error %d\n",
+-                                errno);
++                                argv[i], errno);
+                     break;
+             }
+        }
+@@ -111,7 +111,7 @@
+ unsigned getuserid (user)
+ char *user;
+ {  
+-     register PWENT *pwentry;
++      PWENT *pwentry;
+      unsigned newuid;
+ 
+      /* were we given a numerical uid? */
+@@ -148,7 +148,7 @@
+ int validnum (string)
+ char *string;
+ {
+-     register char *ptr;
++      char *ptr;
+      int result = FALSE;                             /* assume a user name */
+ 
+      ptr = string;
+@@ -179,10 +179,10 @@
+ unsigned newowner;
+ {
+      struct fildes buffer;
+-     register int path;
+-
+-     if (((path = open (file_or_dir, S_IWRITE)) == ERROR)  &&
+-          ((path = open (file_or_dir, S_IFDIR | S_IWRITE)) == ERROR))
++      int path;
++
++     if (((path = uucpbb_open (file_or_dir, S_IWRITE)) == ERROR)  &&
++          ((path = uucpbb_open (file_or_dir, S_IFDIR | S_IWRITE)) == ERROR))
+        {
+           return (OPENERROR);
+        }
+@@ -224,7 +224,7 @@
+ 
+ int usage()
+ {
+-     register char **ptr;
++      char **ptr;
+      static char *use[] = {
+              "chown: change ownership of a file or directory to another user",
+              " ",
+--- a/closeuucp.c
++++ b/closeuucp.c
+@@ -38,10 +38,10 @@
+ int mcloseuucp()
+ {
+      char string[80];
+-     register int i;
++      int i;
+ 
+      if (debuglvl > 0)
+-          fprintf (log, "mcloseuucp: %s\n", o_o);
++          fprintf (uucpbb_log, "mcloseuucp: %s\n", o_o);
+ 
+      if (send0 (o6)  &&  send0 (o6))
+        {
+@@ -58,7 +58,7 @@
+                if (recv0 (string) == TIMEDOUT)
+                  {
+                     if (debuglvl > 0)
+-                         fprintf (log, "mcloseuucp: %s\n", no_oo);
++                         fprintf (uucpbb_log, "mcloseuucp: %s\n", no_oo);
+ 
+                     break;
+                  }
+@@ -66,7 +66,7 @@
+                if (strstr (string, o6) != NULL)
+                  {
+                     if (debuglvl > 0)
+-                         fprintf (log, "mcloseuucp: %s\n", got_oo);
++                         fprintf (uucpbb_log, "mcloseuucp: %s\n", got_oo);
+ 
+                     break;
+                  }
+@@ -84,10 +84,10 @@
+ int scloseuucp()
+ {
+      char string[80];
+-     register int i;
++      int i;
+ 
+      if (debuglvl > 0)
+-          fprintf (log, "scloseuucp: %s\n", o_o);
++          fprintf (uucpbb_log, "scloseuucp: %s\n", o_o);
+ 
+      if (send0 (o7)  &&  send0 (o7))
+        {
+@@ -103,7 +103,7 @@
+                if (recv0 (string) == TIMEDOUT)
+                  {
+                     if (debuglvl > 0)
+-                         fprintf (log, "scloseuucp: %s\n", no_oo);
++                         fprintf (uucpbb_log, "scloseuucp: %s\n", no_oo);
+ 
+                     break;
+                  }
+@@ -111,7 +111,7 @@
+                if (strstr (string, o6) != NULL)
+                  {
+                     if (debuglvl > 0)
+-                         fprintf (log, "scloseuucp: %s\n", got_oo);
++                         fprintf (uucpbb_log, "scloseuucp: %s\n", got_oo);
+ 
+                     break;
+                  }
+--- a/cnvrtmail.c
++++ b/cnvrtmail.c
+@@ -22,14 +22,14 @@
+ #include <utime.h>
+ #endif
+ #include <modes.h>
+-#include "dir_6809.h"
++#include <dirent.h>
+ 
+ #define REALNAMESIZE  18
+ #define STRINGSIZE    36
+ 
+ QQ char *mail_list = "mail..list";
+ QQ int deleteold;
+-QQ FILE *log;                                         /* dummy variables to */
++QQ FILE *uucpbb_log;                                         /* dummy variables to */
+ char fname[100];                                      /* keep docmd.c happy */
+ char rootdir[4];
+ char *strupr(), *strlwr();
+@@ -47,13 +47,13 @@
+ char *argv[];
+ {
+      char line[PWSIZ+1], *p, *p2;
+-     register FILE *pwfile;
++      FILE *pwfile;
+      int i;
+ 
+-     pflinit();                        /* tell compiler longs will be used */
++                             /* tell compiler longs will be used */
+      deleteold = FALSE;                /* don't delete old mail file */
+      i = 0;
+-     log = stderr;                     /* don't log error, show them */
++     uucpbb_log = stderr;                     /* don't log error, show them */
+ 
+      if (getuid() != 0)
+           fatal ("Sorry only the superuser can run this program");
+@@ -121,7 +121,7 @@
+ int user_ok (last_user)
+ int last_user;
+ {
+-     register int i;
++      int i;
+      char c, *answers;
+      
+      answers = malloc (last_user * sizeof (char));
+@@ -171,7 +171,7 @@
+ int make_dirs (last_user)
+ int last_user;
+ {
+-     register int i = 0;
++      int i = 0;
+      char temp[100], mailpath[80];
+      int path, success, mailwaiting;
+      FILE *infile;
+@@ -202,7 +202,7 @@
+                setnewowner (mailpath, users[i].id);
+ 
+                /* make sure we can read the mail */
+-               path = open (mailpath, 2);
++               path = uucpbb_open (mailpath, 2);
+                _ss_attr (path, S_IREAD|S_IWRITE);
+                close (path);
+ 
+@@ -213,7 +213,7 @@
+           /* Make a mail directory for each user with the user as the owner */
+           printf ("\nmaking mail directory for '%s'...", users[i].name);
+           fflush (stdout);
+-          mknod (strupr (users[i].name), S_IREAD|S_IWRITE|S_IEXEC);
++          uucpbb_mknod (strupr (users[i].name), S_IREAD|S_IWRITE|S_IEXEC);
+           strlwr (users[i].name);
+           setnewowner (users[i].name, users[i].id);
+           putchar ('\n');
+@@ -266,7 +266,7 @@
+      FILE *infile, *outfile;
+      char line[256], temp[100], mailpath[80], fname[128];
+      struct sgtbuf date;
+-     register int count;
++      int count;
+      long nowtime;
+      static long prevtime = 0L;
+      int done;
+@@ -324,10 +324,9 @@
+                /* Account for change of century just in case this code */
+                /* is still being used after 1999. <grin>               */
+ 
+-               sprintf (fname, "%s/m%s%02d%02d%02d%02d%02d%02d",
++               sprintf (fname, "%s/m%04d%02d%02d%02d%02d%02d",
+                         users[uindex].name,
+-                        date.t_year > 90  &&  date.t_year <= 99 ? "19" : "20",
+-                        date.t_year, date.t_month, date.t_day, date.t_hour,
++                        1900 + date.t_year, date.t_month, date.t_day, date.t_hour,
+                         date.t_minute, date.t_second);
+ 
+ 
+@@ -374,11 +373,11 @@
+ 
+ 
+ int copymsg (in, out, line)
+-register FILE *in;
++ FILE *in;
+ FILE *out;
+ char *line;
+ {
+-     register char *p;
++      char *p;
+      char temp[256];
+ 
+      p = temp;
+@@ -444,7 +443,7 @@
+           sequence = 0;
+ 
+      /* copy it to the new sequence file */
+-     fprintf (new, "%ld", sequence);
++     fprintf (new, "%d", sequence);
+      fclose (old);
+ 
+      /* make it secure */
+@@ -483,12 +482,12 @@
+ unsigned owner;
+ {
+      struct fildes fd;
+-     register int path;
++      int path;
+ 
+      asetuid (0);
+ 
+-     if (((path = open (file_or_dir, S_IWRITE)) == ERROR)  &&
+-            ((path = open (file_or_dir, S_IFDIR | S_IWRITE)) == ERROR))
++     if (((path = uucpbb_open (file_or_dir, S_IWRITE)) == ERROR)  &&
++            ((path = uucpbb_open (file_or_dir, S_IFDIR | S_IWRITE)) == ERROR))
+        {
+           fprintf (stderr, "setnewowner(): can't open path to '%s'\n", 
+                      file_or_dir);
+@@ -524,7 +523,7 @@
+      char dirname[200], mbox[100];
+      unsigned owner;
+      DIR *dir;
+-     struct direct *dirptr;                      /* defined in dir.h -- REB */
++     struct dirent *dirptr;                      /* defined in dir.h -- REB */
+ 
+      if ((dir = opendir (maildir)) == NULL)
+        {
+@@ -569,7 +568,7 @@
+ {
+      FILE *old, *new;
+      DIR *dp;                                  /* defined in dir.h */
+-     register struct direct *dirbuf;           /*                  */
++      struct dirent *dirbuf;           /*                  */
+      char oldfilename[80], newfilename[80], buff[256], cmd[128];
+      int mailcount;
+ 
+@@ -600,7 +599,7 @@
+ 
+           if ((old = fopen (oldfilename, "r")) == NULL)
+             {
+-               fprintf ("can't open mail '%s' for reading\n", oldfilename);
++               fprintf (stderr, "can't open mail '%s' for reading\n", oldfilename);
+                --mailcount;
+                continue;
+             }
+@@ -686,12 +685,12 @@
+ char *file_or_dir;
+ {
+      struct fildes buffer;
+-     register int path;
++      int path;
+ 
+      asetuid (0);
+ 
+-     if (((path = open (file_or_dir, S_IWRITE)) == ERROR)  &&
+-            ((path = open (file_or_dir, S_IFDIR | S_IWRITE)) == ERROR))
++     if (((path = uucpbb_open (file_or_dir, S_IWRITE)) == ERROR)  &&
++            ((path = uucpbb_open (file_or_dir, S_IFDIR | S_IWRITE)) == ERROR))
+        {
+           fprintf (stderr, "who_owns_the(): can't open path to '%s'...error %d\n", 
+                      file_or_dir, errno);
+@@ -717,8 +716,8 @@
+ {
+      FILE *mptr, *lptr;
+      DIR *dirptr;
+-     struct direct *mbox;                        /* defined in dir.h -- REB */
+-     register int i;
++     struct dirent *mbox;                        /* defined in dir.h -- REB */
++      int i;
+      char temp[128];
+      static struct mbag  {
+                 char letter[32];
+@@ -744,7 +743,7 @@
+                strcpy (ltrs[i++].letter, mbox->d_name);
+ 
+      closedir (dirptr);
+-     qsort (ltrs, mailcount, sizeof (struct mbag), strucmp);
++     qsort (ltrs, mailcount, sizeof (struct mbag), uucpbb_compare);
+ 
+      if ((mptr = fopen (mail_list, "w")) == NULL)
+        {
+@@ -753,7 +752,7 @@
+        }
+ 
+      /* make sure the same owner owns new mail..list file */
+-     chown (mail_list, userid);
++     uucpbb_chown (mail_list, userid);
+ 
+      /* make sure nobody else can mess with us for now */
+      _ss_attr (fileno (mptr), S_ISHARE|S_IREAD|S_IWRITE);
+@@ -787,7 +786,7 @@
+ char *filename;
+ {
+      char mline[256], subj[28], frm[27], resentfrm[128], resentrply[128];
+-     register char *p;
++      char *p;
+      int linecount;
+      long _gs_size();
+      char *getval(), *getstring();
+@@ -847,8 +846,8 @@
+ char *whosemail;
+ {
+      DIR *dirptr;
+-     struct direct *list;                        /* defined in dir.h -- REB */
+-     register int count_1;
++     struct dirent *list;                        /* defined in dir.h -- REB */
++      int count_1;
+ 
+      chdir (whosemail);
+ 
+@@ -887,7 +886,7 @@
+ 
+ int usage()
+ {
+-     register char **hlp;
++      char **hlp;
+      static char *helptxt[] = {
+        "cnvrtmail: convert Rick's Adams spool mail format v4.2 and earlier to new",
+        "           format",
+--- a/connect.c
++++ b/connect.c
+@@ -39,16 +39,16 @@
+ int connect (index)
+ int index;
+ {
+-     register flag status;
+-
+-     fprintf (log, "%s %s %s Calling system %s (port %s)",
++      flag status;
++
++     fprintf (uucpbb_log, "%s %s %s Calling system %s (port %s)",
+               sender, sysname, gtime(), sysname,
+               *device != '\0' ? device : "unknown");
+ 
+      if (index > 1)
+-          fprintf (log, " (line %d)", index);
+-
+-     putc ('\n', log);
++          fprintf (uucpbb_log, " (line %d)", index);
++
++     putc ('\n', uucpbb_log);
+ 
+      /* do dialscript */
+      if ((status = doscript (TRUE)) == OK)
+@@ -69,7 +69,7 @@
+ flag dialing;
+ {
+      char *words[WORDSIZE];
+-     register int i;
++      int i;
+      flag status;
+      int n;
+ 
+@@ -110,19 +110,19 @@
+ int send (msg)
+ char *msg;
+ {
+-     register short i;
++      short i;
+      flag crneeded;
+      char c;
+      int msglen = strlen (msg);
+ 
+      if (debuglvl > 1)
+-          fputs ("sendthem: ", log);
++          fputs ("sendthem: ", uucpbb_log);
+ 
+      /* send nothing? */
+      if (*msg == '|')
+        {
+           if (debuglvl > 1)
+-               fprintf (log, "%s\n", nothing);
++               fprintf (uucpbb_log, "%s\n", nothing);
+ 
+           return (OK);
+        }
+@@ -138,9 +138,9 @@
+      if (*msg == 'E'  &&  strcmp (msg, "EOT") == 0)
+        {
+           if (debuglvl > 1)
+-                fputs ("<EOT>", log);
+-
+-          write (port, '\x04', 1);
++                fputs ("<EOT>", uucpbb_log);
++
++          write (port, "\x04", 1);
+           return (OK);
+        }
+ 
+@@ -151,7 +151,7 @@
+           if (c != '\\')
+             {
+                if (debuglvl > 1)
+-                    putc (c, log);
++                    putc (c, uucpbb_log);
+ 
+                write (port, &c, 1);
+             }
+@@ -161,68 +161,68 @@
+                  {
+                     case 'T':
+                          if (debuglvl > 1)
+-                              fprintf (log, "%s", phone);
++                              fprintf (uucpbb_log, "%s", phone);
+                          write (port, phone, strlen (phone));
+                          break;
+ 
+                     case 's':
+                          if (debuglvl > 1)
+-                              fputs ("<SPACE>", log);
++                              fputs ("<SPACE>", uucpbb_log);
+                          write (port, " ", 1);
+                          break;
+ 
+                     case 'r':
+                          if (debuglvl > 1)
+-                              fputs ("<CR>", log);
++                              fputs ("<CR>", uucpbb_log);
+                          write (port, "\x0D", 1);
+                          break;
+ 
+                     case 'n':
+                          if (debuglvl > 1)
+-                              fputs ("<LF>", log);
++                              fputs ("<LF>", uucpbb_log);
+                          write (port, "\x0A", 1);
+                          break;
+ 
+                     case '\\':
+                          if (debuglvl > 1)
+-                              putc ('\\', log);
++                              putc ('\\', uucpbb_log);
+                          write (port, "\\", 1);
+                          break;
+ 
+                     case 'd':                        /* 1 second delay */
+                          if (debuglvl > 1)
+-                              fputs ("<DELAY>", log);
++                              fputs ("<DELAY>", uucpbb_log);
+                          sleep (1);
+                          break;
+ 
+                     case 'N':
+                          if (debuglvl > 1)
+-                              fputs ("<NUL>", log);
++                              fputs ("<NUL>", uucpbb_log);
+                          write (port, "\0", 1);
+                          break;
+ 
+                     case 't':
+                          if (debuglvl > 1)
+-                              fputs ("<TAB>", log);
++                              fputs ("<TAB>", uucpbb_log);
+                          write (port, "\t", 1);
+                          break;
+ 
+                     case 'b':                                /* back space */
+                          if (debuglvl > 1)
+-                              fputs ("<BS>", log);
++                              fputs ("<BS>", uucpbb_log);
+                          write (port, "\b", 1);
+                          break;
+ 
+                     case 'c':                              /* don't send CR */
+                          if (debuglvl > 1)
+-                              fputs ("<NO CR>", log);
++                              fputs ("<NO CR>", uucpbb_log);
+                          crneeded = FALSE;
+                          break;
+ 
+                     case '^':
+                          c = toupper (msg[i + 2]) & 0x3f;
+                          if (debuglvl > 1)
+-                              fprintf (log, "<CNTRL>-%c\n",
++                              fprintf (uucpbb_log, "<CNTRL>-%c\n",
+                                             toupper (msg[i + 2]));
+                          write (port, &c, 1);
+                          i += 2;
+@@ -234,14 +234,14 @@
+ 
+                     case 'p':                 /* fraction of a second pause */
+                          if (debuglvl > 1)
+-                              fputs ("<PAUSE>", log);
++                              fputs ("<PAUSE>", uucpbb_log);
+ 
+                          tsleep (PORTSLEEP);
+                          break;
+ 
+                     case '[':                                /* send ESCAPE */
+                          if (debuglvl > 1)
+-                              fputs ("<ESC>", log);
++                              fputs ("<ESC>", uucpbb_log);
+ 
+                          write (port, "\x1b", 1);
+                          break;
+@@ -255,7 +255,7 @@
+                     case '6':
+                     case '7':
+                          if (debuglvl > 1)
+-                              fprintf (log, "<%.4s>", &msg[i]);
++                              fprintf (uucpbb_log, "<%.4s>", &msg[i]);
+ 
+                          c = (msg[i + 1] - '0') & 0x07;
+                          c <<= 3;
+@@ -277,7 +277,7 @@
+           write (port, "\n", 1);
+ 
+      if (debuglvl > 1)
+-          putc ('\n', log);
++          putc ('\n', uucpbb_log);
+ 
+      return (OK);
+ }
+@@ -288,7 +288,7 @@
+ char *msg;
+ flag dialing;
+ {
+-     register char *p;
++      char *p;
+      flag result;
+      char c, *p1, *p2, *p3, *p4, *p5;
+      char *nocarrier = "NO CARRIER",
+@@ -305,7 +305,7 @@
+      p5 = notone2;
+ 
+      if (debuglvl > 1)
+-          fprintf (log, "expect: %s\n", *msg != '|' ? msg : nothing);
++          fprintf (uucpbb_log, "expect: %s\n", *msg != '|' ? msg : nothing);
+ 
+      /* expect nothing? */
+      if (*msg == '|')
+@@ -321,21 +321,21 @@
+ 
+           c &= 0x7F;                                 /* strip parity */
+                                                      /* check for...       */
+-          p  = (c == *p)  ? ++p  : msg;              /*    expected string */
+-          p1 = (c == *p1) ? ++p1 : busy;             /*    BUSY            */
+-          p2 = (c == *p2) ? ++p2 : nocarrier;        /*    NO CARRIER      */
+-          p3 = (c == *p3) ? ++p3 : noanswer;         /*    NO ANSWER       */
+-          p4 = (c == *p4) ? ++p4 : nodialtone;       /*    NO DIALTONE     */
+-          p5 = (c == *p5) ? ++p5 : notone2;          /*    NO DIAL TONE    */
++          p  = (c == *p)  ? p + 1  : msg;              /*    expected string */
++          p1 = (c == *p1) ? p1 + 1 : busy;             /*    BUSY            */
++          p2 = (c == *p2) ? p2 + 1 : nocarrier;        /*    NO CARRIER      */
++          p3 = (c == *p3) ? p3 + 1 : noanswer;         /*    NO ANSWER       */
++          p4 = (c == *p4) ? p4 + 1 : nodialtone;       /*    NO DIALTONE     */
++          p5 = (c == *p5) ? p5 + 1 : notone2;          /*    NO DIAL TONE    */
+        }
+ 
+      if (debuglvl > 1)
+-          fputs ("got: ", log);
++          fputs ("got: ", uucpbb_log);
+  
+      if (*p1 == '\0')                        /* BUSY */
+        {
+           if (debuglvl > 1)
+-               fputs (busy, log);
++               fputs (busy, uucpbb_log);
+           else
+                logerror ("line is BUSY");
+ 
+@@ -344,7 +344,7 @@
+      else if (*p2 == '\0')                   /* NO CARRIER */
+        {
+           if (debuglvl > 1)
+-               fputs (nocarrier, log);
++               fputs (nocarrier, uucpbb_log);
+           else
+                logerror (nocarrier);
+ 
+@@ -353,7 +353,7 @@
+      else if (*p3 == '\0')                   /* NO ANSWER */
+        {
+           if (debuglvl > 1)
+-               fputs (noanswer, log);
++               fputs (noanswer, uucpbb_log);
+           else
+                logerror ("Remote not answering");
+ 
+@@ -362,7 +362,7 @@
+      else if (*p4 == '\0' || *p5 == '\0')    /* NO DIALTONE */
+        {
+           if (debuglvl > 1)
+-               fputs (nodialtone, log);
++               fputs (nodialtone, uucpbb_log);
+           else
+                logerror (nodialtone);
+ 
+@@ -371,13 +371,13 @@
+      else
+        {
+           if (debuglvl > 1)
+-               fputs (msg, log);
++               fputs (msg, uucpbb_log);
+ 
+           result = OK;                       /* status okay */
+        }
+ 
+      if (debuglvl > 1)
+-          putc ('\n', log);
++          putc ('\n', uucpbb_log);
+ 
+      return ((int) result);
+ }
+@@ -434,7 +434,7 @@
+ unsigned seconds;                /* timeout in seconds */
+ int retries;
+ {
+-     register int i;
++      int i;
+ 
+      /* wait for data available */
+      for (i = 0;  i < retries;  ++i)
+@@ -455,7 +455,7 @@
+    'count' only if timeout). */
+ 
+ int readfill (p, count)
+-register char *p;
++ char *p;
+ int  count;
+ {
+      int rdy, byte_count = 0;
+@@ -484,7 +484,7 @@
+ int timeout (secs)
+ int secs;
+ {
+-     register int i;
++      int i;
+      int count;
+ 
+      /* if input waiting, return */
+--- a/date822.c
++++ b/date822.c
+@@ -48,16 +48,16 @@
+ 
+ char *date822()
+ {
+-     static long save_t = 0L;
++     static time_t save_t = 0L;
+      char date[26];
+-     register char *words[WORDSIZE];
++      char *words[WORDSIZE];
+      char *p, *adate;
+-     long t;
++     time_t t;
+ 
+      adate = RFCbuf;
+ 
+      /* get the current time */
+-     time (&t);
++     uucpbb_time (&t);
+ 
+      /* If the time different from when we were last called, update the ADATE
+         string and save the time in case we are immediately called again.  If
+@@ -69,7 +69,7 @@
+           save_t = t;
+ 
+           /* convert the seconds to date/time format */
+-          strcpy (date, ctime (&t));
++          strcpy (date, uucpbb_ctime (&t));
+           p = strchr (date, '\n');
+           *p = '\0';
+ 
+@@ -78,7 +78,7 @@
+ 
+           /* put them in the RFC-822 format */
+           sprintf (adate, "%s, %s %s %s %s %s",
+-                          words[0], words[2], words[1], &words[4][2],
++                          words[0], words[2], words[1], words[4],
+                           words[3], tz);
+        }
+      return (adate);
+--- a/dir_6809.h
++++ b/dir_6809.h
+@@ -1,5 +1,5 @@
+ 
+-struct direct {
++struct dirent {
+    long  d_addr;        /* file desc addr */
+    char  d_name[30];    /* directory entry name */
+    } ;
+@@ -14,7 +14,7 @@
+    char  dd_buf[32];    /* a one entry buffer */
+    } DIR;
+ 
+-#define DIRECT       struct direct
++#define DIRECT       struct dirent
+ #define rewinddir(a) seekdir(a, 0L)
+ 
+ extern DIR           *opendir();
+--- a/doalias.c
++++ b/doalias.c
+@@ -57,7 +57,7 @@
+      static char aliasfile[128];
+      static int firstpass = TRUE;
+      char line[SYSLINE];
+-     register char *p;
++      char *p;
+      char *words[WORDSIZE], *aptr;
+      FILE *file;
+      int foundalias, n;
+--- a/docmd.c
++++ b/docmd.c
+@@ -26,6 +26,17 @@
+    to the /DD/LOG/uulog file if possible. */
+ 
+ #include "uucp.h"
++static int docmd_error();
++static int docmd_error();
++static int docmd_error();
++static int docmd_error();
++static int docmd_error();
++static int docmd_error();
++static int docmd_error();
++static int docmd_error();
++static int docmd_error();
++static int docmd_error();
++static int docmd_error();
+ 
+ #ifndef _UCC
+ char *strtok();
+@@ -63,7 +74,7 @@
+ # endif
+ #else
+      char cmd[512]; 
+-     register char *p;
++      char *p;
+      int status;
+ 
+      strcpy (cmd, command);
+@@ -112,7 +123,7 @@
+ # endif
+ #else
+      char cmd[512];
+-     register char *p;
++      char *p;
+      int status;
+ 
+      strcpy (cmd, command);
+@@ -143,13 +154,13 @@
+ {
+ #ifdef _OSK
+      char cmd[256];
+-     register char *argv[32];
++      char *argv[32];
+ 
+      strcpy (cmd, command);
+      parse_cmd (argv, cmd);
+ #else
+      char cmd[256];
+-     register char *p;
++      char *p;
+ 
+      strcpy (cmd, command);
+      p = parse_cmd (cmd);
+@@ -176,16 +187,16 @@
+ char *name, *reason, *command;
+ {
+      char fname[100];
+-     register FILE *log;
++      FILE *uucpbb_log;
+ 
+      sprintf (fname, "%s/uulog", logdir);
+ 
+      /* Try logging the error, don't fret if we can't */
+-     if ((log = fopen (fname, "a")) != NULL)
+-       {
+-          fprintf (log, "%s %s: %s%s (error %d)\n",
++     if ((uucpbb_log = fopen (fname, "a")) != NULL)
++       {
++          fprintf (uucpbb_log, "%s %s: %s%s (error %d)\n",
+                         gtime(), name, reason, command, errno);
+-          fclose (log);
++          fclose (uucpbb_log);
+        }
+ 
+      fprintf (stderr, "%s: %s%s (error %d)\n", name, reason, command, errno);
+--- a/dotilde.c
++++ b/dotilde.c
+@@ -54,14 +54,14 @@
+      char cmd[80], from[256], msgid[100], command[128];
+      char *letter, *message, quotechar, *fname, c, *p, *words[3];
+      FILE *infile, *outfile;
+-     register char *doline;
++      char *doline;
+      flag douuencode = TRUE;
+      char *errmsg = "ERROR--",
+           *reopen = "can't reopen letter file\n",
+           *required = "a filename is required...\n",
+           *editor;                           /* moved from getparam.c --REB */
+ 
+-     pflinit();                              /* longs will be printed */
++                                   /* longs will be printed */
+      intercept (interrupt);
+      ++argv;
+      strcpy (command, *argv++);
+@@ -378,7 +378,7 @@
+ char quote;
+ int fixln;
+ {
+-     register char *doline;
++      char *doline;
+      int linecount, showlines;
+      long filesize;
+ 
+@@ -438,7 +438,7 @@
+ int putdashes (howmany)
+ int howmany;
+ {
+-     register int i;
++      int i;
+ 
+      putchar (' ');
+ 
+@@ -453,7 +453,7 @@
+ int isbin (source, letter, ext)
+ char *source, *ext, *letter;
+ {
+-     register char *p;
++      char *p;
+      FILE *fp;
+      int extlen = strlen (ext);
+ 
+@@ -478,14 +478,14 @@
+ int uuencodeit (source, letter)
+ char *source, *letter;
+ {
+-     register int saveout;
++      int saveout;
+      int result;
+      char *p, *dash = "---------------";
+ 
+      printf ("uuencoding %s...", source);
+      fflush (stdout);
+ 
+-     if (access (source, READ) == ERROR)
++     if (uucpbb_access (source, READ) == ERROR)
+           return (FALSE);
+ 
+      /* save standard output */
+@@ -494,7 +494,7 @@
+      /* try to redirect standard output */
+      close (STDOUT);
+      
+-     if (open (letter, WRITE) != STDOUT)
++     if (uucpbb_open (letter, WRITE) != STDOUT)
+        {
+           fprintf (stderr, "PANIC! can't redirect standard output to %s\n",
+                            letter);
+@@ -523,7 +523,7 @@
+ {
+ #ifndef TERMCAP
+      if (winopen)
+-          return;
++          return (0);
+ #endif
+      exit (sig);
+ }
+--- a/dumpcode.c
++++ b/dumpcode.c
+@@ -39,15 +39,15 @@
+ 
+      short tt, xxx, yyy;
+ 
+-     fprintf (log, "    %s ", msg);
++     fprintf (uucpbb_log, "    %s ", msg);
+      tt = (code->C & 0xC0) >> 6;
+      xxx = (code->C & 0x38) >> 3;
+      yyy = code->C & 7;
+  
+      if (tt == 0)
+           /* control message */
+-          fprintf (log, "%s %d\n", xxxlist[xxx], yyy);
++          fprintf (uucpbb_log, "%s %d\n", xxxlist[xxx], yyy);
+      else
+           /* packet */
+-          fprintf (log, "%s seg=%d ackno=%d\n", ttlist[tt], xxx, yyy);
++          fprintf (uucpbb_log, "%s seg=%d ackno=%d\n", ttlist[tt], xxx, yyy);
+ }
+--- a/expgroup.c
++++ b/expgroup.c
+@@ -30,7 +30,7 @@
+ #define BRUTE_LIMIT  32                         /* EK */
+ 
+ extern QQ int expireflag, debuglvl;             /* made direct page -- REB */
+-extern QQ FILE *log;                            /* Added -- REB */
++extern QQ FILE *uucpbb_log;                            /* Added -- REB */
+ extern char sender[];                           /*              */
+ extern struct active groups[];
+ 
+@@ -41,7 +41,7 @@
+ {                                    /* be before it is expired.            */
+      char filename[33];
+      int age, min, mid, max;                                     /* EK */
+-     register int i;
++      int i;
+      struct fildes finfo;
+      struct sgtbuf date;
+ 
+@@ -55,7 +55,7 @@
+        {
+           if (debuglvl > 3)
+                fputs ("expgroup: using brute-force to expire articles\n",
+-                      log);
++                      uucpbb_log);
+ 
+           /* expire articles -- brute force, linear search */
+           for (i = grp->index;  i <= grp->seq;  i++)
+@@ -64,14 +64,14 @@
+                sprintf (filename, "a%d", i);
+ 
+                if (debuglvl > 3)
+-                    fprintf (log, "expgroup: checking article %s\n",
++                    fprintf (uucpbb_log, "expgroup: checking article %s\n",
+                                   filename);
+ 
+                /* was the article already deleted? */
+                if ((age = getage (filename, &date)) == ERROR)
+                  {
+                     if (debuglvl > 3)
+-                         fprintf (log, "expire: unable to get age of article: %s\n",
++                         fprintf (uucpbb_log, "expire: unable to get age of article: %s\n",
+                                        filename);
+                     continue;
+                  }
+@@ -79,19 +79,19 @@
+                if (age > limit)
+                  {
+                     if (debuglvl > 2)
+-                         fprintf (log, "%s %s expiring %s\n",
++                         fprintf (uucpbb_log, "%s %s expiring %s\n",
+                                        sender, gtime(), filename);
+ 
+                     if (expireflag)
+                          unlink (filename);
+                     else
+-                         fprintf (log, "article %s/%s would have been deleted\n",
++                         fprintf (uucpbb_log, "article %s/%s would have been deleted\n",
+                                   grp->newsgroup, filename);
+                  }
+                else
+                  {
+                     if (!expireflag)                 /* added --REB */
+-                         fprintf (log, "article %s/%s too new\n",
++                         fprintf (uucpbb_log, "article %s/%s too new\n",
+                                   grp->newsgroup, filename);
+ 
+                     break;                /* Found first non-expirable file */
+@@ -106,7 +106,7 @@
+ 
+           if (debuglvl > 3)
+                fputs ("expgroup: using binary search to expire articles\n",
+-                      log);
++                      uucpbb_log);
+ 
+           while (max - min > 1)
+             {
+@@ -119,7 +119,7 @@
+                        &&   mid - i > min)
+                  {
+                     if (debuglvl > 3)
+-                         fprintf (log, "expire: unable to get age of article: %s\n",
++                         fprintf (uucpbb_log, "expire: unable to get age of article: %s\n",
+                                        filename);
+                     ++i;
+                     sprintf (filename, "a%d", mid - i);
+@@ -135,7 +135,7 @@
+             }
+ 
+           if (debuglvl > 1)
+-               fprintf (log, "expire: expiring articles %d to %d\n",
++               fprintf (uucpbb_log, "expire: expiring articles %d to %d\n",
+                              grp->index, min);
+ 
+           /* Now delete all articles, grp->index to min */
+@@ -144,7 +144,7 @@
+                sprintf (filename, "a%d", i);
+                
+                if (debuglvl > 2)
+-                    fprintf (log, "expiring article: %s\n", filename);
++                    fprintf (uucpbb_log, "expiring article: %s\n", filename);
+ 
+                if (expireflag)
+                     unlink (filename);
+@@ -167,7 +167,7 @@
+      int path, stat, year, mon, day, age;
+ 
+      /* get the file info sector */
+-     if ((path = open (filename, S_IREAD)) == -1)
++     if ((path = uucpbb_open (filename, S_IREAD)) == -1)
+           return (ERROR);                        /* Must already be deleted */
+ 
+      stat = _gs_gfd (path, &finfo, sizeof (finfo));
+@@ -187,7 +187,7 @@
+      age += (date->t_day - day);
+ 
+      if (debuglvl > 2)
+-          fprintf (log, "article %s age is %d days\n", filename, age);
++          fprintf (uucpbb_log, "article %s age is %d days\n", filename, age);
+ 
+      return (age);
+ }
+--- a/expire.c
++++ b/expire.c
+@@ -43,7 +43,7 @@
+ QQ int expireflag = TRUE;
+ QQ int debuglvl = 0;
+ QQ int ngroups;
+-QQ FILE *log;
++QQ FILE *uucpbb_log;
+ QQ int gotactive, ramdisk, logopen;
+ QQ unsigned myuid;                              /* to keep makepath() happy */
+ char sender[] = "expire";                       /*                          */
+@@ -56,7 +56,7 @@
+ char *argv[];
+ {
+      char newsgroup[100];
+-     register int i;                                      /* Changed -- REB */
++      int i;                                      /* Changed -- REB */
+      int limit, found;
+      int option, interrupt(), onegroup;                   /* Added -- REB */
+      char *fixgroupname();
+@@ -112,7 +112,7 @@
+      openlog();
+ 
+      if (!onegroup)
+-          fprintf (log, "%s %s expiring articles over %d days old\n",
++          fprintf (uucpbb_log, "%s %s expiring articles over %d days old\n",
+                         sender, gtime(), limit);
+ 
+      /* read active file into in-core table */
+@@ -135,12 +135,12 @@
+ 
+           if (expireflag)
+             {
+-               fprintf (log, "%s %s expiring: %s", 
++               fprintf (uucpbb_log, "%s %s expiring: %s", 
+                               sender, gtime(), groups[i].newsgroup);
+                if (onegroup)
+-                    fprintf (log, " articles over %d days old", limit);
+-
+-               putc ('\n', log);
++                    fprintf (uucpbb_log, " articles over %d days old", limit);
++
++               putc ('\n', uucpbb_log);
+             }
+           else
+                printf ("would expire '%s' newsgroup\n", groups[i].newsgroup);
+@@ -163,7 +163,7 @@
+        }
+ 
+      if (*newsgroup != '\0'  &&  !found)
+-          fprintf (log, "%s %s newsgroup not found: %s\n",
++          fprintf (uucpbb_log, "%s %s newsgroup not found: %s\n",
+                         sender, gtime(), newsgroup);
+ 
+      /* Update active file to reflect expired news articles */
+@@ -182,13 +182,13 @@
+ 
+      /* For testing send everything to the screen --REB */
+      if (expireflag == FALSE)
+-          log = stdout;
++          uucpbb_log = stdout;
+ 
+      /* with debug on, don't use the RAM disk --REB */
+      else if (debuglvl > 0)
+        {
+           sprintf (temp, "%s/uulog", logdir);
+-          log = fopen (temp, "a");
++          uucpbb_log = fopen (temp, "a");
+           logopen = TRUE;
+        }
+ 
+@@ -197,19 +197,19 @@
+        {
+           sprintf (temp, "%s/uulog", RAMDISK);
+ 
+-          if ((log = fopen (temp, "w")) != NULL)
++          if ((uucpbb_log = fopen (temp, "w")) != NULL)
+                ramdisk = TRUE;
+           else
+             {
+                sprintf (temp, "%s/uulog", logdir);
+-               log = fopen (temp, "a");
++               uucpbb_log = fopen (temp, "a");
+             }
+ 
+           logopen = TRUE;
+        }
+ 
+      /* log file should be unbuffered -- REB */
+-     setbuf (log, NULL);
++     setbuf (uucpbb_log, NULL);
+ }
+ 
+ 
+@@ -221,7 +221,7 @@
+      /* close log file -- REB */
+      if (logopen)
+        {
+-          fclose (log);
++          fclose (uucpbb_log);
+           logopen = FALSE;
+ 
+           /* move RAM disk copy to permanent log file -- REB */
+@@ -252,7 +252,7 @@
+ int usage()
+ {
+      char *strdetab(), temp[80];
+-     register char **use;
++      char **use;
+      static char *usetxt[] = {
+           "expire\t\tnews article expire utility",
+           " ",
+--- a/filemove.c
++++ b/filemove.c
+@@ -171,7 +171,7 @@
+ int fixLFCR, lf2cr;
+ {
+      char buff[BSIZE];
+-     register char *bscan;
++      char *bscan;
+      char *p, fromchar, tochar;
+      int count, noerror = TRUE;
+      long insize, _gs_size();
+--- a/fileserv.c
++++ b/fileserv.c
+@@ -76,7 +76,7 @@
+ 
+ QQ char *incomedir, *fsdir;
+ char tempfile[33];
+-FILE *log, *popen();
++FILE *uucpbb_log, *uucpbb_popen();
+ long _gs_size();
+ void wtlog(), warnadmin(), chg_to_dir(), flushbits(), writeheader();
+ void sendmsg(), rejectfile(), fatal();
+@@ -88,8 +88,8 @@
+      if (*tempfile != '\0')
+           unlink (tempfile);
+ 
+-     if (log != NULL)
+-          fclose (log);
++     if (uucpbb_log != NULL)
++          fclose (uucpbb_log);
+ 
+      exit (0);
+ }
+@@ -99,16 +99,16 @@
+ int main()
+ {
+      char replyto[256], address[256], line[BUFSIZE], buff[BUFSIZE];
+-     register char *lp;
++      char *lp;
+      char *words[WORDSIZE];
+      int i, n;
+      flag header, fileOK, fsdead, submitOK, firstcmd;
+      FILE *msg, *creat_temp();
+ 
+      *address = *replyto = *tempfile = '\0';
+-     log = NULL;
+-
+-     pflinit();                      /* tell compiler longs will be printed */
++     uucpbb_log = NULL;
++
++                           /* tell compiler longs will be printed */
+      intercept (interrupt);
+ 
+      if (getparam() == FALSE)
+@@ -214,8 +214,8 @@
+                          wtlog (address, lp);
+                          free (fsdir);
+ 
+-                         if (log != NULL)
+-                              fclose (log);
++                         if (uucpbb_log != NULL)
++                              fclose (uucpbb_log);
+ 
+                          flushbits();
+                          exit (0);
+@@ -363,8 +363,8 @@
+        }
+      free (fsdir);
+ 
+-     if (log != NULL)
+-          fclose (log);
++     if (uucpbb_log != NULL)
++          fclose (uucpbb_log);
+ 
+      exit (0);
+ }
+@@ -389,7 +389,7 @@
+ flag submitfile;
+ {
+      char tmp[65];
+-     register FILE *msg;
++      FILE *msg;
+ 
+      maketemp (tempfile, 'f');
+ 
+@@ -425,18 +425,18 @@
+        {
+           sprintf (fname, "%s/FileServ", logdir);
+ 
+-          if ((log = fopen (fname, "a")) == NULL)
++          if ((uucpbb_log = fopen (fname, "a")) == NULL)
+                return;
+ 
+           firstpass = FALSE;
+        }
+-     fprintf (log, "%s %s  (%s)\n", gtime(), address, command);
++     fprintf (uucpbb_log, "%s %s  (%s)\n", gtime(), address, command);
+ }
+ 
+ 
+ 
+ void writeheader (msgfile, address, subject, closefile)
+-register FILE *msgfile;
++ FILE *msgfile;
+ char *address, *subject;
+ flag closefile;
+ {
+@@ -469,7 +469,7 @@
+    Make the path name "./<pathname>" to test this.  Changed --REB  */
+ 
+ int pathallowed (path)
+-register char *path;
++ char *path;
+ {
+      char filepath[BUFSIZE+2], *p;
+ 
+@@ -494,8 +494,8 @@
+      else
+           strcpy (p, path);                             /* path    */
+ 
+-     if ((access (p, S_IREAD) == ERROR)
+-          && (access (p, S_IFDIR | S_IREAD) == ERROR))
++     if ((uucpbb_access (p, S_IREAD) == ERROR)
++          && (uucpbb_access (p, S_IFDIR | S_IREAD) == ERROR))
+        {
+           return (FALSE);
+        }
+@@ -513,7 +513,7 @@
+      char buff[128];
+      FILE *msg, *pipein;
+      char *cmd;
+-     register char *p;
++      char *p;
+ 
+      p = buff;
+ 
+@@ -542,13 +542,13 @@
+           return (FALSE);
+        }
+ 
+-     if ((pipein = popen (cmd, "r")) != NULL)
++     if ((pipein = uucpbb_popen (cmd, "r")) != NULL)
+        {
+           /* pipe the directory utility's standard output to the message */
+           while (mfgets (p, sizeof (buff), pipein) != NULL)
+                fprintf (msg, "%s\n", p);
+ 
+-          pclose (pipein);
++          uucpbb_pclose (pipein);
+        }
+      else
+        {
+@@ -571,7 +571,7 @@
+ char *source, *dest;
+ {
+      char buf[100];
+-     register char *p;
++      char *p;
+      FILE *fp;
+      char *ext;
+      int extlen;
+@@ -608,9 +608,9 @@
+ char *source, *dest;
+ {
+      int result;
+-     register char *p;
+-
+-     if (access (source, READ) == ERROR)
++      char *p;
++
++     if (uucpbb_access (source, READ) == ERROR)
+           return (FALSE);
+ 
+      /* redirect the standard output */
+@@ -647,7 +647,7 @@
+           /* try to redirect standard output */
+           close (STDOUT);
+      
+-          if (open (dest, WRITE) != STDOUT)
++          if (uucpbb_open (dest, WRITE) != STDOUT)
+             {
+                fprintf (stderr,
+                         "filserv: PANIC! make_pipe() can't redirect standard output to %s\n",
+@@ -676,14 +676,14 @@
+ void warnadmin (who, request)
+ char *who, *request;
+ {
+-     register FILE *msg;
++      FILE *msg;
+ 
+      maketemp (fname, 'w');
+ 
+      if ((msg = fopen (fname, "w")) == NULL)
+           return;
+ 
+-     writeheader (msg, errorsto, "WARNING--possible misuse of fileserver");
++     writeheader (msg, errorsto, "WARNING--possible misuse of fileserver", FALSE);
+ 
+      if ((msg = fopen (fname, "a")) == NULL)
+        {
+@@ -713,7 +713,7 @@
+ 
+ void sendmsg (address, tmpfile)
+ char *address;
+-register char *tmpfile;
++ char *tmpfile;
+ {
+      char cmd[128];
+      int result;
+@@ -761,7 +761,7 @@
+ void rejectfile (sender, command)
+ char *sender, *command;
+ {
+-     register FILE *msg;
++      FILE *msg;
+ 
+      /* bit bucket the file */
+      flushbits();
+@@ -773,7 +773,7 @@
+           unlink (fname);
+           return;
+        }
+-     writeheader (msg, sender, "WARNING--attempt to submit a file");
++     writeheader (msg, sender, "WARNING--attempt to submit a file", FALSE);
+ 
+      if ((msg = fopen (fname, "a")) == NULL)
+        {
+@@ -822,7 +822,7 @@
+ void flushbits()
+ {
+      char buff[BUFSIZE];
+-     register char *p;
++      char *p;
+      int count;
+ 
+      p = buff;
+@@ -834,7 +834,7 @@
+ 
+ 
+ void fatal (msg)
+-register char *msg;
++ char *msg;
+ {
+      fprintf (stderr, "fileserv: %s\n", msg);
+      interrupt (0);
+--- a/filexfer.c
++++ b/filexfer.c
+@@ -42,14 +42,14 @@
+ int msendfile (line)
+ char *line;
+ {
+-     register int stat;
++      int stat;
+ 
+      strcpy (temp, line);
+      getargs (words, temp, WORDSIZE);
+      strcpy (sender, *(words + 3));
+ 
+      if (debuglvl > 2)
+-          fputs ("msendfile: Send file to remote as MASTER\n", log);
++          fputs ("msendfile: Send file to remote as MASTER\n", uucpbb_log);
+  
+      if (strchr (*(words + 4), 'c') == NULL)
+           strcpy (Dfilename, *(words + 5));             /* spool file */
+@@ -112,14 +112,14 @@
+ int mrecvfile (line)
+ char *line;
+ {
+-     register int stat;
++      int stat;
+ 
+      strcpy (temp, line);
+      getargs (words, temp, WORDSIZE);
+      strcpy (sender, *(words + 3));
+ 
+      if (debuglvl >= 3)
+-          fputs ("mrecvfile: Receive file from remote as MASTER\n", log);
++          fputs ("mrecvfile: Receive file from remote as MASTER\n", uucpbb_log);
+ 
+      if ((strchr (*(words + 4), 'c') == NULL) && (words[2][0] == '/'))
+           strcpy (Dfilename, *(words + 5));             /* spool file */
+@@ -147,13 +147,13 @@
+        }
+ 
+      /* remote says OK */
+-     fprintf (log, "%s %s %s Received %s",
++     fprintf (uucpbb_log, "%s %s %s Received %s",
+                    sender, sysname, gtime(), Dfilename);
+ 
+      stat = filerecv();                        /* receive file from remote */
+ 
+      if (stat)
+-          fprintf (log, " <- %ld / %ld secs\n", filesize, t_total);
++          fprintf (uucpbb_log, " <- %ld / %ld secs\n", filesize, t_total);
+ 
+      return (stat);
+ }
+@@ -165,13 +165,13 @@
+ int ssendfile (cline)
+ char *cline;
+ {
+-     register int stat;
++      int stat;
+ 
+      getargs (words, cline, WORDSIZE);
+      strcpy (sender, *(words + 3));
+ 
+      if (debuglvl > 2)
+-          fputs ("ssendfile: Receive file from remote as SLAVE\n", log);
++          fputs ("ssendfile: Receive file from remote as SLAVE\n", uucpbb_log);
+ 
+      /* look for UNIX transfer address "~/receive/user/node" -- TK */
+      if ((strchr (*(words + 4), 'c') != NULL)   &&   (words[2][0] == '~'))
+@@ -185,15 +185,15 @@
+                strcpy (Dfilename, *(words + 2));
+        }
+ 
+-     fprintf (log, "%s %s %s Receiving %-13s",
++     fprintf (uucpbb_log, "%s %s %s Receiving %-13s",
+                    sender, sysname, gtime(), Dfilename);
+ 
+      if (debuglvl >= 5)
+-          putc ('\n', log);
++          putc ('\n', uucpbb_log);
+ 
+      if ((io_file = fopen (Dfilename, "w")) == NULL)      /* open file */
+        {
+-          fputs (" REFUSED - can't create file\n", log);
++          fputs (" REFUSED - can't create file\n", uucpbb_log);
+           wtmsg ("SN4");
+           return (FALSE);
+        }
+@@ -202,7 +202,7 @@
+      stat = filerecv();               /* receive file from remote */
+ 
+      if (stat)
+-          fprintf (log, " <- %ld / %ld secs\n", filesize, t_total);
++          fprintf (uucpbb_log, " <- %ld / %ld secs\n", filesize, t_total);
+ 
+      return (stat);
+ }
+@@ -214,13 +214,13 @@
+ int srecvfile (cline)
+ char *cline;
+ {
+-     register int stat;
++      int stat;
+ 
+      if (debuglvl > 3)
+-          fprintf (log, "srecvfile: cline=:%s:\n", cline);
++          fprintf (uucpbb_log, "srecvfile: cline=:%s:\n", cline);
+ 
+      if (debuglvl > 2)
+-          fputs ("srecvfile: Send file to remote as SLAVE\n", log);
++          fputs ("srecvfile: Send file to remote as SLAVE\n", uucpbb_log);
+ 
+      /* which file should we send you? */
+      getargs (words, cline, WORDSIZE);
+@@ -231,16 +231,16 @@
+      else
+           strcpy (Dfilename, *(words + 1));            /* source file */
+ 
+-     fprintf (log, "%s %s %s Request to get '%s' ",
++     fprintf (uucpbb_log, "%s %s %s Request to get '%s' ",
+                    sender, sysname, gtime(), Dfilename);
+ 
+      if (debuglvl >= 5)
+-          putc ('\n', log);
++          putc ('\n', uucpbb_log);
+ 
+      /* if we can't open the file, deny the request */
+      if ((io_file = fopen (Dfilename, "r")) == NULL)
+        {
+-          fputs ("DENIED - can't open file\n", log);
++          fputs ("DENIED - can't open file\n", uucpbb_log);
+           wtmsg ("RN2");
+           return (FALSE);
+        }
+@@ -249,7 +249,7 @@
+      stat = filesend (Dfilename);       /* send file to remote */
+ 
+      if (stat)
+-          fprintf (log, " -> %ld / %ld secs\n", filesize, t_total);
++          fprintf (uucpbb_log, " -> %ld / %ld secs\n", filesize, t_total);
+ 
+      return (stat);
+ }
+@@ -263,12 +263,12 @@
+ int filerecv()
+ {
+      char thisseq;
+-     register int type;
++      int type;
+      int length, done = FALSE;
+-     long t_start, t_end;
++     time_t t_start, t_end;
+ 
+      /* receive the file */
+-     time (&t_start);
++     uucpbb_time (&t_start);
+      while (!done)
+        {
+           type = getpacket (data, &length);
+@@ -298,7 +298,7 @@
+             }
+        }
+ 
+-     time (&t_end);
++     uucpbb_time (&t_end);
+      fflush (io_file);
+      fixperms (io_file);
+      filesize = _gs_size (fileno (io_file));
+@@ -324,7 +324,7 @@
+                if (filemove (*(words + 5), *(words + 2)) == FALSE)
+                  {
+                     wtmsg ("CN5");
+-                    fputs (" COPY FAILED\n", log);
++                    fputs (" COPY FAILED\n", uucpbb_log);
+                     return (FALSE);
+                  }
+        }
+@@ -333,7 +333,7 @@
+      wtmsg ("CY");
+ 
+      if (debuglvl > 2)
+-          fputs (" RECEIVE OK\n", log);
++          fputs (" RECEIVE OK\n", uucpbb_log);
+ 
+      return (TRUE);
+ }
+@@ -348,10 +348,10 @@
+ int filesend (filename)
+ char *filename;
+ {
+-     register int count;
+-     long t_start, t_end;
+-
+-     time (&t_start);
++      int count;
++     time_t t_start, t_end;
++
++     uucpbb_time (&t_start);
+ 
+      /* initialize sliding window */
+      swin_init();
+@@ -372,7 +372,7 @@
+      fflush (io_file);
+      filesize = _gs_size (fileno (io_file));
+      fclose (io_file);
+-     time (&t_end);
++     uucpbb_time (&t_end);
+      t_total = t_end - t_start;
+ 
+      if (t_total == 0L)
+@@ -385,7 +385,7 @@
+      if (strcmp (messg, "CY") == 0)                      /* Success */
+        {
+           if (debuglvl > 2)
+-               fputs (" SEND OK\n", log);
++               fputs (" SEND OK\n", uucpbb_log);
+ 
+           return (TRUE);
+        }
+@@ -405,31 +405,31 @@
+ int neg_reason (reason)
+ char reason;
+ {
+-     fprintf (log, "%s %s %s ", sender, sysname, gtime());
++     fprintf (uucpbb_log, "%s %s %s ", sender, sysname, gtime());
+ 
+      /* Were we given a reason why it was rejected? */
+      switch (reason)
+        {
+-          case NULL:
+-               fprintf (log, "%s --no reason given", tmp);
++          case 0:
++               fprintf (uucpbb_log, "%s --no reason given", tmp);
+                break;
+ 
+           case '2':
+-               fprintf (log, "%s --remote access to file denied", tmp);
++               fprintf (uucpbb_log, "%s --remote access to file denied", tmp);
+                break;
+ 
+           case '4':
+-               fprintf (log, "%s --remote system cannot create file", tmp);
++               fprintf (uucpbb_log, "%s --remote system cannot create file", tmp);
+                break;
+ 
+           case '5':
+-               fprintf (log,
++               fprintf (uucpbb_log,
+                         "%s --remote system cannot copy file to requested destination",
+                         tmp);
+                break;
+ 
+           default:
+-               fprintf (log, "%s --unknown reason = '%c'", tmp, reason);
+-       }
+-     putc ('\n', log);
+-}
++               fprintf (uucpbb_log, "%s --unknown reason = '%c'", tmp, reason);
++       }
++     putc ('\n', uucpbb_log);
++}
+--- a/finddev.c
++++ b/finddev.c
+@@ -34,7 +34,7 @@
+ char *key1, *key2, *filename, line[];
+ int length;
+ {
+-     register char *p;
++      char *p;
+      FILE *file;
+      char *words[WORDSIZE];
+      int result = FALSE;
+--- a/findent.c
++++ b/findent.c
+@@ -36,7 +36,7 @@
+ int length;
+ {
+      char *p1, srchkey[80];
+-     register char *p;
++      char *p;
+      FILE *file;
+      int result = FALSE;
+ 
+--- a/findline.c
++++ b/findline.c
+@@ -36,7 +36,7 @@
+ char *key, *filename, *line;
+ {
+      char *p1, srchkey[80];
+-     register char *p;
++      char *p;
+      FILE *file;
+      int result = FALSE;
+ 
+--- a/findmach.c
++++ b/findmach.c
+@@ -35,11 +35,11 @@
+ int *entryline;
+ {
+      char line[SYSLINE];
+-     register char *words[WORDSIZE];
++      char *words[WORDSIZE];
+      short i, n;
+ 
+      if (debuglvl > 0)
+-          fprintf (log, "findmach: checking Systems for %s...", sysname);
++          fprintf (uucpbb_log, "findmach: checking Systems for %s...", sysname);
+ 
+      do
+        {
+@@ -58,14 +58,14 @@
+                          return (FATAL);
+                       }
+                     else
+-                         fputs ("NOT FOUND\n", log);
++                         fputs ("NOT FOUND\n", uucpbb_log);
+ 
+                     return (ABORT);
+                  }
+                else if (found_one)
+                  {
+                     if (debuglvl > 0)
+-                         fputs ("no other entry\n", log);
++                         fputs ("no other entry\n", uucpbb_log);
+ 
+                     return (NOANSWER);
+                  }
+@@ -73,7 +73,7 @@
+                  {
+                     char tmp[45];
+ 
+-                    fprintf (log, "Wrong time to call (%s)", sysname);
++                    fprintf (uucpbb_log, "Wrong time to call (%s)", sysname);
+                     logerror (tmp);
+                     return (ABORT);
+                  }
+@@ -94,7 +94,7 @@
+      found_one = TRUE;
+ 
+      if (debuglvl > 0)
+-          fprintf (log, "got it\n");
++          fprintf (uucpbb_log, "got it\n");
+ 
+      /* retrieve baud rate and phone number */
+      strcpy (baud, *(words+3));
+--- a/findwork.c
++++ b/findwork.c
+@@ -26,9 +26,9 @@
+ #include "uucico.h"
+ #include <modes.h>
+ #ifndef _OSK
+-#include "dir_6809.h"
++#include <dirent.h>
+ #else
+-#include <dir.h>
++#include <dirent.h>
+ #endif
+ 
+ 
+@@ -38,7 +38,7 @@
+ int anywork()
+ {
+      DIR *dp;
+-     register struct direct *dirbuf;            /* defined in dir.h */
++      struct dirent *dirbuf;            /* defined in dir.h */
+      flag worktodo = FALSE;
+ 
+      if ((dp = opendir (".")) == NULL)
+@@ -65,7 +65,7 @@
+ {
+      void dowork();
+      DIR *dp;                                  /* defined in dir.h */
+-     register struct direct *dirbuf;           /*                  */
++      struct dirent *dirbuf;           /*                  */
+ 
+      /* Open spool directory; exit on error.  Our current data directory
+         should already be the correct spool directory for this remote. */
+@@ -73,7 +73,7 @@
+      if (role == SLAVE)
+      {
+        if (debuglvl > 1)
+-            fputs ("findwork: Why is the SLAVE here?\n", log);
++            fputs ("findwork: Why is the SLAVE here?\n", uucpbb_log);
+ 
+        return;
+      }
+@@ -102,12 +102,12 @@
+ {
+      char line[100];
+      FILE *file;
+-     register char *p;
++      char *p;
+      flag workdone, killC = TRUE;                      /* assume we succeed */
+ 
+      if ((file = fopen (cfile, "r")) == NULL)                 /* DEBUG */
+        {
+-          fprintf (log, "DEBUG--dowork: can't open C. file '%s'\n", cfile);
++          fprintf (uucpbb_log, "DEBUG--dowork: can't open C. file '%s'\n", cfile);
+           return;
+        }
+ 
+--- a/findxwork.c
++++ b/findxwork.c
+@@ -25,14 +25,14 @@
+ #include "uucp.h"
+ #include <modes.h>
+ #ifndef _OSK
+-#include "dir_6809.h"
++#include <dirent.h>
+ #else
+-#include <dir.h>
++#include <dirent.h>
+ #endif
+ 
+ #define WORDSIZE  10
+ 
+-EXTERN QQ FILE *log;
++EXTERN QQ FILE *uucpbb_log;
+ EXTERN QQ flag debuglvl, didwork, quiet, logopen;
+ EXTERN char sender[], sysname[];
+ 
+@@ -40,7 +40,7 @@
+ int findxwork()
+ {
+      DIR *dp;                                      /* defined in dir.h */
+-     register struct direct *dirbuf;               /*                  */
++      struct dirent *dirbuf;               /*                  */
+ 
+      /* We should already be in the system's spool directory on entry */
+ 
+@@ -62,7 +62,7 @@
+ char *xfile;
+ {
+      char line[200], filenm[16], cmd[200], remoteuser[20], remotenode[20];
+-     register char *words[WORDSIZE];
++      char *words[WORDSIZE];
+      FILE *file;
+      int an_error;
+ 
+@@ -71,12 +71,12 @@
+ 
+      if ((file = fopen (xfile, "r")) == NULL)
+        {
+-          fprintf (log, "%s %s - uuxqt: can't open control file '%s'\n",
++          fprintf (uucpbb_log, "%s %s - uuxqt: can't open control file '%s'\n",
+                         sender, gtime(), xfile);
+           return (0);
+        }
+ 
+-     while (getline (file, line) != -1)
++     while (uucpbb_getline (file, line) != -1)
+        {
+           getargs (words, line, WORDSIZE);
+           switch (words[0][0])
+@@ -105,13 +105,13 @@
+                               sprintf (cmd, "rnews %s", filenm);
+                       }
+ 
+-                    fprintf (log, "%s %s %s %s\n",
++                    fprintf (uucpbb_log, "%s %s %s %s\n",
+                                   sender, remotenode, gtime(), cmd);
+ 
+                     /* close log file so rmail/rnews can use it */
+                     if (logopen)
+                       {
+-                         fclose (log);
++                         fclose (uucpbb_log);
+                          logopen = FALSE;
+                       }
+ 
+--- a/fixline.c
++++ b/fixline.c
+@@ -35,7 +35,7 @@
+ int fixline (line)
+ char *line;
+ {
+-     register char *p;
++      char *p;
+      char *nptr, *strdetab();
+      char newline[256];
+      flag escflag = FALSE;
+--- a/fixref.c
++++ b/fixref.c
+@@ -27,7 +27,7 @@
+ int fixref (line)
+ char *line;
+ {
+-     register char *p;
++      char *p;
+      char *tptr, lastchar = '\0';
+ 
+      p = tptr = line;
+--- a/fixtext.c
++++ b/fixtext.c
+@@ -109,7 +109,7 @@
+ 
+ int usage()
+ {
+-     register char **use;
++      char **use;
+      static char *usetxt[] = {
+          "\nfixtext: A text file filter.  Removes escape sequences, expand tabs and change",
+          "         end-of-line terminators to OS-9 ones.",
+--- a/forkshell.c
++++ b/forkshell.c
+@@ -53,7 +53,7 @@
+           write (1, "\x1b\x22\x01\x00\x00\x50\x18\d00\d01", 9);
+           docmd_na (cmd);
+           write (1,"\x1b\x23", 2);
+-          return;
++          return (0);
+        }
+ #endif
+      /* Nothing fancy, just give 'em the shell prompt */
+--- a/genseq.c
++++ b/genseq.c
+@@ -42,11 +42,14 @@
+ static char sequence[5];
+ 
+ 
++#ifdef UUCPBB_LLVM_OZ
++__attribute__((optnone, noinline))
++#endif
+ char *genseq()
+ {
+     char seq[5], nextseq();
+     FILE *sfp;
+-    register int i;
++     int i;
+     flag carry;
+ 
+     /* must be superuser to get at the sequence file */
+--- a/getdirs.c
++++ b/getdirs.c
+@@ -40,7 +40,7 @@
+ char *directory;
+ {
+      char line[100];
+-     register char *p;
++      char *p;
+      FILE *fp;
+      char *p2, *words[WORDSIZE];
+      int n, linecount, dirlen = strlen (directory);
+--- a/getenv.c
++++ b/getenv.c
+@@ -80,7 +80,7 @@
+           *userenv = USERENV,
+           *bptr2;
+      PWENT *pwentry;
+-     register char *bptr;
++      char *bptr;
+      char *lookformatch();
+ 
+      bptr = (char *)NULL;
+@@ -160,7 +160,7 @@
+ char *var, *buff;
+ int bufsize;
+ {
+-     register char *bptr;
++      char *bptr;
+      int varlen = strlen (var);
+ 
+      while (mfgets (buff, bufsize, fp) != 0)
+--- a/getline.c
++++ b/getline.c
+@@ -31,12 +31,12 @@
+ 
+ #include <stdio.h>
+ 
+-int getline (file, line)
++int uucpbb_getline (file, line)
+ FILE *file;
+ char *line;
+ {
+      int c, count = 0;
+-     register char *p;
++      char *p;
+ 
+      p = line;
+      while ((c = getc (file)) != EOF)
+--- a/getparam.c
++++ b/getparam.c
+@@ -104,7 +104,7 @@
+ {
+      char line[132];
+      FILE *file;
+-     register char *p;
++      char *p;
+      char *words[WORDSIZE], *tmp_ptr;
+      int n, which, linecount;
+ 
+@@ -447,7 +447,7 @@
+ 
+ 
+ int setonoff (word, thisline)
+-register char *word;
++ char *word;
+ int thisline;
+ {
+      if ((strucmp (word, "on") == 0)  ||  (strucmp(word, "yes") == 0))
+@@ -495,11 +495,11 @@
+ #ifdef _OSK
+      time_t t;
+ #else
+-     long t;
++     time_t t;
+ #endif
+ 
+-     time (&t);
+-     ltime = localtime (&t);
++     uucpbb_time (&t);
++     ltime = gmtime (&t);
+ 
+      /* DST run from 2 a.m. of *first* Sunday in April till last Sunday in
+         October.  Fixed wrong DST start day. --REB */
+--- a/getsys.c
++++ b/getsys.c
+@@ -32,7 +32,7 @@
+ {
+      char line[SYSLINE];
+      FILE *file;
+-     register char *p;
++      char *p;
+      char *systems = SYSTEMS;
+ 
+      /* we already have a system name */
+--- a/getuser.c
++++ b/getuser.c
+@@ -31,7 +31,7 @@
+ int getuser (user)
+ char *user;
+ {
+-     register PWENT *pwentry;
++      PWENT *pwentry;
+ 
+      if (homedir == NULL)
+        {
+--- a/getval.c
++++ b/getval.c
+@@ -30,7 +30,7 @@
+ static char vtemp[BUFFSIZE];
+ 
+ #ifndef _OSK
+-char *memset();
++
+ #endif
+ 
+ char *cutspace();
+@@ -41,7 +41,7 @@
+ char *getval (line)
+ char *line;
+ {
+-     register char *p;
++      char *p;
+ 
+      memset (vtemp, '\0', sizeof (vtemp));
+ 
+@@ -85,7 +85,7 @@
+ char *getrealname (line)
+ char *line;
+ {
+-     register char *p;
++      char *p;
+ 
+      memset (vtemp, '\0', sizeof (vtemp));
+ 
+@@ -139,7 +139,7 @@
+ char *getstring (line)
+ char *line;
+ {
+-     register char *p;
++      char *p;
+ 
+      memset (vtemp, '\0', sizeof (vtemp));
+ 
+--- a/gproto.c
++++ b/gproto.c
+@@ -44,7 +44,7 @@
+ 
+ int gproto()
+ {
+-     register flag state;
++      flag state;
+      short length, i;
+      int qq = 0;
+ 
+@@ -70,7 +70,7 @@
+ 
+      /* Set data packet size */
+      if (debuglvl > 4)
+-          fprintf (log, "Sent: INITB %d\n", rec_segment);
++          fprintf (uucpbb_log, "Sent: INITB %d\n", rec_segment);
+ 
+      wtcontrol (INITB | rec_segment-1);
+ 
+@@ -95,7 +95,7 @@
+      winsiz = inpacket.C & 0x07;
+ 
+      if (debuglvl > 0)
+-          fprintf (log,
++          fprintf (uucpbb_log,
+                    "%s %s %s DEBUG--gproto: protocol started; segsize = %d, winsize = %d\n",
+                    sender, sysname, gtime(), segsiz, winsiz);
+ 
+@@ -153,7 +153,7 @@
+ 
+ int master()
+ {
+-     register int type;
++      int type;
+      int len;
+ 
+      /* find and perform all queued work as master */
+@@ -161,18 +161,18 @@
+      
+ #ifndef DEBUG
+      if (debuglvl > 1)
+-          fputs ("master: asking remote if it has work for us\n", log);
++          fputs ("master: asking remote if it has work for us\n", uucpbb_log);
+ else      
+      if (debuglvl > 1)
+           fputs ("master: sending H to Slave to see if it has work for us\n",
+-                 log);
++                 uucpbb_log);
+ #endif
+ 
+      /* does other system have queued work for us? */
+      wtmsg ("H");
+ 
+ #ifdef DEBUG
+-     fputs("master: Sent H to slave\n",log);
++     fputs("master: Sent H to slave\n",uucpbb_log);
+ #endif
+ 
+      /* The only valid responses from H should be HY or HN.  An HN means that
+@@ -180,19 +180,19 @@
+         ok to begin to shut the protocol down --BAS */
+ 
+ #ifdef DEBUG
+-     fputs("master: About to read an HY or HN from slave\n",log);
++     fputs("master: About to read an HY or HN from slave\n",uucpbb_log);
+ #endif
+ 
+      rdmsg (msg);
+ 
+ #ifdef DEBUG
+-     fputs("master: Read an HY or HN from slave\n",log);
++     fputs("master: Read an HY or HN from slave\n",uucpbb_log);
+ #endif
+ 
+      if (strncmp (msg, "HN", 2) == 0)
+        {
+           if (debuglvl > 1)
+-               fputs ("master: Slave wants to reverse roles\n", log);
++               fputs ("master: Slave wants to reverse roles\n", uucpbb_log);
+ 
+           role = SLAVE;
+           return (SLAVE);
+@@ -202,12 +202,12 @@
+ 
+ #ifndef DEBUG
+      if (debuglvl > 1)
+-          fputs ("master: remote says no, hang up\n", log);
++          fputs ("master: remote says no, hang up\n", uucpbb_log);
+ #else
+      if (debuglvl > 1)
+-          fputs ("master: slave must want to quit\n", log);
+-
+-     fputs ("master: About to send final HY to slave\n", log);
++          fputs ("master: slave must want to quit\n", uucpbb_log);
++
++     fputs ("master: About to send final HY to slave\n", uucpbb_log);
+ #endif
+ 
+      /* We need to munch an LDATA(HY) when we run Taylor UUCP  -- BAS */
+@@ -216,16 +216,16 @@
+      eat_HY = FALSE;
+ 
+ #ifdef DEBUG
+-     fputs ("master: Sent final HY to slave\n", log);
++     fputs ("master: Sent final HY to slave\n", uucpbb_log);
+ #endif
+ 
+      if (debuglvl > 3)
+-       fputs ("master: About to read last message from slave\n", log);
++       fputs ("master: About to read last message from slave\n", uucpbb_log);
+ 
+      type = getpacket (msg, &len);
+ 
+ #ifdef DEBUG
+-     fputs ("master: Got last message from slave\n", log);
++     fputs ("master: Got last message from slave\n", uucpbb_log);
+ #endif
+ 
+      switch (type)
+@@ -237,9 +237,9 @@
+           case SDATA:
+                if (debuglvl > 3)
+                     fputs ("master: slave sent us a LDATA or SDATA, RR it and send a CLOSE.\n",
+-                           log);
+-
+-               rseq = (++rseq & 0x07);
++                           uucpbb_log);
++
++               rseq = (rseq + 1) & 0x07;
+                wtcontrol (RR | rseq);
+                break;
+ 
+@@ -249,7 +249,7 @@
+           case RR:
+                if (debuglvl > 3)
+                     fputs ("master: slave sent us an RR, send them CLOSE.\n",
+-                           log);
++                           uucpbb_log);
+ 
+               return (CLOSE);
+               break;
+@@ -258,7 +258,7 @@
+           case CLOSE:
+                if (debuglvl > 3)
+                     fputs ("master: slave sent us an CLOSE, send them one.\n",
+-                           log);
++                           uucpbb_log);
+ 
+                return (CLOSE2);
+                break;
+@@ -269,10 +269,10 @@
+           default:
+                if (debuglvl > 1)
+                  {
+-                    fprintf (log,
++                    fprintf (uucpbb_log,
+                              "master: slave sent us something--> %d\n",
+                              type);
+-                    fputs ("          send them a CLOSE.\n", log);
++                    fputs ("          send them a CLOSE.\n", uucpbb_log);
+                  }
+                break;
+        }
+@@ -286,14 +286,14 @@
+ 
+ int slave()
+ {
+-     register int type;
++      int type;
+      int len;
+ 
+      /* do all the queued work for us */
+      for (rdmsg (msg);  strcmp (msg, "H") != 0;  rdmsg (msg))
+        {
+           if (debuglvl > 1)                                        /* DEBUG */
+-               fprintf (log, "DEBUG--slave: cline=%s:\n", msg);
++               fprintf (uucpbb_log, "DEBUG--slave: cline=%s:\n", msg);
+ 
+           slavework (msg);
+        }
+@@ -302,12 +302,12 @@
+      if (anywork() == 1)
+        {
+           if (debuglvl > 3)
+-               fputs ("slave: switch roles, send HN to master\n", log);
++               fputs ("slave: switch roles, send HN to master\n", uucpbb_log);
+ 
+           wtmsg ("HN");
+ 
+ #ifdef DEBUG
+-          fputs ("slave: Sent an HN to master\n", log);
++          fputs ("slave: Sent an HN to master\n", uucpbb_log);
+ #endif
+           role = MASTER;
+           return (MASTER);
+@@ -315,16 +315,16 @@
+ 
+      if (debuglvl > 3)
+           fputs ("slave: slave has no work to do, send last HY to master\n",
+-                 log);
++                 uucpbb_log);
+ 
+      wtmsg ("HY");
+ 
+ #ifdef DEBUG
+-     fputs ("slave: Sent last HY to master\n", log);
++     fputs ("slave: Sent last HY to master\n", uucpbb_log);
+ #endif
+ 
+      if (debuglvl > 3)
+-          fputs ("slave: read last message from master\n", log);
++          fputs ("slave: read last message from master\n", uucpbb_log);
+ 
+      /* According to the spec. on the 'g' protocol, the only thing that should
+         be sent from the master is a LDATA(HY), however, at least Ultrix
+@@ -333,7 +333,7 @@
+      type = getpacket (msg, &len);
+ 
+ #ifdef DEBUG
+-     fputs ("slave: Got last message from master\n", log);
++     fputs ("slave: Got last message from master\n", uucpbb_log);
+ #endif
+ 
+      switch (type)
+@@ -345,9 +345,9 @@
+           case SDATA:
+                if (debuglvl > 3)
+                     fputs ("slave: master sent us a LDATA or SDATA, RR it and send a CLOSE.\n",
+-                           log);
+-
+-               rseq = (++rseq & 0x07);
++                           uucpbb_log);
++
++               rseq = (rseq + 1) & 0x07;
+                wtcontrol (RR | rseq);
+                break;
+ 
+@@ -355,7 +355,7 @@
+           case RR:
+                if (debuglvl > 3)
+                     fputs ("slave: master sent us an RR, send them CLOSE.\n",
+-                           log);
++                           uucpbb_log);
+ 
+                return (CLOSE);
+                break;
+@@ -364,7 +364,7 @@
+           case CLOSE:
+                if (debuglvl > 3)
+                     fputs ("slave: master sent us an CLOSE, send them one.\n",
+-                           log);
++                           uucpbb_log);
+ 
+                return (CLOSE2);
+                break;
+@@ -373,9 +373,9 @@
+           default:
+                if (debuglvl > 1)
+                  {
+-                    fprintf (log,
++                    fprintf (uucpbb_log,
+                              "slave: master sent us something--> %d\n", type);
+-                    fputs ("          send them a CLOSE.\n", log);
++                    fputs ("          send them a CLOSE.\n", uucpbb_log);
+                  }
+                break;
+        }
+@@ -401,7 +401,7 @@
+ int length;
+ {
+      /* send current packet */
+-     sseq = (++sseq & 7);
++     sseq = (sseq + 1) & 7;
+      wtdata (type, data, length);
+      swin_flush (FALSE);
+ }
+@@ -416,7 +416,7 @@
+ int sw_flag;
+ {
+      char tseq = sseq;
+-     register int type;
++      int type;
+      int length, size;
+      flag ready = TRUE;
+      struct pk *outp;
+@@ -440,7 +440,7 @@
+           /* If we have to retransmit a packet, do so */
+           if (tseq != sseq)
+             {
+-               tseq = (++tseq & 7);
++               tseq = (tseq + 1) & 7;
+                outp = &(outpacket[tseq]);
+ 
+                size = uucpbufsiz[outp->K];
+@@ -467,7 +467,7 @@
+ 
+                if (debuglvl > 8)
+                 {
+-                    fputs ("        ", log);
++                    fputs ("        ", uucpbb_log);
+                     strdump (outp->data);
+                 }
+             }
+@@ -491,12 +491,12 @@
+                       {
+                          if (debuglvl > 3)
+                               fputs ("swin_flush: eating an LDATA(HY) and sending RR\n",
+-                                     log);
++                                     uucpbb_log);
+ 
+                          /* Tell a bit of a lie to the switch statement that
+                             follows... -- BAS */
+                          type = RR;
+-                         rseq = (++rseq & 0x07);
++                         rseq = (rseq + 1) & 0x07;
+                          wtcontrol (RR | rseq);
+                       }
+ 
+@@ -516,7 +516,7 @@
+                     /* Huh?  Unexpected packet type!  Log error. --REB */
+                     default:
+                          if (debuglvl > 0)
+-                              fprintf (log,
++                              fprintf (uucpbb_log,
+                                        "\n%s %s %s Unexpected packet type: $%X msg = %s\n",
+                                        sender, sysname, gtime(), type, msg);
+                  }
+@@ -539,11 +539,11 @@
+ 
+ /* wtdata  --packetize data + send.  Don't wait for response */
+ 
+-int wtdata (type, data, length)
++__attribute__((optnone, noinline)) int wtdata (type, data, length)
+ char type, *data;
+ int length;
+ {
+-     register struct pk *outp;
++      struct pk *outp;
+ #ifdef _OSK
+      short cksum;
+ #else
+@@ -606,10 +606,10 @@
+ int wtmsg (message)
+ char *message;
+ {
+-     register char *p;
++      char *p;
+ 
+      if (debuglvl >= 5)
+-          fprintf (log, ">> %s\n", message);
++          fprintf (uucpbb_log, ">> %s\n", message);
+ 
+      p = message;
+ 
+@@ -636,7 +636,7 @@
+ /* wtcontrol  --write control packet, don't wait for response */
+ 
+ int wtcontrol (code)
+-register int code;
++ int code;
+ {
+      static struct pk outp;
+ #ifdef _OSK
+@@ -669,7 +669,7 @@
+              length of data (zero if no data)
+              type of packet (CLOSE, LDATA, SDATA, RR, INITA, etc) */
+ 
+-int rdpacket (data, length)
++__attribute__((optnone, noinline)) int rdpacket (data, length)
+ char *data;
+ int  *length;
+ {
+@@ -790,7 +790,7 @@
+ int rdmsg (message)
+ char *message;
+ {
+-     register int i;
++      int i;
+      int msglen, length, type;
+      char *p;
+ 
+@@ -801,7 +801,7 @@
+           for (i = 0; i < GET_TRY; i++)
+                if ((type = getpacket (p, &length)) == LDATA || type == SDATA)
+                  {
+-                    rseq = (++rseq & 0x7);
++                    rseq = (rseq + 1) & 0x7;
+                     wtcontrol (RR | rseq);
+                     break;
+                  }
+@@ -820,7 +820,7 @@
+      while (type == LDATA && length == msglen);
+ 
+      if (debuglvl > 4)
+-          fprintf (log, "<< %s\n", message);
++          fprintf (uucpbb_log, "<< %s\n", message);
+ }
+ 
+ 
+@@ -832,7 +832,7 @@
+ int *length;
+ {
+      int status;
+-     register int tries;
++      int tries;
+ 
+      for (tries = 0; tries < GET_TRY; tries++)
+        {
+@@ -845,9 +845,9 @@
+        }
+ 
+      /* If we get too many errors, abort to highest level and exit. */
+-     putc ('\n', log);
++     putc ('\n', uucpbb_log);
+      logerror ("getpacket: too many checksum errors in received packets");
+-     fputs ("                       *** TRANSFER ABORTED ***\n", log);
++     fputs ("                       *** TRANSFER ABORTED ***\n", uucpbb_log);
+      longjmp (env, FATAL);
+ }
+ 
+@@ -855,30 +855,23 @@
+ 
+ /*========== Calculate checksum routines for 6809, 6309 and OSK ==========*/
+ 
+-#ifdef _OSK
++#if defined(_OSK) || defined(__clang__)
+ /* g_chksum for OSK borrowed from Taylor UUCP */
+ 
+-int g_chksum (z, c)
+-register char *z;
+-register int c;
+-{
+-     register unsigned int ichk1, ichk2;
++__attribute__((optnone, noinline)) int g_chksum (z, c)
++ char *z;
++ int c;
++{
++      unsigned int ichk1, ichk2;
+ 
+      ichk1 = 0xffff;
+      ichk2 = 0;
+ 
+      do
+        {
+-          register unsigned int b;
+-
+-          /* rotate ichk1 left */
+-          if ((ichk1 & 0x8000) == 0)
+-               ichk1 <<= 1;
+-          else
+-            {
+-               ichk1 <<= 1;
+-               ++ichk1;
+-            }
++           unsigned int b;
++
++          ichk1 = (ichk1 << 1) | (ichk1 >> 15);
+ 
+           /* add next character to ichk1 */
+           b = *z++ & 0xff;
+@@ -954,7 +947,7 @@
+ #  else
+ #  asm        assembler routine for OS9/6809 using 6309
+ 
+-*             This routine uses the W register.  It assumes OS-9's kernel is
++*             This routine uses the W .  It assumes OS-9's kernel is
+ *             patched so it does not destroy the contents of W during
+ *             interrupts.  Burke & Burke's PowerBoost is an example of such
+ *             a patch.
+--- a/groups.c
++++ b/groups.c
+@@ -37,7 +37,7 @@
+ 
+ #define ZZZZZZZ 7
+ 
+-struct mbuf *getgroups()
++struct mbuf *uucpbb_getgroups()
+ {
+      char lbuf[512], line[BUFSIZ];
+      struct groups g;
+@@ -48,7 +48,7 @@
+ 
+      /* Ok, try to open the active file, non-shareable */
+      for (;;)
+-          if ((gfd = open (NGROUPS,S_IREAD|S_IWRITE|S_ISHARE)) < 0)
++          if ((gfd = uucpbb_open (NGROUPS,S_IREAD|S_IWRITE|S_ISHARE)) < 0)
+             {
+                /* If this file is busy, then sleep for a bit and try again. 
+                   Something could be done with zcnt sometime */
+@@ -60,7 +60,7 @@
+                          sprintf (lbuf,
+                                   "'%s' is busy.  I'll try again in a bit.",
+                                   NGROUPS);
+-                         log (lbuf);
++                         uucpbb_log (lbuf);
+                       }
+ 
+                     zcnt++;
+@@ -71,7 +71,7 @@
+                  {
+                     sprintf (lbuf, "Can't open '%s', because '%d'",
+                                    NGROUPS, errno);
+-                    log (lbuf);
++                    uucpbb_log (lbuf);
+                     exit (errno);
+                  }
+             }
+@@ -82,7 +82,7 @@
+      if ((gfp = fdopen (gfd, "r+")) == NULL)
+        {
+           sprintf (lbuf, "can't fdopen %s", NGROUPS);
+-          log (lbuf);
++          uucpbb_log (lbuf);
+           exit (1);
+        }
+ 
+@@ -120,7 +120,7 @@
+                               ((struct groups *)mp->cbuf)->name,
+                               ((struct groups *)mp->cbuf)->min,
+                               ((struct groups *)mp->cbuf)->max);
+-               log (lbuf);
++               uucpbb_log (lbuf);
+             }
+        }
+ 
+@@ -153,7 +153,7 @@
+ 
+      if (gfp == NULL)
+        {
+-          log ("Active file doesn't appear open");
++          uucpbb_log ("Active file doesn't appear open");
+           return;
+        }
+ 
+@@ -174,7 +174,7 @@
+                               ((struct groups *)mp->cbuf)->name,
+                               ((struct groups *)mp->cbuf)->min,
+                               ((struct groups *)mp->cbuf)->max);
+-               log (lbuf);
++               uucpbb_log (lbuf);
+             }
+        }
+ 
+--- a/gtime.c
++++ b/gtime.c
+@@ -31,7 +31,7 @@
+ 
+ char *gtime()
+ {
+-     register struct sgtbuf *p;
++      struct sgtbuf *p;
+      struct sgtbuf gtpack;
+      static char *months[] = {"Jan","Feb","Mar","Apr","May","Jun",
+                               "Jul","Aug","Sep","Oct","Nov","Dec"};
+--- a/header/dir.h
++++ b/header/dir.h
+@@ -1,5 +1,5 @@
+ 
+-struct direct {
++struct dirent {
+    long  d_addr;        /* file desc addr */
+    char  d_name[30];    /* directory entry name */
+    } ;
+@@ -14,7 +14,7 @@
+    char  dd_buf[32];    /* a one entry buffer */
+    } DIR;
+ 
+-#define DIRECT       struct direct
++#define DIRECT       struct dirent
+ #define rewinddir(a) seekdir(a, 0L)
+ 
+ extern DIR           *opendir();
+--- a/header/utime.h
++++ b/header/utime.h
+@@ -15,10 +15,10 @@
+       int   tm_isdst;         /* not used */
+       };
+ 
+-long        time();           /* just like Unix */
+-struct tm   *localtime();     /* just like Unix */
++long        uucpbb_time();           /* just like Unix */
++struct tm   *gmtime();     /* just like Unix */
+ char        *asctime();       /* just like Unix */
+-char        *ctime();         /* just like Unix */
++char        *uucpbb_ctime();         /* just like Unix */
+ 
+ long        o2utime();        /* converts os9 style buf to Unix long */
+ void        u2otime();        /* converts 'tm' to os9 char buf */
+--- a/log.c
++++ b/log.c
+@@ -85,7 +85,7 @@
+    Really, varargs should be used here, but I don't know if OSK or OS-9000
+    has them */
+ 
+-int log (message)
++int uucpbb_log (message)
+ char *message;
+ {
+      FILE *fd;
+--- a/login.c
++++ b/login.c
+@@ -89,7 +89,7 @@
+      inname[PWNSIZ+1],                  /* User name input */
+      inpass[PWPSIZ+1];                  /* User password input */
+ 
+-long curr_time;                         /* holds login time [MDG] */
++time_t curr_time;                         /* holds login time [MDG] */
+ struct sgtbuf os9_time;
+ char *chk_alias();
+ 
+@@ -192,7 +192,7 @@
+        {
+           /*  Add invalid entry in error log  [EG] */
+           logerr (1);
+-          return;
++          return (0);
+        }
+ 
+      /* Do we need to get a password? */
+@@ -215,7 +215,7 @@
+           if (crcpass.l != htol (pwentry->upw))
+             {
+                logerr (1);
+-               return;
++               return (0);
+             }
+        }
+ 
+@@ -229,7 +229,7 @@
+      procid = getpid();
+ 
+      /* Get the login time and update the log file - added [MDG] */
+-     curr_time = time ((long *)0);
++     curr_time = uucpbb_time (NULL);
+ 
+      if (chdir (logdir) == -1)
+        {
+@@ -246,7 +246,7 @@
+           myexit (0);
+        }
+ 
+-     strcpy (tmptime, ctime (&curr_time));
++     strcpy (tmptime, uucpbb_ctime (&curr_time));
+      tmptime[3] = tmptime[10] = tmptime[19] = tmptime[24] = '\0';
+ 
+      /* Print login messages */
+@@ -281,7 +281,7 @@
+ 
+      sprintf (tempstr,"%s,%s,",login_name, devname);       /* added --REB */
+      fwrite (tempstr, strlen (tempstr), sizeof(char), fp);
+-     fwrite (ctime (&curr_time), strlen (ctime (&curr_time)), sizeof(char), fp);
++     fwrite (uucpbb_ctime (&curr_time), strlen (uucpbb_ctime (&curr_time)), sizeof(char), fp);
+      fclose (fp);
+ 
+      /* Change directories */
+@@ -328,12 +328,12 @@
+     From Mark Griffiths UUCP.c program  */
+ 
+ char *mfgets (s, n, iop)
+-register char   *s;
+-register int     n;
+-register FILE   *iop;
+-{
+-     register int    c;
+-     register char   *cs;
++ char   *s;
++ int     n;
++ FILE   *iop;
++{
++      int    c;
++      char   *cs;
+ 
+      cs = s;
+      while (--n > 0 && (c = getc (iop)) != EOF)
+@@ -364,7 +364,7 @@
+ {
+      static char newlogname[PWNSIZ+1];
+      char logname[PWNSIZ+1], *words[2];
+-     register char *p;
++      char *p;
+      int i;
+ 
+      p = tempstr;
+@@ -421,10 +421,9 @@
+ int chk_time (name)
+ char *name;
+ {
+-     register char *p1;
+-     char *curtime[20],
+-          *p = &os9_time,
+-          *words[3],
++      char *p1;
++     struct sgtbuf *p = &os9_time;
++     char curtime[20], *words[3],
+           *nologin = "\n\nSORRY - You cannot login at this time! <click!>";
+      flag found_it = FALSE;
+      int curtm, starttime, endtime, i;
+@@ -516,14 +515,14 @@
+      char err_log[100];
+ 
+      sprintf (err_log, "%s/login.errors", logdir);
+-     curr_time = time ((long *)0);
++     curr_time = uucpbb_time (NULL);
+ 
+      if ((fdA = fopen (err_log, "a+" )) != 0)
+        {
+           fixperms (fdA);
+           sprintf (tempstr,"%s, %s, ",inname,inpass);
+           fwrite (tempstr, strlen (tempstr), sizeof (char), fdA);
+-          fwrite (ctime (&curr_time), (strlen (ctime (&curr_time)) - 1),
++          fwrite (uucpbb_ctime (&curr_time), (strlen (uucpbb_ctime (&curr_time)) - 1),
+                     sizeof (char), fdA);
+ 
+           switch (err)
+@@ -602,7 +601,7 @@
+ {
+      int tdone, done;
+      struct sgtbuf t;
+-     register char *p;
++      char *p;
+      char *start;                    /* used so we don't backspace too far */
+ 
+      p = start = buffer;
+--- a/mail.c
++++ b/mail.c
+@@ -51,9 +51,9 @@
+ #include <sgstat.h>
+ #ifndef _OSK
+ #include <os9.h>
+-#include "dir_6809.h"
++#include <dirent.h>
+ #else
+-#include <dir.h>
++#include <dirent.h>
+ #endif
+ 
+ #define ARGVAL()    (*++(*names) || (--count && *++names))
+@@ -94,7 +94,7 @@
+      quiet = FALSE;
+ 
+ #ifndef _OSK
+-     pflinit();                                      /* longs will be print */
++                                           /* longs will be print */
+ #endif
+      intercept (interrupt);                          /* signal handler */
+ 
+@@ -189,7 +189,7 @@
+ 
+ int parse_addr (count, names)
+ int count;
+-register char **names;
++ char **names;
+ {
+      FILE *file;
+ 
+@@ -352,7 +352,7 @@
+ int fixstar (adrs)
+ char *adrs;
+ {
+-     register char *p;
++      char *p;
+ 
+      for (p = adrs; *p; ++p)
+           if (*p == '*')
+@@ -387,8 +387,8 @@
+ char *whosemail;
+ {
+      DIR *dirptr;
+-     struct direct *list;                            /* defined in dir.h */
+-     register int count_1;
++     struct dirent *list;                            /* defined in dir.h */
++      int count_1;
+      int count_2;
+      FILE *fp;
+ 
+@@ -471,8 +471,8 @@
+ {
+      FILE *mptr, *lptr, *omptr;
+      DIR *dirptr;
+-     struct direct *mbox;                           /* defined in dir.h */
+-     register int i;
++     struct dirent *mbox;                           /* defined in dir.h */
++      int i;
+      int newmailcount = 0;
+      static struct mbag  {
+                 char letter[32];
+@@ -499,7 +499,7 @@
+                ++i;
+             }
+      closedir (dirptr);
+-     qsort (ltrs, mailcount, sizeof (struct mbag), strucmp);
++     qsort (ltrs, mailcount, sizeof (struct mbag), uucpbb_compare);
+      sprintf (fname, "%s.tmp", mail_list);
+ 
+      if ((mptr = fopen (fname, "w")) == NULL)
+@@ -569,7 +569,7 @@
+ {
+      char mline[256], subj[SUBJSIZE], from[FRMSIZE], resentfrm[128];
+      char resentrply[128], *grabfrom();
+-     register char *p;
++      char *p;
+      int linecount;
+ 
+      *subj = *from = *resentfrm = *resentrply = '\0';
+@@ -659,13 +659,13 @@
+ 
+ /* Update the user's mail..list file.  Kill deleted mail as we go. */
+ 
+-void updatemail_list (envelop, numltrs)
++int updatemail_list (envelop, numltrs)
+ MAILPTR envelop;
+ int numltrs;
+ {
+      char buff[MLINE];
+      FILE *mptr, *mtptr;
+-     register char *p;
++      char *p;
+ 
+      p = buff;
+ 
+@@ -731,7 +731,7 @@
+        {
+           fclose (mtptr);
+           rebuildmail (numltrs);
+-          return;
++          return (0);
+        }
+      fclose (mptr);
+      fixupdate ("updatemail_list", mtptr);
+@@ -751,7 +751,7 @@
+ 
+      /* make sure the same owner owns new mail..list file */
+      sprintf (fname, "%s.tmp", mail_list);
+-     chown (fname, myuid);
++     uucpbb_chown (fname, myuid);
+ 
+      /* remove the old mail..list file */
+      unlink (mail_list);
+@@ -777,7 +777,7 @@
+    non-space character.  skipspace() is in parse.c. */
+ 
+ char *getinput (p, size)
+-register char *p;
++ char *p;
+ int size;
+ {
+      if (mfgets (p, size, stdin) != NULL)
+@@ -814,7 +814,7 @@
+                if (nmload (pager, 0, 0) == -1)
+                  {
+                     usepager = FALSE;
+-                    return;
++                    return (0);
+                  }
+           usepager = TRUE;
+        }
+@@ -853,7 +853,7 @@
+      if (winopen)
+        {
+           closedoublewindow();
+-          return;
++          return (0);
+        }
+ #endif
+ 
+@@ -897,7 +897,7 @@
+ void usage()
+ {
+      char *strdetab();
+-     register char **ptr;
++      char **ptr;
+      static char *usetxt[] = {
+          "mail [-r]\t\t\t\t\t...read mail",
+          "     opt:  r\t\t   -read mail in reverse order",
+--- a/makepath.c
++++ b/makepath.c
+@@ -35,7 +35,7 @@
+ {
+      char filepath[200], *words[WORDSIZE];
+      char *p, delim;
+-     register int i;
++      int i;
+      int n;
+ 
+      /* newsgroup path or uucp path? */
+@@ -59,7 +59,7 @@
+      for (i = 0; i < n; i++)
+           if (chdir (*(words + i)) != 0)
+             {
+-               mknod (strupr (*(words + i)), S_IREAD|S_IWRITE|S_IOREAD);
++               uucpbb_mknod (strupr (*(words + i)), S_IREAD|S_IWRITE|S_IOREAD);
+                chdir (*(words + i));
+             }
+      asetuid (myuid);
+@@ -73,7 +73,7 @@
+ char *fixgroupname (groupname)
+ char *groupname;
+ {
+-     register char *ptr;
++      char *ptr;
+      char *gp, *gptr;
+      int plus = 0;
+ 
+--- a/maketemp.c
++++ b/maketemp.c
+@@ -31,7 +31,7 @@
+ int maketemp (filename, c, usebig)
+ char *filename, c, usebig;
+ {
+-     register char *tempdir;
++      char *tempdir;
+      char *mktemp();
+ 
+      /* use specified temp directory if possible */
+@@ -40,7 +40,7 @@
+      tempdir = (c == 'c'  ||  usebig) ? scratchbig : scratchdir;
+ 
+      sprintf (filename, "%s/UUCPtemp%c.XXXXX",
+-              access (tempdir, S_IFDIR|S_IREAD|S_IWRITE)==0 ? tempdir : "/dd",
++              uucpbb_access (tempdir, S_IFDIR|S_IREAD|S_IWRITE)==0 ? tempdir : "/dd",
+               c);
+ 
+      mktemp (filename);
+--- a/mbuf.c
++++ b/mbuf.c
+@@ -49,7 +49,7 @@
+        {
+           if ((mh = (struct mbuf *) malloc (sizeof (struct mbuf))) == NULL)
+             {
+-               log ("Couldn't malloc head space for mbuf");
++               uucpbb_log ("Couldn't malloc head space for mbuf");
+                exit(207);
+             }
+           mp = mh;
+@@ -60,7 +60,7 @@
+                for (mp = mh; mp->mbuf_next != NULL; mp = mp->mbuf_next);
+                     if ((mp->mbuf_next = (struct mbuf *)malloc(sizeof(struct mbuf))) == NULL)
+                       {
+-                         log ("Couldn't malloc mbuf space");
++                         uucpbb_log ("Couldn't malloc mbuf space");
+                          exit (207);
+                       }
+           mp = mp->mbuf_next;
+@@ -74,7 +74,7 @@
+        {
+           if ((mp->cbuf = (char *)malloc(len)) == NULL)
+             {
+-               log ("Couldn't malloc cbuf space");
++               uucpbb_log ("Couldn't malloc cbuf space");
+                exit (207);
+             }
+           memcpy ((char *)mp->cbuf, (char *)buf, len);
+--- a/mfgets.c
++++ b/mfgets.c
+@@ -18,7 +18,7 @@
+ int n;
+ FILE *iop;
+ {
+-     register int c;
++      int c;
+      char *cs;
+ 
+      cs = s;
+--- a/newsutils.c
++++ b/newsutils.c
+@@ -23,6 +23,17 @@
+ */
+ 
+ #include "uucp.h"
++static int logerror();
++static int logerror();
++static int logerror();
++static int logerror();
++static int logerror();
++static int logerror();
++static int logerror();
++static int logerror();
++static int logerror();
++static int logerror();
++static int logerror();
+ #include <modes.h>
+ #include <signal.h>
+ 
+@@ -31,7 +42,7 @@
+ EXTERN QQ int ngroups;
+ EXTERN QQ int debuglvl;
+ EXTERN struct active groups[];
+-EXTERN QQ FILE *log;
++EXTERN QQ FILE *uucpbb_log;
+ EXTERN char sender[];
+ 
+ static int activepath;                 /* only accessible within this file */
+@@ -42,7 +53,7 @@
+ int readactive (mode, showmsg)
+ int mode, showmsg;
+ {
+-     register char *words[3];
++      char *words[3];
+      FILE *file;
+      char c, *p, buff[128];
+      char *cantopen = "readactive: cannot open active file";
+@@ -56,7 +67,7 @@
+         article.  Between waits take a brief nap. */
+ 
+      for (;;)
+-          if ((activepath = open (NGROUPS, mode)) != ERROR)
++          if ((activepath = uucpbb_open (NGROUPS, mode)) != ERROR)
+                break;
+           else
+                if (errno == 253)
+@@ -136,7 +147,7 @@
+                groups[ngroups].index = 1;
+ 
+           if (debuglvl > 0)
+-               fprintf (log, "%s %s Newsgroup: %s  lowest: #%d  highest: #%d\n",
++               fprintf (uucpbb_log, "%s %s Newsgroup: %s  lowest: #%d  highest: #%d\n",
+                              sender, gtime(), groups[ngroups].newsgroup,
+                              groups[ngroups].index, groups[ngroups].seq);
+ 
+@@ -166,7 +177,7 @@
+ int updactive()
+ {
+      FILE *file;
+-     register int  curgroup;
++      int  curgroup;
+ 
+      if ((file = fdopen (activepath, "w")) == NULL)
+        {
+@@ -200,7 +211,7 @@
+ char *group;
+ int  makenew;
+ {
+-     register int curgroup;
++      int curgroup;
+ 
+      for (curgroup = 0; curgroup < ngroups; curgroup++)
+           if (strcmp (group, groups[curgroup].newsgroup) == 0)
+@@ -229,7 +240,7 @@
+ int timeout (secs)
+ int secs;
+ {
+-     register int i;
++      int i;
+      int count;
+ 
+      /* if input waiting, return */
+@@ -257,5 +268,5 @@
+ static int logerror (msg)
+ char *msg;
+ {
+-     fprintf (log, "%s %s %s\n", sender, gtime(), msg);
+-}
++     fprintf (uucpbb_log, "%s %s %s\n", sender, gtime(), msg);
++}
+--- a/nmload.c
++++ b/nmload.c
+@@ -22,7 +22,7 @@
+      int result;
+      
+      reg.rg_a = type | lang;
+-     reg.rg_x = mod;
++     reg.rg_x = (unsigned)mod;
+      result = _os9 (F_NMLINK, &reg);
+      errno = reg.rg_b & 0xff;
+      return (result);
+@@ -38,7 +38,7 @@
+      int result;
+ 
+      reg.rg_a = type | lang;
+-     reg.rg_x = mod;
++     reg.rg_x = (unsigned)mod;
+      result = _os9 (F_NMLOAD, &reg);
+      errno = reg.rg_b & 0xff;
+      return (result);
+@@ -55,7 +55,7 @@
+      int result;
+ 
+      reg.rg_a = typelang;
+-     reg.rg_x = mod;
++     reg.rg_x = (unsigned)mod;
+      result = _os9 (F_UNLOAD, &reg);
+      errno = reg.rg_b & 0xff;
+      return (result);
+--- a/openarts.c
++++ b/openarts.c
+@@ -68,7 +68,7 @@
+                  {
+                     sprintf (lbuf, "Checking group '%s' and '%s'", np,
+                              ((struct groups *)gp->cbuf)->name);
+-                    log (lbuf);
++                    uucpbb_log (lbuf);
+                  }
+ 
+                /* Ok, this group matched */
+@@ -82,7 +82,7 @@
+                     if (chdir (newsdir) == ERROR)
+                       {
+                          sprintf (lbuf, "Can't chdir to '%s'", newsdir);
+-                         log (lbuf);
++                         uucpbb_log (lbuf);
+                          return (ABORT);
+                       }
+ 
+@@ -108,7 +108,7 @@
+                       {
+                          sprintf (lbuf, "Trying: '%s' in '%s'", gpath,
+                                   ((struct groups *)gp->cbuf)->name);
+-                         log (lbuf);
++                         uucpbb_log (lbuf);
+                       }
+ 
+                     /* Try to open the article, this should truncate any files
+@@ -119,7 +119,7 @@
+                       {
+                          sprintf (lbuf, "Couldn't open '%s', because %d",
+                                   gpath, errno);
+-                         log (lbuf);
++                         uucpbb_log (lbuf);
+                       }
+                     else
+                       {
+@@ -136,8 +136,8 @@
+        {
+           if (debuglvl > 1)
+             {
+-               log ("Article doesn't go to any news groups in active file.");
+-               log ("Junking it.");
++               uucpbb_log ("Article doesn't go to any news groups in active file.");
++               uucpbb_log ("Junking it.");
+             }
+ 
+           for (gp = g; gp != NULL; gp = gp->mbuf_next)
+@@ -148,7 +148,7 @@
+                     if (chdir (newsdir) == ERROR)
+                       {
+                          sprintf (lbuf, "Can't chdir to '%s'", newsdir);
+-                         log (lbuf);
++                         uucpbb_log (lbuf);
+                          return (ABORT);
+                       }
+                     makepath (np);
+@@ -163,7 +163,7 @@
+                       {
+                          sprintf (lbuf, "Trying: '%s' in '%s'",
+                                   gpath, ((struct groups *)gp->cbuf)->name);
+-                         log(lbuf);
++                         uucpbb_log(lbuf);
+                       }
+ 
+                     if ((((struct groups *)gp->cbuf)->artfd
+@@ -171,7 +171,7 @@
+                       {
+                          sprintf (lbuf, "Couldn't open '%s', because %d",
+                                   gpath, errno);
+-                         log (lbuf);
++                         uucpbb_log (lbuf);
+                       }
+                     break;
+                  }
+@@ -182,7 +182,7 @@
+ 
+          if (gp == NULL)
+               if (debuglvl > 1)
+-                   log ("No junk group.....");
++                   uucpbb_log ("No junk group.....");
+        }
+      free (ngroups);
+ }
+--- a/openport.c
++++ b/openport.c
+@@ -56,12 +56,12 @@
+                7200,9600,19200,38400};
+ #endif
+      struct sgbuf newopts;
+-     register int i;
++      int i;
+ 
+      /* open device */
+      if (role == MASTER)
+        {
+-          if ((port = open (device, PORTMODE)) <= 0)
++          if ((port = uucpbb_open (device, PORTMODE)) <= 0)
+                if (errno == NONSHARE)
+                     return (PORTBUSY);
+                else
+@@ -76,7 +76,7 @@
+           buf[0] = '/';
+           strhcpy (&buf[1], temp);
+ 
+-          if ((port = open (buf, 3)) <= 0)
++          if ((port = uucpbb_open (buf, 3)) <= 0)
+                if (errno == NONSHARE)
+                     return (PORTBUSY);
+                else
+@@ -125,7 +125,7 @@
+                     newopts.sg_baud = i;
+ 
+                     if (debuglvl > 1)
+-                         fprintf (log, "opening port %s at %d bps\n",
++                         fprintf (uucpbb_log, "opening port %s at %d bps\n",
+                                        device, baudlist[i]);
+                     break;
+                  }
+@@ -166,7 +166,7 @@
+      strcpy (sender, "uucp");
+ 
+      if (debuglvl >= 1)
+-          fprintf (log, "%s %s %s DEBUG--closeport(): Closing port\n",
++          fprintf (uucpbb_log, "%s %s %s DEBUG--closeport(): Closing port\n",
+                              sender, sysname, gtime());
+ 
+      /* Drop DTR to hang up? */
+@@ -213,7 +213,7 @@
+ 
+ void flushport()
+ {
+-    register int rdy;
++     int rdy;
+ 
+     if ((rdy = _gs_rdy (port)) > 0)
+          read (port, temp, rdy);
+--- a/openuucp.c
++++ b/openuucp.c
+@@ -41,13 +41,13 @@
+ int mopenuucp()
+ {
+      char string[200];
+-     register char *p;
++      char *p;
+      int i;
+ 
+      p = string;
+ 
+      if (debuglvl > 0)
+-          fprintf (log, "mopenuucp: %s\n", startG);
++          fprintf (uucpbb_log, "mopenuucp: %s\n", startG);
+ 
+      /* receive "Shere" from remote */
+      if (recv0 (p) == TIMEDOUT)
+@@ -61,13 +61,13 @@
+           logerror ("mopenuucp: Bad Shere string from remote");
+ 
+           if (debuglvl > 3)
+-               fprintf (log, "mopenuucp: remote sent: %s\n", p);
+-
+-          return (ABORT);
+-       }
+-
+-     if (debuglvl > 0)
+-          fputs ("mopenuucp: got Shere\n", log);
++               fprintf (uucpbb_log, "mopenuucp: remote sent: %s\n", p);
++
++          return (ABORT);
++       }
++
++     if (debuglvl > 0)
++          fputs ("mopenuucp: got Shere\n", uucpbb_log);
+ 
+      lognorm ("Login successful");
+ 
+@@ -95,7 +95,7 @@
+      sprintf (p, "S%s", nodename);
+ 
+      if (debuglvl > 0)
+-          fprintf (log, "mopenuucp: %s%s\n", whoweare, p);
++          fprintf (uucpbb_log, "mopenuucp: %s%s\n", whoweare, p);
+ 
+      send0 (p);
+ 
+@@ -115,7 +115,7 @@
+       if (strncmp (p+1, "OK", 2) == 0)
+         {
+            if (debuglvl > 0)
+-                fputs ("mopenuucp: remote says we are OK\n", log);
++                fputs ("mopenuucp: remote says we are OK\n", uucpbb_log);
+         }
+       else if (strcmp (p+1, "LCK") == 0)
+        {
+@@ -176,19 +176,19 @@
+ int sopenuucp()
+ {
+      char string[200];
+-     register char *p;
++      char *p;
+      char *incoming = "Incoming call from ";
+ 
+      p = string;
+ 
+      if (debuglvl > 0)
+-          fprintf (log, "sopenuucp: %s\n", startG);
++          fprintf (uucpbb_log, "sopenuucp: %s\n", startG);
+ 
+      /* send "Shere" to remote */
+      sprintf (p, "Shere=%s", nodename);
+ 
+      if (debuglvl > 0)
+-          fprintf (log, "sopenuucp: %s%s\n", whoweare, p);
++          fprintf (uucpbb_log, "sopenuucp: %s%s\n", whoweare, p);
+ 
+      send0 (p);
+ 
+@@ -206,7 +206,7 @@
+        }
+ 
+      if (debuglvl > 0)
+-          fputs ("sopenuucp: got remote's S<hostname>\n", log);
++          fputs ("sopenuucp: got remote's S<hostname>\n", uucpbb_log);
+ 
+      /* isolate system name */
+      if ((p = strchr (string, ' ')) != NULL)
+@@ -269,7 +269,7 @@
+ {
+      char buff[SYSLINE];
+      int sysnamlen = strlen (sysname);
+-     register char *p;
++      char *p;
+      char *p1;
+      FILE *fpsys;
+ 
+@@ -309,7 +309,7 @@
+      openlog();
+      logerror (p);
+ 
+-     if (!quiet  &&  log != stderr)
++     if (!quiet  &&  uucpbb_log != stderr)
+           fprintf (stderr, "%s\n\n", buff);
+ 
+      return (FALSE);
+@@ -323,12 +323,12 @@
+ int recv0 (string)
+ char *string;
+ {
+-     register char *p;
++      char *p;
+      char c;
+      flag gotDLE = FALSE;
+ 
+      if (debuglvl > 7)
+-          fputs ("<< ", log);
++          fputs ("<< ", uucpbb_log);
+ 
+      /* Keep reading the port until we time out or get an ending null */
+      p = string;
+@@ -376,7 +376,7 @@
+           if (c == '\0')
+             {
+                if (debuglvl > 7)
+-                    putc ('\n', log);
++                    putc ('\n', uucpbb_log);
+ 
+                return (TRUE);
+             }
+@@ -391,7 +391,7 @@
+    being used. */
+ 
+ int send0 (string)
+-register char *string;
++ char *string;
+ {
+      int lport, result, sendlen = strlen (string) + 1;
+ 
+@@ -399,7 +399,7 @@
+ 
+      if (debuglvl > 7)
+        {
+-          fputs (">> [$10]", log);
++          fputs (">> [$10]", uucpbb_log);
+           strdump (string);
+        }
+ 
+@@ -420,12 +420,12 @@
+ int strdump (string)
+ char *string;
+ {
+-     register char *c;
++      char *c;
+ 
+      for (c = string;  *c != '\0';  ++c)
+           chardump (*c);
+ 
+-     putc ('\n', log);
++     putc ('\n', uucpbb_log);
+ }
+ 
+ 
+@@ -434,17 +434,17 @@
+    and recv0(). */
+ 
+ int chardump (c)
+-register char c;
++ char c;
+ {
+      if (isprint (c))
+        {
+           if (c == '\x0d')
+-               fputs ("<CR>", log);
++               fputs ("<CR>", uucpbb_log);
+           else if (c == '\x0a')
+-               fputs ("<LF>", log);
++               fputs ("<LF>", uucpbb_log);
+           else
+-               fprintf (log, "%c", c);
++               fprintf (uucpbb_log, "%c", c);
+        }
+      else
+-          fprintf (log, "[$%02x]", c & 0xff);
+-}
++          fprintf (uucpbb_log, "[$%02x]", c & 0xff);
++}
+--- a/osk.c
++++ b/osk.c
+@@ -47,9 +47,9 @@
+ char *s1;
+ char *s2;
+ {
+-        register unsigned char *p;
+-        register unsigned char c;
+-        register int i;
++         unsigned char *p;
++         unsigned char c;
++         int i;
+ 
+         if (s1 == NULL)
+                 s1 = p_last1;
+@@ -147,11 +147,11 @@
+ */
+ 
+ int strnucmp (str1, str2, length)
+-register char *str1, *str2;
+-register int length;
++ char *str1, *str2;
++ int length;
+ {
+      int pl1, pl2;
+-     register char *p;
++      char *p;
+ 
+      if ((p = strchr (str1,'\n')) != NULL)   *p ='\0';
+      if ((p = strchr (str2,'\n')) != NULL)   *p ='\0';
+@@ -171,9 +171,9 @@
+ 
+ 
+ int strucmp (str1, str2)
+-register char *str1, *str2;
+-{
+-     register char *p;
++ char *str1, *str2;
++{
++      char *p;
+ 
+      if ((p = strchr (str1,'\n')) != NULL)   *p ='\0';
+      if ((p = strchr (str2,'\n')) != NULL)   *p ='\0';
+@@ -258,7 +258,7 @@
+ 
+ static int   _pid[PIPEMAX];
+ 
+-FILE *popen(command, type)
++FILE *uucpbb_popen(command, type)
+ char *command, *type;
+ {
+      char *argv[32], cmd[256];
+@@ -267,7 +267,7 @@
+ 
+      path = (*type == 'w') ? STDIN : STDOUT;
+ 
+-     if ((pipe = open ("/pipe",READ+WRITE)) == ERR)
++     if ((pipe = uucpbb_open ("/pipe",READ+WRITE)) == ERR)
+           return (NULL);
+      pcnt = pipe;
+ 
+@@ -312,10 +312,10 @@
+ 
+ 
+ 
+-int pclose (stream)
++int uucpbb_pclose (stream)
+ FILE *stream;
+ {
+-     register int i;
++      int i;
+      int f,status;
+ 
+      f = fileno (stream);
+@@ -336,16 +336,16 @@
+ #define LINSIZ 200
+ main() {
+      char line[LINSIZ];
+-     FILE *popen(), *fp;
++     FILE *uucpbb_popen(), *fp;
+      int status;
+ 
+      /* Test the read side of popen
+       * SrT 06/25/88 */
+ 
+-     if (( fp = popen ("procs e","r")) != NULL) {
++     if (( fp = uucpbb_popen ("procs e","r")) != NULL) {
+           while (fgets (line,LINSIZ,fp) != NULL)
+                printf ("%s",line);
+-          if ((status = pclose (fp)) == ERR) {
++          if ((status = uucpbb_pclose (fp)) == ERR) {
+                fprintf (stderr,"***ERR: closing read pipe ERR #%03d\n",
+                                status&0xff);
+                exit(1);
+@@ -359,10 +359,10 @@
+ 
+      /* Test the write side of popen
+       * SrT 06/25/88 */
+-     if (( fp = popen ("woof one two three four","w")) != NULL) {
++     if (( fp = uucpbb_popen ("woof one two three four","w")) != NULL) {
+           while (fgets (line,LINSIZ,stdin) != NULL)
+                fprintf (fp,"%s",line);
+-          if ((status = pclose(fp)) == ERR) {
++          if ((status = uucpbb_pclose(fp)) == ERR) {
+                fprintf (stderr,"***ERR: closing write pipe ERR #%03d\n",
+                                status&0xff);
+                exit(1);
+--- a/parse.c
++++ b/parse.c
+@@ -33,14 +33,14 @@
+ int getargs(argv, line, maxargs)
+ #ifndef ORIGINAL
+ char *argv[];
+-register char *line;
+-#else
+-register char *argv[];
+-register char *line;
++ char *line;
++#else
++ char *argv[];
++ char *line;
+ #endif
+ int maxargs;
+ {
+-register int nargs = 0;
++ int nargs = 0;
+ int firstquote = FALSE;                                        /* added REB */
+ 
+ for(;;)
+@@ -126,7 +126,7 @@
+ char *skipspace (string)
+ char *string;
+ {
+-     register char *p;
++      char *p;
+ 
+      p = string;
+ 
+@@ -186,7 +186,7 @@
+ char *parse_cmd (cmd)
+ char *cmd;
+ {
+-     register char *p;
++      char *p;
+ 
+      /* Make sure command line end with a \n */
+      if ((p = strchr (cmd, '\n')) == NULL)
+--- a/postnews.c
++++ b/postnews.c
+@@ -54,7 +54,7 @@
+ #ifndef TERMCAP
+ QQ flag t2flag = FALSE;
+ #endif
+-QQ FILE *log;
++QQ FILE *uucpbb_log;
+ #ifndef _OSK
+ QQ flag usedotilde;
+ static char *dotilde = "dotilde";
+@@ -72,7 +72,7 @@
+ char *argv[];
+ {
+      int option, interrupt();
+-     register char *p;
++      char *p;
+ #ifndef _OSK
+      struct registers regs;
+ #endif
+@@ -80,10 +80,10 @@
+      *reference = *article = *tempfile = '\0';
+      homedir = NULL;
+      opterr = TRUE;
+-     log = stderr;               /* use stderr rather than uulog file --REB */
++     uucpbb_log = stderr;               /* use stderr rather than uulog file --REB */
+ 
+ #ifndef _OSK
+-     pflinit();                  /* tell linker longs will be printed --REB */
++                       /* tell linker longs will be printed --REB */
+ #endif
+ 
+      /* handle keyboard interrupts */
+@@ -489,7 +489,7 @@
+           fatal ("can't create job file");
+ 
+      fixperms (qfile);
+-     chown (jname, myuid);
++     uucpbb_chown (jname, myuid);
+ 
+      fprintf (qfile, "U %s %s\x0a", user, nodename);
+      fprintf (qfile, "F %s\x0a", dname);
+@@ -502,7 +502,7 @@
+           fatal ("can't create control file");
+ 
+      fixperms (qfile);
+-     chown (cname, myuid);
++     uucpbb_chown (cname, myuid);
+ 
+      fprintf (qfile, "S %s %s %s - %s 0666 %s\n",
+                      dname, dname, user, dname, user);
+@@ -578,7 +578,7 @@
+ char *prompt;
+ flag needthis;                                          /* field required? */
+ {
+-     register char *p;
++      char *p;
+ 
+      p = value;
+      do
+@@ -666,7 +666,7 @@
+ int usage()
+ {
+      char *stredetab();
+-     register char **ptr;
++      char **ptr;
+      static char *help[] = {
+                      "postnews\t post news to Usenet",
+                      " ",
+--- a/procart.c
++++ b/procart.c
+@@ -31,7 +31,7 @@
+ struct mbuf *mwrite();
+ extern int debuglvl;
+ 
+-int free();
++
+ 
+ int procart (fd, initalbuf, initng, gh, origlength)
+ FILE *fd;
+@@ -43,7 +43,7 @@
+      char *newsgroups = NULL, *refline = NULL;
+      int gotgroup = FALSE, r;
+      struct mbuf *mh = NULL, *mp = NULL;
+-     register struct mbuf *gg;
++      struct mbuf *gg;
+ 
+      /* A inital newsgroup may be forced onto this article */
+      if (*initng != '\0')
+@@ -55,7 +55,7 @@
+        {
+           if (gotgroup == FALSE)
+             {
+-               getline (fd, initalbuf);
++               uucpbb_getline (fd, initalbuf);
+ 
+                if (debuglvl > 8)
+                     lineis (lbuf, initalbuf);
+@@ -71,7 +71,7 @@
+                          if (debuglvl > 1)
+                            {
+                               sprintf (lbuf, "Newsgroup: %s", newsgroups);
+-                              log (lbuf);
++                              uucpbb_log (lbuf);
+                            }
+ 
+                          if (refline != NULL)
+@@ -89,7 +89,7 @@
+                    if (debuglvl > 2)
+                      {
+                         sprintf (lbuf, "Reference line is: '%s'", refline);
+-                        log (lbuf);
++                        uucpbb_log (lbuf);
+                      }
+ 
+                    if (newsgroups != NULL)
+@@ -101,7 +101,7 @@
+                     if (newsgroups == NULL)
+                       {
+                          if (debuglvl > 1)
+-                              log ("No newsgroup given, junking article");
++                              uucpbb_log ("No newsgroup given, junking article");
+ 
+                          newsgroups = junk;
+                       }
+@@ -128,12 +128,12 @@
+                  }
+ 
+                if ((r = fread (initalbuf, 1, BIGBUF-1, fd)) < 0)
+-                    log ("procart: read error");
++                    uucpbb_log ("procart: read error");
+ 
+                if (debuglvl > 8)
+                  {
+                     sprintf (lbuf, "read: %d", r);
+-                    log (lbuf);
++                    uucpbb_log (lbuf);
+                  }
+                crlf (initalbuf, r);
+ 
+@@ -169,7 +169,7 @@
+ long origlength;
+ char lbuf[];
+ {
+-     register struct mbuf *gg;
++      struct mbuf *gg;
+ 
+      for (gg = gh; gg != NULL; gg = gg->mbuf_next)
+           if (((struct groups *)gg->cbuf)->artfd != NULL)
+@@ -179,7 +179,7 @@
+                  {
+                     sprintf (lbuf, "Couldn't seek %ld %d",
+                                    origlength-1, errno);
+-                    log (lbuf);
++                    uucpbb_log (lbuf);
+                  }
+ 
+                write (fileno (((struct groups *)gg->cbuf)->artfd), space, 1);
+@@ -189,7 +189,7 @@
+                  {
+                     sprintf (lbuf, "Couldn't seek back %ld %d",
+                                    origlength, errno);
+-                    log (lbuf);
++                    uucpbb_log (lbuf);
+                  }
+             }
+ }
+@@ -200,5 +200,5 @@
+ char lbuf[], *initalbuf;
+ {
+      strncat (strcpy (lbuf, "LINE IS '"), initalbuf, 20);
+-     log (lbuf);
++     uucpbb_log (lbuf);
+ }
+--- a/procbatch.c
++++ b/procbatch.c
+@@ -37,7 +37,7 @@
+ 
+ char lbuf[512];
+ 
+-int free();
++
+ long xatol();
+ struct mbuf *mwrite();
+ 
+@@ -55,14 +55,14 @@
+      while (feof (fd) == 0)
+        {
+           if (strncmp (initalbuf, "#! rnews ", 9) != 0)
+-               log ("Not a batch line");
++               uucpbb_log ("Not a batch line");
+ 
+           origlen = length = xatol (initalbuf+9);
+ 
+           if (debuglvl > 8)
+             {
+                sprintf (lbuf, "loop... %ld", length);
+-               log (lbuf);
++               uucpbb_log (lbuf);
+             }
+           gotgroup = FALSE;
+ 
+@@ -71,7 +71,7 @@
+                if (debuglvl > 5)
+                  {
+                     sprintf (lbuf, "article length: %ld", length);
+-                    log (lbuf);
++                    uucpbb_log (lbuf);
+                  }
+ 
+                while ((length > 0) && (feof(fd) == 0))
+@@ -91,18 +91,18 @@
+                          if (debuglvl > 8)
+                            {
+                               sprintf (lbuf, "reading: %d %ld", r, length);
+-                              log (lbuf);
++                              uucpbb_log (lbuf);
+                            }
+ 
+                          if ((rr = fread (initalbuf, 1, r, fd)) != r)
+-                              log ("procbatch: Read error");
++                              uucpbb_log ("procbatch: Read error");
+ 
+                          r = rr;
+ 
+                          if (debuglvl > 8)
+                            {
+                               sprintf (lbuf, "read: %d %ld", r, length);
+-                              log (lbuf);
++                              uucpbb_log (lbuf);
+                            }
+ 
+                          crlf (initalbuf, r);
+@@ -141,7 +141,7 @@
+                  }
+ 
+                /* There might be more batches */
+-               if (getline (fd, initalbuf) != -1)
++               if (uucpbb_getline (fd, initalbuf) != -1)
+                  {
+ 
+                     /* If something is messed up, then skip until something
+@@ -153,7 +153,7 @@
+                            {
+                               strcpy (lbuf, "Mugged article, '");
+                               strncat(lbuf, initalbuf, 20);
+-                              log (lbuf);
++                              uucpbb_log (lbuf);
+                            }
+ 
+                          if (resync (fd, initalbuf) == TRUE)
+@@ -169,7 +169,7 @@
+                if (debuglvl > 1)
+                  {
+                     sprintf (lbuf, "Bad length '%ld'", length);
+-                    log (lbuf);
++                    uucpbb_log (lbuf);
+                  }
+ 
+                if (resync (fd, initalbuf) == TRUE)
+@@ -188,7 +188,7 @@
+ {
+      int r;
+ 
+-     r = getline (fd, initalbuf);
++     r = uucpbb_getline (fd, initalbuf);
+ 
+      if (debuglvl > 8)
+           lineis (lbuf, initalbuf);
+@@ -202,7 +202,7 @@
+           if (debuglvl > 1)
+             {
+                sprintf (lbuf, "Newsgroup: %s", groupname);
+-               log (lbuf);
++               uucpbb_log (lbuf);
+             }
+ 
+           if (refline != NULL)
+@@ -218,7 +218,7 @@
+           if (debuglvl > 2)
+             {
+                sprintf (lbuf, "Reference line is: '%s'", refline);
+-               log (lbuf);
++               uucpbb_log (lbuf);
+             }
+ 
+           if (groupname != NULL)
+@@ -230,7 +230,7 @@
+           if (groupname == NULL)
+             {
+                if (debuglvl > 1)
+-                    log ("No newsgroup given, junking article");
++                    uucpbb_log ("No newsgroup given, junking article");
+ 
+                groupname = junk;
+             }
+@@ -246,7 +246,7 @@
+ struct mbuf *gh, *mp, *mh;
+ char *groupname;
+ {
+-     register struct mbuf *gg;  
++      struct mbuf *gg;  
+ 
+      openarts (gh, groupname);
+ 
+@@ -260,7 +260,7 @@
+                       {
+                          sprintf (lbuf, "Couldn't seek %ld %d",
+                                         origlength-1, errno);
+-                         log (lbuf);
++                         uucpbb_log (lbuf);
+                       }
+                     write (fileno (((struct groups *) gg->cbuf)->artfd),
+                             space, 1);
+@@ -270,7 +270,7 @@
+                       {
+                          sprintf (lbuf, "Couldn't seek back %ld %d",
+                                         origlength, errno);
+-                         log (lbuf);
++                         uucpbb_log (lbuf);
+                       }
+                  }
+ 
+@@ -291,13 +291,13 @@
+ FILE *fd;
+ char *initalbuf;
+ {
+-     while (getline (fd, initalbuf) != -1)
++     while (uucpbb_getline (fd, initalbuf) != -1)
+           if (strncmp (initalbuf, "#! rnews ", 9) == 0)
+                return (TRUE);
+           else if (debuglvl > 5)
+             {
+                strncat (strcpy (lbuf, "skip.... '"), initalbuf, 20);
+-               log (lbuf);
++               uucpbb_log (lbuf);
+             }
+      return (FALSE);
+ }
+@@ -310,7 +310,7 @@
+ char *s;
+ int len;
+ {
+-     register char *bscan;
++      char *bscan;
+ 
+      for (bscan = s + len;  --bscan >= s; )
+           if (*bscan == '\x0A')
+--- a/proto.h
++++ b/proto.h
+@@ -25,7 +25,7 @@
+ /* Various declarations used by UUCPbb package.  This should help to keep the
+    the various OS-9 compilers happy.  */
+ 
+-extern int errno;
++
+ 
+  /***************************\
+  * CoCo specific defs/macros *
+@@ -34,9 +34,9 @@
+ #ifndef _OSK
+ # ifndef _VOID_
+ #  define _VOID_
+-typedef int void;
++
+ # endif
+-#define QQ direct                  /* CoCo type 'direct' [page] */
++#define QQ                  /* CoCo type 'direct' [page] */
+ typedef int flag;
+ char *parse_cmd();
+ #endif
+@@ -92,6 +92,6 @@
+ char *strdetab(), *strlwr(), *strupr(), *strdup(), *strstr(), *strend();
+ char *InttouID();
+ int  strucmp();
+-FILE *popen(), *fdopen(), *freopen();
++FILE *uucpbb_popen(), *fdopen(), *freopen();
+ long getseq();
+ void errorexit();
+--- a/pwent.c
++++ b/pwent.c
+@@ -7,6 +7,8 @@
+ 
+ #include "uucp.h"
+ #include <password.h>
++#include <fcntl.h>
++#include <unistd.h>
+ 
+ 
+ static int     pwpn = 0;
+@@ -26,14 +28,16 @@
+ 
+ PWENT *getpwent()
+ {
+-     register char  *p;
++      char  *p;
++     int nread;
+ 
+      if (pwpn == 0)
+-          if ((pwpn = open(PASSWORD, 1)) <= 0)
++          if ((pwpn = open(PASSWORD, O_RDONLY)) <= 0)
+                return ((PWENT *) 0);
+ 
+      for (;;) {
+-          if (readln(pwpn, tmpbuf, PWSIZ) > 0) {
++          if ((nread = readln(pwpn, tmpbuf, PWSIZ)) > 0) {
++               tmpbuf[nread] = '\0';
+                if (*tmpbuf == '*')
+                     continue;
+ 
+@@ -93,7 +97,7 @@
+ */
+ 
+ static PWENT *parse(p, pwp)
+-register char  *p;
++ char  *p;
+ PWENT *pwp;
+ {
+      pwp->ugcos = (char *) 0;                         /* just in case */
+@@ -130,7 +134,7 @@
+ PWENT *getpwuid(uid)
+ int   uid;
+ {
+-     register PWENT *pwp;
++      PWENT *pwp;
+ 
+      while (pwp = getpwent())
+ #ifdef _OSK
+@@ -152,7 +156,7 @@
+ PWENT *getpwnam(name)
+ char  *name;
+ {
+-     register PWENT *pwp;
++      PWENT *pwp;
+ 
+      while (pwp = getpwent())
+           if (strucmp (name, pwp->unam) == 0)
+--- a/readnews.c
++++ b/readnews.c
+@@ -41,7 +41,7 @@
+ extern QQ flag auto_rot;
+ extern QQ unsigned myuid;
+ 
+-QQ FILE *log;
++QQ FILE *uucpbb_log;
+ QQ int debuglvl = 0;
+ QQ int columns, rows, ngroups, curgroup;
+ QQ flag rot13, valid;
+@@ -62,12 +62,12 @@
+ {
+      static char newsrcfile[100];
+      char sub;
+-     register int i;
++      int i;
+      int count, index, j, c, interrupt();
+      FILE *file;
+ 
+      homedir = NULL;
+-     log = stderr;
++     uucpbb_log = stderr;
+ 
+      if (argc > 1)
+           usage();
+@@ -275,7 +275,7 @@
+ #endif
+ 
+      /* change the ownership of the file and reset uid -- BAS */
+-     chown (newsrcfile, myuid);
++     uucpbb_chown (newsrcfile, myuid);
+      asetuid (myuid);
+ 
+      for (i = 0; i < ngroups; i++)
+@@ -293,7 +293,7 @@
+ {
+      char c, *sb, *cr, *groupname, **hptr, tmp[60];
+      char *ptr;                                         /* Added BTR */
+-     register int i;
++      int i;
+      int seq, indx;
+      static char *help1[] = {
+                        "ENTER/SPACE  Read unread article",
+@@ -609,7 +609,7 @@
+ int dogroup (index, seq)
+ int index, seq;
+ {
+-     register int i = index + 1;            /* Next unread article */
++      int i = index + 1;            /* Next unread article */
+      char c = '\0';                         /* Need a prompt in newscmd() */
+      char dspnews();
+ 
+@@ -643,7 +643,7 @@
+ char dspnews (artnum)
+ int artnum;
+ {
+-     register char *lp;
++      char *lp;
+      int screenline, k;
+      flag go_on, header;
+      char **hptr, tmp[60];
+@@ -697,7 +697,7 @@
+ 
+      while (fgets (lp, sizeof (line), file) != NULL)
+        {
+-          register char c;
++           char c;
+ 
+           if (screenline > rows  ||  *lp == '\f')         /* was >= --REB */
+             {
+@@ -913,7 +913,7 @@
+ 
+ 
+ int newscmd (c, i)
+-register char c;
++ char c;
+ int i;
+ {
+      char tmp[60];
+@@ -988,7 +988,7 @@
+                        same disk as the file --BAS 2 */
+ 
+                     if (myuid)
+-                         if ((f = open (cmd, 1)) > 0)
++                         if ((f = uucpbb_open (cmd, 1)) > 0)
+                            {
+                               _gs_gfd (f, &fdes, sizeof (fdes));
+                               close (f);
+@@ -1029,7 +1029,7 @@
+                     /* Change the ownership of the file, if needed -- BAS 2 */
+                     if (cflag)
+                       {
+-                         chown (cmd, myuid);
++                         uucpbb_chown (cmd, myuid);
+                          asetuid (myuid);
+                       }
+                     break;
+@@ -1266,7 +1266,7 @@
+ 
+ int fixquote()
+ {
+-     register char *p;
++      char *p;
+ 
+      p = subject;
+ 
+@@ -1278,7 +1278,7 @@
+ 
+ char *getword()
+ {
+-     register char *p;
++      char *p;
+ 
+      p = line;
+      if (mfgets (p, sizeof (line), stdin) == NULL)
+@@ -1296,7 +1296,7 @@
+ int putdashs (howmany)
+ int howmany;
+ {
+-     register int i;
++      int i;
+ 
+      putchar (' ');
+ 
+@@ -1356,7 +1356,7 @@
+ int backspace (howmany)
+ int howmany;
+ {
+-     register int i;
++      int i;
+ 
+      for (i = 0; i < howmany; ++i)
+           fputs ("\b \b", stdout);
+@@ -1373,7 +1373,7 @@
+      if (winopen)                 /* if a help window is open just close it */
+        {
+           closedoublewindow();
+-          return;
++          return (0);
+        }
+ #endif
+      echo (ON);
+@@ -1467,7 +1467,7 @@
+ 
+ char *getarticlepath()
+ {
+-     register char *ptmp2;
++      char *ptmp2;
+      char *ptmp;
+ 
+      ptmp = (char *) malloc ((strlen (newsdir) + strlen (newsgroup) + 2)
+--- a/recvmail.c
++++ b/recvmail.c
+@@ -35,9 +35,9 @@
+ #include <sgstat.h>
+ #ifndef _OSK
+ #include <os9.h>
+-#include "dir_6809.h"
++#include <dirent.h>
+ #else
+-#include <dir.h>
++#include <dirent.h>
+ #endif
+ 
+ #define WORDSIZE   40
+@@ -52,7 +52,7 @@
+ {
+      flag dothis, direction;
+      int numltrs, ltrsleft;
+-     register MAILPTR envelop;
++      MAILPTR envelop;
+      MAILPTR firstenvelop = NULL;
+      struct mailbag *whatnow(), *reverselist(), *gathermail();
+ 
+@@ -127,7 +127,7 @@
+ int numltrs;
+ {
+      char mailine[MLINE];
+-     register MAILPTR ep;
++      MAILPTR ep;
+      FILE *mlptr;
+      char *p, *p1;
+      MAILPTR elast, envelops;
+@@ -211,7 +211,7 @@
+ struct mailbag *reverselist (list)
+ MAILPTR list;
+ {
+-     register MAILPTR p1;
++      MAILPTR p1;
+      MAILPTR p2;
+ 
+      p2 = ENDMAIL;
+@@ -230,7 +230,7 @@
+ 
+ struct mailbag *whatnow (whichway, envelop, direction)
+ flag whichway, *direction;
+-register MAILPTR envelop;
++ MAILPTR envelop;
+ {
+      MAILPTR tmpmail;
+ 
+@@ -291,7 +291,7 @@
+ MAILPTR firstenvelop;
+ flag nokilli;
+ {
+-     register MAILPTR envelop;
++      MAILPTR envelop;
+ 
+      for (envelop = firstenvelop;  envelop;  envelop = envelop->next)
+           envelop->status = nokilli ? 'P' : 'D';
+@@ -307,7 +307,7 @@
+ {
+      char line[256];
+      MAILPTR envelop;
+-     register char *p;
++      char *p;
+      char c;
+      FILE *fp;
+      int i;
+@@ -373,7 +373,7 @@
+ 
+ int quitmail()
+ {
+-     register char c;
++      char c;
+      char answer;
+ 
+      putchar ('\n');
+@@ -402,7 +402,7 @@
+ {
+      FILE *infile;
+      flag whichway;
+-     register char c;
++      char c;
+ 
+      if ((infile = fopen (envelop->letter, "r")) == NULL)
+        {
+@@ -490,7 +490,7 @@
+ {
+      char replyto[100], replynam[100], resentrply[100], resentfrm[100];
+      char resentnam[100], resentdate[40], resentid[100];
+-     register char *lp;
++      char *lp;
+      char *p;
+      flag header;
+ 
+@@ -650,13 +650,13 @@
+ /* dspmail  --display mail message */
+ 
+ char dspmail (file, status)
+-register FILE *file;
++ FILE *file;
+ char status;
+ {
+      static char *returnon = "ahnp-qx?";
+      static int columns = 79, rows;
+      static flag firstletter = TRUE;
+-     register char *p;
++      char *p;
+      flag header = TRUE;
+      int i;
+      char c, t;
+@@ -768,7 +768,7 @@
+      struct fildes fdes;
+      flag noerror, orig_usesig, orig_cc_prompt, cflag;
+      int n, f;
+-     register char c;
++      char c;
+      char *p, *words[WORDSIZE], *tmpAdrs, *tmpSubj;
+ 
+      /* make a copy of the filename in case we reply -- REB */
+@@ -859,7 +859,7 @@
+                        filename given, if you allow users to make links.
+                          --BAS 2 */
+ 
+-                    if ((f = open (fname, 1)) > 0)
++                    if ((f = uucpbb_open (fname, 1)) > 0)
+                       {
+                          _gs_gfd (f, &fdes, sizeof (fdes));
+                          close (f);
+@@ -894,7 +894,7 @@
+                     /* If we need to, reset the ownership of the file-BAS 2 */
+                     if (cflag)
+                       {
+-                         chown (fname, myuid);
++                         uucpbb_chown (fname, myuid);
+                          asetuid (myuid);
+                       }
+ 
+@@ -1178,7 +1178,7 @@
+ int backspace (howmany)
+ int howmany;
+ {
+-     register int i;
++      int i;
+ 
+      for (i = 0; i < howmany; ++i)
+           fputs ("\b \b", stdout);
+@@ -1191,7 +1191,7 @@
+ int putdashes (howmany)
+ int howmany;
+ {
+-     register int i;
++      int i;
+ 
+      putchar (' ');
+ 
+@@ -1205,7 +1205,7 @@
+ 
+ void givehelp()
+ {
+-     register char **hlp;
++      char **hlp;
+      static char *helptxt[] = {
+                             "a\t\t redisplay current message",
+                             "c\t\t mark all mail as read",
+--- a/rmail.c
++++ b/rmail.c
+@@ -58,7 +58,7 @@
+ QQ int debug = 0;
+ QQ char *filename;
+ QQ int fileowner;                                 /* owner of passed file */
+-QQ FILE *log;
++QQ FILE *uucpbb_log;
+ QQ char *userdir;                                 /* used by dolocal() */
+ char mailstring[80];                              /*                   */
+ 
+@@ -74,16 +74,16 @@
+ int argc;
+ char *argv[];
+ {
+-     register FILE *file;
++      FILE *file;
+      flag delivered;
+      int interrupt();
+ 
+      userdir = NULL;
+      homedir = NULL;
+-     log = NULL;
++     uucpbb_log = NULL;
+ 
+ #ifdef _OSK
+-     pflinit();                              /* longs will be printed */
++                                   /* longs will be printed */
+ #endif
+      intercept (interrupt);
+ 
+@@ -180,7 +180,7 @@
+ {
+      struct fildes buffer;
+ 
+-     _gs_gfd (file->_fd, &buffer, sizeof (buffer));
++     _gs_gfd (fileno(file), &buffer, sizeof (buffer));
+ #ifndef _OSK
+      return ((int) buffer.fd_own);
+ #else
+@@ -192,7 +192,7 @@
+ 
+ int getuserdir()
+ {
+-     register char *p;
++      char *p;
+ 
+      if (strrchr (homedir, '/') == NULL)
+        {
+@@ -225,7 +225,7 @@
+      char *p;
+      flag bang;
+      FILE *fp;
+-     register char *b = strchr (address, '!');   /* Bang */
++      char *b = strchr (address, '!');   /* Bang */
+      char *a = strrchr (address, '@');           /* At   */
+      char *c = strchr (address, '%');    /* user%mynode.uucp@somewhere.else */
+ 
+@@ -411,7 +411,7 @@
+ int fixpercent (string)
+ char *string;
+ {
+-     register char *p;
++      char *p;
+ 
+      if ((p = strrchr (string, '%')) != NULL)
+        {
+@@ -433,7 +433,7 @@
+ {
+      char mailbox[256], envelop[16];
+      struct sgtbuf tod;
+-     register FILE *mailfile;
++      FILE *mailfile;
+      FILE *mail_list;
+      char *ptmp;
+      long linecount, msgsize, movemail();
+@@ -477,7 +477,7 @@
+ 
+      if ((mailfile = fopen (fname, "r")) != NULL)
+        {
+-          register char *p;
++           char *p;
+ 
+           if (mfgets (temp, 30, mailfile) == NULL)
+             {
+@@ -528,9 +528,8 @@
+         is still being used after 1999. :-) */
+ 
+      getime (&tod);
+-     sprintf (envelop, "m%02d%02d%02d%02d%02d%02d%02d",
+-                       (tod.t_year >= 92) && (tod.t_year <= 99)  ? 19  : 20,
+-                       tod.t_year, tod.t_month, tod.t_day, tod.t_hour,
++     sprintf (envelop, "m%04d%02d%02d%02d%02d%02d",
++                       1900 + tod.t_year, tod.t_month, tod.t_day, tod.t_hour,
+                        tod.t_minute, tod.t_second);
+ 
+      /* new line for letterfile */
+@@ -593,7 +592,7 @@
+ FILE *file;
+ {
+      char cname[15], xname[14], dname[14], jname[14], seq[5];
+-     register FILE *qfile;
++      FILE *qfile;
+      char *p;
+      long movemail();
+ 
+@@ -650,7 +649,7 @@
+ 
+      /* make file secure and change ownership to sender */
+      fixperms (qfile);
+-     chown (dname, fileowner);
++     uucpbb_chown (dname, fileowner);
+ 
+      /* move the mail message */
+      movemail (file, qfile, FALSE);
+@@ -658,7 +657,7 @@
+      if (_gs_size (fileno (qfile)) <= 0)
+        {
+           fclose (qfile);
+-          unlink (qfile);
++          unlink (dname);
+           fatal ("doremote: error writing data (D.) file");
+        }
+ 
+@@ -673,7 +672,7 @@
+ 
+      /* make file secure and change ownership to sender */
+      fixperms (qfile);
+-     chown (jname, fileowner);
++     uucpbb_chown (jname, fileowner);
+      fprintf (qfile, "U %s %s\x0A", user, nodename);
+      fprintf (qfile, "F %s\x0A", dname);
+      fprintf (qfile, "I %s\x0A", dname);
+@@ -690,7 +689,7 @@
+ 
+      /* make file secure and change ownership to sender */
+      fixperms (qfile);
+-     chown (cname, fileowner);
++     uucpbb_chown (cname, fileowner);
+      fprintf (qfile, "S %s %s %s - %s 0666 %s\n",
+                       dname, dname, user, dname, user);
+ 
+@@ -707,7 +706,7 @@
+ flag islocal;
+ {
+      char neighbor[40], addr[256], subj[SUBJSIZE], frm[FRMSIZE];
+-     register char *words[WORDSIZE];
++      char *words[WORDSIZE];
+      char crlf, *strpbrk(), *grabfrom();
+      flag weorig;
+      int n;
+@@ -720,7 +719,7 @@
+         will contain valid username. */
+ 
+      *addr = *neighbor = '\0';
+-     getline (file, line);
++     uucpbb_getline (file, line);
+ 
+      while (((n = findstr (1, line, "From ")) <= 2)  &&  (n > 0))
+        {
+@@ -746,7 +745,7 @@
+                strcat (strcpy (line, addr), words[1]);
+ 
+           strcpy (addr, line);
+-          getline (file, line);
++          uucpbb_getline (file, line);
+        }
+ 
+      /* Add this only if outgoing. */
+@@ -821,11 +820,11 @@
+           if (*line == '\0')
+                break;
+        }
+-     while (getline (file, line) != -1);
++     while (uucpbb_getline (file, line) != -1);
+ 
+      /* copy rest of message body unchanged */
+      linecount = 0;
+-     while (getline (file, line) != -1)
++     while (uucpbb_getline (file, line) != -1)
+        {
+           fprintf (mailfile, "%s%c", line, crlf);
+           ++linecount;
+@@ -851,7 +850,7 @@
+ char *grabfrom (fromline)
+ char *fromline;
+ {
+-     register char *p;
++      char *p;
+ 
+      p = getrealname (fromline);
+ 
+@@ -935,13 +934,13 @@
+ int forkfileserv (fp)
+ FILE *fp;
+ {
+-     register char *p;
++      char *p;
+      int count;
+      FILE *pipe;
+ 
+      p = line2;
+ 
+-     if ((pipe = popen ("fileserv", "w")) == NULL)
++     if ((pipe = uucpbb_popen ("fileserv", "w")) == NULL)
+        {
+           logerror ("forkfileserv: can't open pipe to FILESERV");
+           return (UNDELIVERED);
+@@ -952,7 +951,7 @@
+      while ((count = fread (p, sizeof (char), sizeof (line2), fp)) != 0)
+           fwrite (p, sizeof (char), count, pipe);
+ 
+-     pclose (pipe);
++     uucpbb_pclose (pipe);
+      return (DELIVERED);
+ }
+ 
+@@ -963,19 +962,19 @@
+ int forkmailserver (fp)
+ FILE *fp;
+ {
+-     register char *p;
++      char *p;
+      int count;
+      FILE *pipe;
+ 
+      p = line2;
+-     if ((pipe = popen ("mailserver", "w")) != NULL)
++     if ((pipe = uucpbb_popen ("mailserver", "w")) != NULL)
+        {
+           closelog();
+ 
+           while ((count = fread (p, sizeof (char), sizeof (line2), fp)) != 0)
+                fwrite (p, sizeof (char), count, pipe);
+ 
+-          pclose (pipe);
++          uucpbb_pclose (pipe);
+        }
+      return (DELIVERED);
+ }
+@@ -1010,13 +1009,13 @@
+ 
+      strcat (strcpy (fname, logdir), "/uulog");
+ 
+-     if ((log = fopen (fname, "a")) != NULL)
+-       {
+-          setbuf (log, NULL);
++     if ((uucpbb_log = fopen (fname, "a")) != NULL)
++       {
++          setbuf (uucpbb_log, NULL);
+           logopen = TRUE;
+        }
+      else
+-          log = stderr;
++          uucpbb_log = stderr;
+ }
+ 
+ 
+@@ -1025,11 +1024,11 @@
+ 
+ void closelog()
+ {
+-     if (log == stderr)
++     if (uucpbb_log == stderr)
+           return;
+ 
+      if (logopen)
+-          fclose (log);
++          fclose (uucpbb_log);
+ 
+      logopen = FALSE;
+ }
+@@ -1044,7 +1043,7 @@
+      openlog();
+ 
+      if (logopen)
+-          fprintf (log, "rmail %s %s %s%s\n",
++          fprintf (uucpbb_log, "rmail %s %s %s%s\n",
+                         *nodename != '\0'  ? nodename : "uucp",
+                         gtime(), errmsg, msg);
+      else
+@@ -1072,20 +1071,20 @@
+      fprintf (stderr, "rmail: %s", msg);
+ 
+      if (logopen)
+-          fprintf (log, "rmail %s %s %s%s", nodename, gtime(), errmsg, msg);
++          fprintf (uucpbb_log, "rmail %s %s %s%s", nodename, gtime(), errmsg, msg);
+ 
+      if (errno != 0)
+        {
+           sprintf (fname, "...error #%d", errno);
+ 
+           if (logopen)
+-               fputs (fname, log);
++               fputs (fname, uucpbb_log);
+ 
+           fputs (fname, stderr);
+        }
+ 
+-     if (log != NULL)
+-          putc ('\n', log);
++     if (uucpbb_log != NULL)
++          putc ('\n', uucpbb_log);
+ 
+      putc ('\n', stderr);
+      closelog();
+--- a/rnews.c
++++ b/rnews.c
+@@ -32,7 +32,7 @@
+ #include <direct.h>
+ 
+ QQ int debuglvl = 0;
+-struct mbuf *getgroups();
++struct mbuf *uucpbb_getgroups();
+ 
+ int main(argc,argv)
+ int argc;
+@@ -50,7 +50,7 @@
+      initng[0] = '\0';
+ 
+ #ifndef _OSK
+-     pflinit();
++     
+ #endif
+ 
+      /* On the CC3 there seems to be a bit of arcane lore that is needed to
+@@ -127,7 +127,7 @@
+           inizlog ("rnews", 1);
+ 
+      /* Get the groups from the active file */
+-     g = getgroups();
++     g = uucpbb_getgroups();
+ 
+      if (debuglvl > 5)
+           for (gg = g; gg != NULL; gg = gg->mbuf_next)
+@@ -136,21 +136,21 @@
+                               ((struct groups *)gg->cbuf)->name,
+                               ((struct groups *)gg->cbuf)->min,
+                               ((struct groups *)gg->cbuf)->max);
+-               log (lbuf);
++               uucpbb_log (lbuf);
+            }
+ 
+     /* Got to be able to open the file */
+-     if ((fd = open (filename, 1)) < 0)
++     if ((fd = uucpbb_open (filename, 1)) < 0)
+        {
+           sprintf (lbuf, "Can't open '%s'", filename);
+-          log (lbuf);
++          uucpbb_log (lbuf);
+           exit (1);
+        }
+ 
+      if (debuglvl > 3)
+        {
+           sprintf (lbuf, "Opened '%s'", filename);
+-          log (lbuf);
++          uucpbb_log (lbuf);
+        }
+ 
+      /* Hopefully the first bit of the file will tell us what sort of
+@@ -159,7 +159,7 @@
+      if ((e = read (fd, buf, BUFSIZ-1)) <= 0)
+        {
+           sprintf (lbuf, "Can't read from '%s'", filename);
+-          log (lbuf);
++          uucpbb_log (lbuf);
+           exit (1);
+        }
+ 
+@@ -167,7 +167,7 @@
+      if (strncmp (buf, "#! cunbatch", 11) == 0)
+        {
+           if (debuglvl > 1)
+-               log ("A compressed news file");
++               uucpbb_log ("A compressed news file");
+ 
+           /* Ok, move to the proper place in the file to begin decompression
+            */
+@@ -183,22 +183,22 @@
+           /* Try making the file's fd stdin, fail if we can't */
+           if (dup (fd) != 0)
+             {
+-              log ("Can't dup fd 0");
++              uucpbb_log ("Can't dup fd 0");
+               exit (1);
+             }
+ 
+           /* The pipe better be stdout !!! */
+ 
+-          if ((pipefd = open ("/pipe", 3)) != 1)
+-            {
+-               log ("Can't open /pipe");
++          if ((pipefd = uucpbb_open ("/pipe", 3)) != 1)
++            {
++               uucpbb_log ("Can't open /pipe");
+                exit (1);
+             }
+ 
+           /* Fork compress, complain otherwise */
+           if ((p = os9fork ("compress", 3, "-d\n", 0, 0, 0)) < 0)
+             {
+-               log ("Could not fork compress");
++               uucpbb_log ("Could not fork compress");
+                exit (1);
+             }
+ 
+@@ -233,7 +233,7 @@
+           /* Make a FILE pointer for the pipefd */
+           if ((batchfile = fdopen (pipefd, "r+")) == NULL)
+             {
+-               log ("Couldn't fdopen the pipe fd");
++               uucpbb_log ("Couldn't fdopen the pipe fd");
+                exit (1);
+             }
+           setbuf (batchfile, bigbuf);
+@@ -241,9 +241,9 @@
+           /* Get the first line, which may indicate that this is a batch of
+              articles */
+ 
+-          if (getline (batchfile, buf) == -1)
+-            {
+-               log ("Nothing on the pipe");
++          if (uucpbb_getline (batchfile, buf) == -1)
++            {
++               uucpbb_log ("Nothing on the pipe");
+                exit (1);
+             }
+        }
+@@ -255,7 +255,7 @@
+              the file is uncompressed */
+ 
+           if (debuglvl > 1)
+-               log ("An uncompressed news file");
++               uucpbb_log ("An uncompressed news file");
+ 
+           /* Rewind the file and get the size, so we can pass it along, if
+              needed */
+@@ -270,13 +270,13 @@
+ 
+           if ((batchfile = fdopen (fd, "r")) == NULL)
+             {
+-               log ("Can't fdopen news file");
++               uucpbb_log ("Can't fdopen news file");
+                exit (1);
+             }
+           setbuf (batchfile, bigbuf);
+ 
+           /* Get a line, which could mean that this is a batch of articles */
+-          getline (batchfile, buf);
++          uucpbb_getline (batchfile, buf);
+        }
+ 
+      /* Ok, we seem to have a batch of articles.  Process them, as such */
+@@ -284,7 +284,7 @@
+      if (strncmp (buf, "#! rnews ", 9) == 0)
+        {
+           if (debuglvl > 1)
+-               log ("A batch of news articles");
++               uucpbb_log ("A batch of news articles");
+ 
+           procbatch (batchfile, buf, g);
+        }
+@@ -292,20 +292,20 @@
+        {
+           /* Not a batch of articles, assume that it is a single article */
+           if (debuglvl > 1)
+-               log ("A single news article");
++               uucpbb_log ("A single news article");
+ 
+           procart (batchfile, buf, initng, g, length);
+        }
+ 
+      /* Put the updated active file back */
+      if (debuglvl > 3)
+-          log ("Updating active file");
++          uucpbb_log ("Updating active file");
+ 
+      putgroups (g);
+ 
+      /* Clean things up */
+      if (debuglvl > 4)
+-          log ("Exiting.....");
++          uucpbb_log ("Exiting.....");
+ 
+      fclose (batchfile);
+      close (pipefd);
+--- a/sendmail.c
++++ b/sendmail.c
+@@ -42,7 +42,7 @@
+ int sendmail()
+ {
+      char *words[WORDSIZE];
+-     register int i;
++      int i;
+      int n, result;
+      char *deadletter = "dead.letter";
+ 
+@@ -158,7 +158,7 @@
+      int count;
+      struct sgtbuf date;
+      long seq;
+-     register char *lp;
++      char *lp;
+      char *got_escape = "<ESC> hit...exiting";
+ 
+      lp = line;
+@@ -170,7 +170,7 @@
+           fatal ("compmail: can't open temp file");
+ 
+      /* set ownership of file and reset uid -- BAS */
+-     chown (tempfile, myuid);
++     uucpbb_chown (tempfile, myuid);
+      asetuid (myuid);
+      fixperms (ltrfile);
+ 
+@@ -540,7 +540,7 @@
+      /* append signature? */
+      if (usesig  &&  !fromdaemon)
+        {
+-          register FILE *sigfile;
++           FILE *sigfile;
+ 
+ #ifdef _OSK
+           sprintf (fname, "%s/%s", homedir,
+@@ -588,7 +588,7 @@
+ int extract_orig_header (ltr)
+ FILE *ltr;
+ {
+-     register char *lp;
++      char *lp;
+      FILE *origmsg;
+ 
+      if ((origmsg = fopen (message, "r")) == NULL)
+--- a/setuser.c
++++ b/setuser.c
+@@ -34,7 +34,7 @@
+ int setuser (user)
+ char *user;
+ {
+-     register PWENT *pwentry;
++      PWENT *pwentry;
+      unsigned newuid;
+ 
+      asetuid (0);
+--- a/strdetab.c
++++ b/strdetab.c
+@@ -40,7 +40,7 @@
+ 
+ 
+ char *strdetab (s, spaces)
+-register char *s;
++ char *s;
+ int spaces;
+ {
+ #ifndef _MEMSET_
+--- a/strdup.c
++++ b/strdup.c
+@@ -5,7 +5,7 @@
+ 
+ 
+ char *strdup (string)
+-register char *string;
++ char *string;
+ {
+      char *dup;
+ 
+--- a/strstr.c
++++ b/strstr.c
+@@ -27,7 +27,7 @@
+ char *strstr (haystack, needle)
+ char *haystack, *needle;
+ {
+-     register char *begin;
++      char *begin;
+      char *end_needle = strend (needle);
+      char *end_haystack = strend (haystack);
+      int len_needle = end_needle - needle;
+--- a/strupr.c
++++ b/strupr.c
+@@ -1,3 +1,4 @@
++#include <ctype.h>
+ /* convert a string to upper case.  Returns a pointer to the start of the
+ ** string.
+ */
+@@ -5,12 +6,12 @@
+ char *strupr (string)
+ char *string;
+ {
+-     register char *p;
++      char *p;
+ 
+      p = string;
+ 
+      while (*p)
+-          *p++ = toupper (*p);
++          { *p = toupper ((unsigned char)*p); ++p; }
+ 
+      return (string);
+ }
+@@ -24,12 +25,12 @@
+ char *strlwr (string)
+ char *string;
+ {
+-     register char *p;
++      char *p;
+ 
+      p = string;
+ 
+      while (*p)
+-          *p++ = tolower (*p);
++          { *p = tolower ((unsigned char)*p); ++p; }
+ 
+      return (string);
+ }
+--- a/subscribe.c
++++ b/subscribe.c
+@@ -33,7 +33,7 @@
+ int argc;
+ char *argv[];
+ {
+-     register int i;
++      int i;
+      char *p;
+ 
+      if (argc < 2
+@@ -75,7 +75,7 @@
+ int subscribe (newsgroup)
+ char *newsgroup;
+ {
+-     register char *p;
++      char *p;
+      FILE *infile, *outfile;
+      char group[512], flag, articles[512], newnewsrc[15];
+      char *newsrc = _NEWSRC;
+--- a/termio.c
++++ b/termio.c
+@@ -23,6 +23,28 @@
+ */
+ 
+ #include "uucp.h"
++void ErEOLine(void);
++void curxy(int, int);
++void ErEOLine(void);
++void curxy(int, int);
++void ErEOLine(void);
++void curxy(int, int);
++void ErEOLine(void);
++void curxy(int, int);
++void ErEOLine(void);
++void curxy(int, int);
++void ErEOLine(void);
++void curxy(int, int);
++void ErEOLine(void);
++void curxy(int, int);
++void ErEOLine(void);
++void curxy(int, int);
++void ErEOLine(void);
++void curxy(int, int);
++void ErEOLine(void);
++void curxy(int, int);
++void ErEOLine(void);
++void curxy(int, int);
+ 
+ #ifdef TERMCAP
+ # ifndef BSDISH
+@@ -84,7 +106,7 @@
+ {
+      char linebuff[LINESIZE],
+      int found = 0;                      /* indicates tty line was found */
+-     register char  *workptr;
++      char  *workptr;
+      FILE * ttysfd;
+ 
+      /* Open the TTYTYPE file, in either of three directories */
+@@ -167,7 +189,7 @@
+ void init_term_cap()
+ {
+ # ifdef _OSK
+-     register char *term_type;
++      char *term_type;
+ # else
+ #  ifdef BSDISH
+      char *term_type;
+--- a/unsubscribe.c
++++ b/unsubscribe.c
+@@ -33,7 +33,7 @@
+ int argc;
+ char *argv[];
+ {
+-     register int i;
++      int i;
+      char *p;
+ 
+      if (argc < 2
+@@ -77,7 +77,7 @@
+ {
+      FILE *infile, *outfile;
+      char group[512], flag, articles[512], newnewsrc[15];
+-     register char *p;
++      char *p;
+      char *newsrc = _NEWSRC;
+ 
+      p = line;
+@@ -104,7 +104,7 @@
+                 || (strcmp (newsgroup, group) == 0))
+             {
+                if (flag == '!')
+-                    printf ("Newsgroup % is already unsubscribed.\n", group);
++                    printf ("Newsgroup %s is already unsubscribed.\n", group);
+                else
+                  {
+                     printf ("Newsgroup %s is now unsubscribed.\n", group);
+--- a/uucico.c
++++ b/uucico.c
+@@ -66,7 +66,7 @@
+ {
+      int option, priority, naptime, numsys, maxtries;
+      char **syslist;
+-     register char **sysptr;
++      char **sysptr;
+      flag runuuxqt, aftercall, gotmail, orphan;
+ 
+      /* defaults */
+@@ -85,7 +85,7 @@
+      priority  = 128;                           /* normal priority          */
+ 
+ #ifndef _OSK
+-     pflinit();                                    /* longs will be printed */
++                                         /* longs will be printed */
+ #endif
+ 
+      intercept (interrupt);                      /* deal with interruptions */
+@@ -365,7 +365,7 @@
+ 
+ int pollremote()
+ {
+-     register flag state;
++      flag state;
+ 
+      *device = '\0';                             /* no port yet */
+ 
+@@ -387,7 +387,7 @@
+ 
+                case SOPEN:
+                     endflag = TRUE;
+-                    time (&start_time);
++                    uucpbb_time (&start_time);
+                     state = sopenuucp();
+                     break;
+ 
+@@ -428,7 +428,7 @@
+ int callup()
+ {
+      int index = 0;
+-     register flag state = INITIAL; 
++      flag state = INITIAL; 
+ 
+      for (;;)
+           switch (state)
+@@ -449,7 +449,7 @@
+                     exit (NONSHARE);
+ 
+                case MAKECALL:
+-                    time (&start_time);
++                    uucpbb_time (&start_time);
+                     state = connect (index);
+                     break;
+ 
+@@ -485,7 +485,7 @@
+ int endcall()
+ {
+      closeport();
+-     time (&endtime);
++     uucpbb_time (&endtime);
+      *device = '\0';
+ 
+      if (endflag)
+@@ -495,7 +495,7 @@
+           else
+                call_length = 0L;
+ 
+-          fprintf (log, "%s %s %s Call complete (%ld seconds)%s\n",
++          fprintf (uucpbb_log, "%s %s %s Call complete (%ld seconds)%s\n",
+                         sender, sysname, gtime(), call_length,
+                         normal_end ? "" : " --FAILED");
+ 
+@@ -534,9 +534,9 @@
+ 
+      if (logflag)
+        {
+-          if ((log = fopen (lname, "a")) != NULL)
++          if ((uucpbb_log = fopen (lname, "a")) != NULL)
+             {
+-               setbuf (log, NULL);
++               setbuf (uucpbb_log, NULL);
+                logopen = TRUE;
+                return;
+             }
+@@ -546,9 +546,9 @@
+ 
+      /* send everything to bit bucket if quiet or can't open log file */
+      if (quiet)
+-          log = fopen (NIL, "w");
++          uucpbb_log = fopen (NIL, "w");
+      else
+-          log = stderr;
++          uucpbb_log = stderr;
+ 
+      logopen = TRUE;
+      return;
+@@ -564,7 +564,7 @@
+ {
+      if (logopen)
+        {
+-          fclose (log);
++          fclose (uucpbb_log);
+           logopen = FALSE;
+ 
+           if (ramdisk)
+@@ -618,7 +618,7 @@
+ int backspace (howmany)
+ int howmany;
+ {
+-     register int i;
++      int i;
+ 
+      for (i = 0; i < howmany; ++i)
+           fputs ("\b \b", stdout);
+@@ -631,7 +631,7 @@
+ int logerror (msg)
+ char *msg;
+ {
+-     fprintf (log, "%s %s %s ERROR--%s\n", sender, sysname, gtime(), msg);
++     fprintf (uucpbb_log, "%s %s %s ERROR--%s\n", sender, sysname, gtime(), msg);
+ }
+ 
+ 
+@@ -641,7 +641,7 @@
+ int lognorm (msg)
+ char *msg;
+ {
+-     fprintf (log, "%s %s %s %s\n", sender, sysname, gtime(), msg);
++     fprintf (uucpbb_log, "%s %s %s %s\n", sender, sysname, gtime(), msg);
+ }
+ 
+ 
+@@ -664,7 +664,7 @@
+ int interrupt (sig)
+ int sig;
+ {
+-     fprintf (log, "\n%s %s %s OPERATOR ABORTED\n", sender,sysname,gtime() );
++     fprintf (uucpbb_log, "\n%s %s %s OPERATOR ABORTED\n", sender,sysname,gtime() );
+      endcall();
+      exit (sig);
+ }
+@@ -701,7 +701,7 @@
+         "\t-iN\t-wait N minutes between call retries, default is "; 
+      static char *help3 = 
+         "\t-tN\t-try to call remote up to N times, default is ";
+-     register char **hlp;
++      char **hlp;
+ 
+      for (hlp = help1;  *hlp != NULL;  ++hlp)
+           fprintf (stderr, "%s\n", strdetab (strcpy (temp, *hlp), 6));
+--- a/uucico.h
++++ b/uucico.h
+@@ -119,7 +119,7 @@
+ EXTERN QQ int debuglvl;
+ EXTERN QQ char protocol;                        /* name of protocol we use */
+ EXTERN QQ char rseq, sseq, swin;                /* used in gproto.c */
+-EXTERN QQ FILE *log;
++EXTERN QQ FILE *uucpbb_log;
+ 
+ /* globals added/changed --REB */
+ EXTERN char phone[25],                          /* remote's number */
+@@ -132,9 +132,11 @@
+             chatscript[128];              /* script for logging into remote */
+ 
+ #ifndef _OSK
+-EXTERN long start_time, endtime, call_length;
++EXTERN time_t start_time, endtime;
++EXTERN long call_length;
+ #else
+-EXTERN time_t start_time, endtime, call_length;
++EXTERN time_t start_time, endtime;
++EXTERN long call_length;
+ #endif
+ 
+ /* global environment variable for low level errors --REB */
+--- a/uuclean.c
++++ b/uuclean.c
+@@ -43,9 +43,9 @@
+ #include <direct.h>
+ #ifndef _OSK
+ #include <utime.h>
+-#include "dir_6809.h"
++#include <dirent.h>
+ #else
+-#include <dir.h>
++#include <dirent.h>
+ #endif
+ 
+ #define DEFDAYS   7                          /* default oldest file days */
+@@ -84,7 +84,7 @@
+ QQ int pn;
+ QQ char *def_dir;
+ QQ FILE *fd;
+-QQ FILE *log;
++QQ FILE *uucpbb_log;
+ long num_days;
+ char def_date[6], timestr[21], tempstr[128];
+ char xtype[2], datafile[80];
+@@ -103,11 +103,11 @@
+      char dirname[100];
+      int option;
+      DIR *dir;                          /* these two structures are already */
+-     struct direct *pdir;               /* defined in dir.h.  Added --REB */
++     struct dirent *pdir;               /* defined in dir.h.  Added --REB */
+ 
+      /* initialize variables */
+      num_days = DEFDAYS;                     /* default number of days */
+-     log = stderr;                           /* don't log error -- REB */
++     uucpbb_log = stderr;                           /* don't log error -- REB */
+      def_dir = NULL;
+ 
+      if (getuid() != 0)
+@@ -221,7 +221,7 @@
+ {
+      char filename[100], dfile[11];
+      DIR *dir;                        /* these two structures are already */
+-     struct direct *pdir;                             /* defined in DIR.H */
++     struct dirent *pdir;                             /* defined in DIR.H */
+      flag got_data_file;
+      char *words[WORDSIZE];                                 /* REB */
+ 
+@@ -242,7 +242,7 @@
+           if (verbose)
+                printf ("\nFound file '%s'\n", filename);
+ 
+-          if ((pn = open (filename, 1)) == ERROR)
++          if ((pn = uucpbb_open (filename, 1)) == ERROR)
+             {
+                if (verbose)
+                     printf ("cannot open '%s'\n", filename);
+@@ -314,14 +314,14 @@
+ long offset;
+ struct sgtbuf *datebuff;
+ {
+-     long systime;
++     time_t systime;
+      struct tm *utimeptr;
+ 
+-     systime = time ((char *)0);                    /* get current time */
++     systime = uucpbb_time (NULL);                    /* get current time */
+ 
+      /* substract the offset in hours */
+      systime -= offset*24L*60L*60L;                 /* changed [MDG] */
+-     utimeptr = localtime(&systime);
++     utimeptr = gmtime(&systime);
+ 
+      datebuff->t_year   = utimeptr->tm_year;
+ #ifdef _OSK
+@@ -356,7 +356,7 @@
+ {
+      char line[256], tmpfile[80], rtrnto[128], origto[128];
+      FILE *msgfd;
+-     register char *lp;
++      char *lp;
+      flag header;
+      unsigned tmpuid;
+      char *p;
+@@ -393,7 +393,7 @@
+      /* daemon is the one sending the mail */
+      setuser ("daemon");
+      tmpuid = getuid();
+-     chown (tmpfile, tmpuid);
++     uucpbb_chown (tmpfile, tmpuid);
+      asetuid (0);
+ 
+      /* assemble the returned message */
+@@ -451,7 +451,7 @@
+ {
+      char replyto[128], resentfrm[128], resentrply[128], line[256];
+      char rtrnto[128];
+-     register char *lp;
++      char *lp;
+      flag header;
+      unsigned tmpuid;
+      char *p;
+--- a/uucp.c
++++ b/uucp.c
+@@ -32,7 +32,7 @@
+ extern char user[];
+ extern QQ char *nodename;
+ 
+-QQ FILE *log;
++QQ FILE *uucpbb_log;
+ 
+ 
+ int main(argc, argv)
+@@ -40,13 +40,13 @@
+ char *argv[];
+ {
+      char options[10], fromfile[100], tofile[100];
+-     register int i;
++      int i;
+      char *p1, *p2;
+ 
+      if ((argc < 2) ||  strcmp (argv[1], "-?") == 0)
+           usage();
+ 
+-     log = stderr;
++     uucpbb_log = stderr;
+ 
+      if (getparam() == FALSE)
+           exit (0);
+@@ -109,7 +109,7 @@
+ {
+      char line[100], cname[16], dname[16], tmp[256];
+      FILE *qfile, *file;
+-     register int count;
++      int count;
+ 
+      /* figure out filenames */
+      getfnames (system, cname, dname);
+@@ -174,8 +174,8 @@
+ 
+      /* be sure files belong to the proper owner */
+      asetuid (0);
+-     chown (dname, myuid);
+-     chown (cname, myuid);
++     uucpbb_chown (dname, myuid);
++     uucpbb_chown (cname, myuid);
+ }
+ 
+ 
+@@ -189,7 +189,7 @@
+ char *system, *options, *fromfile, *tofile;
+ {
+      char line[100], cname[16], dname[16];
+-     register FILE *qfile;
++      FILE *qfile;
+ 
+      /* figure out filenames */
+      getfnames (system, cname, dname);
+--- a/uudecode.c
++++ b/uudecode.c
+@@ -23,7 +23,7 @@
+ {
+      FILE  *in, *out;
+      char  dest[128], path[128];
+-     register char *p;
++      char *p;
+      int first_one;
+ 
+      if (argc > 2)
+@@ -113,7 +113,7 @@
+ FILE  *in, *out;
+ {
+      char  buff[80], *bp;
+-     register int n;
++      int n;
+ 
+      /* for each input line */
+      for (;;)
+@@ -162,7 +162,7 @@
+    to output all of them at the end of the file.  */
+ 
+ int outdec ( p, f, n)
+-register char  *p;
++ char  *p;
+ FILE  *f;
+ int   n;
+ {
+@@ -189,7 +189,7 @@
+ int findbegin (in)
+ FILE *in;
+ {
+-     register char *p;
++      char *p;
+ 
+      p = buf;
+ 
+--- a/uuencode.c
++++ b/uuencode.c
+@@ -22,7 +22,7 @@
+ {
+      FILE *in;
+      char filename[128];
+-     register char *p;
++      char *p;
+ 
+      in = stdin;
+ 
+@@ -67,7 +67,7 @@
+ FILE  *out;
+ {
+      char  buf[80];
+-     register int i;
++      int i;
+      int   n;
+ 
+      for (;;)
+@@ -91,7 +91,7 @@
+ /* output one group of 3 bytes, pointed at by p, on file f. */
+ 
+ int outdec (p, f)
+-register char *p;
++ char *p;
+ FILE  *f;
+ {
+      int   c1, c2, c3, c4;
+@@ -116,7 +116,7 @@
+ char  *buf;
+ int   cnt;
+ {
+-     register int i;
++      int i;
+      int c;
+ 
+      for (i = 0; i < cnt; i++)
+--- a/uulog.c
++++ b/uulog.c
+@@ -49,7 +49,7 @@
+ int argc;
+ char *argv[];
+ {
+-     register FILE *fd;                                 /* Changed --REB */
++      FILE *fd;                                 /* Changed --REB */
+      flag all, fserver, dayflag, uulflag;               /*               */
+      int option;
+      char *day, line[256];
+@@ -151,7 +151,7 @@
+ 
+ void usage()
+ {
+-     register char **use;
++      char **use;
+      static char *usetxt[] = {
+           "uulog: examine uucp or fileserver log files",
+           " ",
+--- a/uuname.c
++++ b/uuname.c
+@@ -45,7 +45,7 @@
+ void showlocalname()
+ {
+      FILE *fp;
+-     register char *p;
++      char *p;
+      char *nptr;
+ 
+      p = buf;
+@@ -70,7 +70,7 @@
+ {
+      char *words[3];
+      FILE *fp;
+-     register char *p;
++      char *p;
+      int n;
+ 
+      if ((fp = fopen (SYSTEMS, "r")) == NULL)
+@@ -97,7 +97,7 @@
+ 
+ void usage()
+ {
+-     register char **help;
++      char **help;
+      static char *helptxt[] = {
+             "uuname --show local machine name or those of UUCP sites we talk to",
+             "Usage:  uuname [-l]\n",
+--- a/uuxqt.c
++++ b/uuxqt.c
+@@ -37,7 +37,7 @@
+ #include <os9.h>
+ #endif
+ #include <signal.h>
+-#include <dir.h>
++#include <dirent.h>
+ #include "getopt.h"
+ 
+ #define MOREWORK  128                          /* more work signal */
+@@ -57,7 +57,7 @@
+ QQ char *rnews = "rnews";
+ QQ char *rmail = "rmail";
+ QQ char **syslist;
+-QQ FILE *log;
++QQ FILE *uucpbb_log;
+ char sender[6] = "uuxqt";
+ char sysname[9] = "";
+ char fname[100];
+@@ -69,9 +69,9 @@
+ char *argv[];
+ {
+      int option, interrupt();
+-     register char **sysptr;
+-
+-     log = NULL;
++      char **sysptr;
++
++     uucpbb_log = NULL;
+      childid = -1;                                 /* no children yet */
+ 
+      intercept (interrupt);                        /* set signal trap */
+@@ -188,7 +188,7 @@
+ int isuuxqtrunning()
+ {
+      char line[80];
+-     register char *p;
++      char *p;
+      char *proc = PROC;
+      FILE *fp;
+      flag foundanother = FALSE;
+@@ -199,7 +199,7 @@
+      /* look for another uuxqt running besides us */
+      ourpid = getpid();
+ 
+-     if ((fp = popen (proc, "r")) == NULL)
++     if ((fp = uucpbb_popen (proc, "r")) == NULL)
+        {
+           sprintf (line, "isuuxqtrunning() can't load '%s'", proc);
+ 
+@@ -220,7 +220,7 @@
+                     uupid = atoi (p);
+                     foundanother = TRUE;
+                  }
+-     pclose (fp);
++     uucpbb_pclose (fp);
+ 
+      /* if we found another uuxqt tell it about new work and die */
+      if (foundanother)
+@@ -236,8 +236,8 @@
+ int processmail()
+ {
+      DIR *dir;                                     /* defined is dir_6809.h */
+-     struct direct *dirptr;                        /* defined in dir_6809.h */
+-     register char **sysptr;
++     struct dirent *dirptr;                        /* defined in dir_6809.h */
++      char **sysptr;
+      char *badsys = " (bad system name)";
+      char *cantchg = "can't change to spool directory for: ";
+ 
+@@ -355,13 +355,13 @@
+      strcat (strcpy (tmp, logdir), "/uulog");
+ 
+      /* Open log file, uulog.  It should be unbuffered. */
+-     if ((log = fopen (tmp, "a")) != NULL)
+-       {
+-          setbuf (log, NULL);
++     if ((uucpbb_log = fopen (tmp, "a")) != NULL)
++       {
++          setbuf (uucpbb_log, NULL);
+           logopen = TRUE;
+        }
+      else
+-          log = stderr;
++          uucpbb_log = stderr;
+ }
+ 
+ 
+@@ -372,11 +372,11 @@
+ {
+      char out[128], in[128];
+ 
+-     if (log == stderr)
++     if (uucpbb_log == stderr)
+           return;
+ 
+      if (logopen)
+-          fclose (log);
++          fclose (uucpbb_log);
+ 
+      logopen = FALSE;
+ 
+@@ -432,13 +432,13 @@
+ int error (msg)
+ char *msg;
+ {
+-     fprintf (log, "%s %s %s %s%s",
++     fprintf (uucpbb_log, "%s %s %s %s%s",
+                    sender, sysname, gtime(), errormsg, msg);
+ 
+      if (errno != 0)
+-          fprintf ("...error #%d", errno);
+-
+-     putc ('\n', log);
++          fprintf (uucpbb_log, "...error #%d", errno);
++
++     putc ('\n', uucpbb_log);
+ }
+ 
+ 
+@@ -456,7 +456,7 @@
+ int usage()
+ {
+      char temp[80];
+-     register char **use;
++      char **use;
+      static char *usetxt[] = {
+        " ",
+        "uuxqt: process incoming queued UUCP traffic",
+--- a/validuser.c
++++ b/validuser.c
+@@ -50,7 +50,7 @@
+ int chkuser (user)
+ char *user;
+ {
+-     register PWENT *pwentry;
++      PWENT *pwentry;
+      flag result = FALSE;                     /* assume failure */
+ 
+      asetuid (0);
+--- a/whoami.c
++++ b/whoami.c
+@@ -32,7 +32,7 @@
+ 
+ int main()
+ {
+-     register PWENT *pwentry;
++      PWENT *pwentry;
+      unsigned myuid;
+ 
+      myuid = getuid();
