@@ -130,8 +130,7 @@ ttopen()
 #endif
 #ifdef OS9
         getstat(0, 0, &ostate);                       /* save old state */
-        getstat(0, 0, &nstate);                       /* get base of new state *
-/
+        getstat(0, 0, &nstate);                       /* get base of new state */
         nstate.sg_echo = 0;       /* no echo for now... */
         nstate.sg_bellch = 0;
         nstate.sg_bsech = 0;
@@ -156,8 +155,7 @@ ttopen()
 #endif
 #ifdef OSK
         getstat(0, 0, &ostate);                       /* save old state */
-        getstat(0, 0, &nstate);                       /* get base of new state *
-/
+        getstat(0, 0, &nstate);                       /* get base of new state */
         nstate.sg_echo = 0;       /* no echo for now... */
         nstate.sg_bellch = 0;
         nstate.sg_bsech = 0;
