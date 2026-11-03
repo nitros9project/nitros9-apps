@@ -9,8 +9,8 @@ export NITROS9_APPS_DIR
 
 include $(NITROS9DIR)/rules.mak
 
-dirs = cpm deskmate3 multivue os9l2bbs uucpbb
-legacydirs = ed uemacs
+dirs = cpm deskmate3 multivue os9l2bbs uemacs uucpbb
+legacydirs = ed
 
 .PHONY: all clean
 
