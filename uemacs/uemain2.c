@@ -109,6 +109,10 @@ getkey()
 #ifdef DEBUG
                 printf("CTL=%4X",c);
 #endif
+#ifdef ANSI
+                if (c == '[')                   /* ANSI cursor key?     */
+                        return (ansikey());
+#endif
                 return (META | c);
         }
 
@@ -119,6 +123,37 @@ getkey()
 #endif
         return (c);
 }
+
+#ifdef ANSI
+/*
+ * Finish reading an ANSI key sequence after ESC [.  Parameters run up to a
+ * final byte in @ to ~.  The arrows act as C-P, C-N, C-F and C-B; any other
+ * sequence is consumed whole, so its bytes are not inserted as text, and
+ * comes back as the unbound M-[.
+ */
+ansikey()
+{
+        register int    c;
+        int             plain;
+
+        plain = TRUE;
+        while ((c = (*term.t_getchar)()) < '@' || c > '~')
+                plain = FALSE;
+        if (plain) {
+                switch (c) {
+                case 'A':
+                        return (CTRL | 'P');
+                case 'B':
+                        return (CTRL | 'N');
+                case 'C':
+                        return (CTRL | 'F');
+                case 'D':
+                        return (CTRL | 'B');
+                }
+        }
+        return (META | '[');
+}
+#endif
 
 /*
  * Get a key.
