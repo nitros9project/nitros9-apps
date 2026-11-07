@@ -101,6 +101,13 @@ getkey()
         else if (c == Shift + 0x7F) return META | 0x7F;
 #endif
 
+#ifdef ANSI
+#ifdef OS9
+        if ((c & 0xFF) >= 0x80 && (c & 0xFF) <= 0x9F)
+                return (ptkey(c & 0xFF));
+#endif
+#endif
+
         if (c == METACH) {                      /* Apply M- prefix      */
 #ifdef DEBUG
                 printf("META");
@@ -125,6 +132,56 @@ getkey()
 }
 
 #ifdef ANSI
+#ifdef OS9
+/*
+ * Map a Pico-Thing cursor or editing key, which arrives as one byte from $80
+ * to $9F, to the command it stands for. Shift and the arrows act as the
+ * arrows alone; Ctrl-Left and Ctrl-Right move by words, Ctrl-Up and
+ * Ctrl-Down go to the start and end of the buffer. The pound sign ($9C) is
+ * text. Any other key in the range, a function key or Insert, comes back as
+ * the unbound M-[.
+ */
+ptkey(c)
+register int    c;
+{
+        switch (c) {
+        case 0x8C:                              /* Up                   */
+        case 0x90:
+                return (CTRL | 'P');
+        case 0x8D:                              /* Down                 */
+        case 0x91:
+                return (CTRL | 'N');
+        case 0x8E:                              /* Left                 */
+        case 0x92:
+                return (CTRL | 'B');
+        case 0x8F:                              /* Right                */
+        case 0x93:
+                return (CTRL | 'F');
+        case 0x94:                              /* Ctrl-Up              */
+                return (META | '<');
+        case 0x95:                              /* Ctrl-Down            */
+                return (META | '>');
+        case 0x96:                              /* Ctrl-Left            */
+                return (META | 'B');
+        case 0x97:                              /* Ctrl-Right           */
+                return (META | 'F');
+        case 0x98:                              /* Home                 */
+                return (CTRL | 'A');
+        case 0x99:                              /* End                  */
+                return (CTRL | 'E');
+        case 0x9A:                              /* Page Up              */
+                return (META | 'V');
+        case 0x9B:                              /* Page Down            */
+                return (CTRL | 'V');
+        case 0x9C:                              /* Pound sign           */
+                return (c);
+        case 0x9E:                              /* Delete               */
+                return (CTRL | 'D');
+        }
+        return (META | '[');
+}
+#endif
+
 /*
  * Finish reading an ANSI key sequence after ESC [.  Parameters run up to a
  * final byte in @ to ~.  The arrows act as C-P, C-N, C-F and C-B; any other
