@@ -29,9 +29,6 @@ packages that provide them. Use `make clean` to remove generated commands and
 disk images. Most disk builds require the corresponding NitrOS-9 modules and
 commands to have been built first.
 
-The historical `ed` sources retain their original native OS-9 build procedure
-and are not part of the cross-compiled aggregate target.
-
 ## Source and licensing
 
 These packages were migrated from the NitrOS-9 `3rdparty/packages` tree.
