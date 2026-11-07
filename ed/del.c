@@ -12,7 +12,7 @@ int from, to;
   first = getptr(prevln(from));
   last = getptr(nextln(to));
   next = first->l_next;
-  while (next != &line0 && next != last) {
+  while (next != last && next != &line0) {
         tmp = next->l_next;
         free((char *) next);
         next = tmp;
