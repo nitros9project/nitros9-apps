@@ -57,6 +57,12 @@ struct  sgttyb  nstate;                 /* values for editor mode */
 
 #ifdef OS9
 #include        <sgstat.h>               /* for stty/gtty functions */
+/*
+ * Offsets of SCF's XON and XOFF characters in the path options. Microware's
+ * sgstat.h has no members for them (it calls those two bytes sg_stn).
+ */
+#define SGXON   24
+#define SGXOFF  25
 struct  sgbuf  ostate;                 /* saved tty state */
 struct  sgbuf  nstate;                 /* values for editor mode */
 #endif
@@ -146,6 +152,8 @@ ttopen()
         nstate.sg_pause = 0;
         nstate.sg_alf = 0;
         nstate.sg_backsp = 0;
+        ((char *) &nstate)[SGXON] = 0;  /* C-Q and C-S are commands, */
+        ((char *) &nstate)[SGXOFF] = 0; /* not flow control          */
         setstat(0, 0, &nstate);                       /* set mode */
         stdin->_flag &= ~_SCF;
         stdin->_flag |= _RBF;
