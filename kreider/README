@@ -1,0 +1,17 @@
+Carl Kreider's C tools for OS-9
+
+Small C programs that Carl Kreider wrote, or converted to Microware C, and
+placed in the public domain in the 1980s.  They come from the OS-9/6809
+archive, with CR line endings converted to LF and otherwise as archived.
+Each keeps its original notice; the archive path and that notice follow.
+
+Each directory builds two ways:
+
+  make             cross-build on a host with c3 (Makefile)
+  make -f os9.mak  build on OS-9 with cc1; installed as the makefile when
+                   the source is copied to a NitrOS-9 disk
+
+uniq    report or remove repeated adjacent lines
+        APPS/Unpacked/SRC/uniq.lzh (uniq.c, uniq.doc)
+        "Adapted for BDS C by Jeff Martin ... Converted to MW C by Carl
+        Kreider and returned to the public domain"
