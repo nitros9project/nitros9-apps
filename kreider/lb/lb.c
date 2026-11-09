@@ -12,6 +12,7 @@
 */
 #include <stdio.h>
 /* misc. constants */
+#define TRUE        1
 #define ROFSYNC     0x62CD2387
 #define SYMLEN      9                        /* Length of symbols */
 #define MAXNAME     16                   /* length of module name */
