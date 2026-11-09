@@ -15,6 +15,8 @@
 /*      Carl Kreider                                                */
 /********************************************************************/
 #include <stdio.h>
+#define TRUE 1
+#define FALSE 0
 #define LMAX 121
 #define PAGBOT 60
 int  curlin, pagno, linno;

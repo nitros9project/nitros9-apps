@@ -1,5 +1,5 @@
 # Carl Kreider's public-domain C tools, cross-built with c3.
-dirs = uniq cb
+dirs = uniq cb ppc
 
 .PHONY: all clean
 
