@@ -15,3 +15,10 @@ uniq    report or remove repeated adjacent lines
         APPS/Unpacked/SRC/uniq.lzh (uniq.c, uniq.doc)
         "Adapted for BDS C by Jeff Martin ... Converted to MW C by Carl
         Kreider and returned to the public domain"
+
+cb      C beautifier: re-indents C source
+        PROG/Unpacked/SRC/cb_C_Beautifier.lzh (cb.c)
+        "From the CIPG's UNIX system and modified to run under BDS C by
+        William C. Colley, III / Released to the public domain via CUG ...
+        Fixed to work with MW C and put back in the public domain by Carl
+        Kreider 7-1-84"
