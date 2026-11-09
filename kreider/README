@@ -22,3 +22,7 @@ cb      C beautifier: re-indents C source
         William C. Colley, III / Released to the public domain via CUG ...
         Fixed to work with MW C and put back in the public domain by Carl
         Kreider 7-1-84"
+
+ppc     lists a C file with page breaks and line numbers
+        PROG/Unpacked/SRC/ppc_PrettyPrintC.lzh (ppc.c)
+        "Modified and put back in the public domain by Carl Kreider"
