@@ -121,7 +121,7 @@ char *name;
    curlin=0;
    printf("\n\n%-43s ",name);
    printf("%02d/%02d/%02d  %02d:%02d:%02d",
-          tbuf[1], tbuf[2], tbuf[0],
+          tbuf[1], tbuf[2], tbuf[0] % 100,
           tbuf[3], tbuf[4], tbuf[5]);
    printf("       Page %3d\n\n",++pagno);
    }
