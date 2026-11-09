@@ -34,3 +34,10 @@ dgrep   grep with regular expressions (DECUS grep); named dgrep so it does
         C/80 Version 2.0 compiler and Copyright 1983 William G. Hutchison,
         Jr. ... Converted to MW C and placed back in the public domain By:
         Carl Kreider"
+
+lb      splits a ROF library such as clib.l into its modules, X.<name>.r,
+        and lists their names in modlist, so the library can be changed
+        and merged again
+        PROG/Unpacked/SRC/lb_C_Lib_splitter.lzh (lb.c)
+        "copyright 1984 by Carl R. Kreider / released to the public domain
+        for non-commercial use"
