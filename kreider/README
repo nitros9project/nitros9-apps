@@ -26,3 +26,11 @@ cb      C beautifier: re-indents C source
 ppc     lists a C file with page breaks and line numbers
         PROG/Unpacked/SRC/ppc_PrettyPrintC.lzh (ppc.c)
         "Modified and put back in the public domain by Carl Kreider"
+
+dgrep   grep with regular expressions (DECUS grep); named dgrep so it does
+        not replace NitrOS-9's own grep
+        APPS/Unpacked/SRC/grep.lzh (grep.c, grep.h, grep.hlp)
+        "Copyright (C) 1980, DECUS / Converted for the Software Toolworks
+        C/80 Version 2.0 compiler and Copyright 1983 William G. Hutchison,
+        Jr. ... Converted to MW C and placed back in the public domain By:
+        Carl Kreider"
