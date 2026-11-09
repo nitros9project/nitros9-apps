@@ -5,6 +5,7 @@ This repository contains applications and application suites for NitrOS-9:
 - `cpm` — CP/M emulator and its packaged software collection
 - `deskmate3` — DeskMate 3 application disk
 - `ed` — OS-9 Level One port of the Unix `ed` editor
+- `kreider` — Carl Kreider's public-domain C tools: `uniq`, `cb`, `ppc`, `dgrep` and `lb`
 - `multivue` — Multi-Vue graphical environment and applications
 - `os9l2bbs` — OS-9 Level 2 BBS package
 - `uemacs` — MicroEMACS port for OS-9
