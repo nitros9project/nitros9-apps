@@ -2,5 +2,9 @@
 *
 *  It is named dgrep so it does not replace NitrOS-9's own grep.  cc1
 *  writes the program to the execution directory.
-dgrep: grep.c grep.h
-  cc1 grep.c -f=dgrep
+CC = cc1
+
+dgrep: grep.r
+  cc1 grep.r -f=dgrep
+
+grep.r: grep.h
