@@ -4,7 +4,6 @@
 *   NOTE: You must use Shell+ to overwrite and files already there.
 *         If you don't have it, change all occurance of >- to >
 *
-load mroff
 mroff abort.txt >-MAN/abort.man
 mroff abs.txt >-MAN/abs.man
 mroff access.txt >-MAN/access.man
@@ -88,7 +87,6 @@ mroff setuid.txt >-MAN/setuid.man
 mroff signal.txt >-MAN/signal.man
 mroff skipbl.txt >-MAN/skipbl.man
 mroff skipwd.txt >-MAN/skipwd.man
-mroff sleep.txt >-MAN/sleep.man
 mroff ss_attr.txt >-MAN/ss_attr.man
 mroff ss_lock.txt >-MAN/ss_lock.man
 mroff ss_opt.txt >-MAN/ss_opt.man
@@ -102,7 +100,6 @@ mroff ss_wtrk.txt >-MAN/ss_wtrk.man
 mroff stacksize.txt >-MAN/stacksize.man
 mroff strass.txt >-MAN/strass.man
 mroff strings.txt >-MAN/strings.man
-mroff system.txt >-MAN/system.man
 mroff time.txt >-MAN/time.man
 mroff tsleep.txt >-MAN/tsleep.man
 mroff unbrk.txt >-MAN/unbrk.man
@@ -112,4 +109,3 @@ mroff unlink.txt >-MAN/unlink.man
 mroff unlinkx.txt >-MAN/unlinkx.man
 mroff wait.txt >-MAN/wait.man
 mroff write.txt >-MAN/write.man
-unlink mroff
