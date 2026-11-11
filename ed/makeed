@@ -1,1 +1,1 @@
-cc1 ed.c objs.l -f=ed
+cc1 ed.c docmd.r setbuf.r -l=objs.l -f=ed
