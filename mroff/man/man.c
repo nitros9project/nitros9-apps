@@ -222,9 +222,7 @@ char *argv[];
                      if(access(pname,0) == 0)
                      {
                          found = TRUE;
-                         sprintf(cmd, "mroff %s%s", pname, nofilter ? "" : "! more");
-
-                         chdir("/dd/text/clib/man"); /* to find header file */
+                         sprintf(cmd, "%s%s", nofilter ? "list " : "more ", pname);
 
                          CLS
                          result = system(cmd);
