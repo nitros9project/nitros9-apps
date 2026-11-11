@@ -1,0 +1,75 @@
+.so header
+.tl /FREAD(3C)/Kreider OS-9 C Library/FREAD(3C)/
+.sh NAME
+.bb
+fread, fwrite - read/write binary data
+.eb
+.sh SYNOPSIS
+.bb
+fread(ptr, sizeof(item), nitems, fp)
+FILE *fp;
+.sp
+fwrite(ptr, sizeof(item), nitems, fp)
+FILE *fp;
+.eb
+.sh DESCRIPTION
+.db
+The
+.bo
+fread
+function reads into a buffer beginning at
+.ul
+ptr, nitems
+of data of the type
+.ul
+item
+from the input file pointer
+.ul
+fp.
+It returns the number of items actually read.
+.PP
+The
+.bo
+fwrite
+function writes, at most,
+.ul
+nitems
+of data of the type
+.ul
+item
+beginning at
+.ul
+ptr
+to the named output file
+.ul
+fp.
+It returns the number of items actually written.
+.PP
+In both cases, the type
+.ul
+item
+refers to either a char, int, or unsigned data type.  Care must be taken to
+insure the correct values are used.  If, for example, 10 bytes of type
+.ul
+char
+are to be written, then this is the same amount of data going to the output
+stream as 5 bytes of type
+.ul
+int.
+.ed
+.sh DIAGNOSTICS
+.db
+Both functions return a
+.ul
+null
+at end of file or if an error occurs.  To insure the correct data is read
+or written, the returned number of type
+.ul
+item
+should be compared to what was intended.  If there is a difference, an error
+has occured.
+.ed
+.sh SEE ALSO
+.bb
+read(), write(), fopen(), getc(), putc(), printf(), scanf()
+.eb

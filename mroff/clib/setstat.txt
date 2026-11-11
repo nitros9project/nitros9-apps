@@ -1,0 +1,372 @@
+.so header
+.tl /SETSTAT(3S)/Kreider OS-9 C Library/SETSTAT(3S)/
+.sh NAME
+.bb
+OS-9 set status system calls.
+.eb
+.sh SYNOPSIS
+.bb
+#include <os9.h>
+#include <sgstat.h>
+
+setstat(SS_OPT, filenum, buffer)
+int code, filenum;
+struct sgbuf *buffer;
+
+setstat(SS_SIZE, filenum, size)
+int code, filenum;
+long *size;
+
+setstat(SS_RESET, filenum, code)
+int code, filenum, code;
+
+setstat(SS_WTRK, filenum, buffer, track_number, side/density)
+int code, filenum;
+char *buffer;
+int track_number, side/density;
+
+setstat(SS_FRZ, filenum)
+int code, filenum;
+
+setstat(SS_SQD, filenum)
+int code, filenum;
+
+setstat(SS_DCMD, code, filenum, parm1, parm2, parm3)
+int code, code, filenum, parm1, parm2, parm3;
+
+#include <direct.h>
+setstat(SS_FD, filenum, buffer)
+int code, filenum;
+struct fildes *buffer;
+
+setstat(SS_TICK, filenum, count)
+int code, filenum, count;
+
+setstat(SS_LOCK, filenum, position)
+int code, filenum;
+long position;
+
+setstat(SS_RELEA, filenum)
+int code, filenum;
+
+setstat(SS_BLKRD, filenum, buffer, track_sector, track_den)
+int code, filenum;
+char *buffer;
+int track_sector, track_den/side/density;
+
+setstat(SS_BLKWR, filenum, buffer, track_sector, track_den)
+int code, filenum;
+char *buffer;
+int track_sector, track_den/side/density;
+
+setstat(SS_SSIG, filenum, code)
+int code, filenum, code;
+.eb
+sh DESCRIPTION
+.db
+Most of these calls are equivalent to the
+.bo
+_SS_XXX
+calls described elsewhere
+in these documents. While the
+.bo
+_SS_XXX
+calls are provided for compatibility
+with source code generated for OSK systems, the calls listed below are those
+normally used with 6809/OS-9.
+.sp
+The following descriptions do not include the full syntax for each function
+call. See the list above under Synopsis.
+.sp
+.bo
+SETSTAT(SS_OPT)
+copies the buffer pointed to be
+.ul
+buffer
+into the options section of the path descriptor opened.
+.sp
+Generally, a program will fetch the options with the
+.bo
+GETSTAT(SS_OPT)
+function, change the desired values, and then update the path options with the
+.bo
+SETSTAT(SS_OPT)
+function. The structures
+.bo
+SGBUF declared in
+.ul
+SGSTAT.H
+provides a convenient means to access the individual option values.
+.sp
+If an error occurs, a -1 is returned and the appropriate error code is
+placed in
+.ul
+errno.
+.sp
+It is a common practice to preserve a copy of the original path descriptor
+options so a program can restore them prior to exiting. The option changes
+take effect on the currently open path and any path created with the
+.bo
+I$DUP
+system call.
+.sp
+.bo
+SETSTAT(SS_SIZE)
+is used to change the size of a file opened on
+.ul
+filenum.
+The size change is immediate.
+.sp
+If the size of the file is decreased, the freed sectors are returned to the
+system. If the size is increased, sectors are added to the file with the
+contents of those sectors being undefined.
+.sp
+If an error occurs, this function returns the value -1 and the error code is
+placed in the global variable
+.ul
+errno.
+.sp
+This function works only on
+.bo
+RBF
+devices.
+.sp
+.bo
+GETSTAT(SS_RESET)
+restores the disk drive head to Track 00 in preparation for formatting and
+error recovery.
+.sp
+If an error occurs, this function returns -1 as its value and the error code
+is placed in the global variable
+.ul
+errno.
+.sp
+This call works only on
+.bo
+RBF
+devices.
+.sp
+.bo
+SETSTAT(SS_WRTK)
+performs a write-track operation on a disk drive. It is essentially
+a direct hook into the driver's write-track entry point.
+.sp
+.ul
+track_number
+is the desired track number to write, and
+.ul
+side/density
+is the desired side of the disk upon
+which to write. When the write is performed, the image contained in and
+pointed to by
+.ul
+buffer
+is written out to the disk.
+.sp
+If an error occurs, the value -1 is returned and the error code is
+placed in the global variable
+.ul
+errno.
+.sp
+This function works only on
+.bo
+RBF
+devices. Additional information on how it
+works can be obtained from examining the FORMAT utility or a device driver.
+.sp
+.bo
+WARNING!
+If
+.ul
+track_number
+is set to zero when this function is called, the
+entire disk, floppy or hard disk, will be formatted.
+.sp
+.bo
+SETSTAT(SS_FRZ)
+inhibits the reading of LSN 0 variables which define the disk format. This
+enables the reading of non-standard disks.
+.sp
+This is a very little used function that has been deleted from most new
+documentation and, in fact, is not supported by Microware any more. It is
+included in this library solely for compatibility with older programs that
+may call it. Consult your manuals for an explanation of its use.
+.sp
+.bo
+SETSTAT(SS_SPT)
+sets a different number of tracks so that non-standard disks can be read.
+This is not an often used call, as with
+.bo
+SS_FRZ
+above.
+Consult your manual for more details.
+.sp
+This call does not return any information.
+.sp
+.bo
+SETSTAT(SS_SQD)
+starts the power down sequence for hard drives that have this feature. Since
+this sequence is hardware dependent, consult your user documents for more
+details. The device that is opened with
+.ul
+filenum
+will be the device the sequence works on.
+.sp
+This call does not return any information.
+.sp
+.bo
+SETSTAT(SS_DCMD)
+sends direct commands to the disk controller for specific instructions. Since
+parameters and commands are also hardware dependent, consult your disk
+controller's documentation and the specifications for the disk controller
+chip.
+.sp
+The exit conditions of this call vary depending on the hardware device.
+.sp
+.bo
+SETSTAT(SS_FD)
+places a copy of the
+.bo
+RBF
+file descriptor sector of the file
+opened into the buffer pointed to by
+.ul
+buffer.
+A maximum of
+.ul
+count
+bytes are copied. The structure
+.bo
+FILDES,
+declared in
+.bo
+DIRECT.H,
+provides a
+convenient method to access the file descriptor information.
+.sp 
+If and error occurs, this function returns -1 as its value and the error code
+is placed in the global variable
+.ul
+errno.
+
+Be sure the buffer is large enough to hold all the options, or at least
+.ul
+count
+bytes. This call is effective only on
+.bo
+RBF
+devices. Declaring the buffer
+as type "struct fildes" is perfectly safe as this structure is predefined to
+be large enough to hold all the file descriptor information.
+.sp
+.bo
+SETSTAT(SS_TICK)
+may be used to cause an error (E$LOCK) to be returned to the process
+if the conflict still exists after a specific number of clock ticks have
+elapsed.
+.sp
+The argument
+.ul
+count
+specifies the number of ticks to wait if the record-lock
+conflict occurs with the file open on
+.ul
+path.
+A tick count of zero (the default
+on
+.bo
+RBF
+devices), causes a sleep until the record is released. A tick count of
+one means if the record is not released immediately, an error is to be
+returned.
+.sp
+If an error occurs, the value -1 is returned and the error code is
+placed in the global variable
+.ul
+errno.
+.sp
+.bo
+SETSTAT(SS_LOCK)
+locks out a file open on
+.ul
+filenum
+at the offset from the file beginning at offset
+.ul
+position,
+so another process cannot read past that point.
+.sp
+If an error occurs, the function returns the value -1 and the error code is
+placed in the global variable
+.ul
+errno.
+.sp
+.bo
+SETSTAT(SS_RELEA)
+releases a file that was locked using
+.bo
+SS_LOCK
+above.
+.sp
+.bo
+SETSTAT(SS_BLKRD)
+reads one block of data from a disk file opened on
+.ul
+filenum.
+The parameters passed determine
+the actual sector number and side of the disk. The data is read into a buffer
+pointed to by
+.ul
+buffer.
+.sp
+This function is VERY hardware dependent and the user should know the size of
+a disk block on his/her system before using it. Typically, on an
+8-bit machine, the block size will be 256 bytes while a 16-bit machine will
+usually have a block size of 512 bytes. UNIX hardware has a block size of
+1024 bytes. In addition, not all device drivers support this call. Again,
+be sure before you use it.
+.sp
+Consult your hardware documentation for more details.
+.sp
+.bo
+
+SETSTAT(SS_BLKWR)
+is the reverse of
+.bo
+SS_BLKRD
+above, writing out one block of data.
+.sp
+.bo
+SETSTAT(SS_SSIG)
+sets up a signal to be sent to the calling process when an interactive
+device has data ready. When data is received on the device indicates by
+.ul
+filenum,
+the signal
+.ul
+code
+is sent to the calling process.
+.sp
+.bo
+SS_SSIG
+must be called each time the signal is sent if it is to be used again.
+.sp
+The device is considered busy, and will return an error, if any read request
+arrives before the signal is sent. Write requests are allowed to the device
+while in this state.
+.sp
+If an error occurs, the function returns the value -1 and the error code is
+placed in the global variable
+.ul
+errno.
+.ed
+.sh NOTE
+.db
+All the above calls require an OS-9 path number for
+.ul
+filenum, and NOT a
+C iob file descriptor pointer.
+.ed
+.sh SEE ALSO
+.bb
+I$GetStt system call - Microware Manual, _gs_xxx calls
+.eb

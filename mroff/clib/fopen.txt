@@ -1,0 +1,198 @@
+.so header
+.tl /FOPEN(3S)/Kreider OS-9 C Library/FOPEN(3S)/
+.sh NAME
+.bb
+fopen, freopen, fdopen - open a file
+.eb
+.sh SYNOPSIS
+.bb
+#include <stdio.h>
+.sp
+FILE *fopen (filename, type)
+char *filename, *type;
+.sp
+FILE *freopen (filename, type, stream)
+char *filename, *type;
+FILE *stream;
+.sp
+FILE *fdopen (fildes, type)
+int fildes;
+char *type;
+.eb
+.sh DESCRIPTION
+.db
+.bo
+FOPEN
+opens a file and returns a file pointer to the file structure
+associated with that file.  The pointer
+.ul
+filename
+points to a character string that contains the name of the file to be opened.
+.PP
+The pointer
+.ul
+type
+is a character string having one of the following values:
+.bb
+"r"  - Open for reading
+.sp
+"w"  - Truncate or create for writing
+.sp
+"a"  - Append; open for writing at end of file,
+       or create for writing
+.sp
+"r+" - Open for reading and writing (update)
+.sp
+"w+" - Truncate or create for reading and writing (update)
+.sp
+"a+" - Append; open or create for reading and writing at
+       end-of-file.
+.sp
+"d"  - Open a directory file for reading ONLY
+.eb
+Any of the above types may have a "x" after the initial letter which
+indicates to
+.bo
+FOPEN
+that is should look in the current execution directory
+if a full pathname is not given in
+.ul
+filename.
+The "x" also specifies that the file should have "execute" permissions.
+.PP
+Opening for write will perform a
+.ul
+creat()
+call.  If a file with the same
+name exists when the file is opened, it will be truncated to zero length.
+Append means to open for write and position the file pointer to the end of
+the file.  Writes to the file will then extend the file until
+.ul
+fclose()
+is called.  The file will only be created if it does not already exist.
+All files created with
+.bo
+FOPEN
+will have file permissions set for user read and
+write and read only for all others.  To set other combinations of file
+permissions, use
+.ul
+create().
+.PP
+Three file pointers are available and considered open as soon as a program is
+run.  These are:
+.bb
+stdin  -  the standard input path (0)
+stdout -  the standard output path (1)
+stderr -  the standard error output path (2)
+.eb
+All files are automatically buffered except stderr unless it is made
+unbuffered by a call to
+.ul
+setbuf().
+.PP
+The
+.bo
+FREOPEN
+routine substitutes the named file in place of the open stream.
+The original stream is closed, regardless of whether the open ultimately
+succeeds.  The
+.bo
+FREOPEN
+routine returns a pointer to the
+.ul
+file
+structure associated with pointer
+.ul
+stream.
+.PP
+The
+.bo
+FREOPEN
+routine is typically used to attach the preopened
+.ul
+streams
+associated with
+.ul
+stdin, stdout,
+and
+.ul
+stderr
+to other files.
+.PP
+The
+.bo
+FDOPEN
+routine associates a
+.ul
+stream
+with a path descriptor.  Path descriptors are obtained from
+.ul
+open(), dup(), creat(),
+or
+.ul
+create(),
+which open files but do not return pointers to a
+.ul
+file
+structure.
+Streams are necessary input for many of the Section 3s library routines.
+The
+.ul
+type
+of
+.ul
+stream
+(r,w,a) must agree with the mode of the open file.
+.PP
+When a file is opened for update, both input and output may be
+done on the resulting
+.ul
+stream.
+However, output may not be directly followed by input without an
+intervening
+.ul
+fseek()
+or
+.ul
+rewind(),
+and input may not be directly followed by output without an intervening
+.ul
+fseek(), rewind(),
+or an input operation which encounters end-of-file.
+.sp
+All output is written at the end of the file and causes the file
+pointer to be repositioned at the end of the output regardless of its current
+position.  If two separate
+processes open the same file for append, each process may write freely
+to the file without fear of destroying output being written by the
+other.  The output from the two processes will be intermixed in the
+file in the order in which it is written.
+.ed
+.PP
+.sh CAVEATS
+.db
+The
+.ul
+type
+passed as an argument to
+.bo
+FOPEN
+must be a pointer to a string and NOT a character constant.  For example:
+.sp
+.in +5
+.nf
+.nj
+fp = fopen("foo", "r");  is correct
+fp = fopen("foo", 'r');  is not
+.sp
+.in -5
+.ed
+.sh DIAGNOSTICS
+.db
+FOPEN returns null (0) if the call was not successful.
+.ed
+.sh SEE ALSO
+.bb
+creat(), create(), dup(), open(), fclose(), fseek()
+.eb

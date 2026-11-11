@@ -1,0 +1,105 @@
+.so header
+.tl /DATA MODULES(3C)/Kreider OS-9 C Library/DATA MODULES(3C)/
+.*
+.sh NAME
+.bb
+datlink, dunlink, lockdata, unlkdata -- Data module operations.
+.eb
+.sh SYNOPSIS
+.bb
+int datlink(name, datptr, space)
+char *name, *datptr;
+int *space;
+.sp
+int dunlink(datptr)
+char *datptr;
+.sp
+int lockdata(datptr)
+char *datprt;
+.sp
+int unlkdata(datptr)
+char *datptr;
+.eb
+.sh DESCRIPTION
+.db
+.bo
+DATLINK
+loads (if necessary) and links the file
+.ul
+name.
+.ul
+Datptr
+is set to
+the address of the data section.
+.ul
+Space
+is set to the free space available.
+.bo
+DATLINK
+returns (-1) if an error,
+.ul
+null
+for a successful link, and 1 if a load
+was required. If a 1 is returned, that means you are the first user of 
+that data module.
+.PP
+.bo
+DUNLINK
+unlinks the module belonging to
+.ul
+DATPTR.
+A (-1) is returned if an
+error occurs, or a
+.ul
+null
+if no error.
+.PP
+.bo
+LOCKDATA
+attempts to lock the data module
+.ul
+(datptr
+is considered to be the
+lock byte) by changing the lock byte, which is normally -1, to a
+.ul
+null.
+.bo
+LOCKDATA
+returns a process stack level on failure, or a
+.ul 2
+null.
+ERRNO
+is not set.
+.PP
+.bo
+UNLKDATA
+unlocks the data module. It returns a (-1) on any attempt to unlock
+a module that has not already been locked.
+.PP
+A
+.ul
+null
+is returned upon success.
+.ed
+.sh NOTE
+.db
+A data module is considered locked when it is loaded. It must be set for use
+by a call to
+.bo
+UNLKDATA
+after the original loader is finished with any
+initialization required. A user can determine if they are the original owner
+by the value returned during the
+.bo
+DATLINK
+call.
+.PP
+In all cases,
+.ul
+datptr
+points to the lock byte. User
+free space begins at
+.ul
+datptr
++ 1.
+.ed

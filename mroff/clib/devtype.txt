@@ -1,0 +1,57 @@
+.so header
+.tl /DEVTYP(3C)/Kreider OS-9 C Library/DEVTYP(3C)/
+.sh NAME
+.bb
+devtyp, isatty - check the type of a device
+.eb
+.sh SYNOPSIS
+.bb
+devtyp(pn)
+int pn;
+.sp
+isatty(pn)
+int pn;
+.eb
+.sh DESCRIPTION
+.db
+.bo
+DEVTYP
+returns an integer number corresponding to the device type as
+defined by OS9.
+.ul
+PN
+is the OS9 path number opened to the device to check.
+.PP
+The following are the device types and returned values:
+.PP
+.in +5
+0 = SCF
+1 = RBF
+2 = PIPE
+3 = SBF
+.PP
+.in -5
+.bo
+ISATTY
+functions in the same manner as
+.ul
+devtype,
+but returns
+.ul
+TRUE
+if the
+device is an
+.bo
+SCF
+type and
+.ul
+FALSE
+if it is not.
+.ed
+.sh NOTE
+.db
+.bo
+FOR COCO USERS:
+These functions do not return any different values for a
+Level II device window since they are defined as SCF type devices.
+.ed

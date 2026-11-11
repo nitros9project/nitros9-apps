@@ -1,0 +1,112 @@
+abort - stop the program and produce a core dump
+abs - integer absolute value
+access - give file accessibility
+asetuid - sets the user ID number
+atof, atoi, atol - convert ASCII to numbers
+bsearch - binary search function
+chain - load and execute a new program module
+chdir, chxdir - change directories
+chmod - change access permissions of a file
+chown - change the ownership of a file
+close - close a file
+toupper, tolower, _toupper, _tolower, toascii - translate characters
+crc - compute the cyclic redundancy count of a module
+creat - create a new file
+create - creates and opens a file
+ctime, localtime, gmtime, asctime, tzset - convert date and time
+isalpha, isupper, islower, isdigit - character classification macros
+isalnum, isspace, ispunct - character classification macros
+isprint, iscntrl, isascii - character classification macros
+datlink, dunlink, lockdata, unlkdata - data module operations.
+devtyp, isatty - check the type of a device
+opendir, readdir, telldir, rewinddir, seekdir, closedir - directory operations
+_dump - dumps memory to standard output.
+dup - duplicate an open path number
+_errmsg - print an error message
+exit - terminate a process after flushing any pending output
+fclose, fflush - close or flush a stream (file)
+ferror, feof, clearerr, fileno - return status inquiries of files
+findstr, findnstr - string search
+fopen, freopen, fdopen - open a file
+fread, fwrite - read/write binary data
+fseek, ftell, rewind - reposition a file pointer or report position
+getc, getchar, getw - get character or word from a file
+getopt - Get an option letter from argument vector
+getpid - get a process ID
+gets, fgets - get a string from a file
+SS_OPT, SS_READY, SS_SIZE, SS_POS, SS_EOF, SS_DEVNAM, SS_FD - set status calls
+getuid - get a user ID
+_gs_devn - get device name system call.
+_gs_eof - get end-of-file status system call.
+_gs_gfd - get file descriptor system call.
+_gs_opt - get file descriptor options system call.
+_gs_pos - get file pointer position system call.
+_gs_rdy - get device status system call.
+_gs_size - get file size system call.
+htoi, htol, itoa, utoa, ltoa -- type conversions
+intercept - set a function for interrupt processing
+kill - send an interrupt to a process
+l3tol, ltol3 - convert between 3-byte integers and long integers
+lseek - seek to a position within a file
+malloc, free, realloc, calloc - memory allocation
+rand, srand, sqrt, unmin, unmax, max, min - Math functions
+memccpy, memchr, memcmp, memcpy, memset -- memory operations
+mknod - create a directory
+mktemp - make a unique file name
+modload, modlink - return a pointer to a module structure
+munlink - unlink a memory module
+open - open a file for read/write access
+_os9 - system call interface from C programs
+os9fork - create a new process
+getpwent, getpwuid, getpwnam, setpwent, endpwent, getpwdlm - password ops
+patmatch - tests one string with another for a match
+pause - halt and wait for an interrupt/signal
+prerr - print an error message
+_prgname - get a module name
+printf, fprintf, sprintf - formatted output conversion
+put, putchar, putw - put character or word on a stream
+puts, fputs - put a string on an output stream
+qsort - quick sort
+read, readln - read from a file
+realloc - changes memory allocated by malloc()
+sbrk, ibrk - request additional working memory
+scanf, fscanf, sscanf - convert formatted input
+setbuf - fix file buffer
+setime, getime - set and get system time
+setjmp, longjmp - nonlocal goto another function
+setmem - fills memory with a character
+setpr - set process priority
+allocset, addc2set, adds2set, rmfmset, smember, union,
+sintersect, sdifference, copyset, dupset - set operations
+setstat - set status system calls
+setuid - set user ID
+signal - catch or ignore interrupts
+skipbl - Skips spaces and tabs within a string
+skipbl - Skips spaces and tabs within a string
+sleep - stop execution for a time
+_ss_attr - set file attrubutes system call
+_ss_lock - set file lock status system call
+_ss_opt - set file descriptor options system call.
+_ss_pfd - set file descriptor system call.
+_ss_rel - release a pending signal system call
+_ss_rest - restore a disk drive system status call.
+_ss_size - set file size system call
+_ss_ssig - set signal system call
+_ss_tiks - set device timeout system call
+_ss_wtrk - write a disk track system call
+stacksize, freemem - get stack reservation size
+strass - byte by byte copy
+strcat, strucat, strncat, strcmp, strucmp, strncmp, strnucmp - string ops
+strcpy, strucpy, strncpy, strlen, strchr, strrchr, strpbrk - string operations
+strspn, strcspn, strtok, strclr, strend, reverse, pwcryp - string operations
+index, rindex - string operations
+system - issue a shell command
+time - get the time
+tsleep - put process to sleep
+unbrk - returns memory
+ungetc - put a character back into the input buffer
+o2utime, u2otime - converts date and time from OS9 to UNIX format
+unlink - remove a directory entry
+unlinkx - deletes a directory entry
+wait - wait for a process termination
+write, writeln - write to a file or device

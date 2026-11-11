@@ -1,0 +1,33 @@
+.so header
+.he /REALLOC(3C)/Kreider OS-9 C Library/REALLOC(3C)/
+.sh NAME
+.bb
+realloc - changes memory allocated by malloc()
+.eb
+.sh SYNOPSIS
+.bb
+char realloc(p, size)
+char *p;
+int size;
+.eb
+.sh DESCRIPTION
+.db
+.bo
+REALLOC
+takes a pointer such as that returned by
+.bo
+MALLOC
+and changes the size
+of the object. If the pointer argument is
+.ul
+null,
+.bo
+REALLOC
+degenerates into a
+.bo
+MALLOC.
+.ed
+.sh SEE ALSO
+.bb
+malloc() (Microware Manual)
+.eb

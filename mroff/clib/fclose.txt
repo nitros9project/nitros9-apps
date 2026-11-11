@@ -1,0 +1,112 @@
+.so header
+.tl /fclose(3C)/Kreider OS-9 C Library/fclose(3C)/
+.sh NAME
+.bb
+fclose, fflush - close or flush a stream (file)
+.eb
+.sh SYNOPSIS
+.bb
+#include <stdio.h>
+.sp
+fclose(fp)
+FILE *fp;
+.sp
+fflush(fp)
+FILE *fp;
+.eb
+.sh DESCRIPTION
+.db
+The
+.bo
+FCLOSE
+routine causes any buffers for the named
+file pointer
+.ul
+fp
+to be emptied, and the file to be closed.
+Buffers allocated by the standard input/output system
+are freed for use by another
+.bo
+FOPEN
+call.
+.bo
+FCLOSE
+should always be called to close access to a file when it is no
+longer needed.
+The
+.bo
+FCLOSE
+routine is performed automatically upon
+calling
+.ul
+exit() .
+The
+.bo
+FFLUSH
+routine causes any buffered data associated with the named output
+file pointer
+.ul
+fp
+to be cleared and written to that file, but only if the file was opened in
+the write or update mode.  It is not normally necessary to call
+.bo
+FFLUSH,
+but it can be useful when, for example, normal output is to
+.ul
+stdout,
+and it
+is wished to send something to
+.ul
+stderr,
+which is unbuffered.  If
+.bo
+FFLUSH
+were
+not used and
+.ul
+stdout
+was referred to the terminal, the
+.ul
+stderr
+message would
+appear before large chunks of the
+.ul
+stdout
+message even though the latter was
+written first.  The file associated with
+.ul
+fp
+remains open after the call.
+.ed
+.sh DIAGNOSTICS
+.db
+These routines return
+.ul
+EOF
+if the file pointer
+.ul
+fp
+is not associated with an output file, or
+if buffered data cannot be written to that file.
+You should always check the returned status of and
+.bo
+FCLOSE
+call.
+.ed
+.sh CAVEATS
+.db
+In cases where
+.bo
+FCLOSE
+is called as a result of an
+.ul
+exit()
+call, the error may be returned, but no
+process is running to receive it.  In this case, the data in the buffer
+will not be written to the file and the operator will NOT GET an error
+message.
+.ed
+.sh SEE ALSO
+.bb
+exit(), close(), fopen(), setbuf()
+.eb

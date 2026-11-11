@@ -1,0 +1,42 @@
+.so header
+.tl /UNIXTIME(3C)/Kreider OS-9 C Library/UNIXTIME(3C)/
+.sh NAME
+.bb
+o2utime, u2otime - converts date and time from OS9 to UNIX format
+.eb
+.sh SYNOPSIS
+.bb
+#include <utime.h>
+#include <time.h>
+
+long o2utime(tp)
+struct sgtbuf *tp;
+
+u2otime(tp,tmp)
+struct sgtbuf *tp;
+struct tm     *tmp;
+.eb
+.sh DESCRIPTION
+.db
+.bo
+O2UTIME
+converts a six character OS9 time into a UNIX style long as in the
+.bo
+TIME
+function.
+.sp
+.bo
+U2OTIME
+copies a broken down UNIX style time from structure
+.ul
+tmp
+into the
+OS9 style
+.ul
+sgtbuf
+structure.
+.ed
+.sh SEE ALSO
+.bb
+time(), ctime()
+.eb

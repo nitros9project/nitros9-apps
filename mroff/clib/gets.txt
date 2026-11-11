@@ -1,0 +1,76 @@
+.so header
+.tl /GETS(3C)/Kreider OS-9 C Library/GETS(3C)/
+.sh NAME
+.bb
+gets, fgets - get a string from a file
+.eb
+.sh SYNOPSIS
+.bb
+#include <stdio.h>
+.sp
+char *gets(s)
+char *s;
+.sp
+char *fgets(s, n, fp)
+FILE *fp;
+char *s;
+int n;
+.eb
+.sh DESCRIPTION
+.db
+The
+.bo
+GETS
+routine reads a string into
+.ul
+s
+from the standard input path
+.ul
+stdin .
+The string is terminated by a newline
+character, which is replaced in
+.ul
+s
+by a null character.
+The
+.bo
+GETS
+routine returns its argument.
+.PP
+.bo
+FGETS
+routine reads 
+.ul
+n-1
+characters, or up to a newline
+character, whichever comes first,
+from the file pointed to by
+.ul
+fp
+into the string
+.ul
+s.
+The last character read into
+.ul
+s
+is followed by a null character.
+.bo
+FGETS
+routine returns its first argument.
+.ed
+.sh CAVEATS
+.db
+The different treatment of the newline ("\\n") character by these functions
+is retained here for portability reasons.
+.ed
+.sh DIAGNOSTICS
+.db
+Both functions return
+.ul
+null
+on end-of-file or if an error occurs.
+.ed
+.sh SEE ALSO
+.bb
+ferror(), fread(), getc(), puts(), scanf()
+.eb

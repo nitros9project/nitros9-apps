@@ -1,0 +1,71 @@
+.so header
+.tl /exit(3C)/Kreider OS-9 C Library/exit(3C)/
+.sh NAME
+.bb
+exit - terminate a process after flushing any pending output
+.eb
+.sh SYNOPSIS
+.bb
+exit(status)
+int status;
+.sp
+_exit(status)
+int status;
+.eb
+.sh DESCRIPTION
+.db
+.bo
+EXIT
+is the normal means of terminating a task.
+The
+.bo
+EXIT
+function terminates a process after calling the Standard I/O library
+function
+.ul
+_cleanup,
+to flush any buffered output.
+.sp
+The
+.bo
+_exit
+function performs the same, but DOES NOT flush any file
+buffers prior to exiting the task.
+Neither the
+.bo
+EXIT
+or
+.bo
+_EXIT
+functions ever return.
+.sp
+A process finishing normally, that is, returning from
+.ul
+main(),
+is
+equivalent to a call to
+.bo
+EXIT.
+.sp
+The status passed to
+.bo
+EXIT
+is avaiable to the parent process if it is
+executing a
+.ul
+wait.  An example is:
+.bb
+static int stat;
+char *status = &stat;
+\.
+\.
+os9fork (cmds, strlen(params), params, 1, 1, 0);
+wait (status);
+\.
+\.
+.eb
+.ed
+.sh SEE ALSO
+.bb
+wait()
+.eb
