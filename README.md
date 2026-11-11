@@ -5,6 +5,7 @@ This repository contains applications and application suites for NitrOS-9:
 - `cpm` — CP/M emulator and its packaged software collection
 - `deskmate3` — DeskMate 3 application disk
 - `ed` — OS-9 Level One port of the Unix `ed` editor
+- `kermit` — OS-9 Kermit 21.5, public-domain file transfer over a serial line
 - `kreider` — Carl Kreider's public-domain C tools: `uniq`, `cb`, `ppc`, `dgrep` and `lb`
 - `mroff` — Mark Griffith's `mroff` text formatter and `man` reader, with the Kreider C library manual pages
 - `multivue` — Multi-Vue graphical environment and applications
