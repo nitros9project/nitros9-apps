@@ -11,6 +11,9 @@
 #include <stdio.h>
 #include <strings.h>
 
+#define TRUE 1
+#define FALSE 0
+
 extern int optind, opterr;
 extern char *optarg;
 
