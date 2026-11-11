@@ -1,0 +1,23 @@
+LFLAGS = -g -w=$(CDILIB) -q
+LIBS   = -l=$(CDILIB)/os9.l \
+  -l=$(CDILIB)/sys.l
+CC= cc68
+CFLAGS= -dDEBUG -dTLOG -dOSK
+
+.SUFFIXES:.c.r
+.c.r:
+ $(CC) -r -v=$(CDIINC) $*.c
+
+HEADERS = os9inc.h
+
+FILES = os9cli.r os9cmd.r os9con.r os9ker.r\
+        os9rec.r os9sen.r os9srv.r os9utl.r
+
+SRC = os9cli.r os9cmd.r os9con.r os9ker.r\
+      os9rec.r os9sen.r os9srv.r os9utl.r
+
+kermit: $(FILES)
+ $(CC) $(CFLAGS) $(FILES) -f=$@
+
+$(FILES):  $(HEADERS)
+ $(CC) $(CFLAGS) -r $*.c
