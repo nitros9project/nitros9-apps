@@ -92,7 +92,7 @@ char *argv[];
           /* search the help directory */
 
           {
-               strcat(strcpy(pname,"/h1/misc/help/"),argv[optind]);
+               strcat(strcpy(pname,"/dd/text/help/"),argv[optind]);
                if(access(pname,0) == 0)
                {
                     found = TRUE;
@@ -154,7 +154,7 @@ char *argv[];
           ** look for preformatted manual files with a .man extension
           */
 
-               strcat(strcat(strcpy(pname,"/h1/misc/man/"),argv[optind]), ".man");
+               strcat(strcat(strcpy(pname,"/dd/text/man/"),argv[optind]), ".man");
                if(access(pname,0) == 0)
                {
                     found = TRUE;
@@ -168,7 +168,7 @@ char *argv[];
           ** look for mroff formatted manual files with a .mman extension
           */
 
-               strcat(strcat(strcpy(pname,"/h1/misc/man/"),argv[optind]), ".mman");
+               strcat(strcat(strcpy(pname,"/dd/text/man/"),argv[optind]), ".mman");
                if(access(pname,0) == 0)
                {
                     found = TRUE;
