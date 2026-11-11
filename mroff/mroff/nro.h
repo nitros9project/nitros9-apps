@@ -7,6 +7,9 @@
 #include <os9.h>
 #include <sgstat.h>
 
+#define TRUE 1
+#define FALSE 0
+
 #define DEBUG
 #ifdef MAIN
 #define QQ
