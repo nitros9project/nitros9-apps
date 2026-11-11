@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <os9.h>
-#include <scfstat.h>
+#include <sgstat.h>
 
 #define DEBUG
 #ifdef MAIN
