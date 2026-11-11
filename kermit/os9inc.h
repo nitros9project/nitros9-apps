@@ -30,6 +30,11 @@
 
 #include <stdio.h>       /* Standard UNIX definitions */
 
+#ifndef cleareof
+/* Microware's stdio.h has no cleareof; this is c3's definition */
+#define cleareof(p) ((p)->_flag &= ~_EOF)
+#endif
+
 #ifndef OSK
 #define sleep(sec) tsleep((sec) * tps + 1)
 #endif
