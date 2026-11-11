@@ -5,7 +5,9 @@
 #define RELEASE 5   /* Update release */
 
 /* most conditional compilation has been removed.    */
+#ifndef OS9         /* cc and c3 already define it */
 #define OS9     1   /* OS-9 */
+#endif
 
 #include <time.h>
 
