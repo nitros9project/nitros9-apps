@@ -1,0 +1,4 @@
+WLK = walk.r walkoth.r
+
+walk:   $(WLK)
+          cc1 -f=walk $(WLK) -l=/dd/lib/cgfx.l

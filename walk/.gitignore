@@ -1,0 +1,5 @@
+build/
+*.map
+*.list
+cstr.*
+ctmp.*
