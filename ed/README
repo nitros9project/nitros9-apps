@@ -11,6 +11,10 @@ make
 
 To build it on OS9 type:
 
+make -f os9.mak
+
+or, without make:
+
 shell compile
 shell makelib
 shell makeed

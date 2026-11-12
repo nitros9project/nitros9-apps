@@ -1,10 +1,13 @@
 t
 -x
-* Create a library
-merge >objs.1 bitmap.r append.r catsub.r ckglob.r deflt.r del.r doprnt.r
-merge >objs.2 doread.r dowrite.r egets.r find.r getfn.r getlst.r getone.r
-merge >objs.3 getptr.r getrhs.r gettxt.r getnum.r ins.r join.r maksub.r
-merge >objs.4 move.r optpat.r set.r setbuf.r getpat.r matchs.r amatch.r unmkpat.r
-merge >objs.5 omatch.r makepat.r  dodash.r esc.r subst.r docmd.r doglob.r
+* Create a library.  c.link reads a library once, in order, so each
+* member must follow one that refers to it.  docmd.r and setbuf.r refer
+* to members that refer back to them, so no order works for them, and
+* makeed links them directly instead.
+merge >objs.1 subst.r set.r move.r join.r gettxt.r getrhs.r maksub.r getfn.r
+merge >objs.2 dowrite.r doread.r egets.r doprnt.r doglob.r getlst.r getone.r
+merge >objs.3 getnum.r find.r del.r ckglob.r optpat.r getpat.r makepat.r unmkpat.r
+merge >objs.4 dodash.r esc.r matchs.r deflt.r catsub.r append.r ins.r getptr.r
+merge >objs.5 amatch.r omatch.r bitmap.r
 merge >objs.l objs.1 objs.2 objs.3 objs.4 objs.5
 del objs.1 objs.2 objs.3 objs.4 objs.5
