@@ -40,5 +40,33 @@ stage: build/walk
 	cp sys/walk.ike build/dist/SYS/walk.ike
 
 clean:
-	rm -rf build
+	rm -rf build cfg
 	rm -f *.list *.map
+
+# Private boot disk: the shared NitrOS-9 checkout supplies sources only.
+NITROS9DIR ?= $(abspath ../../nitros9)
+MAME ?= mame
+MAME_ROM_PATH ?= $(HOME)/.local/share/mame/roms
+MAME_FLAGS ?= -window -skip_gameinfo -ramsize 512k
+EMUDIR = build/emulator
+DISK = $(EMUDIR)/walk.dsk
+
+.PHONY: disk run
+
+disk: $(DISK)
+
+$(DISK): build/walk sys/walk.ike run.startup Makefile
+	mkdir -p $(EMUDIR)
+	cp $(NITROS9DIR)/recipes/coco3/floppy/defsfile $(EMUDIR)/defsfile
+	$(MAKE) -C $(EMUDIR) -f $(NITROS9DIR)/recipes/coco3/coco3.mak \
+	    NITROS9DIR=$(NITROS9DIR) LEVEL=2 CPU=6809 TERM_COLS=40 \
+	    CMDS="shell grfdrv utilpak1 load link echo merge" PORTDEFSDIR= \
+	    STARTUP=$(CURDIR)/run.startup DSKIMAGE=walk.dsk all
+	os9 copy -r build/walk $(DISK),CMDS/walk
+	os9 attr -e -pe $(DISK),CMDS/walk
+	os9 copy -r sys/walk.ike $(DISK),SYS/walk.ike
+
+run: $(DISK)
+	$(MAME) coco3 -rompath "$(MAME_ROM_PATH)" -cfg_directory "$(abspath build/mame-cfg)" -nvram_directory "$(abspath build/mame-nvram)" $(MAME_FLAGS) \
+	    -ext fdc -ext:fdc:wd17xx:0 525qd -flop1 "$(abspath $(DISK))" \
+	    -autoboot_delay 2 -autoboot_command "DOS\n"

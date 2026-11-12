@@ -37,6 +37,29 @@ convention; the older graphics library implementation expects stack arguments.
 The original C sources have LF line endings, and shared buffer/file/character
 declarations in `walkoth.c` now match their definitions in `walk.c`.
 
+## Launch in MAME
+
+```sh
+make run
+```
+
+This builds a private NitrOS-9 Level 2 boot disk at
+`build/emulator/walk.dsk`, boots a 512K CoCo 3 in MAME, loads the standard
+fonts, and starts Walk automatically. `make disk` builds the disk without
+launching it. All boot modules and disk files are built under `build/`.
+
+Requires a neighboring NitrOS-9 checkout, ToolShed `os9`, MAME, and your
+CoCo 3/FDC ROMs. Override paths as needed:
+
+```sh
+make run NITROS9DIR=/path/to/nitros9 MAME_ROM_PATH=/path/to/roms
+```
+
+`MAME` selects the emulator executable; `MAME_FLAGS` defaults to
+`-window -skip_gameinfo -ramsize 512k`. The ROM directory defaults to
+`~/.local/share/mame/roms`. MAME boots from floppy, so allow time for OS-9
+to load. Press a key in the demo to exit to the shell.
+
 ## Run on NitrOS-9
 
 ```sh
@@ -65,8 +88,8 @@ OS-9 Level 2 graphics-capable window. It looks for its icons in the current
 directory, `/dd/gfx/walk.ike`, then `/dd/sys/walk.ike`.
 Keys `m`/`h`, `t`, `r`, `l`, `w`, and `b` trigger actions; another key exits.
 
-The cross-build has been compiled and linked, but the rebuilt executable
-has not yet been tested on a running CoCo 3 or emulator.
+The rebuilt executable has been booted in MAME, with animation and text
+verified in screen captures. It has not been tested on physical hardware.
 
 ## Origin
 

@@ -3,3 +3,4 @@ build/
 *.list
 cstr.*
 ctmp.*
+cfg/
