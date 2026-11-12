@@ -9,7 +9,7 @@ export NITROS9_APPS_DIR
 
 include $(NITROS9DIR)/rules.mak
 
-dirs = cpm deskmate3 ed multivue os9l2bbs uemacs uucpbb
+dirs = cpm deskmate3 ed kreider multivue os9l2bbs uemacs uucpbb
 
 .PHONY: all clean
 

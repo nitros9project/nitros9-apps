@@ -1,0 +1,43 @@
+Carl Kreider's C tools for OS-9
+
+Small C programs that Carl Kreider wrote, or converted to Microware C, and
+placed in the public domain in the 1980s.  They come from the OS-9/6809
+archive, with CR line endings converted to LF and otherwise as archived.
+Each keeps its original notice; the archive path and that notice follow.
+
+Each directory builds two ways:
+
+  make             cross-build on a host with c3 (Makefile)
+  make -f os9.mak  build on OS-9 with cc1; installed as the makefile when
+                   the source is copied to a NitrOS-9 disk
+
+uniq    report or remove repeated adjacent lines
+        APPS/Unpacked/SRC/uniq.lzh (uniq.c, uniq.doc)
+        "Adapted for BDS C by Jeff Martin ... Converted to MW C by Carl
+        Kreider and returned to the public domain"
+
+cb      C beautifier: re-indents C source
+        PROG/Unpacked/SRC/cb_C_Beautifier.lzh (cb.c)
+        "From the CIPG's UNIX system and modified to run under BDS C by
+        William C. Colley, III / Released to the public domain via CUG ...
+        Fixed to work with MW C and put back in the public domain by Carl
+        Kreider 7-1-84"
+
+ppc     lists a C file with page breaks and line numbers
+        PROG/Unpacked/SRC/ppc_PrettyPrintC.lzh (ppc.c)
+        "Modified and put back in the public domain by Carl Kreider"
+
+dgrep   grep with regular expressions (DECUS grep); named dgrep so it does
+        not replace NitrOS-9's own grep
+        APPS/Unpacked/SRC/grep.lzh (grep.c, grep.h, grep.hlp)
+        "Copyright (C) 1980, DECUS / Converted for the Software Toolworks
+        C/80 Version 2.0 compiler and Copyright 1983 William G. Hutchison,
+        Jr. ... Converted to MW C and placed back in the public domain By:
+        Carl Kreider"
+
+lb      splits a ROF library such as clib.l into its modules, X.<name>.r,
+        and lists their names in modlist, so the library can be changed
+        and merged again
+        PROG/Unpacked/SRC/lb_C_Lib_splitter.lzh (lb.c)
+        "copyright 1984 by Carl R. Kreider / released to the public domain
+        for non-commercial use"

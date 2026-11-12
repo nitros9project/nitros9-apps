@@ -1,0 +1,21 @@
+#define TRUE    1
+#define FALSE   0
+#define LMAX    512
+#define PMAX    256
+#define ERRNAME "GREP-E"
+#define CHAR    1
+#define BOL     2
+#undef  EOL     /* stdio.h's carriage return; here a pattern code */
+#define EOL     3
+#define ANY     4
+#define CLASS   5
+#define NCLASS  6
+#define STAR    7
+#define PLUS    8
+#define MINUS   9
+#define ALPHA   10
+#define DIGIT   11
+#define NALPHA  12
+#define PUNCT   13
+#define RANGE   14
+#define ENDPAT  15
