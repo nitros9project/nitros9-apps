@@ -1,0 +1,216 @@
+NAME:  OS-9 Kermit Version 21 Release 5
+
+AUTHORS:
+
+A great many people have worked on this kermit over the years.  The last two
+authors, who have made significant changes and additions (and are the only
+authors after 1985!), are James Jones and more recently, Simmule Turner.  For
+a full list of authors, see the source file os9ker.c.
+
+USAGE: kermit {-command{flags}} {line} {char} {file ...}
+
+  Commands:
+
+     s    Send file(s)  (use '-s -' to send from stdin)
+     r    Receive
+     k    Receive to stdout
+     g    Get remote file(s) from server
+     x    Enter server mode
+     f    Finish remote server
+     c    Enter connect mode
+
+  Flags:
+
+     l    Set communication line  (eg, /t2)
+     e    Set the escape character for connect mode
+     i    Binary transfers or OS-9 to OS-9 (image mode)
+     d    Increase debug level
+     X    Disable XON/XOFF
+     F    No filename case conversions
+     1    Select the one-byte checksum block check
+     2    Select the two-byte CRC block check, which is more accurate
+     8    Use 8th bit quoting for a 7-bit data path
+
+DESCRIPTION:
+
+Kermit provides reliable file transfer and also acts as a primitive terminal
+program.  It has been implemented on many different computers, including
+microprocessors.  Kermit can transfer ASCII as well as binary files.  Kermit's
+commands and flags are similiar to those used in C-Kermit, a popular version of
+kermit running on many UNIX machines.
+
+The arguments to kermit are a set of flags with no spaces between them.  Notice
+that the case of flags and commands is important!  The flags can occur in any
+order.  There must be one and exactly one command.  If you run kermit without
+any commands or flags, kermit will print out a 'help' message.  Place the
+RS-232 device and escape character after all flags in the order the l and e
+flags were placed in.  The following command, for example, runs kermit on /t3
+in connect mode with the escape character '$' and without performing filename
+translations:
+
+ kermit -ceFl $ /t3
+
+Kermit can transfer binary and text (ASCII) files.  However, unless you use
+connect mode or are transferring files from OS-9 to OS-9, you cannot transfer
+both kinds of files in one shot; you will have to run kermit once to transfer
+binary file(s) and once again to transfer text file(s).  Kermit can also send
+and recieve binary files (files using all characters 0-255) on a 7-bit data
+path (if you must use parity, for example).  When sending text files, the
+end-of-line character is translated from carriage return for OS-9 to carriage
+return + linefeed, linefeeds are dropped when recieving.  The remote kermit
+will translate the carriage-return + linefeed into it's end-of-line character.
+All possible filetypes are listed below:
+
+   (no option)  7-bit ASCII text file, end-of-line conversions
+        8       8-bit text file, end-of-line conversions, quote 8th bit
+        i       binary data
+       i8       binary data on a 7-bit connection, quote 8th bit
+
+There is no way to send an 8-bit text file without quoting the 8th bit unless
+you send the file without end-of-line conversions.
+
+Use the l flag to tell kermit what device to connect to.  If you do not use
+this flag, kermit assumes that the default paths are connected to the remote
+system.  (This is correct, for example, when kermit is being used on a BBS.) If
+you do not wish XON/XOFF flow control to be used during the transfer, use the X
+flag.
+
+Kermit offers two types of block checks:  one-byte checksums and two-byte
+CRC's.  All implementations of kermit support the checksums; however, not all
+support CRC's.  The CRC block check is a more robust check of the integrity of
+the data, although checksums are probably sufficient for most connections.
+
+Unless you specify the F flag, kermit will change the case of filenames.  When
+sending, filenames will be converted to uppercase, and when receiving,
+filenames will be converted to lowercase.
+
+Following the command and flags, enter the filenames of the file(s) to be
+transferred for the send and get commands.  When kermit is recieving, it will
+normally attempt to store the file with the same name it has on the remote
+host.  Outgoing filenames are converted to uppercase unless you have specified
+the F flag.  Filenames containing a slash (/) will have everything up until and
+including the last slash removed before the file is stored on disk or sent to
+the remote kermit.  (Filenames are sent as you type them for the Get command,
+however, and converted as above when the file(s) are actually being recieved.)
+
+COMMANDS:
+
+SEND:  (-s command)
+
+Kermit will send the files listed on the command line to the remote kermit. 
+The files will be sent in the order they appear on the command line.
+
+RECEIVE:  (-r and -k commands)
+
+Recieve files from the remote kermit.  Kermit does not request files; the
+remote kermit must be in SEND mode.  The incoming files will be stored with the
+same names as on the remote system.  If you enter RECIEVE mode with the -k
+command, kermit will not open a file for the output.  The output of kermit will
+be sent to standard output.
+
+GET:  (-g command)
+
+To use this mode, the remote kermit must be in SERVER mode.  Kermit will
+request files from the remote kermit, and assuming those files are there, will
+recieve them.
+
+SERVER:  (-x command)
+
+Kermit will enter SERVER mode.  All control is given to the remote kermit,
+which can make requests.  Kermit will exit when given the FINISH command by the
+remote kermit.
+
+FINISH:  (-f command)
+
+Send the FINISH command to the remote kermit server to make it exit.
+
+CONNECT:  (-c command)
+
+CONNECT mode allows kermit to function as a primitive terminal program.  Press
+the escape character, which is '#' unless you have changed it with the e flag,
+to access special features.  Kermit will wait for the next keypress after you
+press the escape character.  You can send the escape character to the remote
+host by pressing it twice.  Other functions available are:
+
+   ! or p   Push to a shell
+   ?        Help
+   0        Send a NULL character
+   8        Toggle 8-bit and 7-bit mode
+   c        Enter Kermit COMMAND mode, below
+   q        Quit logging
+   r        Resume logging
+
+COMMAND MODE:
+
+Kermit's command mode allows you to send, recieve, or get files, and offers
+access to many OS-9 commands and commands on the remote machine.  In the list
+below, an asterisk in a command means that you only need to type the command up
+to that point to execute it.  The list isn't quite alphabetical; it reflects
+the order the commands are checked in.  For example, if you enter "co," kermit
+will check copy (but you didn't type the necessary three characters) and then
+connect, which will match.  If you type "close," the string will not match
+"close session" because you didn't enter enough characters; but it will match
+"connect!"  The available commands are:
+
+    !                Push to a shell
+    ?                Display available commands
+    bye              Close the remote server
+    close s*ession   Close the logfile
+    cop*y            Copy a file (OS-9 command)
+    cwd              Change working directory (OS-9 chd command)
+    c*onnect         Return to connect mode
+    dat*e            Display the current date and time (OS-9 command)
+    dial             Dial a phone number and return to connect mode
+    dir              Display a directory  (OS-9 command)
+    del*ete          Delete file(s)  (OS-9 command)
+    get              Get a file from a remote kermit server
+    hel*p            Display available commands
+    ima*ge           Toggle image mode
+    log s*ession     Log session to a file
+    pu*sh            Push to a shell
+    qui*t            Exit kermit
+    rec*eive         Recieve a file from the remote kermit
+    ren*ame          Rename a file (OS-9 command)
+    rem*ote          Execute a remote command, see below
+    sen*d            Send a file to the remote kermit
+    set b*lock-check Select checksum (1) or CRC (2) block check
+    set d*ebug-level Set the level of debug output
+    spa*ce           Display the amount of free diskspace (OS-9 free command)
+(*) take             Take a file from the remote server, not implemented
+    typ*e            List the contents of a file (OS-9 list command)
+
+One of the most useful of the above commands is kermit's remote command, which
+allows you to query the remote kermit server.  You MUST have the remote kermit
+in server mode to use the remote commands.  Not all versions of kermit support
+the remote commands or all remote commands.  All of the below commands are run
+on the remote machine, with all output being sent through kermit to your
+screen.
+
+    com*mand         Execute the given command
+    cop*y            Copy file(s)
+    cw*d             Change the current directory
+    de*lete          Delete file(s)
+    di*rectory       List a directory
+    l*ogin           Connect to a dedicated kermit file server
+    r*ename          Rename file(s)
+    s*pace           Display the amount of free diskspace
+    t*ype            List file(s)
+
+The dial command works in one of two ways.  In the first way, you specify the
+number to be dialed, as in:
+
+Kermit-09> dial 555-1212
+
+Kermit will dial that number, returning to connect mode.  The other method of
+dialing involves the file 'numbers' which is searched for in the directories
+/dd/sys and /d0/sys.  This file has the following format:
+
+cis, 987-6543
+delphi, 123-4567
+work, 555-3412
+
+You dial one of these computers by typing:
+
+Kermit-09> dial work
+
+Kermit looks up the number, dials, and returns to connect mode.
