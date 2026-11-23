@@ -10,6 +10,7 @@ This repository contains applications and application suites for NitrOS-9:
 - `mroff` — Mark Griffith's `mroff` text formatter and `man` reader, with the Kreider C library manual pages
 - `multivue` — Multi-Vue graphical environment and applications
 - `os9l2bbs` — OS-9 Level 2 BBS package
+- `sort` — a text sort with no limit on the number of lines, using temporary files
 - `uemacs` — MicroEMACS port for OS-9
 - `uucpbb` — UUCPbb communications package
 
