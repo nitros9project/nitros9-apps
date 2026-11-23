@@ -1,0 +1,129 @@
+.so header
+.tl /SETJMP(3C)/Kreider OS-9 C Library/SETJMP(3C)/
+.sh NAME
+.bb
+setjmp, longjmp - nonlocal goto another function
+.eb
+.sh SYNOPSIS
+.bb
+#include <setjmp.h>
+.PP
+setjmp(env)
+jmp_buf env;
+.PP
+longjmp(env, val)
+jmp_buf env;
+.eb
+.sh DESCRIPTION
+.db
+These routines are useful for dealing with errors and interrupts
+encountered in a low-level subroutine of a program.
+.PP
+.ul
+Goto
+in C has a scope only in the function in which it is used; i.e., the label
+which is the object of the
+.ul
+goto
+may only be in the same function.  Control can only be transferred elsewhere
+by means of the function call, which, fo course, returns to the caller.
+In certain abnormal situations a programmer would perfer to be able to start
+some section of code again, but this would mean returning up a ladder of
+function calls with error indications all the way.
+.PP
+.bo
+SETJMP
+is used to "mark" a point in the program where a subsequent
+.bo
+LONGJMP
+can reach.  It places in the buffer, defined in the header file
+.bo
+SETJMP.H,
+enough information for the
+.bo
+LONGJMP
+to restore the environment to that existing at the time
+.bo
+SETJMP
+is called.
+.PP
+The
+.bo
+SETJMP 
+subroutine
+saves its stack environment in
+.ul
+env
+for later use by
+.bo
+LONGJMP.
+It returns value 0.
+.PP
+The
+.bo
+LONGJMP
+subroutine
+restores the environment saved by the last call of
+.bo
+SETJMP .
+It then returns in such a way that execution
+continues as if the call of
+.bo
+SETJMP
+had just returned the value
+.ul
+val
+to the function that invoked
+.bo
+SETJMP,
+which must not itself have returned in the interim.
+However, 
+.bo
+LONGJMP
+cannot cause 
+.bo
+SETJMP
+to return the value 0. If 
+.bo
+LONGJMP
+is invoked with a 
+.ul
+val
+of 0, 
+.bo
+SETJMP
+will return 1.
+All accessible data have values as of the time
+.bo
+LONGJMP
+was called.
+.ed
+.sh CAVEATS
+.db
+The
+.bo
+SETJMP
+subroutine does not save current notion of whether the process is
+executing as a result of a signal.  The result is that a
+LONGJMP to some place as a result of a signal leaves the
+signal state incorrect.
+.sp
+In addition, the variable
+.ul
+env
+MUST be globally declared.
+.ed
+.sh DIAGNOSTICS
+.db
+.bo
+SETJMP
+returns a zero (0) if the call is the the first made in the current
+program run.  If a one (1) is returned, then it must be a
+.bo
+LONGJMP
+returning from some deeper level in the program.
+.ed
+.sh SEE ALSO
+.bb
+signal(), intercept()
+.eb

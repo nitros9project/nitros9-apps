@@ -1,0 +1,32 @@
+.so header
+.tl /PRERR(3S)/Kreider OS-9 C Library/PRERR(3S)/
+.sh NAME
+.bb
+prerr - print an error message
+.eb
+.sh SYNOPSIS
+.bb
+prerr(filnum, errcode)
+int filnum, errcode;
+.eb
+.sh DESCRIPTION
+.db
+.bo
+PRERR
+prints an error message on the output path specified by
+.ul
+filenum,
+which must be the path number of an already opened file.  The message
+depends on
+.ul
+errcode
+which will normally be a standard OS-9 error code.
+.ul
+Filenum
+may also be the standard output or standard error paths which
+are always opened at program start.
+.ed
+.sh SEE ALSO
+.bb
+errmsg()
+.eb

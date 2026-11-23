@@ -1,0 +1,215 @@
+.fo //Page %//
+.so abort.txt
+.bp
+.so abs.txt
+.bp
+.so access.txt
+.bp
+.so asetuid.txt
+.bp
+.so atof.txt
+.bp
+.so bsearch.txt
+.bp
+.so chain.txt
+.bp
+.so chdir.txt
+.bp
+.so chmod.txt
+.bp
+.so chown.txt
+.bp
+.so clibt.txt
+.bp
+.so close.txt
+.bp
+.so conv.txt
+.bp
+.so crc.txt
+.bp
+.so creat.txt
+.bp
+.so create.txt
+.bp
+.so ctime.txt
+.bp
+.so ctype.txt
+.bp
+.so data.txt
+.bp
+.so devtype.txt
+.bp
+.so dir.txt
+.bp
+.so dump.txt
+.bp
+.so dup.txt
+.bp
+.so errmsg.txt
+.bp
+.so exit.txt
+.bp
+.so fclose.txt
+.bp
+.so ferror.txt
+.bp
+.so findstr.txt
+.bp
+.so fopen.txt
+.bp
+.so fread.txt
+.bp
+.so fseek.txt
+.bp
+.so getc.txt
+.bp
+.so getopt.txt
+.bp
+.so getpid.txt
+.bp
+.so gets.txt
+.bp
+.so getstat.txt
+.bp
+.so getuid.txt
+.bp
+.so gs_devn.txt
+.bp
+.so gs_eof.txt
+.bp
+.so gs_gfd.txt
+.bp
+.so gs_opt.txt
+.bp
+.so gs_pos.txt
+.bp
+.so gs_rdy.txt
+.bp
+.so gs_size.txt
+.bp
+.so htoi.txt
+.bp
+.so intercept.txt
+.bp
+.so kill.txt
+.bp
+.so l3tol.txt
+.bp
+.so lseek.txt
+.bp
+.so malloc.txt
+.bp
+.so math.txt
+.bp
+.so memory.txt
+.bp
+.so mknod.txt
+.bp
+.so mktemp.txt
+.bp
+.so modload.txt
+.bp
+.so munlink.txt
+.bp
+.so open.txt
+.bp
+.so os9.txt
+.bp
+.so os9fork.txt
+.bp
+.so password.txt
+.bp
+.so patmatch.txt
+.bp
+.so pause.txt
+.bp
+.so prerr.txt
+.bp
+.so prgname.txt
+.bp
+.so printf.txt
+.bp
+.so putc.txt
+.bp
+.so puts.txt
+.bp
+.so qsort.txt
+.bp
+.so read.txt
+.bp
+.so realloc.txt
+.bp
+.so sbrk.txt
+.bp
+.so scanf.txt
+.bp
+.so setbuf.txt
+.bp
+.so setime.txt
+.bp
+.so setjmp.txt
+.bp
+.so setmem.txt
+.bp
+.so setpr.txt
+.bp
+.so sets.txt
+.bp
+.so setstat.txt
+.bp
+.so setuid.txt
+.bp
+.so signal.txt
+.bp
+.so skipbl.txt
+.bp
+.so skipwd.txt
+.bp
+.so sleep.txt
+.bp
+.so ss_attr.txt
+.bp
+.so ss_lock.txt
+.bp
+.so ss_opt.txt
+.bp
+.so ss_pfd.txt
+.bp
+.so ss_rel.txt
+.bp
+.so ss_rest.txt
+.bp
+.so ss_size.txt
+.bp
+.so ss_ssig.txt
+.bp
+.so ss_tiks.txt
+.bp
+.so ss_wtrk.txt
+.bp
+.so stacksize.txt
+.bp
+.so strass.txt
+.bp
+.so strings.txt
+.bp
+.so system.txt
+.bp
+.so time.txt
+.bp
+.so tsleep.txt
+.bp
+.so unbrk.txt
+.bp
+.so ungetc.txt
+.bp
+.so unixtime.txt
+.bp
+.so unlink.txt
+.bp
+.so unlinkx.txt
+.bp
+.so wait.txt
+.bp
+.so write.txt
+.bp

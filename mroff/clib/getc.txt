@@ -1,0 +1,155 @@
+.so header
+.tl /GETC(3C)/Kreider OS-9 C Library/GETC(3C)/
+.sh NAME
+.bb
+getc, getchar, getw - get character or word from a file
+.eb
+.sh SYNOPSIS
+.bb
+#include <stdio.h>
+.sp
+getc(fp)
+FILE *fp;
+.sp
+getchar()
+.sp 
+getw(fp)
+FILE *fp;
+.eb
+.sh DESCRIPTION
+.db
+The
+.bo
+GETC
+function returns the next character from the named input
+.ul
+fp.
+.PP
+The
+.bo
+GETCHAR
+function 
+is identical to 
+.ul
+getc
+(stdin).
+.PP
+The
+.bo
+GETW
+function returns the next
+word from the named input
+.ul
+fp.
+It returns the constant EOF
+upon end of file or error, but since that is a good
+integer value,
+.ul
+feof()
+and
+.ul
+ferror()
+should be used to check the success of
+.bo
+GETW.
+The
+.bo
+GETW
+assumes no special alignment in the file.
+.ed
+.sh CAVEATS
+.db
+Because it is implemented as a macro,
+.bo
+GETC
+treats a
+.ul
+fp
+argument with side effects incorrectly.
+In particular,
+.ul
+'getc(*f++);'
+doesn't work as expected.
+.ed
+.sh SPECIAL CONSIDERATIONS
+.db
+Under OS-9, there is a choice of system calls to use when reading from a file.
+.ul
+Read()
+will get characters up to a specified number in the "raw" mode, i.e., no
+editing will take place on the input stream and the characters will appear to
+the program exactly as in the file.
+.ul
+Readln()
+on the other hand, will honor the various mapping of characters associated with
+a serial device such as a terminal and will return as soon as a carriage
+return is seen on the input.
+.PP
+In the vast majority of cases, it is preferable to use
+.ul
+readln()
+for accessing serial character devices and
+.ul
+read()
+for any other file input.
+.bo
+GETC
+uses this strategy and as all file input using the Standard Library functions
+is routed through
+.bo
+GETC(),
+so do all the other input functions.  The choice is made when the first call
+to
+.bo
+GETC()
+is made after the file has been opened.  The system is consulted for the status
+of the file and a flag bit is set in the file structure accordingly.  The
+choice may be forced by the programmer by setting the relevant bit before a
+call to
+.bo
+GETC().
+The flag bits are defined in
+.bo
+STDIO.H
+as
+.ul
+_SCF
+and
+.ul
+_RBF
+and the method used is as follows:
+.PP
+Assuming that the file pointer for the file as returned by
+.ul
+fopen()
+is
+.ul
+f,
+.bb
+f->_flag |= _SCF
+.eb
+will force the use of
+.ul
+readln()
+on input, and
+.bb
+f->flag |= _RBF
+.eb
+will force the use of
+.ul
+read().
+This trick may be played on the standard input, output, and error files
+without the need to call
+.ul
+fopen()
+but must be made before any input is requested from these files.
+.ed
+.sh DIAGNOSTICS
+.db
+These functions return the integer constant EOF (-1)
+at end of file or upon read error.
+.ed
+.sh SEE ALSO
+.bb
+fopen(), fread(), gets(), putc(), scanf(), ungetc()
+.eb

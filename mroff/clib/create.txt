@@ -1,0 +1,44 @@
+.so header
+.tl /CREATE(3C)/Kreider OS-9 C Library/CREATE(3C)/
+.sh NAME
+.bb
+create - creates and opens a file
+.eb
+.sh SYNOPSIS
+.bb
+#include <modes.h>
+.sp
+create(fname, mode, pmode)
+char *fname;
+int mode, pmode;
+.sp
+ocreat(fname, mode, pmode)
+char *fname;
+int mode, pmode;
+.eb
+.sh DESCRIPTION
+.db
+.bo
+CREATE
+creates and opens the file named
+.ul
+fname.
+This call accepts the file
+mode and access permissions in the same function and is useful in setting up
+user permissions as soon as the file is opened.
+.PP
+This function returns -1 if the file already exists, or the path number if
+the file is successfully created.
+.PP
+.bo
+OCREAT
+performs the same function, except it deletes the old file if it
+already exists when
+.bo
+OCREAT
+is called.
+.ed
+.sh SEE ALSO
+.bb
+creat(), open(), fopen().
+.eb

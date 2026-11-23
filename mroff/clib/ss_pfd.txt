@@ -1,0 +1,52 @@
+.so header
+.tl /SS_PFD(2)/Kreider OS-9 C Library/SS_PFD(2)/
+.sh NAME
+.bb
+_ss_pfd -- set and write file descriptor
+.eb
+.sh SYNOPSIS
+.bb
+#include <direct.h>
+
+int _ss_pfd(path, buffer)
+int path;
+struct fildes *buffer;
+.eb
+.sh DESCRIPTION
+.db
+.bo
+SS_PFD
+will copy certain bytes from the buffer pointed to by
+.ul
+buffer
+into the file descriptor sector of the file opened on
+.ul
+path.
+The buffer is usually obtained from the
+.bo
+GS_GFD
+function. Only the owner ID, the modification date,
+and the creation date is changed.
+.sp
+The structure
+.ul
+FILDES
+declared in
+.bo
+DIRECT.H
+provides a convenient means to access the file descriptor information.
+.ed
+.sh NOTE
+.db
+The buffer must be at least 16 bytes long or garbage could be written into
+the file descriptor sector. The owner ID field can be changed only by the
+super-user. It is impossible to change the file attributes with the call.
+Instead, use the
+.bo
+SS_ATTR
+function.
+.ed
+.sh SEE ALSO
+.bb
+I$SetStt system call, Microware Manual, _gs_pfd().
+.eb

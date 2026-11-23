@@ -1,0 +1,147 @@
+.so header
+.he /SETS(3C)/Kreider OS-9 C Library/SETS(3C)/
+.sh NAME
+.bb
+allocset, addc2set, adds2set, rmfmset, smember, union,
+sintersect, sdifference, copyset, dupset
+
+Set operations
+.eb
+.sh SYNOPSIS
+.bb
+char *allocset(s, c)
+char *s, *p;
+
+char *addc2set(s, c)
+char *s c;
+
+char *adds2set(s, p)
+char *s p;
+
+char *rmfrmset(s, c)
+char *s, c;
+
+smember(s, c)
+char *s, c;
+
+char *sunion(s1, s2)
+char s1[], s2[];
+
+char *sintersect(s1, s2)
+char s1[], s2[];
+
+char *sdifference(s1, s2)
+char s1[], s2[];
+
+char *copyset(s1, s2)
+char s1[], s2[];
+
+char *dupset(s)
+char s[];
+.eb
+.sh DESCRIPTION
+.db
+.bo
+ALLOCSET
+allocates memory for a set consisting of an array of 32 bytes
+(256 bits).
+If successful, it returns a pointer to the set, or
+.ul
+null
+if not successful.
+This array is then operated on with the following functions.
+.sp
+.bo
+ADDC2SET
+adds the character
+.ul
+c
+to the set
+.ul
+s.
+No error is possible.
+Adding a single character or any value in the range 0 - 255 decimal is the
+same as ORing the bit that corresponds to the numeric value of that character,
+i.e., adding a character 'A' to the set will set bit number $41, 65 decimal.
+.sp
+.bo
+ADDS2SET
+adds the string
+.ul
+p
+to the set
+.ul
+s.
+No error is possible. The string
+.ul
+p
+is added to the set in that same manner as
+.bo
+ADDC2SET
+above, but the entire string of bits is added in a bit-by-bit progression.
+.sp
+.bo
+RMFMSET
+removes character
+.ul
+c
+from the set
+.ul
+s.
+Again, no error is possible.
+Removing a character from the set amounts to ANDing the bit at the position
+corresponding to the numeric value of the character as in
+.bo
+ADDC2SET
+above, but is the reverse procedure.
+.sp
+.bo
+SMEMBER
+returns TRUE if character
+.ul
+c
+is a member of set
+.ul
+s,
+or returns FALSE if it is not a member.
+.sp
+.bo
+SUNION
+merges a second set
+.ul
+s2
+into the first set
+.ul
+s1.
+.sp
+.bo
+SINTERSECT
+returns any elements that only exist in both sets
+.ul
+s1
+and
+.ul
+s2.
+.sp
+.bo
+SDIFFERENCE
+returns unigue elements of both sets that are in the first set,
+.ul
+s1.
+.sp
+.bo
+COPYSET
+duplicates the second set,
+.ul
+s2,
+into the first set,
+.ul
+s1.
+.sp
+.bo
+DUPSET
+allocates memory for a new set, and then copies set
+.ul
+s
+into that memory area.
+.ed

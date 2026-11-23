@@ -1,0 +1,54 @@
+
+                        Kreider "C" Library Documents
+                        -----------------------------
+
+Enclosed are the docs for the full Kreider Library.  In December, 1987
+I released the docs for those functions that were added to the standard
+"C" library by Carls library.  This archives contains machine readable
+copy for all the functions.  Each file is formatted for MROFF output,
+and scripts are included to allow the user to make printed docs or neat
+manual pages for online reading.
+
+TO PRINT THE DOCS
+
+Get your printer ready with lots of paper.  The docs print on 147 pages.
+Run the shell script "printdocs" and get some lunch, and maybe dinner too!
+You can change the script to redirect output to a disk file if you like.
+
+TO MAKE MANUAL PAGES
+
+Run the script "make.mans".  If you don't have a directory called MAN
+under the directory where the mroff source files are, then make one first.
+Again, go get some shopping done, or clean the celler/garage.
+
+MROFF CHANGES
+
+A new version of MROFF is included in this archive.  Basically, all it does
+is add a few extra commands to be slightly more compatible with UNIX nroff.
+In fact, the mroff source files will print nicely on a UNIX system using
+nroff or troff without any changes.
+
+MAN UTILITY
+
+A man utility is included with the archive to enable those without such a
+beast to have online manual printing.  This is a very basic man utility,
+written by Pete Lyall and seriously hacked apart by me.  Everything is
+hardcoded for my system.  Sorry.  You'll have to change the source and
+re-compile to use it.
+
+Along with the man utility are two files, "man.index" and "man.help".
+Man.index is an index (really!!?? - grin) of the library manuals.  MAN
+tried to find the page depending on what you give it on the command line.
+If it can't, it looks into the index to try and get the right page.  It's
+simple, fast, and works pretty well.  "Man.help" is a simple file to allow
+you to quickly find the function you are looking for by giving it a keyword
+to search for.  Again, it is simple, fast, and reasonably usefull.
+
+Mark Griffith
+DeLand, Fl.
+
+CIS         76070,41
+UUCP        ....!uflorida!ki4pv!macs!mdg
+ or         ....!uflorida!ki4pv!macs!stetson!rewop!sysop
+Internet    griffith@stetson.edu
+BITNET      GRIFFITH@STETSON

@@ -1,0 +1,53 @@
+.so header
+.tl /L3TOL(3C)/Kreider OS-9 C Library/L3TOL(3C)/
+.sh NAME
+.bb
+l3tol, ltol3 - convert between 3-byte integers and long integers
+.eb
+.sh SYNOPSIS
+.bb
+void l3tol (lp, cp, n)
+long *lp;
+char *cp;
+int n;
+.sp
+void ltol3 (cp, lp, n)
+char *cp;
+long *lp;
+int n;
+.eb
+.sh DESCRIPTION
+.db
+The
+.bo
+L3TOL
+subroutine converts a list of
+.ul
+n
+three-byte integers packed into a character string
+pointed to by 
+.ul
+cp
+into a list of long integers pointed to by
+.ul
+lp .
+.PP
+The
+.bo
+LTOL3
+performs the reverse conversion from long integers
+.ul
+lp
+to three-byte integers
+.ul
+cp.
+.PP
+These functions are useful for file-system maintenance
+where the block numbers are three bytes long.  Certain disc addresses are
+maintained in three-byte form rather than four-bytes.
+.ed
+.sh CAVEATS
+.db
+Because of possible differences in byte ordering,
+the numerical values of the long integers are machine-dependent.
+.ed

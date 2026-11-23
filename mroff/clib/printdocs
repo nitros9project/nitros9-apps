@@ -1,0 +1,9 @@
+display c
+echo
+echo Printing Kreider "C" Library documents
+echo Please be patient ....
+echo
+mroff -p8 doc.print >/p
+*mroff -p8 test.print >/p
+echo finished.
+display 7

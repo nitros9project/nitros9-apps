@@ -1,0 +1,476 @@
+.rm 66
+.lt 66
+.*
+.dm MH
+.sp 2
+.ne 12
+.nr I +1
+.nr j 0
+\\nI. \\$0
+.br
+..
+.*
+.dm mh
+.sp
+.ne 10
+.nr j +1
+\\nI.\\nj \$0
+..
+.*
+.dm BS
+.nf
+.in +5
+.sp 2
+..
+.*
+.dm BE
+.fi
+.in
+.sp 2
+..
+.*
+.dm pp
+.sp
+.ne 5
+..
+.*
+.nr I 0
+.nr j 0
+.*
+.m1 4
+.m2 4
+.m3 4
+.m4 4
+.ds CH INTRODUCTION
+.he //\\*CH/MROFF USER'S MANUAL/
+.fo //-%-//
+..
+.sp 5
+Introduction
+.sp
+MROFF is one of a family of three text processors geared to
+suit any need.
+The family is SROFF (small), MROFF (medium), and LROFF (large).
+They differ in capability, size, and complexity, ranging from
+baby to papa.
+They accept lines of text interspersed with lines of format control
+information and format the text into a printable, paginated document
+having a user defined style.
+They offer unusual freedom in document styling, including arbitrary
+style headers and footers, paragraph numbering, control over page
+boundaries, boldface and underline.
+The family syntax is compatible, although commands available in the
+most complex are not available in the least complex.
+.sp 2
+Usage
+.sp
+The general form of invoking MROFF at the OS9 command level is
+.sp
+.ti +10
+mroff options files
+.sp
+where options represent any of a number of option arguments and files
+represents the list of files containing the document to be formatted.
+Options and files are processed in the order in which they are found.
+An argument starting with a minus (-) is taken to be an option.
+The options available are:
+.sp 2
+.in +10
+.ti -8
+Option\ \ Effect
+.sp
+.ti -8
+-pN\ \ \ \ \ Use N as the page offset, moving all output to the
+right by N spaces.  Has no effect on margins.
+.sp
+.ti -8
+-oN-M\ \ \ Print only pages N through M.  If M is missing, N
+through the end will be printed.  If N is missing, 1 through M will
+be printed.
+.sp
+.ti -8
+-b\ \ \ \ \ \ The default mode for bold and underline is to use a
+character, backspace, character sequence.  This works best for
+terminals and will work with a printer that supports backspacing.
+For other cases this option causes the return and line feed functions
+to be separated to permit restrike to handle bold and underline.
+.in
+.sp 2
+.ne 10
+This manual is divided into three parts.
+The first is an index and command summary.
+Each section title is followed by the commands discussed in that
+section.
+The commands are also listed in alphabetic order with the section
+where they are discussed.
+The second section is a reference manual.
+It is keyed numerically to the index and cross reference.
+The third section is examples of use, also keyed to the index.
+The hope is that the numeric keys will help to find material
+quickly in this manual.
+.sp
+NOTE: Some minor changes were made to the original MROFF code to allow
+some compatibility with UNIX NROFF.  These changes are noted in the
+command summary.  In all cases, the UNIX macro functions exactly the
+same as the MROFF equivalent. (Mark Griffith)
+.ds CH "SUMMARY AND INDEX"
+.pg
+.nf
+\&Request Initial If No
+\&Form     Value  Argument Notes Explanation
+
+\&1. General Explanation
+
+\&2. Page Control
+\&.ne N     -     1        -     Need N vertical spaces.
+\&.pg +/-N  1     -        -     Eject current page; next page #N.
+\&.bp +/-N  1     -        -     Same as above - UNIX compatibility
+\&.pl +/-N  66    66       B     Page length.
+\&.po +/-N  0     previous -     Page offset.
+
+\&3. Text Filling, Adjusting, and Centering
+\&.br       -     -        B     Break the current output line.
+\&.ce N     off   1        B     Center the following N lines.
+\&.fi       fill  -        B     Fill output lines.
+\&.ju       just  -        -     Adjust line for even margins.
+\&.nf       fill  -        B     No fill or justify of output.
+\&.nj       just  -        -     No output adjustment.
+
+\&4. Vertical Spacing
+\&.ls N     1     previous -     Output N-1 blank lines per line.
+\&.sp N     -     1        B     Space vertically N lines.
+
+\&5. Line Length and Indenting
+\&.in +/-N  0     previous B     Indent from page edge.
+\&.rm +/-N  72    previous -     Right margin.
+\&.ti +/-N  -     ignored  B     Temporary indent.
+
+\&6. Three Part Titles
+\&.ef /left/center/right/  -     Footer for even pages.
+\&.eh /left/center/right/  -     Header for even pages.
+\&.fo /left/center/right/  -     Footer for all pages.
+\&.he /left/center/right/  -     Header for all pages.
+\&.tl /left/center/right/  -     Same as above - UNIX compatibility
+\&.lt +/-N  72    previous -     Set title length
+\&.m1 +/-N  2     2        -     Set margin  1
+\&.m2 +/-N  2     2        -     Set margin  2
+\&.m3 +/-N  2     2        -     Set margin  3
+\&.m4 +/-N  2     2        -     Set margin  4
+\&.oh /left/center/right/  -     Header for odd pages.
+\&.of /left/center/right/  -     Footer for odd pages.
+\&.pc c     #     #        -     Page number character.
+
+\&7. Macros and Strings
+\&.dm xx    -     error    -     Define macro xx.
+\&.de xx    -     error    -     Same as above - UNIX compatibility
+\&.ds xx string   ignored  -     Define xx to contain "string".
+\&..        -     -        -     End macro definition (also .em, .en).
+
+\&8. Number Registers
+\&.nr R +/-N      -        -     Define and set number register R.
+
+\&9. Output and Input Conventions and Conversions
+\&.bo N     off   1        -     Print bold N input lines.
+\&.cc c     .     .        -     Set command character to c.
+\&.cu N     off   1        -     Continuously underline.
+\&.ec c     \\     \\        -     Set the escape character.
+\&.ul N     off   1        -     Underline N input lines.
+.pg
+\&Request Initial If No
+\&Form     Value  Argument Notes Explanation
+
+\&10. Input File Switching
+\&.so name  -     -        -     Switch to file "name".
+
+\&11. Miscellaneous
+\&.*                             Comment (also ..)
+\&.bs N     1     1        -     Use full line overstrike.
+
+\&12. Error Messages
+
+Notes - B means request causes a break.
+.fi
+.sp 4
+.ce
+Escape Sequences
+.nf
+.sp
+     Section   Escape
+    Reference Sequence  Meaning
+    --------- --------  -------
+       3.1     \\(space) unpaddable space
+       7.2     \\"       comment in a macro or command
+       7.3     \\$N      substitute macro argument N
+       9.3     \\&       zero width fill character
+       7.1     \\*xx     substitute string xx
+       7.2     \\.       a period
+       7.2     \\\\       produces \\
+       8.1     \\n+/-x   substitute number register x
+.sp 3
+.ce
+Predefined Number Registers
+.sp
+     Section  Register
+    Reference  Name     Meaning
+    ---------  ----     -------
+       6.1     %        page number
+       8.1     D        day of month
+       8.1     M        month
+       8.1     Y        year
+.fi
+.pg
+.sp 2
+.ce
+Alphabetic Request and Section Number Cross Reference
+.sp
+.nf
+    Section  Command
+   Reference   Name      Meaning
+   ---------   ----      -------
+      11.1     .*        comment line
+       7.1     ..        also en,em  end a macro or diversion
+       9.2     .bo       bold face a line
+       3.1     .br       just cause a break
+       2.1     .bp       break page - UNIX compatibility
+      11.1     .bs       select bs or separate cr/lf
+       9.3     .cc       set command character
+       3.3     .ce       center next arg_val lines
+       9.2     .cu       continuous underline
+       7.1     .de       define macro - UNIX compatibility
+       7.1     .dm       define macro
+       7.1     .ds       define string
+       9.1     .ec       set escape character
+       6.1     .ef       get even page footer title
+       6.1     .eh       get even header title
+       3.1     .fi       filled lines
+       6.1     .fo       get footer title for pages
+       6.1     .he       get header title for pages
+       5.1     .in       set left indent
+       3.2     .ju       justified lines
+       4.1     .ls       set line spacing value
+       6.1     .lt       output device width
+       6.2     .m1       set topmost margin
+       6.2     .m2       set second top margin
+       6.2     .m3       set first bottom margin
+       6.2     .m4       set bottom-most margin
+       2.3     .ne       "need"
+       3.1     .nf       non-filled lines
+       3.2     .nj       non-justified lines
+       8.1     .nr       register variable
+       6.1     .of       get odd page footer title
+       6.1     .oh       get odd header title
+       6.1     .pc       page number character
+       2.1     .pg       set pageno arg_val - begin page
+       2.2     .pl       set page length
+       2.1     .pn       set page number
+       2.2     .po       page offset (hard margin)
+       5.1     .rm       set right margin
+      10.1     .so       source from file
+       4.1     .sp       space down arg_val blank lines
+       5.1     .ti       set temporary left indent
+       6.1     .tl       title - UNIX compatibility
+       9.2     .ul       underline a line
+.fi
+.ds CH "REFERENCE MANUAL"
+.pg
+.MH "General Explanation"
+.mh "Form of input."
+Input consists of text lines, which are destined
+to be printed, interspersed with control line, which set parameters
+or otherwise control subsequent processing. Control lines begin with
+a control character (normally .) followed by a two character name
+that specifies a basic request or the substitution of a user defined
+macro in place of the control line. The request/macro name may be
+separated from the control character by spaces, and must be followed
+by either space or a return. Control lines with unrecognized names
+are reported as errors.
+.pp
+Various special functions may be introduced anywhere in the input by
+means of an escape character (normally \\). For example, \\nR causes
+the contents of the number register R to be inserted instead.
+.pp
+It may prove useful to understand how MROFF process input text.
+MROFF reads a line of text from the source file, expanding any
+escape sequences that it finds in the line.
+If the first character of the line is the command character,
+the macro table is searched for a macro with a name that
+matches the two following characters.
+If one is found, it is read as if it were from the source file.
+Any escape sequences found are expanded,
+and processing continues with this new line of text.
+That is, it is searched for a macro or command etc.
+If a macro was not found, the internal command table is searched for
+a command that matches the following two characters.
+If one is found, it is executed.
+If none is found, the error is reported.
+If the first character of the line is not the command character,
+the line is processed as text, either output directly if not
+in the fill mode, or added to the current output line if in the
+fill mode.
+.mh "Formatter and device resolution."
+This version supports only
+whole line and whole character spacing.  All requests that accept
+spacing parameters expect them to be in the appropriate units, either
+lines or characters.
+.mh "Numerical expressions."
+This version does not support expressions
+as arguments for requests or macros, although in most cases a number
+register can be used as an argument.
+.mh "Notation."
+Numerical parameters are indicated in this manual in
+two ways. +/-N means that the argument can take the forms of N, +N,
+or -N and that the corresponding effect is to set the affected
+parameter to N, increment it by N, or decrement it by N,
+respectively. Plain N means that the parameter can only be set to N.
+Generally, unreasonable numerical input is either ignored or
+truncated to a reasonable value.  Most requests expect to set
+parameters to non-negative values; .pg being the only exception. The
+requests .po, .ls, .rm, .in, .lt, .m1, .m2, .m3, and .m4 restore the previous
+parameter value in the absence of a parameter, while other requests set
+the parameter to the default value.
+Single character arguments are indicated by a single lower case
+letter and two character arguments are indicated by a pair of lower
+case letters. Character string arguments are indicated by
+multi-character mnemonics.
+.MH "Page Control"
+.mh "Margins."
+Top and bottom margins are automatically provided.
+The .m1, .m2, .m3, and .m4 requests are used to control the top and
+bottom margins.
+See section 6.2 for details.
+The .pg request is used to force a new page,
+optionally with an different number than the next one in sequence.
+The .pn request will reset the current page number to a different
+value without causing a page eject.
+.mh "Boundaries."
+The .pl request is used to set the page length.
+The .po request is used to shift all output text to the right to give
+a binding margin.  It has no affect on any of the other parameters.
+.mh "White Space."
+The .ne request tells the processor that the user wants at least N
+vertical spaces to print the following text.
+If less is available, a new page will be started.
+This is used to keep together lines that should not be split across a
+page boundary.
+.MH "Text Filling, Adjusting, and Centering"
+.mh "Filling."
+Normally words are collected from input
+text lines and assembled into an output text line until something
+doesn't fit.
+A word is any string of characters that is delimited
+by spaces or the beginning/end of the input line. Any adjacent pair
+of words that must be kept together (neither split across a line nor
+spread apart in the adjustment process) can be tied together by
+separating them with the unpaddable space character "\\ "
+(escape character followed by a space).
+.pp
+Any input text line ending with ., ?, or ! is taken to be the end of
+a sentence and an additional space character is provided during
+filling. Leading spaces are retained, and will cause a break, but
+multiple inter-word spaces are not retained unless made unpaddable.
+.pp
+The .br request causes a break. This means that the filling of the
+current output line is stopped and the line is output without
+adjustment. Text lines beginning with a space and blank lines also
+cause a break.
+.pp
+The .fi request starts fill on subsequent lines and the .nf request
+stops filling.  In the no-fill mode output lines are not adjusted;
+they are output without regard for the current line length. Both
+requests cause a break.
+.mh "Adjusting."
+The .ju request will start right margin adjustment. If fill is not on,
+adjustment will not start until the fill mode is entered.
+The spaces between the words on the output line are then
+increased to spread out the line to the current line length minus any
+current indent.
+The adjusted word spacing is not uniform because
+of the granularity of the output device, but alternate lines are
+padded from alternate ends to minimize the effects.
+The .nj request turns adjustment off; the right margin will be ragged.
+This version does not support proportional spacing printers.
+To do so requires knowledge of the algorithms used by the printer.
+.mh "Centering."
+The .ce request will center the next N lines within the current text
+window (right margin minus indent). If N is 0, any residual count is
+cleared and centering stops.  A break occurs after each of the N
+lines and no other adjustment is done to the line.  A line wider than
+the current text window will end up left justified.
+.MH "Vertical Spacing"
+.mh "Vertical Spacing."
+A vertical block of spaces is ordinarily requested using the .sp request.
+MROFF will not space past the bottom of a page.
+.pp
+The .ne request (section 2.3) is used to reserve a
+block of space. The .ls request is used to set the line spacing. One less
+than the argument blank lines will separate lines of text.  For example
+an argument of one sets single spacing, with no blank lines, while an
+argument of two sets double spacing, with one blank line between text
+lines.
+.MH "Line Length and Indenting"
+.mh "Line Length and Indenting."
+.br
+The right margin (maximum line length) for the fill mode may be set
+with the .rm request.
+The indent may be set with the .in request.
+An indent applicable to only the next output line may be set with
+the .ti request.
+The line length includes indent space but not page offset space
+(section 2.2).
+The line length minus the indent is the basis for centering with
+the .ce request.
+The effect of .rm or .ti is delayed, if a partially collected line exists,
+until that line is output. The use of .in will cause a break, forcing
+the output of any partially filled line.
+Note that .rm has no control in the non fill mode, although indenting
+still works.
+.MH "Three Part Titles"
+.mh "Titles."
+Three part titles defined with the .he request would be used on all
+pages.  Using the .eh and .oh requests will cause one to appear on
+even numbered pages and the other on odd numbered pages.
+Similarly, the .fo request defines a three part footer.
+Using the .ef and .of requests define even and odd page footers.
+If the page character (initially %) is found in a title or footer
+string, it will be replaced with the current internal page number.
+The .pc request can be used to change the page character from the
+default (%) to something else.
+The .lt request sets the width of the title and footer lines,
+independently of the margins.
+.mh "Margins."
+The .m1 and .m2 requests set the margin sizes at the top
+of the page, while the .m3 and .m4 requests set the margin
+sizes at the bottom of the page.
+The header will be placed in the last line of the m1 space, with
+one less line than m1 above it.
+This will be followed by m2 blank lines before the body of the
+text starts.
+When m3 plus m4 lines are left on the page, MROFF stops
+printing text and produces m3 blank lines.
+The footer will be placed in the first line of the m4 space
+with one less line than m4 below.
+Setting all four to zero will suppress all paging, while setting
+m1 and m4 to zero will disable titles and footers, respectively,
+even if header and footer strings are defined.
+.MH "Macros and Strings"
+.mh "Macros and Strings."
+A macro is a named set of lines that may be invoked by name. A string
+is a named string of characters that may be introduced into the input
+stream at any point by using its name. Macro and string names are two
+character names that may usurp previously defined request, macro or
+string names. Macros are created with the .dm request and may be
+redefined but not removed.
+The .. request is used to terminate a macro.
+A macro is invoked in the same way as a request; a control line
+beginning with .xx will inject the contents of the macro xx into the
+processing stream.
+The remainder of the line may contain up to 10 arguments, numbered 0
+through 9.
+Macros can be used in macros, but nesting too deep or recursion
+will cause unpredictable results.
+.pp
+The .ds request is used to create a string.
+The string following the request is saved for substitution at
+a later time.
+Note that the string cannot be continued onto other lines.
+The st

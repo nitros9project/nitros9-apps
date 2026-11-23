@@ -1,0 +1,242 @@
+.so header
+.tl /GETSTAT(2S)/Kreider OS-9 C Library/GETSTAT(2S)/
+.sh NAME
+.bb
+SS_OPT, SS_READY, SS_SIZE, SS_POS, SS_EOF, SS_DEVNAM, SS_FD
+.sp
+OS-9 get status system calls.
+.eb
+.sh SYNOPSIS
+.bb
+#include <sgstat.h>
+.sp
+getstat(SS_OPT, filenum, buffer)
+int code, filenum;
+struct sgbuf *buffer;
+.sp
+getstat(SS_READY, filenum)
+int code, filenum;
+.sp
+getstat(SS_SIZE, filenum, size)
+int code, filenum;
+long *size;
+.sp
+getstat(SS_POS, filenum, position)
+int code, filenum;
+long *position;
+.sp
+getstat(SS_EOF, filenum)
+int code, filenum;
+.sp
+getstat(SS_DEVNAM, filenum, buffer)
+int code, filenum;
+char *buffer;
+.sp
+#include <direct.h>
+.sp
+getstat(SS_FD, filenum, buffer, count)
+int code, filenum;
+struct fildes *buffer;
+int count;
+.eb
+.sh DESCRIPTION
+.db
+These calls are the equivalent of the
+.bo
+_GS_XXX
+calls described elsewhere in these documents. While the
+.bo
+_GS_XXX
+calls are provided for compatibility with
+source code generated for OSK and UNIX systems, the calls listed below are those normally used with 6809/OS-9.
+.PP
+The following descriptions do not include the complete syntax of each function
+call. See the list above under Synopsis.
+.PP
+.bo
+GETSTAT(ss_opt)
+copies the options section of the path descriptor opened on
+.ul
+path
+into the buffer pointer to by
+.ul
+buffer.
+The structure
+.ul
+sgbuf
+in
+.bo
+SGSTAT.H
+provides a convenient means to access the individual option values.
+.sp
+Be sure the buffer is large enough to hold all the options. Declaring the
+buffer as a type
+.ul
+struct sgbuf
+is perfectly safe as this structure is
+predefined to be large enough for all the device descriptor options.
+.PP
+This call works only on
+.bo
+RBF
+devices.
+.PP
+.bo
+GETSTAT(ss_ready)
+checks an
+.bo
+SCF
+device opened on
+.ul
+path
+to see if data is waiting to
+be read. Read requests to OS9 will wait until enough bytes have been read to
+satisfy the bytecount given thereby suspending the program until the read is
+finished.
+.PP
+A program can use this function to determine the number of bytes, if any, are
+waiting to be read, and then issue a read request for only the number of bytes
+actually received.
+.PP
+If no data is available to be read, or the device is not an
+.bo
+SCF
+device, a -1 is returned and the appropriate error code
+is placed in
+.ul
+errno.
+Otherwise, the number of bytes available to be read is returned.
+.PP
+This call is effective only on
+.bo
+SCF
+devices. This function is not intended for
+use with buffered I/O calls (like
+.ul
+getc()),
+and unpredictable results will
+likely occur. This call works best with low-level I/O functions.
+.PP
+.bo
+GETSTAT(ss_size)
+returns the size of the file pointed to in filenum.  The size is returned
+in the long variable 'size'.
+.PP
+.bo
+GETSTAT(ss_pos)
+returns the value of the file pointer for the file opened on
+.ul
+filenum.
+.PP 
+If an error occurs, this function returns -1 as its value and the error code
+is placed in the global variable
+.ul
+errno.
+.PP
+This call works only on
+.bo
+RBF
+devices. It is unique to OS-9 and the only
+equivalent portable call is
+.ul
+lseek().
+DO NOT use this call if buffered I/O is
+being performed on the path. Use
+.ul
+ftell()
+instead.
+.PP
+.bo
+GETSTAT(ss_eof)
+determines if the file opened is at the end-of-file.
+If it is, the value 1 is returned -- if not, 0 is returned.
+.PP
+If an error occurs, this function returns -1 as its value and the error code
+is placed in the global variable
+.ul
+errno.
+.PP
+This function cannot determine the end-of-file on an
+.bo
+SCF
+device.
+.bo
+SCF
+devices
+return an
+.ul
+e$eof
+error when the
+.ul
+EOF
+character is read. DO NOT use this call
+if using buffered I/O on PATH. Instead, use the function
+.ul
+feof().
+.PP
+.bo
+GETSTAT(ss_devnam)
+determines the name of the device opened on a path. The argument
+.ul
+filenum
+is the OS-9 path number of the opened path and
+.ul
+buffer
+is a pointer to a
+character array into which the null-terminated device name will be placed.
+.PP
+If an error occurs, this function returns -1 as its value and the error code
+is placed in the global variable
+.ul
+errno.
+.PP
+Be sure to reserve at least 32 characters to receive the device name.
+.PP
+.bo
+GETSTAT(ss_fd)
+places a copy of the
+.bo
+RBF
+file descriptor sector of the file
+opened into the buffer pointed to by
+.ul
+buffer.
+A maximum of
+.ul
+count
+bytes are copied. The structure
+.ul
+FILDES,
+declared in
+.bo
+DIRECT.H,
+provides a convenient method to access the file descriptor information.
+.PP
+If and error occurs, this function returns -1 as its value and the error code
+is placed in the global variable
+.ul
+errno.
+.PP
+Be sure the buffer is large enough to hold all the options, or at least
+.ul
+count
+bytes. This call is effective only on
+.bo
+RBF
+devices. Declaring the buffer as type
+.ul
+struct fildes
+is perfectly safe as this structure is predefined to
+be large enough to hold all the file descriptor information.
+.ed
+.sh NOTE
+.db
+All the above calls require an OS-9 path number for
+.ul
+filenum, and NOT a
+C iob file descriptor pointer.
+.ed
+.sh SEE ALSO
+.bb
+I$GetStt system call - Microware Manual, _gs_xxx calls
+.eb

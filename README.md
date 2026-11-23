@@ -6,6 +6,7 @@ This repository contains applications and application suites for NitrOS-9:
 - `deskmate3` — DeskMate 3 application disk
 - `ed` — OS-9 Level One port of the Unix `ed` editor
 - `kreider` — Carl Kreider's public-domain C tools: `uniq`, `cb`, `ppc`, `dgrep` and `lb`
+- `mroff` — Mark Griffith's `mroff` text formatter and `man` reader, with the Kreider C library manual pages
 - `multivue` — Multi-Vue graphical environment and applications
 - `os9l2bbs` — OS-9 Level 2 BBS package
 - `uemacs` — MicroEMACS port for OS-9

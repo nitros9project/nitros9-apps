@@ -1,0 +1,404 @@
+.so header
+.tl /STRINGS(3C)/Kreider OS-9 C Library/STRINGS(3C)/
+.sh NAME
+.bb
+strcat, strucat, strncat, strcmp, strucmp, strncmp, strnucmp,
+strcpy, strucpy, strncpy, strlen, strchr, strrchr, strpbrk,
+strspn, strcspn, strtok, strclr, strend, reverse, pwcryp
+index, rindex
+.sp
+String operations
+.eb
+.sh SYNOPSIS
+.bb
+#include <string.h>
+.sp
+char *strcat (s1, s2)
+char *s1, *s2;
+.sp
+char *strucat (s1, s2, n)
+char *s1, *s2;
+int n;
+.sp
+char *strncat (s1, s2, n)
+char *s1, *s2
+int n;
+.sp
+int strcmp (s1, s2)
+char *s1, *s2;
+.sp
+int strucmp (s1, s2)
+char *s1, *s2;
+.sp
+int strncmp (s1, s2, n)
+char *s1, *s2;
+int n;
+.sp
+int strnucmp (s1, s2, n)
+char *s1, s2;
+int n;
+.sp
+char *strcpy (s1, s2)
+char *s1, *s2;
+.sp
+char *strucpy (s1, s2)
+char *s1, s2;
+.sp
+char *strncpy (s1, s2, n)
+char *s1, *s2;
+int n;
+.sp
+int strlen (s)
+char *s;
+.sp
+char *strchr (s, c)     /* aka index() */
+char *s1;
+int c;
+.sp
+char *strrchr (s, c)    /* aka rindex() */
+char *s1;
+int c;
+.sp
+char *strpbrk (s1, s2)
+char *s1, *s2;
+.sp
+int strspn (s1, s2)
+char *s1, *s2;
+.sp
+int strcspn (s1, s2)
+char *s1, *s2;
+.sp
+char *strtok (s1, s2)
+char *s1, *s2;
+.sp
+char *strclr (s, c)
+char *s;
+int c;
+.sp
+char *strend (s)
+char *s;
+.sp
+char *reverse (s)
+char *s;
+.sp
+char *pwcryp (s)
+char *s;
+.sp
+char *index(s, ch)
+char *s, ch;
+.sp
+char *rindex(s, ch)
+char *s, ch;
+.eb
+.sh DESCRIPTION
+.db
+The arguments
+.ul
+s1, s2,
+and
+.ul
+s
+point to strings (arrays of characters terminated
+by a NULL character). The functions
+.bo
+STRCAT, STRUCAT, STRNCAT, STRCPY, STRUCPY
+and
+.bo
+STRNCPY
+all
+alter
+.ul
+s1.
+These functions do not check for overflow of the array pointed to by
+.ul
+s1.
+.sp
+.bo
+STRCAT
+appends a copy of string
+.ul
+s2
+to the end of string
+.ul
+s1.
+.bo
+STRNCAT
+appends
+at most
+.ul
+n
+characters.
+.bo
+STRUCAT
+is the same as
+.bo
+STRCAT
+but makes all characters
+uppercase. Each returns a pointer to the null-terminated result.
+.sp
+.bo
+STRCMP
+compares its arguments and returns an integer less than, equal to, or
+greater than 0, according as
+.ul
+s1
+is lexicographically less than, equal to, or
+greater than
+.ul
+s2.
+.bo
+STRUCMP
+functions in the same way but makes all characters
+uppercase before comparing.
+.bo
+STRNCMP
+makes the same comparison but looks at at most
+.ul
+N
+characters.
+.bo
+STRNUCMP
+is the same except it makes all characters uppercase
+prior to the comparison.
+.sp
+.bo
+STRCPY
+copies string
+.ul
+s2
+to
+.ul
+s1, stopping after the null character has been
+copied.
+.bo
+STRUCPY
+performs the same except all characters are made uppercase.
+.bo
+STRNCPY
+copies exactly
+.ul
+n
+characters, truncating
+.ul
+s2
+or adding
+.bo
+null
+characters to
+.ul
+s1
+as necessary. The result will not be null-terminated if the
+length of
+.ul
+s2
+is
+.ul
+n
+or more. Each function returns
+.ul
+s1.
+.sp
+.bo
+STRLEN
+returns the number of characters in
+.ul
+s,
+not including the terminating
+null characters.
+.sp
+.bo
+STRCHR (STRRCHR)
+returns a pointer to the first (last) occurrence of
+character
+.ul
+c in string
+.ul
+s,
+or a
+.bo
+null
+pointer if
+.ul
+c
+does not occur in the string.
+The null character terminating a string is considered to be part of the
+string.
+.sp
+.bo
+STRPBRK
+returns a pointer to the first occurrence in string
+.ul
+s1
+of any character from
+.ul
+s2, or a
+.bo
+null
+pointer if no character from
+.ul
+s2
+exists in
+.ul
+s1.
+.sp
+.bo
+STRSPN (STRCSPN) returns the length of the initial segment of string
+.ul
+s1
+which
+consists entirely of characters from (or not from) string
+.ul
+s2.
+.sp
+.bo
+STRTOK
+considers the string
+.ul
+s1
+to consist of a sequence of zero or more text
+tokens separated by spans of one or more characters from the separator string
+.ul
+s2.
+The first call (with pointer
+.ul
+s1
+specified) returns a pointer to the first
+character of the first token, and will have written a null character into
+.ul
+s1
+immediately following the returned token. the function keeps track of its
+position in the string between separate calls, so that subsequent calls
+(which must be made with the first argument a NULL pointer) will work through
+the string
+.ul
+s1
+immediately following that token. In this way, subsequent calls
+will work through the string
+.ul
+s1
+until no tokens remain. The separator string
+.ul
+s2 may be different from call to call. When no token remains in
+.ul
+s1,
+a
+.bo
+null
+pointer is returned.
+.sp
+.bo
+STRCLR
+sets at the most
+.ul
+c
+characters in string
+.ul
+s,
+but not including the null-terminator, to SPACES (Ox20).
+.sp
+.bo
+STREND
+returns a pointer to the end of string
+.ul
+s.
+.sp
+.bo
+REVERSE
+reverses the characters of string
+.ul
+s
+in memory and then returns
+.ul
+s.
+.sp
+.bo
+PWCRYP
+encrypts and returns string
+.ul
+s.
+.sp
+.bo
+INDEX
+returns a pointer to the first occurance of
+.ul
+ch
+in
+.ul
+s
+or
+.bo
+null
+if not
+found.
+.bo
+INDEX
+is functionally the same as
+.bo
+STRCHR
+except
+.ul
+ch
+is of type CHAR.
+.sp
+.bo
+RINDEX
+returns a pointer to the last occurance of
+.ul
+ch
+in
+.ul
+s or NULL if not
+found.
+.bo
+RINDEX
+is functionally the same as
+.bo
+STRRCHR
+except
+.ul
+ch
+is of type CHAR.
+.sp
+Both
+.bo
+INDEX
+and
+.bo
+RINDEX
+are maintained for backward compatibility with older UNIX System V releases.
+.ed
+.sh NOTE
+.db
+For user convenience, all these functions are declared in the optional
+<string.h> header file.
+.ed
+.sh BUGS
+.db
+.bo
+STRCMP
+and
+.bo
+STRNCMP
+use native character comparison,
+which is unsigned on some machines.
+Thus, the sign of the value returned when one of the characters has its high
+order bit set is implementation-dependent.
+.sp
+Character movement is performed differently in different implementations.
+Thus, overlapping moves may yield surprises.
+.ed
+.sh CAVEATS
+.db
+.bo
+STRCAT
+and
+.bo
+STRCPY
+have no means of checking that the space provided is
+large enough.  It is the user's responsibility to ensure that string space
+does not overflow.
+.ed
+.sh SEE ALSO
+.bb
+findstr()
+.eb
