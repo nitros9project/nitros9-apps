@@ -1,0 +1,326 @@
+--- a/adduser.c
++++ b/adduser.c
+@@ -379,7 +379,7 @@
+         before we close the file -- REB */
+ 
+      fflush (fp);
+-     _ss_size (uloginpath, ftell (fp));
++     _ss_size (uloginpath, 0, (char *) ftell (fp));
+      fclose (fp);
+ 
+      printf ("\n\nUser '%s' has been added to the system\n\n", pw[NAME]);
+--- a/cnvrtmail.c
++++ b/cnvrtmail.c
+@@ -265,7 +265,7 @@
+ {
+      FILE *infile, *outfile;
+      char line[256], temp[100], mailpath[80], fname[128];
+-     struct sgtbuf date;
++     struct os_time date;
+      register int count;
+      long nowtime;
+      static long prevtime = 0L;
+@@ -326,9 +326,9 @@
+ 
+                sprintf (fname, "%s/m%s%02d%02d%02d%02d%02d%02d",
+                         users[uindex].name,
+-                        date.t_year > 90  &&  date.t_year <= 99 ? "19" : "20",
+-                        date.t_year, date.t_month, date.t_day, date.t_hour,
+-                        date.t_minute, date.t_second);
++                        date.year > 90  &&  date.year <= 99 ? "19" : "20",
++                        date.year, date.month, date.day, date.hours,
++                        date.minutes, date.seconds);
+ 
+ 
+                if ((outfile = fopen (fname, "w")) == NULL)
+@@ -600,7 +600,7 @@
+ 
+           if ((old = fopen (oldfilename, "r")) == NULL)
+             {
+-               fprintf ("can't open mail '%s' for reading\n", oldfilename);
++               fprintf (stderr, "can't open mail '%s' for reading\n", oldfilename);
+                --mailcount;
+                continue;
+             }
+--- a/expgroup.c
++++ b/expgroup.c
+@@ -43,7 +43,7 @@
+      int age, min, mid, max;                                     /* EK */
+      register int i;
+      struct fildes finfo;
+-     struct sgtbuf date;
++     struct os_time date;
+ 
+      /* get today's date and time */
+      getime (&date);
+@@ -161,7 +161,7 @@
+ 
+ int getage (filename, date)
+ char *filename;
+-struct sgtbuf *date;
++struct os_time *date;
+ {
+      struct fildes finfo;
+      int path, stat, year, mon, day, age;
+@@ -182,9 +182,9 @@
+      day  = finfo.fd_date[2];
+ 
+      /* how old is this article? */
+-     age  = (date->t_year - year) * 365;
+-     age += (date->t_month - mon) * 31;
+-     age += (date->t_day - day);
++     age  = (date->year - year) * 365;
++     age += (date->month - mon) * 31;
++     age += (date->day - day);
+ 
+      if (debuglvl > 2)
+           fprintf (log, "article %s age is %d days\n", filename, age);
+--- a/fileserv.c
++++ b/fileserv.c
+@@ -349,7 +349,7 @@
+                          wtlog (address, lp);
+ 
+                          if (submitOK)
+-                              acceptfile (address, words[1], lp);
++                              acceptfile (address, words[1]);
+                          else
+                            {
+                               rejectfile (address, lp);
+@@ -440,15 +440,15 @@
+ char *address, *subject;
+ flag closefile;
+ {
+-     struct sgtbuf date;
++     struct os_time date;
+ 
+      getime (&date);
+ 
+      fprintf (msgfile, "From FILESERV %s\n", date822());
+      fprintf (msgfile, "From: OS-9 FileServer <%s!FILESERV>\n", sitename);
+      fprintf (msgfile, "Message-Id: <%02d%02d%02d%02d%02d%02d.AA%05ld@%s>\n",
+-                       date.t_year, date.t_month, date.t_day, date.t_hour,
+-                       date.t_minute, date.t_second, getseq (MAILSEQ),
++                       date.year, date.month, date.day, date.hours,
++                       date.minutes, date.seconds, getseq (MAILSEQ),
+                        sitename);
+      fprintf (msgfile, "Subject: %s\n", subject);
+      fprintf (msgfile, "Reply-To: nobody@%s\n", sitename);
+@@ -683,7 +683,7 @@
+      if ((msg = fopen (fname, "w")) == NULL)
+           return;
+ 
+-     writeheader (msg, errorsto, "WARNING--possible misuse of fileserver");
++     writeheader (msg, errorsto, "WARNING--possible misuse of fileserver", FALSE);
+ 
+      if ((msg = fopen (fname, "a")) == NULL)
+        {
+@@ -773,7 +773,7 @@
+           unlink (fname);
+           return;
+        }
+-     writeheader (msg, sender, "WARNING--attempt to submit a file");
++     writeheader (msg, sender, "WARNING--attempt to submit a file", FALSE);
+ 
+      if ((msg = fopen (fname, "a")) == NULL)
+        {
+--- a/getval.c
++++ b/getval.c
+@@ -30,7 +30,7 @@
+ static char vtemp[BUFFSIZE];
+ 
+ #ifndef _OSK
+-char *memset();
++
+ #endif
+ 
+ char *cutspace();
+--- a/gtime.c
++++ b/gtime.c
+@@ -31,8 +31,8 @@
+ 
+ char *gtime()
+ {
+-     register struct sgtbuf *p;
+-     struct sgtbuf gtpack;
++     register struct os_time *p;
++     struct os_time gtpack;
+      static char *months[] = {"Jan","Feb","Mar","Apr","May","Jun",
+                               "Jul","Aug","Sep","Oct","Nov","Dec"};
+ 
+@@ -41,8 +41,8 @@
+ 
+      /* assemble string to read, for example: '(May 05-01:56:00)' */
+      sprintf (timestring, "(%s %d-%02d:%02d:%02d)",
+-                          months[p->t_month - 1], p->t_day, p->t_hour,
+-                          p->t_minute, p->t_second);
++                          months[p->month - 1], p->day, p->hours,
++                          p->minutes, p->seconds);
+ 
+      return (timestring);
+ }
+--- a/login.c
++++ b/login.c
+@@ -90,7 +90,7 @@
+      inpass[PWPSIZ+1];                  /* User password input */
+ 
+ long curr_time;                         /* holds login time [MDG] */
+-struct sgtbuf os9_time;
++struct os_time os9_time;
+ char *chk_alias();
+ 
+ /*  S t r i n g s */
+@@ -422,15 +422,15 @@
+ char *name;
+ {
+      register char *p1;
+-     char *curtime[20],
+-          *p = &os9_time,
+-          *words[3],
++     char curtime[20];
++     struct os_time *p = &os9_time;
++     char *words[3],
+           *nologin = "\n\nSORRY - You cannot login at this time! <click!>";
+      flag found_it = FALSE;
+      int curtm, starttime, endtime, i;
+ 
+      getime (p);
+-     sprintf (curtime, "%02d%02d", p->t_hour, p->t_minute);
++     sprintf (curtime, "%02d%02d", p->hours, p->minutes);
+      sprintf (tempstr, "%s/login.times", logdir);
+      p1 = tempstr;
+ 
+@@ -601,7 +601,7 @@
+ char *buffer;
+ {
+      int tdone, done;
+-     struct sgtbuf t;
++     struct os_time t;
+      register char *p;
+      char *start;                    /* used so we don't backspace too far */
+ 
+@@ -611,7 +611,7 @@
+        {
+           getime (&t);                              /* start/reset timer */
+ 
+-          if ((tdone = t.t_second + TIMEOUT) > 59)
++          if ((tdone = t.seconds + TIMEOUT) > 59)
+                tdone -= 60;
+ 
+           done = FALSE;
+@@ -620,7 +620,7 @@
+                  {
+                     getime(&t);
+ 
+-                    if (tdone == t.t_second)                /* timed out?   */
++                    if (tdone == t.seconds)                /* timed out?   */
+                       {
+                          echo (ON);                         /* ...yup */
+                          return (TRUE);
+--- a/rmail.c
++++ b/rmail.c
+@@ -432,7 +432,7 @@
+ FILE *file;
+ {
+      char mailbox[256], envelop[16];
+-     struct sgtbuf tod;
++     struct os_time tod;
+      register FILE *mailfile;
+      FILE *mail_list;
+      char *ptmp;
+@@ -529,9 +529,9 @@
+ 
+      getime (&tod);
+      sprintf (envelop, "m%02d%02d%02d%02d%02d%02d%02d",
+-                       (tod.t_year >= 92) && (tod.t_year <= 99)  ? 19  : 20,
+-                       tod.t_year, tod.t_month, tod.t_day, tod.t_hour,
+-                       tod.t_minute, tod.t_second);
++                       (tod.year >= 92) && (tod.year <= 99)  ? 19  : 20,
++                       tod.year, tod.month, tod.day, tod.hours,
++                       tod.minutes, tod.seconds);
+ 
+      /* new line for letterfile */
+      memset (mailstring, '\0', sizeof (mailstring));
+--- a/sendmail.c
++++ b/sendmail.c
+@@ -156,7 +156,7 @@
+ {
+      char *words[40], *p, **wordptr, **wordlast;
+      int count;
+-     struct sgtbuf date;
++     struct os_time date;
+      long seq;
+      register char *lp;
+      char *got_escape = "<ESC> hit...exiting";
+@@ -227,8 +227,8 @@
+      /* Message-Id: line */
+      getime (&date);
+      sprintf (lp, "Message-Id: <%02d%02d%02d%02d%02d.AA%05ld@%s>",
+-                  date.t_year, date.t_month, date.t_day, date.t_hour,
+-                  date.t_minute, seq, sitename);
++                  date.year, date.month, date.day, date.hours,
++                  date.minutes, seq, sitename);
+ 
+      fprintf (ltrfile, "%s\n", lp);
+ 
+--- a/uuclean.c
++++ b/uuclean.c
+@@ -312,7 +312,7 @@
+ 
+ int rtime (offset, datebuff)
+ long offset;
+-struct sgtbuf *datebuff;
++struct os_time *datebuff;
+ {
+      long systime;
+      struct tm *utimeptr;
+@@ -323,28 +323,28 @@
+      systime -= offset*24L*60L*60L;                 /* changed [MDG] */
+      utimeptr = localtime(&systime);
+ 
+-     datebuff->t_year   = utimeptr->tm_year;
++     datebuff->year   = utimeptr->tm_year;
+ #ifdef _OSK
+-     datebuff->t_month  = utimeptr->tm_mon + 1;     /* OSK is different!!! */
++     datebuff->month  = utimeptr->tm_mon + 1;     /* OSK is different!!! */
+ #else
+ # ifndef NEWCLIB                                 /* early Kreider CLIB.L    */
+-     datebuff->t_month  = utimeptr->tm_mon;      /* does it one way, newer  */
++     datebuff->month  = utimeptr->tm_mon;      /* does it one way, newer  */
+ # else                                           /* versions (1990) does it */
+-     datebuff->t_month  = utimeptr->tm_mon + 1;  /* like OSK...confused??   */
++     datebuff->month  = utimeptr->tm_mon + 1;  /* like OSK...confused??   */
+ # endif                                          /* me, too --REB           */
+ #endif
+-     datebuff->t_day    = utimeptr->tm_mday;
+-     datebuff->t_hour   = utimeptr->tm_hour;
+-     datebuff->t_minute = utimeptr->tm_min;
+-     datebuff->t_second = utimeptr->tm_sec;
++     datebuff->day    = utimeptr->tm_mday;
++     datebuff->hours   = utimeptr->tm_hour;
++     datebuff->minutes = utimeptr->tm_min;
++     datebuff->seconds = utimeptr->tm_sec;
+ 
+      /* Setup a string with the date in it for possible printing.
+         Added [MDG] */
+ 
+      sprintf (timestr,"%02d/%02d/%02d %02d:%02d:%02d",
+-                      datebuff->t_month, datebuff->t_day, datebuff->t_year,
+-                      datebuff->t_hour, datebuff->t_minute,
+-                      datebuff->t_second);
++                      datebuff->month, datebuff->day, datebuff->year,
++                      datebuff->hours, datebuff->minutes,
++                      datebuff->seconds);
+ /*   return (datebuff); */
+ }
+ 
+--- a/uuxqt.c
++++ b/uuxqt.c
+@@ -436,7 +436,7 @@
+                    sender, sysname, gtime(), errormsg, msg);
+ 
+      if (errno != 0)
+-          fprintf ("...error #%d", errno);
++          fprintf (log, "...error #%d", errno);
+ 
+      putc ('\n', log);
+ }

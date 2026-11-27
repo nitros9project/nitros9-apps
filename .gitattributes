@@ -1,0 +1,2 @@
+# Unified patches preserve source whitespace and blank context lines.
+uucpbb/build/patches/*.patch -whitespace
