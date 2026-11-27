@@ -10,3 +10,7 @@ ed/ed
 # Historical package inputs that use generated-artifact extensions.
 !os9l2bbs/os9l2bbs.dsk
 !uucpbb/sample_config/bin.list
+
+# UUCPbb source-build artifacts.
+uucpbb/build/out/
+uucpbb/**/__pycache__/

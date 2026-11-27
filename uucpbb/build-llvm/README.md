@@ -40,8 +40,9 @@ library installed. Both full builds return success, and all 48 modules pass
 header, size, parity, 6809 program-type and CRC validation. These are build
 results, not OS-9 functional-test results: process, pipe, terminal/window,
 modem and UUCP configuration behavior still needs execution on a booted system.
-The original terminal/window build variants and assembly-only uumon are outside
-this harness; it does not generate release disk images.
+This harness builds the OS-9 window configuration. The parent Makefile now
+packages these modules and the handwritten `native/uumon.asm` monitor with
+`make -C .. dsk COMPILER=llvm`; the old assembly byte-dump trees are removed.
 
 `targets.json` records the original src/Makefile dependencies, plus pwent.c
 for uulog, uuxqt, rnews, expire and fileserv. Those commands use the legacy

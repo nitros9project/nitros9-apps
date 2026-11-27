@@ -1,84 +1,78 @@
+# Source builds. The C compilers all produce OS-9/6809 modules usable on a 6309.
+.DEFAULT_GOAL := all
+COMPILER ?= c3
+TARGET ?= all
+OPT ?= Os
+JOBS ?= 8
+PYTHON ?= python3
+C3BASE ?= $(abspath ../../nitros9-languages/c3)
+CMOC_OS9_DIR ?= $(abspath ../../nitros9-c-libs)
+NITROS9DIR ?= $(abspath ../../nitros9)
+export C3BASE CMOC_OS9_DIR NITROS9DIR
+
+ifneq ($(filter $(COMPILER),c3 cmoc llvm),$(COMPILER))
+$(error COMPILER must be c3, cmoc, or llvm)
+endif
+
+ifeq ($(COMPILER),llvm)
+OUT = build-llvm/out/$(OPT)
+else
+OUT = build/out/$(COMPILER)
+endif
+
+COMMANDS = adduser chown cnvrtmail dotilde expire fileserv fixtext login mailx \
+           postnews readnews rmail rnews subscribe unsubscribe uucico uuclean \
+           uucp uudecode uuencode uulog uuname uuxqt whoami
+CONFIG = Devices FileServ.help Systems bin.list Dialers Parameters active distributions
+DOCS = adduser.man aliases.doc chown.man cnvrtmail.man fileserv.man fixtext.man \
+       login.man mailrc.doc mailx.man parameters.doc postnews.man profile.doc \
+       readnews.man rmail.man rnews.man signature.doc subscribe.man uucico.man \
+       uuclean.man uucp.man uucpbb.doc uulog.man uuxqt.man whoami.man
+DISKS = uucpbb21_6809.dsk uucpbb21_6309.dsk
+
+.PHONY: all commands components c3 cmoc llvm dsk clean dskcopy info
+all: dsk
+commands:
+	$(PYTHON) build/build.py --compiler $(COMPILER) --target $(TARGET) --opt $(OPT) --jobs $(JOBS)
+components: commands
+c3 cmoc llvm:
+	$(MAKE) commands COMPILER=$@
+
+# Keep the historical disk target names, but rebuild from the selected compiler
+# every time: an image must not silently contain a previous compiler's output.
+dsk: commands
+	@test "$(TARGET)" = all || { echo 'Disk builds require TARGET=all'; exit 1; }
+	$(MAKE) --no-print-directory package
+
+# NitrOS-9 disk tools and assembler rules are needed only for packaging.
+ifneq ($(filter package dskcopy,$(MAKECMDGOALS)),)
 include $(NITROS9DIR)/rules.mak
+.PHONY: package
+package: $(OUT)/uumon
+	@set -e; for disk in $(DISKS); do \
+	  $(RM) "$$disk"; \
+	  $(OS9FORMAT) -l10000 "$$disk" -q -n"UUCPbb 2.1 $(COMPILER)"; \
+	  for dir in LOG UUCP UUCP/CMDS_WIN UUCP/DOC UUCP/SPOOL \
+	    UUCP/SPOOL/MAIL UUCP/SPOOL/NEWS UUCP/SPOOL/UUCP \
+	    UUCP/SPOOL/UUCP/REDHAT UUCP/SPOOL/UUCPPUBLIC UUCP/SPOOL/REDHAT \
+	    SYS SYS/UUCP; do $(MAKDIR) "$$disk,$$dir"; done; \
+	  (cd sample_config && $(CPL) $(CONFIG) "../$$disk,SYS/UUCP"); \
+	  $(CPL) profile "$$disk,SYS"; \
+	  (cd $(OUT) && $(OS9COPY) $(COMMANDS) uumon "$(CURDIR)/$$disk,UUCP/CMDS_WIN"); \
+	  for cmd in $(COMMANDS) uumon; do $(OS9ATTR_EXEC) "$$disk,UUCP/CMDS_WIN/$$cmd"; done; \
+	  (cd doc && $(CPL) $(DOCS) "../$$disk,UUCP/DOC"); \
+	  $(CPL) copying README.md "$$disk,UUCP"; \
+	done
 
-DISK68	= uucpbb21_6809.dsk
-DISK63	= uucpbb21_6309.dsk
-CMDS68		= $(shell $(MAKE) -C cmds_6809 --no-print-directory showobjs)
-CMDS68TCAP	= $(shell $(MAKE) -C cmds_6809 --no-print-directory showtcapobjs) $(CMDS68)
-CMDS68WIN	= $(shell $(MAKE) -C cmds_6809 --no-print-directory showwinobjs) $(CMDS68)
-CMDS63		= $(shell $(MAKE) -C cmds_6309 --no-print-directory showobjs)
-CMDS63TCAP	= $(shell $(MAKE) -C cmds_6309 --no-print-directory showtcapobjs) $(CMDS63)
-CMDS63WIN	= $(shell $(MAKE) -C cmds_6309 --no-print-directory showwinobjs) $(CMDS63)
-CONFIG	= Devices FileServ.help Systems bin.list Dialers Parameters active distributions
-DOCS	= adduser.man aliases.doc chown.man cnvrtmail.man fileserv.man fixtext.man login.man mailrc.doc mailx.man parameters.doc postnews.man profile.doc readnews.man rmail.man rnews.man signature.doc subscribe.man uucico.man uuclean.man uucp.man uucpbb.doc uulog.man uuxqt.man whoami.man
+$(OUT)/uumon: native/uumon.asm native/defsfile
+	@mkdir -p $(OUT)
+	$(AS) $(ASOUT)$@ $(AFLAGS) -I$(NITROS9DIR)/defs -Inative native/uumon.asm
+endif
 
-DSKS	= $(DISK68) $(DISK63)
-
-.PHONY: all components clean
-
-all: $(DSKS)
-
-components:
-	@$(ECHO) "**************************************************"
-	@$(ECHO) "*                                                *"
-	@$(ECHO) "*                   UUCPbb v2.1                  *"
-	@$(ECHO) "*                                                *"
-	@$(ECHO) "**************************************************"
-	$(MAKE) -C cmds_6809
-	$(MAKE) -C cmds_6309
-
+dskcopy: dsk
+	cp $(DISKS) $(DSKDIR)
 clean:
-	$(RM) $(DSKS)
-	$(MAKE) -C cmds_6809 clean
-	$(MAKE) -C cmds_6309 clean
-
-$(DISK68): | components
-	$(RM) $@
-	$(OS9FORMAT) -l10000 $@ -q -n"UUCPbb v2.1 6809"
-	$(MAKDIR) $@,LOG
-	$(MAKDIR) $@,UUCP
-	$(MAKDIR) $@,UUCP/CMDS_WIN
-	$(MAKDIR) $@,UUCP/CMDS_TCAP
-	$(MAKDIR) $@,UUCP/DOC
-	$(MAKDIR) $@,UUCP/SPOOL
-	$(MAKDIR) $@,UUCP/SPOOL/MAIL
-	$(MAKDIR) $@,UUCP/SPOOL/NEWS
-	$(MAKDIR) $@,UUCP/SPOOL/UUCP
-	$(MAKDIR) $@,UUCP/SPOOL/UUCP/REDHAT
-	$(MAKDIR) $@,UUCP/SPOOL/UUCPPUBLIC
-	$(MAKDIR) $@,UUCP/SPOOL/REDHAT
-	$(MAKDIR) $@,SYS
-	$(MAKDIR) $@,SYS/UUCP
-	$(CD) sample_config; $(CPL) $(CONFIG) ../$@,SYS/UUCP
-	$(CPL) profile $@,SYS
-	$(CD) cmds_6809; $(OS9COPY) $(CMDS68TCAP) ../$@,UUCP/CMDS_TCAP
-	$(OS9ATTR_EXEC) $(foreach file,$(notdir $(CMDS68TCAP)),$@,UUCP/CMDS_TCAP/$(file))
-	$(CD) cmds_6809; $(OS9COPY) $(CMDS68WIN) ../$@,UUCP/CMDS_WIN
-	$(OS9ATTR_EXEC) $(foreach file,$(notdir $(CMDS68WIN)),$@,UUCP/CMDS_WIN/$(file))
-	$(CD) doc; $(CPL) $(DOCS) ../$@,UUCP/DOC
-	$(CPL) copying readme.first $@,UUCP
-
-$(DISK63): | components
-	$(RM) $@
-	$(OS9FORMAT) -l10000 $@ -q -n"UUCPbb v2.1 6309"
-	$(MAKDIR) $@,LOG
-	$(MAKDIR) $@,UUCP
-	$(MAKDIR) $@,UUCP/DOC
-	$(MAKDIR) $@,UUCP/CMDS_WIN
-	$(MAKDIR) $@,UUCP/CMDS_TCAP
-	$(MAKDIR) $@,UUCP/SPOOL
-	$(MAKDIR) $@,UUCP/SPOOL/MAIL
-	$(MAKDIR) $@,UUCP/SPOOL/NEWS
-	$(MAKDIR) $@,UUCP/SPOOL/UUCP
-	$(MAKDIR) $@,UUCP/SPOOL/UUCP/REDHAT
-	$(MAKDIR) $@,UUCP/SPOOL/UUCPPUBLIC
-	$(MAKDIR) $@,UUCP/SPOOL/REDHAT
-	$(MAKDIR) $@,SYS
-	$(MAKDIR) $@,SYS/UUCP
-	$(CD) sample_config; $(CPL) $(CONFIG) ../$@,SYS/UUCP
-	$(CPL) profile $@,SYS
-	$(CD) cmds_6309; $(OS9COPY) $(CMDS63TCAP) ../$@,UUCP/CMDS_TCAP
-	$(OS9ATTR_EXEC) $(foreach file,$(notdir $(CMDS63TCAP)),$@,UUCP/CMDS_TCAP/$(file))
-	$(CD) cmds_6309; $(OS9COPY) $(CMDS63WIN) ../$@,UUCP/CMDS_WIN
-	$(OS9ATTR_EXEC) $(foreach file,$(notdir $(CMDS63WIN)),$@,UUCP/CMDS_WIN/$(file))
-	$(CD) doc; $(CPL) $(DOCS) ../$@,UUCP/DOC
-	$(CPL) copying readme.first $@,UUCP
+	rm -rf build/out build-llvm/out
+	rm -f $(DISKS) build-llvm/results.csv
+info:
+	@echo "UUCPbb 2.1: COMPILER=$(COMPILER), output=$(OUT)"

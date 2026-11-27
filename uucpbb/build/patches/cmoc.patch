@@ -1,0 +1,4789 @@
+--- a/adduser.c
++++ b/adduser.c
+@@ -83,10 +83,10 @@
+ #include <stdio.h>
+ #include <string.h>
+ #endif
+-#include <modes.h>
++#include <fcntl.h>
+ #include <ctype.h>                                    /* Added -- REB */
+ #include <password.h>
+-#include <sgstat.h>
++#include <fcntl.h>
+ 
+ /* Defines for password file array */
+ 
+@@ -379,7 +379,7 @@
+         before we close the file -- REB */
+ 
+      fflush (fp);
+-     _ss_size (uloginpath, ftell (fp));
++     _ss_size (uloginpath, 0, (void *) ftell (fp));
+      fclose (fp);
+ 
+      printf ("\n\nUser '%s' has been added to the system\n\n", pw[NAME]);
+@@ -389,6 +389,7 @@
+      free (maildir);
+      free (logdir);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -445,6 +446,7 @@
+ #endif
+        }
+      endpwent();
++     return 0;
+ }
+ 
+ 
+@@ -569,7 +571,7 @@
+ #endif
+                fputs ("\nHit <ENTER> to begin --> ", stdout);
+                fflush (stdout);
+-               answer = getchar();
++               answer = (char) getchar();
+                cls();
+                ReVOn();
+                fputs (" ulogin script so far: ", stdout);
+@@ -674,7 +676,7 @@
+ 
+           read (0, &answer, 1);
+           answer &= 0xff;
+-          answer = tolower (answer);
++          answer = (char) tolower (answer);
+ 
+           if (answer == 'y' ||  answer == 'n')
+             {
+@@ -697,8 +699,9 @@
+      struct sgbuf stdinpath;
+ 
+      _gs_opt (1, &stdinpath);
+-     stdinpath.sg_echo = onoroff;             /* switch standard input echo */
++     stdinpath.sg_echo = (unsigned char) onoroff;             /* switch standard input echo */
+      _ss_opt (1, &stdinpath);                 /* update the path descriptor */
++     return 0;
+ }
+ 
+ 
+@@ -714,7 +717,7 @@
+      p = string;
+      while (*p)
+        {
+-          *p = toupper (*p);
++          *p = (char) toupper (*p);
+           ++p;
+        }
+      return (string);
+@@ -750,6 +753,7 @@
+                       version, VERDATE);
+      fputs ("License.  Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n", stderr);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -764,6 +768,7 @@
+ 
+      putc ('\n', stderr);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -773,10 +778,13 @@
+ {
+      userbegone (username);
+      fatal ("removing user is not implemented yet");
++     return 0;
+ }
+ 
+ 
+ 
+ int userbegone (name)
+-{
+-}
++char *name;
++{
++     return 0;
++}
+--- a/chown.c
++++ b/chown.c
+@@ -33,8 +33,8 @@
+ 
+ #include "uucp.h"
+ #include <ctype.h>
+-#include <direct.h>
+-#include <modes.h>
++#include <dir.h>
++#include <fcntl.h>
+ #include <password.h>
+ 
+ /* #define OK         0 */
+@@ -103,6 +103,7 @@
+             }
+        }
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -239,6 +240,7 @@
+                       version, VERDATE);
+      fputs ("License.  Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n", stderr);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -248,4 +250,5 @@
+ {
+      fprintf (stderr, "chown: %s...error %d\n", msg, errno);
+      exit (0);
+-}
++     return 0;
++}
+--- a/cnvrtmail.c
++++ b/cnvrtmail.c
+@@ -15,14 +15,10 @@
+ #define MAIN
+ 
+ #include "uucp.h"
+-#include <direct.h>
+ #include <password.h>
+ #include <time.h>
+-#ifndef _OSK
+-#include <utime.h>
+-#endif
+-#include <modes.h>
+-#include "dir_6809.h"
++#include <fcntl.h>
++#include <dir.h>
+ 
+ #define REALNAMESIZE  18
+ #define STRINGSIZE    36
+@@ -113,6 +109,7 @@
+      makesequencefiles();
+      free (maildir);
+      puts ("\nConversion finished.  Mail is now in the new format.\n");
++     return 0;
+ }
+ 
+ 
+@@ -124,7 +121,7 @@
+      register int i;
+      char c, *answers;
+      
+-     answers = malloc (last_user * sizeof (char));
++     answers = (char *)malloc (last_user * sizeof (char));
+ 
+      if (answers == NULL)
+           fatal ("user_ok() can't malloc answers array");
+@@ -164,6 +161,7 @@
+ 
+      free (answers);
+      putchar ('\f');
++     return 0;
+ }
+ 
+ 
+@@ -252,6 +250,7 @@
+           putchar ('\n');
+           ++i;
+        }
++     return 0;
+ }
+ 
+ 
+@@ -265,7 +264,7 @@
+ {
+      FILE *infile, *outfile;
+      char line[256], temp[100], mailpath[80], fname[128];
+-     struct sgtbuf date;
++     struct os_time date;
+      register int count;
+      long nowtime;
+      static long prevtime = 0L;
+@@ -309,8 +308,8 @@
+             {
+                for (;;)
+                  {
+-                    getime (&date);
+-                    nowtime = o2utime (&date);
++                    _os_getime (&date);
++                    nowtime = o2utime ((struct os_time *)&date);
+ 
+                     /* don't give two messages the same file name */
+                     if (nowtime != prevtime)
+@@ -326,9 +325,9 @@
+ 
+                sprintf (fname, "%s/m%s%02d%02d%02d%02d%02d%02d",
+                         users[uindex].name,
+-                        date.t_year > 90  &&  date.t_year <= 99 ? "19" : "20",
+-                        date.t_year, date.t_month, date.t_day, date.t_hour,
+-                        date.t_minute, date.t_second);
++                        date.year > 90  &&  date.year <= 99 ? "19" : "20",
++                        date.year, date.month, date.day, date.hours,
++                        date.minutes, date.seconds);
+ 
+ 
+                if ((outfile = fopen (fname, "w")) == NULL)
+@@ -439,7 +438,12 @@
+           newsequence = TRUE;
+ 
+      if (!newsequence)
+-          fscanf (old, "%d", &sequence);
++       {
++          if (fgets (line, sizeof (line), old) != NULL)
++               sequence = atoi (line);
++          else
++               sequence = 0;
++       }
+      else
+           sequence = 0;
+ 
+@@ -474,6 +478,7 @@
+      fputs ("0000", new);
+      fclose (new);
+      putchar ('\n');
++     return 0;
+ }
+ 
+ 
+@@ -559,6 +564,7 @@
+                         dirname);
+        }
+      closedir (dir);
++     return 0;
+ }
+ 
+ 
+@@ -600,7 +606,7 @@
+ 
+           if ((old = fopen (oldfilename, "r")) == NULL)
+             {
+-               fprintf ("can't open mail '%s' for reading\n", oldfilename);
++               fprintf (stderr, "can't open mail '%s' for reading\n", oldfilename);
+                --mailcount;
+                continue;
+             }
+@@ -678,6 +684,7 @@
+        }
+ 
+      puts ("\n");
++     return 0;
+ }
+ 
+ 
+@@ -744,7 +751,8 @@
+                strcpy (ltrs[i++].letter, mbox->d_name);
+ 
+      closedir (dirptr);
+-     qsort (ltrs, mailcount, sizeof (struct mbag), strucmp);
++     qsort (ltrs, mailcount, sizeof (struct mbag),
++            (int (*)(const void *, const void *)) strucmp);
+ 
+      if ((mptr = fopen (mail_list, "w")) == NULL)
+        {
+@@ -778,6 +786,7 @@
+      fclose (mptr);
+      free (ltrs);
+      chdir ("..");
++     return 0;
+ }
+ 
+ 
+@@ -789,8 +798,7 @@
+      char mline[256], subj[28], frm[27], resentfrm[128], resentrply[128];
+      register char *p;
+      int linecount;
+-     long _gs_size();
+-     char *getval(), *getstring();
++          char *getval(), *getstring();
+ 
+      subj[0] = frm[0] = resentfrm[0] = resentrply[0] = '\0';
+      p = mline;
+@@ -836,9 +844,10 @@
+           ++linecount;
+ 
+      fprintf (mptr, "N%s|%s|%s|%d|%ld\n",
+-                    filename, frm[0] != '\0' ? frm : " ",
+-                    subj[0] != '\0' ? subj : " ",
++                    filename, frm[0] != '\0' ? frm : (char *)" ",
++                    subj[0] != '\0' ? subj : (char *)" ",
+                     linecount, _gs_size (fileno (fp)));
++     return 0;
+ }
+ 
+ 
+@@ -872,6 +881,7 @@
+ int pwerror()
+ {
+      fatal ("error in password file entry");
++     return 0;
+ }
+ 
+ 
+@@ -881,6 +891,7 @@
+ { 
+      fprintf (stderr, "cnvrtmail: %s\n", msg);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -902,4 +913,5 @@
+           fprintf(stderr, "%s\n", *hlp);
+ 
+      exit (0);
+-}
++     return 0;
++}
+--- a/connect.c
++++ b/connect.c
+@@ -23,9 +23,12 @@
+ */
+ 
+ #include "uucp.h"
++
++int send();
++int _ss_sbreak();
+ #include "uucico.h"
+ #include <ctype.h>
+-#include <sgstat.h>
++#include <fcntl.h>
+ 
+ #define WORDSIZE    30
+ #define SS_BREAK    0x1d                     /* send break signal out acia */
+@@ -43,7 +46,7 @@
+ 
+      fprintf (log, "%s %s %s Calling system %s (port %s)",
+               sender, sysname, gtime(), sysname,
+-              *device != '\0' ? device : "unknown");
++              *device != '\0' ? device : (char *)"unknown");
+ 
+      if (index > 1)
+           fprintf (log, " (line %d)", index);
+@@ -137,10 +140,12 @@
+      /* send end-of-transmission character? */
+      if (*msg == 'E'  &&  strcmp (msg, "EOT") == 0)
+        {
++          char eot = '\x04';
++
+           if (debuglvl > 1)
+                 fputs ("<EOT>", log);
+ 
+-          write (port, '\x04', 1);
++          write (port, &eot, 1);
+           return (OK);
+        }
+ 
+@@ -220,7 +225,7 @@
+                          break;
+ 
+                     case '^':
+-                         c = toupper (msg[i + 2]) & 0x3f;
++                         c = (char)(toupper (msg[i + 2]) & 0x3f);
+                          if (debuglvl > 1)
+                               fprintf (log, "<CNTRL>-%c\n",
+                                             toupper (msg[i + 2]));
+@@ -409,9 +414,10 @@
+           write (port, "\0", 1);
+ 
+           /* put port back the way we found it */
+-          options.sg_baud = oldbaud;
++          options.sg_baud = (unsigned char) oldbaud;
+           _ss_opt (port, &options);
+        }
++     return 0;
+ }
+ 
+ 
+@@ -421,7 +427,7 @@
+ int _ss_sbreak (path)
+ int path;
+ {
+-     return (setstat (SS_BREAK, path));
++     return (setstat (SS_Break, path, 0, 0, 0));
+ }
+ 
+ 
+--- a/date822.c
++++ b/date822.c
+@@ -34,11 +34,7 @@
+    /DD/SYS/UUCP/Parameters file.  */
+ 
+ #include "uucp.h"
+-#ifndef _OSK
+-#include <utime.h>
+-#else
+ #include <time.h>
+-#endif
+ 
+ #define WORDSIZE  5
+ 
+--- a/dir_6809.h
++++ b/dir_6809.h
+@@ -1,8 +1,26 @@
++
++#ifndef UUCPBB_DIR_6809_H
++#define UUCPBB_DIR_6809_H
++
++#include <sys/types.h>
+ 
+ struct direct {
+    long  d_addr;        /* file desc addr */
+    char  d_name[30];    /* directory entry name */
+    } ;
++
++struct fildes {
++   mode_t  fd_att;      /* file attributes: dsewrewr */
++   uid_t   fd_own;      /* file owner */
++   _BYTE   fd_date[5];  /* last written date/time */
++   nlink_t fd_link;     /* link count */
++   off_t   fd_fsize;    /* file size */
++   _BYTE   fd_dcr[3];   /* creation date */
++   struct {
++      _BYTE addr[3];    /* LSN of segment start */
++      size_t size;      /* byte size of segment */
++      } fdseg[48];
++   };
+ 
+ /* there is #define DIR in stdio.h.  This causes a problem with using DIR
+ ** for this typedef.  Changing it to _DIR will eliminate this problem.
+@@ -21,3 +39,5 @@
+ extern DIRECT        *readdir();
+ extern long          telldir();
+ extern int /* void */    seekdir(), closedir();
++
++#endif
+--- a/docmd.c
++++ b/docmd.c
+@@ -27,9 +27,7 @@
+ 
+ #include "uucp.h"
+ 
+-#ifndef _UCC
+-char *strtok();
+-#endif
++static int docmd_error();
+ 
+ QQ int childid;
+ static QQ char *cantspawn = "cannot spawn process--> ";
+@@ -85,6 +83,7 @@
+ 
+      if (status != 0)
+           exit (status);
++     return 0;
+ }
+ 
+ 
+@@ -168,6 +167,7 @@
+           docmd_error ("dochcmd()", "cannot chain process--> ", command);
+           exit (0);
+        }
++     return 0;
+ }
+ 
+ 
+@@ -189,4 +189,5 @@
+        }
+ 
+      fprintf (stderr, "%s: %s%s (error %d)\n", name, reason, command, errno);
++     return 0;
+ }
+--- a/dotilde.c
++++ b/dotilde.c
+@@ -33,7 +33,7 @@
+ #include "uucp.h"
+ #include <signal.h>
+ #ifndef _OSK
+-#include <os9.h>
++#include <os.h>
+ #endif
+ 
+ #define SHOWLINES  6              /* lines to show on screen with ~r and ~m */
+@@ -43,8 +43,8 @@
+ #endif
+ QQ unsigned myuid;
+ char dline[256];
+-long _gs_size();
+-int interrupt();
++int uucpbb_interrupt();
++int appendtext();
+ 
+ 
+ int main(argc, argv)
+@@ -62,7 +62,7 @@
+           *editor;                           /* moved from getparam.c --REB */
+ 
+      pflinit();                              /* longs will be printed */
+-     intercept (interrupt);
++     intercept ((sighandler_t) uucpbb_interrupt);
+      ++argv;
+      strcpy (command, *argv++);
+ #ifndef TERMCAP
+@@ -73,7 +73,7 @@
+      quotechar = **argv;
+      letter = *(++argv);
+      homedir = *(++argv);
+-     message = argc == 8 ? *(++argv) : NULL;
++     message = argc == 8 ? *(++argv) : (char *)0;
+      doline = dline;
+      editor = NULL;
+ 
+@@ -284,7 +284,7 @@
+                puts (" ~R[c] <file> same as ~r, 'file' NOT uuencoded");
+                puts (" ~v           edit message with vi");
+                printf (" ~e           edit message with %s\n",
+-                       editor != NULL ? editor : "UNDEFINED");
++                       editor != NULL ? editor : (char *)"UNDEFINED");
+                puts (" ~q, ~x       exit immediately");
+                puts (" ~!           fork a shell");
+                puts (" ~a           abort sending current message");
+@@ -308,7 +308,7 @@
+           /* ~q, ~x: exit command.  Cleanup after ourself -- REB */
+           case 'q':
+           case 'x':
+-               interrupt (SIGQUIT);
++               uucpbb_interrupt (SIGQUIT);
+ 
+           /* ~!: fork a shell --REB */
+           case '!':
+@@ -365,6 +365,7 @@
+      asetuid (myuid);
+      puts ("\nContinuing...type \".\" or <ESC> to end message...");
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -431,6 +432,7 @@
+ 
+      if (!showlines)
+           putchar ('\n');
++     return 0;
+ }
+ 
+ 
+@@ -446,6 +448,7 @@
+           putchar ('=');
+ 
+      fflush (stdout);
++     return 0;
+ }
+ 
+ 
+@@ -518,12 +521,12 @@
+ 
+ 
+ 
+-int interrupt (sig)
++int uucpbb_interrupt (sig)
+ int sig;
+ {
+ #ifndef TERMCAP
+      if (winopen)
+-          return;
++          return 0;
+ #endif
+      exit (sig);
+ }
+@@ -545,18 +548,18 @@
+      outstr[0] = outstr[9]  = 0x1b;
+      outstr[1] = outstr[10] = 0x22;
+      outstr[2] = outstr[11] = 1;
+-     outstr[5] = outstr[14] = width;
+-     outstr[6] = outstr[15] = height;
++     outstr[5] = outstr[14] = (char) width;
++     outstr[6] = outstr[15] = (char) height;
+ 
+      /* bottom window */
+-     outstr[3] = x + 1;                    /* offset bottom window */
+-     outstr[4] = y + 1;
++     outstr[3] = (char) x + 1;                    /* offset bottom window */
++     outstr[4] = (char) y + 1;
+      outstr[7] = 2;                        /* black on black */
+      outstr[8] = 2;
+ 
+      /* top window */
+-     outstr[12] = x;
+-     outstr[13] = y;
++     outstr[12] = (char) x;
++     outstr[13] = (char) y;
+      outstr[16] = 0;                        /* white on red */
+      outstr[17] = 4;
+ 
+@@ -565,6 +568,7 @@
+ #ifndef TERMCAP
+      winopen = TRUE;
+ #endif
++     return 0;
+ }
+ 
+ 
+@@ -579,6 +583,7 @@
+ #ifndef TERMCAP
+      winopen = FALSE;
+ #endif
++     return 0;
+ }
+ 
+ 
+@@ -588,5 +593,6 @@
+      puts ("\b  ");
+      CurUp();
+      CurOn();
+-}
+-#endif
++     return 0;
++}
++#endif
+--- a/dumpcode.c
++++ b/dumpcode.c
+@@ -50,4 +50,5 @@
+      else
+           /* packet */
+           fprintf (log, "%s seg=%d ackno=%d\n", ttlist[tt], xxx, yyy);
++     return 0;
+ }
+--- a/expgroup.c
++++ b/expgroup.c
+@@ -23,8 +23,8 @@
+ */
+ 
+ #include "uucp.h"
+-#include <modes.h>
+-#include <direct.h>
++#include <fcntl.h>
++#include <dir.h>
+ #include <time.h>
+ 
+ #define BRUTE_LIMIT  32                         /* EK */
+@@ -43,10 +43,10 @@
+      int age, min, mid, max;                                     /* EK */
+      register int i;
+      struct fildes finfo;
+-     struct sgtbuf date;
++     struct os_time date;
+ 
+      /* get today's date and time */
+-     getime (&date);
++     _os_getime (&date);
+ 
+      /* expire articles */
+ 
+@@ -153,6 +153,7 @@
+      /* if deleting files, set lowest # index in active file */
+      if (expireflag)
+           grp->index = i;
++     return 0;
+ }
+ 
+ 
+@@ -161,7 +162,7 @@
+ 
+ int getage (filename, date)
+ char *filename;
+-struct sgtbuf *date;
++struct os_time *date;
+ {
+      struct fildes finfo;
+      int path, stat, year, mon, day, age;
+@@ -182,9 +183,9 @@
+      day  = finfo.fd_date[2];
+ 
+      /* how old is this article? */
+-     age  = (date->t_year - year) * 365;
+-     age += (date->t_month - mon) * 31;
+-     age += (date->t_day - day);
++     age  = (date->year - year) * 365;
++     age += (date->month - mon) * 31;
++     age += (date->day - day);
+ 
+      if (debuglvl > 2)
+           fprintf (log, "article %s age is %d days\n", filename, age);
+--- a/expire.c
++++ b/expire.c
+@@ -35,8 +35,12 @@
+ #define MAIN                                       /* added -- REB */
+ 
+ #include "uucp.h"
+-#include <modes.h>
++#include <fcntl.h>
+ #include <signal.h>
++
++int getopt();
++int openlog();
++int closelog();
+ 
+ #define MAXDAYS  14                     /* default time article lives --REB */
+ 
+@@ -58,7 +62,7 @@
+      char newsgroup[100];
+      register int i;                                      /* Changed -- REB */
+      int limit, found;
+-     int option, interrupt(), onegroup;                   /* Added -- REB */
++     int option, onegroup;                   /* Added -- REB */
+      char *fixgroupname();
+ 
+      *newsgroup = '\0';
+@@ -73,7 +77,7 @@
+      if (myuid != 0)
+           fatal ("you are not the superuser!");
+ 
+-     intercept (interrupt);                      /* signal trap --REB */
++     intercept ((sighandler_t) uucpbb_interrupt);                      /* signal trap --REB */
+ 
+      if ((newsdir = getdirs ("newsdir")) == NULL)
+           fatal ("newsdir not in Parameters");
+@@ -170,6 +174,7 @@
+      updactive();
+      closelog();
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -210,6 +215,7 @@
+ 
+      /* log file should be unbuffered -- REB */
+      setbuf (log, NULL);
++     return 0;
+ }
+ 
+ 
+@@ -234,17 +240,19 @@
+                unlink (temp2);
+             }
+        }
+-}
+-
+-
+-
+-/* clean up if we get a keyboard interrupt --REB */
+-
+-int interrupt (sig)
++     return 0;
++}
++
++
++
++/* clean up if we get a keyboard uucpbb_interrupt --REB */
++
++int uucpbb_interrupt (sig)
+ int sig;
+ {
+      closelog();
+      exit (sig);
++     return 0;
+ }
+ 
+ 
+@@ -273,6 +281,7 @@
+                       version, VERDATE);
+      fputs ("License.  Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n", stderr);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -286,4 +295,5 @@
+           fprintf (stderr, "...error %d\n", errno);
+ 
+      exit (0);
+-}
++     return 0;
++}
+--- a/filemove.c
++++ b/filemove.c
+@@ -26,7 +26,7 @@
+    was an error. */
+ 
+ #include "uucp.h"
+-#include <modes.h>
++#include <fcntl.h>
+ 
+ #define BSIZE     1024
+ 
+@@ -174,7 +174,7 @@
+      register char *bscan;
+      char *p, fromchar, tochar;
+      int count, noerror = TRUE;
+-     long insize, _gs_size();
++     long insize;
+ 
+      if (fixLFCR)                                       /* LF->CR or CR->LF */
+        {
+--- a/fileserv.c
++++ b/fileserv.c
+@@ -55,7 +55,7 @@
+ #include "uucp.h"
+ #include <ctype.h>
+ #include <time.h>
+-#include <modes.h>
++#include <fcntl.h>
+ 
+ /* Name of your favorite utility to show directory listings.  Preferably one
+    which gives file size in decimal.  Anyone have a *good*, *basic* UNIX-like
+@@ -76,13 +76,14 @@
+ 
+ QQ char *incomedir, *fsdir;
+ char tempfile[33];
+-FILE *log, *popen();
+-long _gs_size();
++FILE *log;
+ void wtlog(), warnadmin(), chg_to_dir(), flushbits(), writeheader();
+-void sendmsg(), rejectfile(), fatal();
+-
+-
+-int interrupt (sig)
++void sendmsg(), rejectfile();
++int fatal();
++int acceptfile();
++
++
++int uucpbb_interrupt (sig)
+ int sig;
+ {
+      if (*tempfile != '\0')
+@@ -92,6 +93,7 @@
+           fclose (log);
+ 
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -103,13 +105,13 @@
+      char *words[WORDSIZE];
+      int i, n;
+      flag header, fileOK, fsdead, submitOK, firstcmd;
+-     FILE *msg, *creat_temp();
++     FILE *msg;
+ 
+      *address = *replyto = *tempfile = '\0';
+      log = NULL;
+ 
+      pflinit();                      /* tell compiler longs will be printed */
+-     intercept (interrupt);
++     intercept ((sighandler_t) uucpbb_interrupt);
+ 
+      if (getparam() == FALSE)
+           exit (0);
+@@ -228,7 +230,7 @@
+                          chg_to_dir (address, FALSE);
+ 
+                          if ((msg = creat_temp (tempfile)) == NULL)
+-                              continue;
++                              goto cmoc_fileserv_next;
+ 
+                          writeheader (msg, address, "dir", TRUE);
+ 
+@@ -240,7 +242,7 @@
+                          wtlog (address, lp);
+ 
+                          if ((msg = creat_temp (tempfile)) == NULL)
+-                              continue;
++                              goto cmoc_fileserv_next;
+ 
+                          writeheader (msg, address, "help", FALSE);
+                          fprintf (msg,
+@@ -262,7 +264,7 @@
+                     if (strucmp (*words, "reply") == 0)
+                       {
+                          if (!firstcmd)
+-                              continue;
++                              goto cmoc_fileserv_next;
+ 
+                          wtlog (address, lp);
+                          strcpy (address, words[1]);
+@@ -277,7 +279,7 @@
+                          wtlog (address, lp);
+ 
+                          if ((msg = creat_temp (tempfile)) == NULL)
+-                              continue;
++                              goto cmoc_fileserv_next;
+ 
+                          writeheader (msg, address, lp, TRUE);
+ 
+@@ -314,7 +316,7 @@
+                          wtlog (address, lp);
+ 
+                          if ((msg = creat_temp (tempfile)) == NULL)
+-                              continue;
++                              goto cmoc_fileserv_next;
+ 
+                          writeheader (msg, address, lp, TRUE);
+  
+@@ -349,7 +351,7 @@
+                          wtlog (address, lp);
+ 
+                          if (submitOK)
+-                              acceptfile (address, words[1], lp);
++                              acceptfile (address, words[1]);
+                          else
+                            {
+                               rejectfile (address, lp);
+@@ -360,6 +362,7 @@
+                     break;
+             }
+           firstcmd = FALSE;
++cmoc_fileserv_next: ;
+        }
+      free (fsdir);
+ 
+@@ -367,6 +370,7 @@
+           fclose (log);
+ 
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -411,6 +415,7 @@
+      fclose (msg);
+      sendmsg (address, tempfile);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -440,15 +445,15 @@
+ char *address, *subject;
+ flag closefile;
+ {
+-     struct sgtbuf date;
+-
+-     getime (&date);
++     struct os_time date;
++
++     _os_getime (&date);
+ 
+      fprintf (msgfile, "From FILESERV %s\n", date822());
+      fprintf (msgfile, "From: OS-9 FileServer <%s!FILESERV>\n", sitename);
+      fprintf (msgfile, "Message-Id: <%02d%02d%02d%02d%02d%02d.AA%05ld@%s>\n",
+-                       date.t_year, date.t_month, date.t_day, date.t_hour,
+-                       date.t_minute, date.t_second, getseq (MAILSEQ),
++                       date.year, date.month, date.day, date.hours,
++                       date.minutes, date.seconds, getseq (MAILSEQ),
+                        sitename);
+      fprintf (msgfile, "Subject: %s\n", subject);
+      fprintf (msgfile, "Reply-To: nobody@%s\n", sitename);
+@@ -483,9 +488,9 @@
+           return (FALSE);
+      else if (strcmp (path, "..") == 0)                 /* ..      */
+           return (FALSE);
+-     else if (findstr (1, path, "../") != 0)            /* ../path */
+-          return (FALSE);
+-     else if (findstr (1, path, "/..") != 0)            /* path/.. */
++     else if (findstr (path, "../") != NULL)            /* ../path */
++          return (FALSE);
++     else if (findstr (path, "/..") != NULL)            /* path/.. */
+           return (FALSE);
+      else if (strchr (path, '@') != NULL)               /* /path@  */
+           return (FALSE);
+@@ -683,7 +688,7 @@
+      if ((msg = fopen (fname, "w")) == NULL)
+           return;
+ 
+-     writeheader (msg, errorsto, "WARNING--possible misuse of fileserver");
++     writeheader (msg, errorsto, "WARNING--possible misuse of fileserver", FALSE);
+ 
+      if ((msg = fopen (fname, "a")) == NULL)
+        {
+@@ -741,6 +746,7 @@
+ 
+      /* Not written yet. For now we reject submissions */
+      informadmin (sender, filename);
++     return 0;
+ }
+ 
+ 
+@@ -751,6 +757,7 @@
+ char *sender, *file;
+ {
+      /* not written yet */
++     return 0;
+ }
+ 
+ 
+@@ -773,7 +780,7 @@
+           unlink (fname);
+           return;
+        }
+-     writeheader (msg, sender, "WARNING--attempt to submit a file");
++     writeheader (msg, sender, "WARNING--attempt to submit a file", FALSE);
+ 
+      if ((msg = fopen (fname, "a")) == NULL)
+        {
+@@ -833,11 +840,10 @@
+ 
+ 
+ 
+-void fatal (msg)
++int fatal (msg)
+ register char *msg;
+ {
+      fprintf (stderr, "fileserv: %s\n", msg);
+-     interrupt (0);
+-}
+-
+-
++     uucpbb_interrupt (0);
++     return 0;
++}
+--- a/filexfer.c
++++ b/filexfer.c
+@@ -33,8 +33,6 @@
+ static char data[MAX_SEND_PACKET+1], messg[100], *words[WORDSIZE];
+ static char Dfilename[256], tmp[50];
+ static long t_total, filesize;
+-
+-long _gs_size();
+ 
+ 
+ /* msendfile --send file to remote (while in master mode) */
+@@ -432,4 +430,5 @@
+                fprintf (log, "%s --unknown reason = '%c'", tmp, reason);
+        }
+      putc ('\n', log);
+-}
++     return 0;
++}
+--- a/findmach.c
++++ b/findmach.c
+@@ -106,7 +106,7 @@
+      /* retrieve chat script for system */
+      for (*chatscript = '\0', i = 5;  i < n;  i++)
+        {
+-          strcat (chatscript, words[i][0] != '\0' ? *(words+i) : "|");
++          strcat (chatscript, words[i][0] != '\0' ? *(words+i) : (char *)"|");
+ 
+           if (i != (n - 1))
+                strcat (chatscript, " ");
+--- a/findwork.c
++++ b/findwork.c
+@@ -24,9 +24,9 @@
+ 
+ #include "uucp.h"
+ #include "uucico.h"
+-#include <modes.h>
++#include <fcntl.h>
+ #ifndef _OSK
+-#include "dir_6809.h"
++#include <dir.h>
+ #else
+ #include <dir.h>
+ #endif
+@@ -63,7 +63,6 @@
+ 
+ void findwork()
+ {
+-     void dowork();
+      DIR *dp;                                  /* defined in dir.h */
+      register struct direct *dirbuf;           /*                  */
+ 
+@@ -170,4 +169,5 @@
+           default:
+                break;
+        }
++     return 0;
+ }
+--- a/findxwork.c
++++ b/findxwork.c
+@@ -23,9 +23,11 @@
+ */
+ 
+ #include "uucp.h"
+-#include <modes.h>
++
++void openlog();
++#include <fcntl.h>
+ #ifndef _OSK
+-#include "dir_6809.h"
++#include <dir.h>
+ #else
+ #include <dir.h>
+ #endif
+@@ -54,6 +56,7 @@
+                if (strnucmp (dirbuf->d_name, "X.", 2) == 0)
+                     doxwork (dirbuf->d_name);
+      closedir (dp);
++     return 0;
+ }
+ 
+ 
+--- a/fixperms.c
++++ b/fixperms.c
+@@ -23,10 +23,11 @@
+ */
+ 
+ #include <stdio.h>
+-#include <modes.h>
++#include <fcntl.h>
+ 
+ int fixperms (file)
+ FILE *file;
+ {
+      _ss_attr (fileno (file), S_IREAD|S_IWRITE);
++     return 0;
+ }
+--- a/fixref.c
++++ b/fixref.c
+@@ -51,4 +51,5 @@
+           ++p;
+        }
+      *tptr = '\0';
++     return 0;
+ }
+--- a/fixtext.c
++++ b/fixtext.c
+@@ -94,6 +94,7 @@
+ 
+      if (outfile != stdout)
+           fclose (outfile);
++     return 0;
+ }
+ 
+ 
+@@ -103,6 +104,7 @@
+ {
+      fprintf (stderr, "fixtext: %s %s ...error %d\n", reason, arg, errno);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -133,4 +135,5 @@
+                       version, VERDATE);
+      fputs ("License.  Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n", stderr);
+      exit (0);
++     return 0;
+ }
+--- a/forkshell.c
++++ b/forkshell.c
+@@ -53,7 +53,7 @@
+           write (1, "\x1b\x22\x01\x00\x00\x50\x18\d00\d01", 9);
+           docmd_na (cmd);
+           write (1,"\x1b\x23", 2);
+-          return;
++          return 0;
+        }
+ #endif
+      /* Nothing fancy, just give 'em the shell prompt */
+--- a/genseq.c
++++ b/genseq.c
+@@ -33,7 +33,7 @@
+    a CoCo!  8-)   --REB */
+ 
+ #include "uucp.h"
+-#include <modes.h>
++#include <fcntl.h>
+ 
+ #define MSB     1        /* leftmost place of string before wrapping around */
+ 
+@@ -44,7 +44,7 @@
+ 
+ char *genseq()
+ {
+-    char seq[5], nextseq();
++    char seq[5];
+     FILE *sfp;
+     register int i;
+     flag carry;
+--- a/getenv.c
++++ b/getenv.c
+@@ -73,7 +73,7 @@
+ {
+      char buf2[80];
+      FILE *f;
+-     unsigned ouid, setnuid();
++     unsigned ouid;
+      char *home,           
+           *homeenv,
+           *envfile = ENVFILE,
+@@ -81,7 +81,6 @@
+           *bptr2;
+      PWENT *pwentry;
+      register char *bptr;
+-     char *lookformatch();
+ 
+      bptr = (char *)NULL;
+      home = (char *)NULL;
+--- a/getline.c
++++ b/getline.c
+@@ -41,7 +41,7 @@
+      p = line;
+      while ((c = getc (file)) != EOF)
+        {
+-          *p++ = c;
++          *p++ = (char) c;
+           ++count;
+ 
+           if (c == '\x0A' || c == '\x0D')
+--- a/getopt.c
++++ b/getopt.c
+@@ -74,6 +74,7 @@
+ #else
+ #include <string.h>                      /* C library string functions */
+ #endif
++#include <stdlib.h>
+ #include "getopt.h"                      /* GETOPT(3) definitions */
+ 
+                                          /* Public variables */
+@@ -204,4 +205,3 @@
+      return ((option == ' ')  ?  NONOPT : (int) option);
+ }
+ /* End of file */
+-
+--- a/getparam.c
++++ b/getparam.c
+@@ -138,7 +138,7 @@
+           /* Changed to prevent bus errors on incomplete entries -- BGP */
+           if ((n = getargs (words, temp, WORDSIZE)) == 1)
+             {
+-               badentry (p, line, FALSE);
++               badentry (p, linecount, FALSE);
+                continue;
+             }
+ 
+@@ -482,6 +482,7 @@
+           fprintf (stderr, "%sbad parameter line: %s at line %d\n",
+                            getparam, param, line);
+        }
++     return 0;
+ }
+ 
+ 
+--- a/getseq.c
++++ b/getseq.c
+@@ -23,7 +23,7 @@
+ */
+ 
+ #include "uucp.h"
+-#include <modes.h>
++#include <fcntl.h>
+ 
+ EXTERN QQ unsigned myuid;
+ 
+@@ -33,7 +33,7 @@
+ {
+      char tmpstr[7];
+      FILE *file;
+-     long sequence, atol();
++     long sequence;
+ 
+      /* become superuser */
+      asetuid (0);
+--- a/getuser.c
++++ b/getuser.c
+@@ -55,4 +55,5 @@
+           *user = '\0';
+      else
+           strcpy (user, pwentry->unam);
++     return 0;
+ }
+--- a/getval.c
++++ b/getval.c
+@@ -28,10 +28,6 @@
+ #define BUFFSIZE    256
+ 
+ static char vtemp[BUFFSIZE];
+-
+-#ifndef _OSK
+-char *memset();
+-#endif
+ 
+ char *cutspace();
+ 
+--- a/gproto.c
++++ b/gproto.c
+@@ -23,6 +23,9 @@
+ */
+ 
+ #include "uucp.h"
++
++int anywork();
++void findwork();
+ #include "uucico.h"
+ 
+ #define CLOSE2    9                                 /* Added --BGP */
+@@ -389,6 +392,7 @@
+ int swin_init()
+ {
+      swin = sseq;
++     return 0;
+ }
+ 
+ 
+@@ -404,6 +408,7 @@
+      sseq = (++sseq & 7);
+      wtdata (type, data, length);
+      swin_flush (FALSE);
++     return 0;
+ }
+ 
+ 
+@@ -446,7 +451,7 @@
+                size = uucpbufsiz[outp->K];
+ 
+                /* get old data checksum so we can update it later */
+-               cksum = MAGIC - ((outp->C0 & 0xff) | (outp->C1 << 8));
++               cksum = MAGIC - ((outp->C0 & 0xff) | ((unsigned)outp->C1 << 8));
+                cksum ^= (outp->C & 0xFF);
+ 
+                /* first update "last packet read" counter */
+@@ -455,12 +460,12 @@
+ 
+                /* now update checksums */
+                cksum = MAGIC - (cksum ^ (outp->C & 0xFF));
+-               outp->C0 = cksum & 0xFF;
+-               outp->C1 = (cksum >> 8) & 0xFF;
++               outp->C0 = (char)(cksum & 0xFF);
++               outp->C1 = (char)((cksum >> 8) & 0xFF);
+ 
+                outp->X = outp->K ^ outp->C0 ^ outp->C1 ^ outp->C;
+ 
+-               write(port, outp, size + 6);
++               write(port, (char *) outp, size + 6);
+ 
+                if (debuglvl > 4)
+                     dumpcode("R> ", outp);
+@@ -533,6 +538,7 @@
+                ready = (((sseq - swin) & 7) < winsiz);
+        }
+      while (tseq != sseq || !ready);
++     return 0;
+ }
+ 
+ 
+@@ -545,6 +551,14 @@
+ {
+      register struct pk *outp;
+ #ifdef _OSK
++#define USE_C_CHKSUM
++#endif
++
++#ifdef DCC_LW
++#define USE_C_CHKSUM
++#endif
++
++#ifdef USE_C_CHKSUM
+      short cksum;
+ #else
+      unsigned cksum;
+@@ -568,11 +582,11 @@
+           diff = size - length;
+ 
+           if ((diff & 0x80) == 0)
+-               *p++ = (diff & 0xFF);
++               *p++ = (char) (diff & 0xFF);
+           else
+             {
+-               *p++ = (diff & 0xFF) | 0x80;
+-               *p++ = diff >> 7;
++               *p++ = (char)((diff & 0xFF) | 0x80);
++               *p++ = (char)(diff >> 7);
+             }
+        }
+      else
+@@ -588,15 +602,16 @@
+      memcpy (p, data, length < size ? length : size);
+ 
+      cksum = MAGIC - (g_chksum (outp->data, size) ^ (outp->C & 0xFF));
+-     outp->C0 = cksum & 0xFF;
+-     outp->C1 = (cksum >> 8) & 0xFF;
++     outp->C0 = (char)(cksum & 0xFF);
++     outp->C1 = (char)((cksum >> 8) & 0xFF);
+ 
+      outp->X = outp->K ^ outp->C0 ^ outp->C1 ^ outp->C;
+ 
+      if (debuglvl > 7)
+          dumpcode (">> ", outp);
+ 
+-     write (port, outp, size + 6);
++     write (port, (char *) outp, size + 6);
++     return 0;
+ }
+ 
+ 
+@@ -629,6 +644,7 @@
+ 
+      /* make sure all packets are sent */
+      swin_flush (TRUE);
++     return 0;
+ }
+ 
+ 
+@@ -648,16 +664,17 @@
+      code &= 0xFF;
+      outp.DLE = 0x10;
+      outp.K = KCONTROL;
+-     outp.C = code;
++     outp.C = (char) code;
+      cksum = MAGIC - code;
+-     outp.C0 = cksum & 0xFF;
+-     outp.C1 = (cksum >> 8) & 0xFF;
+-     outp.X = outp.K ^ outp.C0 ^ outp.C1 ^ code;
++     outp.C0 = (char)(cksum & 0xFF);
++     outp.C1 = (char)((cksum >> 8) & 0xFF);
++     outp.X = (char)(outp.K ^ outp.C0 ^ outp.C1 ^ code);
+ 
+      if (debuglvl > 7)
+           dumpcode (">> ", &outp);
+ 
+-     write (port, &outp, 6);
++     write (port, (char *) &outp, 6);
++     return 0;
+ }
+ 
+ 
+@@ -772,7 +789,7 @@
+        }
+ 
+      /* check checksum of data portion */
+-     if (cksum != ((inpacket.C1 << 8) | (inpacket.C0 & 0xFF)))
++     if (cksum != (((unsigned)inpacket.C1 << 8) | (inpacket.C0 & 0xFF)))
+           return (FALSE);
+      else
+        {
+@@ -821,6 +838,7 @@
+ 
+      if (debuglvl > 4)
+           fprintf (log, "<< %s\n", message);
++     return 0;
+ }
+ 
+ 
+@@ -856,6 +874,14 @@
+ /*========== Calculate checksum routines for 6809, 6309 and OSK ==========*/
+ 
+ #ifdef _OSK
++#define USE_C_G_CHKSUM
++#endif
++
++#ifdef DCC_LW
++#define USE_C_G_CHKSUM
++#endif
++
++#ifdef USE_C_G_CHKSUM
+ /* g_chksum for OSK borrowed from Taylor UUCP */
+ 
+ int g_chksum (z, c)
+--- a/groups.c
++++ b/groups.c
+@@ -25,7 +25,7 @@
+ #include "uucp.h"
+ #include "rnews.h"
+ #include "mbuf.h"
+-#include <modes.h>
++#include <fcntl.h>
+ 
+ static int gfd = -1;
+ static FILE *gfp = NULL;
+--- a/gtime.c
++++ b/gtime.c
+@@ -24,6 +24,7 @@
+ 
+ /* Returns a pointer to a string containing the time for the uulog file. */
+ 
++#include <stdio.h>
+ #include <time.h>
+ 
+ static char timestring[21];
+@@ -31,18 +32,18 @@
+ 
+ char *gtime()
+ {
+-     register struct sgtbuf *p;
+-     struct sgtbuf gtpack;
++     register struct os_time *p;
++     struct os_time gtpack;
+      static char *months[] = {"Jan","Feb","Mar","Apr","May","Jun",
+                               "Jul","Aug","Sep","Oct","Nov","Dec"};
+ 
+      p = &gtpack;
+-     getime (p);
++     _os_getime (p);
+ 
+      /* assemble string to read, for example: '(May 05-01:56:00)' */
+      sprintf (timestring, "(%s %d-%02d:%02d:%02d)",
+-                          months[p->t_month - 1], p->t_day, p->t_hour,
+-                          p->t_minute, p->t_second);
++                          months[p->month - 1], p->day, p->hours,
++                          p->minutes, p->seconds);
+ 
+      return (timestring);
+ }
+--- a/login.c
++++ b/login.c
+@@ -61,12 +61,12 @@
+ #define MAIN                /* Added -- REB */
+ 
+ #include "uucp.h"           /* several variables defined here - REQUIRED */
+-#include <os9.h>
++#include <os.h>
+ #include <time.h>
+-#include <utime.h>
+-#include <sgstat.h>
++#include <fcntl.h>
+ #include <password.h>       /* From Carl Kreider's CLIB -- REB */
+ 
++int crc();
+ 
+ #define   LEVEL2   TRUE     /* make this FALSE (0) if compiling for Level 1 */
+ #define   TIMEOUT   10      /* seconds before response timeout */
+@@ -90,7 +90,7 @@
+      inpass[PWPSIZ+1];                  /* User password input */
+ 
+ long curr_time;                         /* holds login time [MDG] */
+-struct sgtbuf os9_time;
++struct os_time os9_time;
+ char *chk_alias();
+ 
+ /*  S t r i n g s */
+@@ -143,6 +143,7 @@
+      /* If user doesn't make it in 3 tries, say bye */
+      puts ("\nIncorrect login, 3 tries and you're out!\n<click>");
+      myexit (0);
++     return 0;
+ }
+ 
+ 
+@@ -156,7 +157,6 @@
+      union {long l; char c[4];} crcpass;     /* Crc of password */
+      int path,                               /* Password path number */
+          procid;                             /* This process' ID number */
+-     long  htol();                           /* Declare long function */
+      char tmptime[26];                       /* temporary time holder [REB] */
+ 
+      /* Get the user name and the password */
+@@ -192,7 +192,7 @@
+        {
+           /*  Add invalid entry in error log  [EG] */
+           logerr (1);
+-          return;
++          return 0;
+        }
+ 
+      /* Do we need to get a password? */
+@@ -215,7 +215,7 @@
+           if (crcpass.l != htol (pwentry->upw))
+             {
+                logerr (1);
+-               return;
++               return 0;
+             }
+        }
+ 
+@@ -312,12 +312,13 @@
+ int p, x;
+ {
+      if (x > 99)
+-          putch (p, x/100 + '0');
++          putch (p, (char)(x/100 + '0'));
+ 
+      if (x > 9)
+-          putch (p, x%100/10 + '0');
+-
+-     putch (p, x%10 + '0');
++          putch (p, (char)(x%100/10 + '0'));
++
++     putch (p, (char)(x%10 + '0'));
++     return 0;
+ }
+ 
+ 
+@@ -343,7 +344,7 @@
+                break;
+             }
+           else
+-               *cs++ = c;
++               *cs++ = (char) c;
+ 
+      return ((c == EOF  && cs == s) ? (char *)NULL : s);
+ }
+@@ -422,15 +423,15 @@
+ char *name;
+ {
+      register char *p1;
+-     char *curtime[20],
+-          *p = &os9_time,
+-          *words[3],
++     char curtime[20];
++     struct os_time *p = &os9_time;
++     char *words[3],
+           *nologin = "\n\nSORRY - You cannot login at this time! <click!>";
+      flag found_it = FALSE;
+      int curtm, starttime, endtime, i;
+ 
+-     getime (p);
+-     sprintf (curtime, "%02d%02d", p->t_hour, p->t_minute);
++     _os_getime (p);
++     sprintf (curtime, "%02d%02d", p->hours, p->minutes);
+      sprintf (tempstr, "%s/login.times", logdir);
+      p1 = tempstr;
+ 
+@@ -493,6 +494,7 @@
+                myexit (0);
+             }
+        }
++     return 0;
+ }
+ 
+ 
+@@ -571,6 +573,7 @@
+           fwrite (tempstr, strlen (tempstr), sizeof (char), fdA);
+           fclose (fdA);
+        }
++     return 0;
+ }
+ 
+ 
+@@ -582,6 +585,7 @@
+ {
+      free (logdir);
+      exit (n);
++     return 0;
+ }
+ 
+ 
+@@ -601,7 +605,7 @@
+ char *buffer;
+ {
+      int tdone, done;
+-     struct sgtbuf t;
++     struct os_time t;
+      register char *p;
+      char *start;                    /* used so we don't backspace too far */
+ 
+@@ -609,18 +613,18 @@
+      echo (OFF);                        /* turn off echoing to standard out */
+      for (;;)
+        {
+-          getime (&t);                              /* start/reset timer */
+-
+-          if ((tdone = t.t_second + TIMEOUT) > 59)
++          _os_getime (&t);                              /* start/reset timer */
++
++          if ((tdone = t.seconds + TIMEOUT) > 59)
+                tdone -= 60;
+ 
+           done = FALSE;
+           while (!done)
+                if (_gs_rdy (STDIN) == NODATA)               /* any key hit? */
+                  {
+-                    getime(&t);
+-
+-                    if (tdone == t.t_second)                /* timed out?   */
++                    _os_getime (&t);
++
++                    if (tdone == t.seconds)                /* timed out?   */
+                       {
+                          echo (ON);                         /* ...yup */
+                          return (TRUE);
+@@ -665,6 +669,7 @@
+ char x; 
+ {
+      writeln (path, &x, 1);
++     return 0;
+ }
+ 
+ 
+@@ -675,6 +680,7 @@
+      struct sgbuf s;
+ 
+      _gs_opt (1, &s);
+-     s.sg_echo = onoroff;
++     s.sg_echo = (unsigned char) onoroff;
+      _ss_opt (1, &s);
+-}
++     return 0;
++}
+--- a/mail.c
++++ b/mail.c
+@@ -46,12 +46,12 @@
+ #include "uucp.h"
+ #include "mail.h"
+ #include <signal.h>
+-#include <modes.h>
++#include <fcntl.h>
+ #include <ctype.h>
+-#include <sgstat.h>
+-#ifndef _OSK
+-#include <os9.h>
+-#include "dir_6809.h"
++#include <fcntl.h>
++#ifndef _OSK
++#include <os.h>
++#include <dir.h>
+ #else
+ #include <dir.h>
+ #endif
+@@ -63,9 +63,8 @@
+ QQ flag readmail = FORWARD;
+ 
+ /* Declarations */
+-long _gs_pos(), _gs_size();
+-void usage();
+-int interrupt();
++int usage();
++int uucpbb_interrupt();
+ 
+ 
+ int main(argc, argv)
+@@ -96,7 +95,7 @@
+ #ifndef _OSK
+      pflinit();                                      /* longs will be print */
+ #endif
+-     intercept (interrupt);                          /* signal handler */
++     intercept ((sighandler_t) uucpbb_interrupt);                          /* signal handler */
+ 
+      if (getparam() == FALSE)
+           exit (0);
+@@ -179,6 +178,7 @@
+ #endif
+      putchar ('\n');
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -357,6 +357,7 @@
+      for (p = adrs; *p; ++p)
+           if (*p == '*')
+                *p = '@';
++     return 0;
+ }
+ #endif
+ 
+@@ -499,7 +500,8 @@
+                ++i;
+             }
+      closedir (dirptr);
+-     qsort (ltrs, mailcount, sizeof (struct mbag), strucmp);
++     qsort (ltrs, mailcount, sizeof (struct mbag),
++            (int (*)(const void *, const void *)) strucmp);
+      sprintf (fname, "%s.tmp", mail_list);
+ 
+      if ((mptr = fopen (fname, "w")) == NULL)
+@@ -568,7 +570,7 @@
+ char *filename;
+ {
+      char mline[256], subj[SUBJSIZE], from[FRMSIZE], resentfrm[128];
+-     char resentrply[128], *grabfrom();
++     char resentrply[128];
+      register char *p;
+      int linecount;
+ 
+@@ -618,8 +620,8 @@
+           ++linecount;
+ 
+      sprintf (temp, "N%s|%s|%s|%d|%ld",
+-                    filename, *from != '\0' ? from : " ",
+-                    *subj != '\0' ? subj : " ",
++                    filename, *from != '\0' ? from : (char *)" ",
++                    *subj != '\0' ? subj : (char *)" ",
+                     linecount, _gs_size (fileno (fp)));
+ 
+      /* see if this line matches the original mail..list line */
+@@ -635,6 +637,7 @@
+           rewind (omptr);
+        }
+      fprintf (mptr, "%s\n", temp);
++     return 0;
+ }
+ 
+ 
+@@ -685,7 +688,7 @@
+           putc ('\n', stderr);
+ 
+           /* quit */
+-          interrupt (0);
++          uucpbb_interrupt (0);
+        }
+ 
+      /* make sure nobody else can mess with us for now */
+@@ -704,7 +707,7 @@
+                          unlink (envelop->letter);
+                          free (envelop->mline);
+                          envelop = envelop->next;
+-                         continue;
++                         goto cmoc_mail_next;
+ 
+                     case 'N':
+                          *p = 'U';
+@@ -724,6 +727,7 @@
+                envelop = envelop->next;
+             }
+           fprintf (mtptr, "%s\n", p);
++cmoc_mail_next: ;
+        }
+      fclose (mptr);
+ 
+@@ -769,6 +773,7 @@
+        }
+ 
+      asetuid (myuid);
++     return 0;
+ }
+ 
+ 
+@@ -796,8 +801,9 @@
+      struct sgbuf stdinpath;
+ 
+      _gs_opt (1, &stdinpath);
+-     stdinpath.sg_echo = onoroff;             /* switch standard input echo */
++     stdinpath.sg_echo = (unsigned char) onoroff;             /* switch standard input echo */
+      _ss_opt (1, &stdinpath);                 /* update the path descriptor */
++     return 0;
+ }
+ 
+ 
+@@ -814,7 +820,7 @@
+                if (nmload (pager, 0, 0) == -1)
+                  {
+                     usepager = FALSE;
+-                    return;
++                    return 0;
+                  }
+           usepager = TRUE;
+        }
+@@ -839,21 +845,22 @@
+           fprintf (stderr, "...error %d", errno);
+ 
+      putc ('\n', stderr);
+-     interrupt (0);
+-}
+-
+-
+-
+-/* Cleanup if we get a keyboard interrupt and get out. */
+-
+-int interrupt (sig)
++     uucpbb_interrupt (0);
++     return 0;
++}
++
++
++
++/* Cleanup if we get a keyboard uucpbb_interrupt and get out. */
++
++int uucpbb_interrupt (sig)
+ int sig;
+ {
+ #ifndef TERMCAP
+      if (winopen)
+        {
+           closedoublewindow();
+-          return;
++          return 0;
+        }
+ #endif
+ 
+@@ -894,7 +901,7 @@
+ 
+ 
+ 
+-void usage()
++int usage()
+ {
+      char *strdetab();
+      register char **ptr;
+@@ -942,4 +949,5 @@
+             stderr);
+      fputs ("Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n",
+             stderr);
+-}
++     return 0;
++}
+--- a/mail.h
++++ b/mail.h
+@@ -61,7 +61,7 @@
+ EXTERN QQ flag t2flag, reply, redirect;
+ EXTERN QQ flag usesig, forward, usedotilde, rmailin, quiet;
+ EXTERN QQ int debug;
+-EXTERN QQ FILE *ltrfile;            /* moved from compmail() so interrupt() */
++EXTERN QQ FILE *ltrfile;            /* moved from compmail() so uucpbb_interrupt() */
+                                     /* can clean up properly */
+ #ifndef TERMCAP
+ EXTERN QQ flag winopen;
+--- a/makepath.c
++++ b/makepath.c
+@@ -23,7 +23,7 @@
+ */
+ 
+ #include "uucp.h"
+-#include <modes.h>
++#include <fcntl.h>
+ 
+ #define WORDSIZE  20
+ 
+@@ -63,6 +63,7 @@
+                chdir (*(words + i));
+             }
+      asetuid (myuid);
++     return 0;
+ }
+ 
+ 
+--- a/maketemp.c
++++ b/maketemp.c
+@@ -23,7 +23,7 @@
+ */
+ 
+ #include "uucp.h"
+-#include <modes.h>
++#include <fcntl.h>
+ 
+ EXTERN QQ char *scratchdir, *scratchbig;
+ 
+@@ -32,7 +32,6 @@
+ char *filename, c, usebig;
+ {
+      register char *tempdir;
+-     char *mktemp();
+ 
+      /* use specified temp directory if possible */
+ 
+@@ -40,8 +39,9 @@
+      tempdir = (c == 'c'  ||  usebig) ? scratchbig : scratchdir;
+ 
+      sprintf (filename, "%s/UUCPtemp%c.XXXXX",
+-              access (tempdir, S_IFDIR|S_IREAD|S_IWRITE)==0 ? tempdir : "/dd",
++              access (tempdir, S_IFDIR|S_IREAD|S_IWRITE)==0 ? tempdir : (char *)"/dd",
+               c);
+ 
+      mktemp (filename);
++     return 0;
+ }
+--- a/mbuf.c
++++ b/mbuf.c
+@@ -29,7 +29,12 @@
+ extern int debuglvl;
+ 
+ #include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
+ #include "mbuf.h"
++
++int log();
+ 
+ /* This function writes a block into a mbuf list.  Its ok for mp and mhp
+    to be NULL */
+@@ -111,4 +116,5 @@
+           free (mp);
+           mp = mp2;
+        }
++     return 0;
+ }
+--- a/mfgets.c
++++ b/mfgets.c
+@@ -30,7 +30,7 @@
+                break;
+             }
+           else
+-               *cs++ = c;
++               *cs++ = (char) c;
+ 
+-     return ((c == EOF && cs == s) ? NULL : s);
++     return ((c == EOF && cs == s) ? (char *)0 : s);
+ }
+--- a/newsutils.c
++++ b/newsutils.c
+@@ -23,7 +23,7 @@
+ */
+ 
+ #include "uucp.h"
+-#include <modes.h>
++#include <fcntl.h>
+ #include <signal.h>
+ 
+ #define NAP  5                      /* seconds to sleep if active file busy */
+@@ -157,6 +157,7 @@
+ int closeactive()
+ {
+      close (activepath);
++     return 0;
+ }
+ 
+ 
+@@ -184,7 +185,7 @@
+      /* make sure all I/O has flushed before: */
+      /* chop off any junk at the end */
+      fflush (file);
+-     _ss_size (activepath, ftell (file));
++     _ss_size (activepath, 0, (void *) ftell (file));
+ 
+      /* closes readactive as well */
+      fclose (file);
+@@ -258,4 +259,5 @@
+ char *msg;
+ {
+      fprintf (log, "%s %s %s\n", sender, gtime(), msg);
+-}
++     return 0;
++}
+--- a/nmload.c
++++ b/nmload.c
+@@ -3,10 +3,9 @@
+ /* Our own versions of modlink() and modload() which use
+    F$NMLink and F$NMLoad to load a module  --BGP  */
+ 
+-#include <os9.h>
++#include <sys/types.h>
++#include <os.h>
+ 
+-#define F_NMLINK  0x21
+-#define F_NMLOAD  0x22
+ #if 0
+ #define F_UNLOAD  0x1d
+ #endif
+@@ -18,14 +17,16 @@
+ char *mod;
+ int type, lang;
+ {
+-     struct registers reg;
++     void *modaddr;
+      int result;
+-     
+-     reg.rg_a = type | lang;
+-     reg.rg_x = mod;
+-     result = _os9 (F_NMLINK, &reg);
+-     errno = reg.rg_b & 0xff;
+-     return (result);
++
++     result = _os_modlink (mod, lang, type, &modaddr);
++     if (result != 0)
++       {
++          errno = result;
++          return (-1);
++       }
++     return (0);
+ }
+ 
+ 
+@@ -34,14 +35,16 @@
+ char *mod;
+ int type, lang;
+ {
+-     struct registers reg;
++     void *modaddr;
+      int result;
+ 
+-     reg.rg_a = type | lang;
+-     reg.rg_x = mod;
+-     result = _os9 (F_NMLOAD, &reg);
+-     errno = reg.rg_b & 0xff;
+-     return (result);
++     result = _os_modload (mod, lang, type, &modaddr);
++     if (result != 0)
++       {
++          errno = result;
++          return (-1);
++       }
++     return (0);
+ }
+ 
+ 
+@@ -51,13 +54,14 @@
+ char *mod;
+ int typelang;
+ {
+-     struct registers reg;
+      int result;
+ 
+-     reg.rg_a = typelang;
+-     reg.rg_x = mod;
+-     result = _os9 (F_UNLOAD, &reg);
+-     errno = reg.rg_b & 0xff;
+-     return (result);
++     result = _os_modunlink ((void *) mod);
++     if (result != 0)
++       {
++          errno = result;
++          return (-1);
++       }
++     return (0);
+ }
+ #endif
+--- a/openarts.c
++++ b/openarts.c
+@@ -49,11 +49,11 @@
+      np = ngroups;
+ 
+      /* Loop until we run out of given articles */
+-     while (*np != '\0'   &&   *np != '\l'   &&   *np != '\n')
++     while (*np != '\0'   &&   *np != '\x0d'   &&   *np != '\n')
+        {
+           /* Search for the terminator or separator character */
+           for (ncp = np;
+-               *ncp != ',' &&  *ncp != '\0' &&  *ncp != '\l' &&  *ncp != '\n';
++               *ncp != ',' &&  *ncp != '\0' &&  *ncp != '\x0d' &&  *ncp != '\n';
+                ncp++);
+             {
+                *ncp = '\0';
+--- a/openport.c
++++ b/openport.c
+@@ -24,10 +24,10 @@
+ 
+ #include "uucp.h"
+ #include "uucico.h"
+-#include <modes.h>
+-#include <sgstat.h>
+-#ifndef _OSK
+-#include <os9.h>
++#include <fcntl.h>
++#include <fcntl.h>
++#ifndef _OSK
++#include <os.h>
+ #else
+ #include <module.h>
+ #endif
+@@ -109,7 +109,7 @@
+      newopts.sg_rlnch  =                           /* no reprint line   */
+      newopts.sg_dulnch =                           /* no dup line       */
+      newopts.sg_psch   =                           /* no pause          */
+-     newopts.sg_kbich  =                           /* no interrupt      */
++     newopts.sg_kbich  =                           /* no uucpbb_interrupt      */
+      newopts.sg_kbach  =                           /* no abort          */
+      newopts.sg_bsech  =                           /* no backspace echo */
+      newopts.sg_bellch =                           /* no overflow char  */
+@@ -122,7 +122,7 @@
+           for (i = 0; baudlist[i] != 0; i++)
+                if (baudlist[i] == atoi (baud))
+                  {
+-                    newopts.sg_baud = i;
++                    newopts.sg_baud = (unsigned char) i;
+ 
+                     if (debuglvl > 1)
+                          fprintf (log, "opening port %s at %d bps\n",
+@@ -154,10 +154,6 @@
+ 
+ void closeport()
+ {
+-#ifndef _OSK
+-     struct registers regs;
+-#endif
+-
+      /* don't mess with the port if it is not opened --REB */
+      if (!portopen)
+           return;
+@@ -173,9 +169,7 @@
+      if (dropDTR)
+        {
+ #ifndef _OSK
+-          regs.rg_a = port;
+-          regs.rg_b = SS_HNGUP;
+-          _os9 (I_SETSTT, &regs);
++          setstat (SS_HngUp, port, 0, 0, 0);
+ #endif
+        }
+      else
+@@ -234,4 +228,5 @@
+ 
+      if (!quiet)
+           puts (buf);
+-}
++     return 0;
++}
+--- a/openuucp.c
++++ b/openuucp.c
+@@ -217,7 +217,7 @@
+ 
+      /* log the connection */
+      sprintf (p, "%s%s on port %s",
+-                 incoming, sysname, *device != '\0' ? device : "unknown");
++                 incoming, sysname, *device != '\0' ? device : (char *)"unknown");
+      lognorm (p);
+ 
+      /* Are they allowed in here? */
+@@ -354,6 +354,7 @@
+                     gotDLE = TRUE;
+ 
+                continue;
++                 return 0;
+             }
+ 
+           /* We got the DLE, so start assembling the string until we get a
+@@ -426,6 +427,7 @@
+           chardump (*c);
+ 
+      putc ('\n', log);
++     return 0;
+ }
+ 
+ 
+@@ -447,4 +449,5 @@
+        }
+      else
+           fprintf (log, "[$%02x]", c & 0xff);
+-}
++     return 0;
++}
+--- a/parse.c
++++ b/parse.c
+@@ -20,15 +20,26 @@
+ 
+ #ifndef ORIGINAL
+ #include "uucp.h"
++#undef ISCOMMENT
+ #else
+ #include <stdio.h>
+ #endif
+ 
+-#ifndef ORIGINAL
+-#define iswhite(c) ((c)==' ' || (c)=='\t' || (c)=='\x0D' || (c)=='\x0A')
+-#else
+-#define iswhite(c) ((c)==' ' || (c)=='\t' || (c)=='\n')    /* original code */
+-#endif
++int iswhite(c)
++int c;
++{
++#ifndef ORIGINAL
++     return (c == ' ' || c == '\t' || c == '\x0D' || c == '\x0A');
++#else
++     return (c == ' ' || c == '\t' || c == '\n');
++#endif
++}
++
++int ISCOMMENT(c)
++int c;
++{
++     return (c == '#' || c == ' ' || c == '\t' || c == '\0');
++}
+ 
+ int getargs(argv, line, maxargs)
+ #ifndef ORIGINAL
+--- a/postnews.c
++++ b/postnews.c
+@@ -38,13 +38,15 @@
+ 
+ #include "uucp.h"
+ #include <time.h>
+-#ifndef _OSK
+-#include <utime.h>
+-#endif
+ #include <signal.h>
+ #ifndef _OSK
+-#include <os9.h>
+-#endif
++#include <os.h>
++#endif
++
++int getopt();
++int uucpbb_interrupt();
++int badparam();
++int getvalue();
+ 
+ extern QQ unsigned myuid;
+ extern QQ char sepsym, quotechar;
+@@ -64,18 +66,15 @@
+ static char value[100];
+ char sysname[20], artfile[100], newsgroup[1024], subject[128];
+ char reference[256],article[100], distrib[50], localgroup[256];
+-char tempfile[100];                /* moved from postgroup() so interrupt() */
++char tempfile[100];                /* moved from postgroup() so uucpbb_interrupt() */
+                                    /* can clean up -- REB */
+ 
+ int main(argc, argv)
+ int argc;
+ char *argv[];
+ {
+-     int option, interrupt();
++     int option;
+      register char *p;
+-#ifndef _OSK
+-     struct registers regs;
+-#endif
+      *sysname = *artfile = *newsgroup = *subject = *localgroup = '\0';
+      *reference = *article = *tempfile = '\0';
+      homedir = NULL;
+@@ -87,7 +86,7 @@
+ #endif
+ 
+      /* handle keyboard interrupts */
+-     intercept (interrupt);
++     intercept ((sighandler_t) uucpbb_interrupt);
+ 
+ #ifdef TERMCAP
+      init_term_cap();
+@@ -142,7 +141,7 @@
+      newsgroup[strlen (newsgroup) - 1] = '\0';
+ 
+      if (getparam() == FALSE)
+-          interrupt (0);
++          uucpbb_interrupt (0);
+ 
+      userparam();
+ 
+@@ -188,7 +187,8 @@
+ 
+      /* post article to newsgroup */
+      postgroup (sysname);
+-     interrupt (0);
++     uucpbb_interrupt (0);
++     return 0;
+ }
+ 
+ 
+@@ -266,9 +266,9 @@
+                     sepsym != '!' ? user : sitename,
+                     sepsym,
+                     sepsym != '!' ? sitename : user,
+-                    *name != '\0' ? " (" : "",
+-                    *name != '\0' ? name : "",
+-                    *name != '\0' ? ")"  : "");
++                    *name != '\0' ? (char *)" (" : (char *)"",
++                    *name != '\0' ? name : (char *)"",
++                    *name != '\0' ? (char *)")"  : (char *)"");
+ 
+      fputs (line, stdout);
+      fputs (line, qfile);
+@@ -413,7 +413,7 @@
+                          if (tilde == SIGINT  ||  tilde == SIGQUIT
+                              || tilde == ABORT)
+                            {
+-                              interrupt (0);
++                              uucpbb_interrupt (0);
+                            }
+ 
+                          if ((qfile = fopen (tempfile, "a")) == NULL)
+@@ -466,7 +466,7 @@
+      if ((result = docmd_na (line)) != 0)
+        {
+           unlink (dname);
+-          interrupt (result);
++          uucpbb_interrupt (result);
+        }
+ 
+      /* local article only? */
+@@ -569,6 +569,7 @@
+      while (!status);
+ 
+     fprintf (file, "%s: %s\n", prompt, value);
++     return 0;
+ }
+ 
+ 
+@@ -633,7 +634,8 @@
+           fprintf (stderr, "...error %d", errno);
+ 
+      putc ('\n', stderr);
+-     interrupt (0);
++     uucpbb_interrupt (0);
++     return 0;
+ }
+ 
+ 
+@@ -642,14 +644,15 @@
+ char *msg;
+ {
+      fprintf (stderr, "postnews: %s not in Parameters\n", msg);
+-     interrupt (0);
++     uucpbb_interrupt (0);
++     return 0;
+ }
+ 
+ 
+ 
+ /* deal with interruptions */
+ 
+-int interrupt (sig)
++int uucpbb_interrupt (sig)
+ int sig;
+ {
+      if (*tempfile != '\0')
+@@ -659,6 +662,7 @@
+           munload (dotilde, 0);
+ #endif
+      exit (sig);
++     return 0;
+ }
+ 
+ 
+@@ -692,4 +696,5 @@
+                       version, VERDATE);
+      fputs ("License.  Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n", stderr);
+      exit (0);
+-}
++     return 0;
++}
+--- a/procart.c
++++ b/procart.c
+@@ -31,7 +31,6 @@
+ struct mbuf *mwrite();
+ extern int debuglvl;
+ 
+-int free();
+ 
+ int procart (fd, initalbuf, initng, gh, origlength)
+ FILE *fd;
+@@ -155,6 +154,7 @@
+      /* free the mbuf list, use 'free' because the cbufs are simple */
+      if (mh != NULL)
+           mfree (mh, free);
++     return 0;
+ }
+ 
+ 
+@@ -192,6 +192,7 @@
+                     log (lbuf);
+                  }
+             }
++     return 0;
+ }
+ 
+ 
+@@ -201,4 +202,5 @@
+ {
+      strncat (strcpy (lbuf, "LINE IS '"), initalbuf, 20);
+      log (lbuf);
++     return 0;
+ }
+--- a/procbatch.c
++++ b/procbatch.c
+@@ -37,7 +37,6 @@
+ 
+ char lbuf[512];
+ 
+-int free();
+ long xatol();
+ struct mbuf *mwrite();
+ 
+@@ -86,7 +85,7 @@
+                          /* Read, either the remaining length or BIGBUF,
+                             whichever fits */
+ 
+-                         r = (length > BIGBUF) ? BIGBUF : length;
++                         if (length > BIGBUF) r = BIGBUF; else r = (int) length;
+ 
+                          if (debuglvl > 8)
+                            {
+@@ -176,6 +175,7 @@
+                     break;
+             }
+        }
++     return 0;
+ }
+ 
+ 
+@@ -280,6 +280,7 @@
+                     fprintf (((struct groups *)gg->cbuf)->artfd,
+                              "%s\n", mp->cbuf);
+      gotgroup = TRUE;
++     return 0;
+ }
+ 
+ 
+@@ -315,4 +316,5 @@
+      for (bscan = s + len;  --bscan >= s; )
+           if (*bscan == '\x0A')
+                *bscan = '\x0D';
+-}
++     return 0;
++}
+--- a/proto.h
++++ b/proto.h
+@@ -36,7 +36,7 @@
+ #  define _VOID_
+ typedef int void;
+ # endif
+-#define QQ direct                  /* CoCo type 'direct' [page] */
++#define QQ                  /* CoCo type 'direct' [page] */
+ typedef int flag;
+ char *parse_cmd();
+ #endif
+@@ -89,9 +89,228 @@
+ char *skipspace();                       /* added to parse.c */
+ char *getdirs(), *mfgets(), *getenv();
+ char *getstring(), *getval(), *getrealname(), *genseq();
+-char *strdetab(), *strlwr(), *strupr(), *strdup(), *strstr(), *strend();
++char *strdetab(), *strlwr(), *strupr(), *strdup(), *strstr();
+ char *InttouID();
+-int  strucmp();
+-FILE *popen(), *fdopen(), *freopen();
+ long getseq();
+ void errorexit();
++
++/* CMOC diagnoses implicit K&R declarations.  Keep shared UUCPbb entry points
++   visible from the common header instead of relying on per-file guesses. */
++int argerr();
++int backspace();
++int badentry(char *param, int line, flag isdup);
++int badpost();
++int bouncemail();
++void Bell();
++int callup();
++int chardump();
++int chksched();
++int chk_name();
++int chk_time();
++int chk_uid();
++int chkuser();
++int checkmail();
++int closeactive();
++void closeport();
++int cnvrtmail();
++int cnvrtUUCPbb();
++int compmail();
++int connect();
++int copymsg();
++int closedoublewindow();
++int crlf();
++void cls();
++FILE *creat_temp();
++void CurOn();
++void CurOff();
++void CurUp();
++void DelLine();
++int deinizlog();
++int docmd();
++int docmd_na();
++int dochcmd();
++int do_uuxqt();
++int doalias();
++int dogroup();
++int dolocal();
++int doremote();
++int doscript();
++int doxwork();
++void dowork();
++char dspnews();
++int dumpcode();
++int echo();
++int encode();
++int endcall();
++int error();
++void ErEOLine();
++int expgroup();
++int extract_orig_header();
++int extractadrs();
++int extendfile();
++int fastcopy();
++int fatal();
++int fileapnd();
++int fileapskp();
++int filemovf();
++int filemovl();
++int filemove();
++int filerecv();
++int filesend();
++int findent();
++int findbegin();
++int findgroup();
++int findline();
++int findmach();
++int fixline();
++int fixpercent();
++int fixperms();
++int fixquote();
++int fixref();
++int fixstar();
++int fixupdate();
++int forkshell();
++int forkfileserv();
++int forkmailserver();
++int fr();
++int freearticlepath();
++int gateway();
++int g_chksum();
++struct mailbag *gathermail();
++int get_response();
++int get_entries();
++int getage();
++int getargs();
++int getmsg();
++int getfield();
++int getfnames();
++int getheader();
++int getpacket();
++int getparam();
++int getscreensize();
++int getsys();
++int getuser();
++int getuserdir();
++int getline();
++int gproto();
++int grabdir();
++int informadmin();
++void inizlog();
++int isbin();
++int isdst();
++int isuuxqtrunning();
++int ISCOMMENT();
++int localcheck();
++int lineis();
++int loadpager();
++char *lookformatch();
++int log();
++int logerr();
++int logerror();
++int lognorm();
++int mailcmd();
++int make_dirs();
++int make_ulogin();
++int make_pipe();
++int makepath();
++int maketemp();
++int makesequencefiles();
++int markallmail();
++int master();
++int mcloseuucp();
++int mfree();
++int mopenuucp();
++long movemail();
++int mrecvfile();
++int msendfile();
++int munload();
++int myexit();
++int neg_reason();
++char nextseq();
++int newscmd();
++int nmlink();
++int nmload();
++int openenvelop();
++int openarts();
++int openport();
++int outdec();
++int parse_addr();
++int pathallowed();
++int pollremote();
++int popdoublewindow();
++int postgroup();
++int portfatal();
++int procbatch();
++int procart();
++int processmail();
++int procnewgroup();
++int procoldgroup();
++int putch();
++int putd();
++int putdashes();
++int putdashs();
++void putgroups();
++int pwerror();
++int quitmail();
++int rdmsg();
++int rdpacket();
++int readactive();
++int readfill();
++int readgroup();
++int readparam();
++int readport();
++int rebuildmail();
++int recv0();
++int recvuucp();
++int recvmail();
++int removeuser();
++int resync();
++int resetline();
++void ReVOff();
++void ReVOn();
++int rmspooled();
++int scloseuucp();
++int srecvfile();
++int send0();
++int senduucp();
++int sendbreak();
++int sendmail();
++unsigned setnuid();
++int setnewowner();
++int setonoff();
++int setuser();
++int slave();
++int slavework();
++int sopenuucp();
++int ssendfile();
++int strdump();
++int swin_flush();
++int swin_init();
++int swin_send();
++int SystemIsOK();
++int t2test();
++int timeout();
++int trylogin();
++int uucpbb_rtime();
++int undeletemail();
++int unsubscribe();
++int unavailable();
++int updactive();
++int updatemail();
++void updatemail_list();
++int usage();
++int user_ok();
++int userbegone(char *name);
++int userparam();
++int uuencodeit();
++int validaddr();
++int validnum();
++int validuser();
++int verifycount();
++int waitfor();
++int wtcontrol();
++int wtdata();
++int wtmsg();
++char *grabfrom();
++struct mailbag *reverselist();
++struct mailbag *whatnow();
+--- a/pwent.c
++++ b/pwent.c
+@@ -132,7 +132,7 @@
+ {
+      register PWENT *pwp;
+ 
+-     while (pwp = getpwent())
++     while ((pwp = getpwent()) != NULL)
+ #ifdef _OSK
+           if (uid == uIDtoInt(pwp->uid))
+ #else
+@@ -154,7 +154,7 @@
+ {
+      register PWENT *pwp;
+ 
+-     while (pwp = getpwent())
++     while ((pwp = getpwent()) != NULL)
+           if (strucmp (name, pwp->unam) == 0)
+                return (pwp);
+      return ((PWENT *) 0);
+--- a/readnews.c
++++ b/readnews.c
+@@ -26,12 +26,12 @@
+ 
+ #include "uucp.h"
+ #ifndef _OSK
+-#include <os9.h>
++#include <os.h>
+ #endif
+ #include <ctype.h>
+-#include <modes.h>
+-#include <sgstat.h>
+-#include <direct.h>
++#include <fcntl.h>
++#include <fcntl.h>
++#include <dir.h>
+ 
+ #define ON           1
+ #define OFF          0
+@@ -61,9 +61,9 @@
+ char *argv[];
+ {
+      static char newsrcfile[100];
+-     char sub;
++     char sub, *p;
+      register int i;
+-     int count, index, j, c, interrupt();
++     int count, index, j, c;
+      FILE *file;
+ 
+      homedir = NULL;
+@@ -72,7 +72,7 @@
+      if (argc > 1)
+           usage();
+ 
+-     intercept (interrupt);
++     intercept ((sighandler_t) uucpbb_interrupt);
+ 
+      if (getparam() == FALSE)
+           exit (0);
+@@ -119,13 +119,29 @@
+ 
+      if ((file = fopen (newsrcfile, "r")) != NULL)
+        {
+-          while (fscanf (file, "%100[^:!]%c 1-%d ", newsgroup, &sub, &index)
+-                    != EOF)
++          while (fgets (line, sizeof (line), file) != NULL)
+             {
+-               i = findgroup (newsgroup, TRUE);
+-               strcpy (newsrc[i].newsgroup, newsgroup);
+-               newsrc[i].index = max (index, newsrc[i].index);
+-               newsrc[i].sub = sub;
++               p = line;
++               i = 0;
++               while (*p != '\0' && *p != ':' && *p != '!' && i < 100)
++                    newsgroup[i++] = *p++;
++               newsgroup[i] = '\0';
++
++               if ((*p == ':') || (*p == '!'))
++                 {
++                    sub = *p++;
++                    while (*p == ' ')
++                         ++p;
++                    if ((*p == '1') && (*(p + 1) == '-'))
++                      {
++                         p += 2;
++                         index = atoi (p);
++                         i = findgroup (newsgroup, TRUE);
++                         strcpy (newsrc[i].newsgroup, newsgroup);
++                         newsrc[i].index = max (index, newsrc[i].index);
++                         newsrc[i].sub = sub;
++                      }
++                 }
+             }
+           fclose (file);
+        }
+@@ -133,9 +149,9 @@
+        {
+           /* Silently subscribe to newsgroups if new newsrc */
+           for (i = 0; i < ngroups; i++)
+-               if (findstr (1, groups[i].newsgroup, "junk") != 0)
++               if (findstr (groups[i].newsgroup, "junk") != NULL)
+                     newsrc[i].sub = UNSUBSCRIBED;
+-               else if (findstr (1, groups[i].newsgroup, ".test") != 0)
++               else if (findstr (groups[i].newsgroup, ".test") != NULL)
+                     newsrc[i].sub = UNSUBSCRIBED;
+                else
+                     newsrc[i].sub = SUBSCRIBED;
+@@ -285,6 +301,7 @@
+                          newsrc[i].index);
+      fclose (file);
+      cls();
++     return 0;
+ }
+ 
+ 
+@@ -353,7 +370,7 @@
+ 
+           fflush (stdout);
+           c = getresponse();
+-          ch = c = tolower (c);      /* 'ch' is temp used only in switch() */
++          ch = c = (char) tolower (c);      /* 'ch' is temp used only in switch() */
+ 
+           /* Done? */
+           if (curgroup == ngroups)
+@@ -460,7 +477,7 @@
+                          else
+                               i = curgroup;
+ 
+-                    /* unsubscribe from specified newsgroup?* /
++                    /* unsubscribe from specified newsgroup? */
+                     else if ((i = findgroup (groupname, FALSE)) == -1)
+                       {
+                          printf ("\nGroup %s not found\n", groupname);
+@@ -611,7 +628,6 @@
+ {
+      register int i = index + 1;            /* Next unread article */
+      char c = '\0';                         /* Need a prompt in newscmd() */
+-     char dspnews();
+ 
+      /* If we got here by 'G'oto, and the group is fully read: */
+      if (i == seq + 1)
+@@ -636,6 +652,7 @@
+           if (i == 0)
+                break;
+        }
++     return 0;
+ }
+ 
+ 
+@@ -837,7 +854,7 @@
+ 
+                /* sense rot13 article */ 
+                if (strncmp (lp, "Keywords: ", 10) == 0)
+-                    if (auto_rot && findstr (1, lp, "rot13") != 0)
++                    if (auto_rot && findstr (lp, "rot13") != NULL)
+                          rot13 = TRUE;
+ 
+                if (printline)
+@@ -1001,7 +1018,7 @@
+                                    if (cflag)
+                                         asetuid (myuid);
+ 
+-                                   continue;
++                                   goto cmoc_readnews_next;
+                                 }
+                            }
+ 
+@@ -1102,7 +1119,7 @@
+                                        reference, subject,
+                                        newsgroup, article);
+ 
+-                         freearticlepath();
++                         freearticlepath(NULL);
+ 
+                          if (docmd_na (cmd) != 0)
+                               badpost ("can't post followup");
+@@ -1222,6 +1239,7 @@
+                     break;
+             }
+           c = '\0';       /* We want a prompt for the next command */
++cmoc_readnews_next: ;
+        }
+ }
+ 
+@@ -1238,19 +1256,20 @@
+      rows = nrows;
+ #else
+ #  ifndef _OSK
+-     struct registers regs;
++     registers_6809 regs;
+ 
+      /* get screen size */
+-     regs.rg_a = 0;
+-     regs.rg_b = SS_SCSIZ;
+-     _os9 (I_GETSTT, &regs);
+-     columns = regs.rg_x - 1;
+-     rows = regs.rg_y - 1;
++     regs.a = 0;
++     regs.b = SS_ScSiz;
++     _os_syscall (0x8d, &regs);
++     columns = regs.x - 1;
++     rows = regs.y - 1;
+ #  else
+      columns = 80;
+      rows = 24;
+ #  endif
+ #endif
++     return 0;
+ }
+ 
+ 
+@@ -1272,6 +1291,7 @@
+ 
+      while ((p = strchr (p, '"')) != NULL)
+           *p = '\x27';                                        /* ' */
++     return 0;
+ }
+ 
+ 
+@@ -1304,6 +1324,7 @@
+           putchar ('=');
+ 
+      fflush (stdout);
++     return 0;
+ }
+ 
+ 
+@@ -1345,8 +1366,9 @@
+      struct sgbuf stdinpath;
+ 
+      _gs_opt (1, &stdinpath);
+-     stdinpath.sg_echo = onoroff;             /* switch standard input echo */
++     stdinpath.sg_echo = (unsigned char) onoroff;             /* switch standard input echo */
+      _ss_opt (1, &stdinpath);                 /* update the path descriptor */
++     return 0;
+ }
+ 
+ 
+@@ -1362,18 +1384,19 @@
+           fputs ("\b \b", stdout);
+ 
+      fflush (stdout);
+-}
+-
+-
+-
+-int interrupt (sig)
++     return 0;
++}
++
++
++
++int uucpbb_interrupt (sig)
+ int sig;
+ {
+ #ifndef TERMCAP
+      if (winopen)                 /* if a help window is open just close it */
+        {
+           closedoublewindow();
+-          return;
++          return 0;
+        }
+ #endif
+      echo (ON);
+@@ -1391,7 +1414,8 @@
+           fprintf (stderr, "...error %d", errno);
+ 
+      putc ('\n', stderr);
+-     interrupt (0);
++     uucpbb_interrupt (0);
++     return 0;
+ }
+ 
+ 
+@@ -1411,23 +1435,24 @@
+      outstr[0] = outstr[9]  = 0x1b;
+      outstr[1] = outstr[10] = 0x22;
+      outstr[2] = outstr[11] = 1;
+-     outstr[5] = outstr[14] = width;
+-     outstr[6] = outstr[15] = height;
++     outstr[5] = outstr[14] = (char) width;
++     outstr[6] = outstr[15] = (char) height;
+ 
+      /* bottom window */
+-     outstr[3] = x + 1;                    /* offset bottom window */
+-     outstr[4] = y + 1;
++     outstr[3] = (char) x + 1;                    /* offset bottom window */
++     outstr[4] = (char) y + 1;
+      outstr[7] = 2;                        /* black on black */
+      outstr[8] = 2;
+ 
+      /* top window */
+-     outstr[12] = x;
+-     outstr[13] = y;
++     outstr[12] = (char) x;
++     outstr[13] = (char) y;
+      outstr[16] = 0;                        /* white on red */
+      outstr[17] = 4;
+ 
+      write (1, outstr, sizeof (outstr));
+      winopen = TRUE;
++     return 0;
+ }
+ 
+ 
+@@ -1438,6 +1463,7 @@
+      write (1, "\x1b\x23\x1b\x23", 4);
+      winopen = FALSE;
+      resetline();
++     return 0;
+ }
+ #endif
+ 
+@@ -1447,6 +1473,7 @@
+      puts ("\b  ");
+      CurUp();
+      CurOn();
++     return 0;
+ }
+ 
+ 
+@@ -1461,6 +1488,7 @@
+ #else
+      tsleep (180);
+ #endif
++     return 0;
+ }
+ 
+ 
+@@ -1501,6 +1529,7 @@
+ {
+      if (ptr != NULL)
+           free (ptr);
++     return 0;
+ }
+ 
+ 
+@@ -1514,4 +1543,5 @@
+      fputs ("License.  Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n", stderr);
+ 
+      exit (0);
+-}
++     return 0;
++}
+--- a/recvmail.c
++++ b/recvmail.c
+@@ -30,12 +30,11 @@
+ #include "uucp.h"
+ #include "mail.h"
+ #include <ctype.h>
+-#include <modes.h>
+-#include <direct.h>                              /* Added - BAS */
+-#include <sgstat.h>
++#include <fcntl.h>
++#include <fcntl.h>
+ #ifndef _OSK
+-#include <os9.h>
+-#include "dir_6809.h"
++#include <os.h>
++#include <dir.h>
+ #else
+ #include <dir.h>
+ #endif
+@@ -45,6 +44,7 @@
+ 
+ char dspmail(), getresponse();
+ void givehelp();
++int uucpbb_interrupt();
+ 
+ 
+ int recvmail (fifo)
+@@ -54,7 +54,6 @@
+      int numltrs, ltrsleft;
+      register MAILPTR envelop;
+      MAILPTR firstenvelop = NULL;
+-     struct mailbag *whatnow(), *reverselist(), *gathermail();
+ 
+      /* Check waiting for mail.  Exit if there is none.  When we return our
+         current data directory will be our mailbox directory. */
+@@ -116,6 +115,7 @@
+ 
+      updatemail_list (firstenvelop, ltrsleft);
+      free (firstenvelop);
++     return 0;
+ }
+ 
+ 
+@@ -295,6 +295,7 @@
+ 
+      for (envelop = firstenvelop;  envelop;  envelop = envelop->next)
+           envelop->status = nokilli ? 'P' : 'D';
++     return 0;
+ }
+ 
+ 
+@@ -343,7 +344,7 @@
+                             stdout);
+ 
+                     fflush (stdout);
+-                    c = tolower ( getresponse() );
++                    c = (char) tolower ( getresponse() );
+                     switch (c)
+                       {
+                          case 'r':
+@@ -380,7 +381,7 @@
+      ReVOn();
+      fputs (" Last message...quit?  y/N ", stdout);
+      ReVOff();
+-     c = tolower ( getresponse() );
++     c = (char) tolower ( getresponse() );
+      CurUp();
+      putchar ('\n');
+      ErEOLine();
+@@ -705,7 +706,7 @@
+                ReVOn();
+                fputs (" --MORE--", stdout);
+                ReVOff ();
+-               c = tolower ( getresponse() );
++               c = (char) tolower ( getresponse() );
+                CurUp();
+                putchar('\n');
+                DelLine();
+@@ -779,7 +780,7 @@
+        {
+           fputs ("\nmailx> ", stdout);
+           fflush (stdout);
+-          c = tolower ( getresponse() );
++          c = (char) tolower ( getresponse() );
+           switch (c)
+             {
+                /* Next message */
+@@ -823,7 +824,7 @@
+                       {
+                          fputs ("mailcmd: can't make copy of From:", stdout);
+                          fflush (stdout);
+-                         continue;
++                         goto cmoc_recvmail_next;
+                       }
+                     break;
+ 
+@@ -871,7 +872,7 @@
+ 
+                               if (cflag)
+                                    asetuid (myuid);
+-                              continue;
++                              goto cmoc_recvmail_next;
+                            }
+                       }
+ 
+@@ -888,7 +889,7 @@
+                                  pname, fname, errno);
+ 
+                          asetuid (myuid);
+-                         continue;
++                         goto cmoc_recvmail_next;
+                       }
+ 
+                     /* If we need to, reset the ownership of the file-BAS 2 */
+@@ -903,7 +904,7 @@
+                     CurUp();
+                     fputs ("\nDelete? y/N ", stdout);
+                     fflush (stdout);
+-                    c = tolower ( getresponse() );
++                    c = (char) tolower ( getresponse() );
+ 
+                     if (c == 'y')
+                          return (DELETE);
+@@ -928,7 +929,7 @@
+                     p = getinput (path, sizeof (path));
+ 
+                     if (!*p)
+-                         continue;
++                         goto cmoc_recvmail_next;
+ 
+                     /* save the current To: */
+                     if ((tmpAdrs = strdup (address)) != NULL)
+@@ -952,7 +953,7 @@
+                       {
+                          fputs ("mailcmd: can't make copy of To:", stdout);
+                          fflush (stdout);
+-                         continue;
++                         goto cmoc_recvmail_next;
+                       }
+                     break;
+ 
+@@ -961,7 +962,7 @@
+                     p = getinput (path, sizeof (path));
+ 
+                     if (*p == '\0')
+-                         continue;
++                         goto cmoc_recvmail_next;
+ 
+                     /* save original To: and Subject: */
+                     if ((tmpAdrs = strdup (address)) == NULL)
+@@ -969,7 +970,7 @@
+                          fputs ("mailcmd: cannot save original To:",
+                                 stdout);
+                          fflush (stdout);
+-                         continue;
++                         goto cmoc_recvmail_next;
+                       }
+ 
+                     if ((tmpSubj = strdup (subject)) == NULL)
+@@ -977,7 +978,7 @@
+                          fputs ("mailcmd: cannot save original Subject:",
+                                 stdout);
+                          fflush (stdout);
+-                         continue;
++                         goto cmoc_recvmail_next;
+                       }
+                          
+                     /* clear the address and subject --REB */
+@@ -1007,7 +1008,7 @@
+ 
+                /* exit without touch any mail */
+                case 'x':
+-                    interrupt (0);
++                    uucpbb_interrupt (0);
+ 
+                /* make ALL deleted mail readable again */
+                case 'u':
+@@ -1038,14 +1039,14 @@
+                     backspace (1);
+                     fputs ("delete ALL mail?  y/N ", stdout);
+                     fflush (stdout);
+-                    c = tolower ( getresponse() );
++                    c = (char) tolower ( getresponse() );
+                     backspace (23);
+ 
+                     if (c == 'y')
+                       {
+                          fputs ("are you sure?  y/N ", stdout);
+                          fflush (stdout);
+-                         c = tolower ( getresponse() );
++                         c = (char) tolower ( getresponse() );
+                          backspace (20);
+ 
+                          if (c == 'y')
+@@ -1085,7 +1086,7 @@
+                     p = getinput (path, sizeof (path));
+ 
+                     if (*p == NULL)
+-                         continue;
++                         goto cmoc_recvmail_next;
+ 
+                     dopipe (letter, p);
+                     break;
+@@ -1093,6 +1094,7 @@
+                default:
+                     printf ("\nUnknown command: %c\n", c);
+                     break;
++cmoc_recvmail_next: ;
+             }
+        }
+ }
+@@ -1142,23 +1144,24 @@
+      *(outstr + 0) = *(outstr + 9)  = 0x1b;
+      *(outstr + 1) = *(outstr + 10) = 0x22;
+      *(outstr + 2) = *(outstr + 11) = 1;
+-     *(outstr + 5) = *(outstr + 14) = width;
+-     *(outstr + 6) = *(outstr + 15) = height;
++     *(outstr + 5) = *(outstr + 14) = (char) width;
++     *(outstr + 6) = *(outstr + 15) = (char) height;
+ 
+      /* bottom window */
+-     *(outstr + 3) = x + 1;                    /* offset bottom window */
+-     *(outstr + 4) = y + 1;
++     *(outstr + 3) = (char) x + 1;                    /* offset bottom window */
++     *(outstr + 4) = (char) y + 1;
+      *(outstr + 7) = 2;                        /* black on black */
+      *(outstr + 8) = 2;
+ 
+      /* top window */
+-     *(outstr + 12) = x;
+-     *(outstr + 13) = y;
++     *(outstr + 12) = (char) x;
++     *(outstr + 13) = (char) y;
+      *(outstr + 16) = 0;                        /* white on red */
+      *(outstr + 17) = 4;
+ 
+      write (1, outstr, sizeof (outstr));
+      winopen = TRUE;
++     return 0;
+ }
+ 
+ 
+@@ -1169,6 +1172,7 @@
+ {
+      write (1, "\x1b\x23\x1b\x23\x08  \n\x09\x05\x21", 11);
+      winopen = FALSE;
++     return 0;
+ }
+ #endif
+ 
+@@ -1184,6 +1188,7 @@
+           fputs ("\b \b", stdout);
+ 
+      fflush (stdout);
++     return 0;
+ }
+ 
+ 
+@@ -1199,6 +1204,7 @@
+           putchar ('=');
+ 
+      fflush (stdout);
++     return 0;
+ }
+ 
+ 
+--- a/rmail.c
++++ b/rmail.c
+@@ -29,12 +29,12 @@
+ 
+ #include "uucp.h" 
+ #include <time.h>
+-#include <modes.h>
+-#include <direct.h>
++#include <fcntl.h>
++#include <dir.h>
+ #include <signal.h>
+ #include <ctype.h>
+ #ifndef _OSK
+-#include <os9.h>
++#include <os.h>
+ #endif
+ 
+ #define DELIVERED    0
+@@ -66,8 +66,10 @@
+ QQ unsigned errorsID;
+ */
+ static char address[512], line[512], line2[512];
+-void openlog(), closelog(), logerror();
+-long _gs_size();
++void openlog(), closelog();
++int logerror();
++int who_owns_the();
++long forwardseq();
+ 
+ 
+ int main(argc, argv)
+@@ -76,7 +78,6 @@
+ {
+      register FILE *file;
+      flag delivered;
+-     int interrupt();
+ 
+      userdir = NULL;
+      homedir = NULL;
+@@ -85,7 +86,7 @@
+ #ifdef _OSK
+      pflinit();                              /* longs will be printed */
+ #endif
+-     intercept (interrupt);
++     intercept ((sighandler_t) uucpbb_interrupt);
+ 
+      switch (argc)
+        {
+@@ -171,6 +172,7 @@
+ 
+      closelog();
+      exit (delivered);
++     return 0;
+ }
+ 
+ 
+@@ -214,6 +216,7 @@
+           exit (UNDELIVERED);
+        }
+      *p = '/';
++     return 0;
+ }
+ 
+ 
+@@ -432,11 +435,11 @@
+ FILE *file;
+ {
+      char mailbox[256], envelop[16];
+-     struct sgtbuf tod;
++     struct os_time tod;
+      register FILE *mailfile;
+      FILE *mail_list;
+      char *ptmp;
+-     long linecount, msgsize, movemail();
++     long linecount, msgsize;
+ 
+      /* mail for user 'nobody', it goes in the bit bucket */
+      if (strucmp (address, "nobody") == 0)
+@@ -527,11 +530,11 @@
+      /* Create the envelope.  Account for new millenium in case this code is
+         is still being used after 1999. :-) */
+ 
+-     getime (&tod);
++     _os_getime (&tod);
+      sprintf (envelop, "m%02d%02d%02d%02d%02d%02d%02d",
+-                       (tod.t_year >= 92) && (tod.t_year <= 99)  ? 19  : 20,
+-                       tod.t_year, tod.t_month, tod.t_day, tod.t_hour,
+-                       tod.t_minute, tod.t_second);
++                       (tod.year >= 92) && (tod.year <= 99)  ? 19  : 20,
++                       tod.year, tod.month, tod.day, tod.hours,
++                       tod.minutes, tod.seconds);
+ 
+      /* new line for letterfile */
+      memset (mailstring, '\0', sizeof (mailstring));
+@@ -595,7 +598,6 @@
+      char cname[15], xname[14], dname[14], jname[14], seq[5];
+      register FILE *qfile;
+      char *p;
+-     long movemail();
+ 
+      /* parse system and address...if a bad address, bounce it back */
+      if ((p = strchr (address, '!')) == NULL)
+@@ -658,7 +660,7 @@
+      if (_gs_size (fileno (qfile)) <= 0)
+        {
+           fclose (qfile);
+-          unlink (qfile);
++          unlink (dname);
+           fatal ("doremote: error writing data (D.) file");
+        }
+ 
+@@ -708,10 +710,10 @@
+ {
+      char neighbor[40], addr[256], subj[SUBJSIZE], frm[FRMSIZE];
+      register char *words[WORDSIZE];
+-     char crlf, *strpbrk(), *grabfrom();
++     char crlf, *p;
+      flag weorig;
+      int n;
+-     long linecount, forwardseq();
++     long linecount;
+ 
+      /* processing local or remote mail? */
+      crlf = islocal  ? '\x0D' : '\x0A';
+@@ -722,7 +724,8 @@
+      *addr = *neighbor = '\0';
+      getline (file, line);
+ 
+-     while (((n = findstr (1, line, "From ")) <= 2)  &&  (n > 0))
++     while (((p = findstr (line, "From ")) != NULL)
++            && ((n = p - line + 1) <= 2)  &&  (n > 0))
+        {
+           strcpy (line2, line);
+           n = getargs (words, line2, WORDSIZE);
+@@ -730,13 +733,13 @@
+           if (*addr != '\0')
+                strcat (addr, "!");
+ 
+-          if (findstr (1, line, " remote from ") != 0)
++          if (findstr (line, " remote from ") != NULL)
+             {
+                if (*neighbor == '\0')
+                     strcpy (neighbor, words[n - 1]);
+ 
+                /* Did we get a valid address, or a munged attempt? */
+-               if (findstr (1, *(words + 1), "uucp") != 0)
++               if (findstr (*(words + 1), "uucp") != NULL)
+                     strcat (strcpy (line, addr), words[n - 1]);
+                else
+                     sprintf (line, "%s%s!%s",
+@@ -803,7 +806,8 @@
+                  {
+                     if (strnucmp (line, "From: ", 6) == 0)
+                       {
+-                         strncpy0 (frm, grabfrom (line), FRMSIZE);
++                         strncpy (frm, grabfrom (line), FRMSIZE);
++                         frm[FRMSIZE - 1] = '\0';
+                          gotfrom = TRUE;
+                       }
+                  }
+@@ -813,7 +817,8 @@
+                       {
+                          int len;
+ 
+-                         strncpy0 (subj, getstring (line), SUBJSIZE);
++                         strncpy (subj, getstring (line), SUBJSIZE);
++                         subj[SUBJSIZE - 1] = '\0';
+                          gotsubj = TRUE;
+                       }
+           fprintf (mailfile, "%s%c", line, crlf);
+@@ -835,8 +840,8 @@
+      if (islocal)
+        {
+           sprintf (line, "%s|%s", 
+-                         *frm != '\0' ? frm : " ",
+-                         *subj != '\0' ? subj : " ");
++                         *frm != '\0' ? frm : (char *)" ",
++                         *subj != '\0' ? subj : (char *)" ");
+ 
+           strcat (mailstring, line);
+        }
+@@ -868,7 +873,7 @@
+ {
+      char buf[7];
+      FILE *fp;
+-     long sequence, atol();
++     long sequence;
+ 
+      /* mail originates with us, repeat the message-id number */
+      if (weorig)
+@@ -995,6 +1000,7 @@
+      dolocal (file);
+      closelog();
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -1038,30 +1044,32 @@
+ 
+ /* Log an error message */
+ 
+-void logerror (msg)
++int logerror (msg)
+ char *msg;
+ {
+      openlog();
+ 
+      if (logopen)
+           fprintf (log, "rmail %s %s %s%s\n",
+-                        *nodename != '\0'  ? nodename : "uucp",
++                        *nodename != '\0'  ? nodename : (char *)"uucp",
+                         gtime(), errmsg, msg);
+      else
+           fprintf (stderr, "rmail: %s\n", msg);
+ 
+      closelog();
++     return 0;
+ }
+ 
+ 
+ 
+ /* exit with error if we receive a signal */
+ 
+-int interrupt (sig)
++int uucpbb_interrupt (sig)
+ int sig;
+ {
+      closelog();
+      exit (ABORT);
++     return 0;
+ }
+ 
+ 
+@@ -1090,6 +1098,7 @@
+      putc ('\n', stderr);
+      closelog();
+      exit (UNDELIVERED);
++     return 0;
+ }
+ 
+ 
+@@ -1110,4 +1119,5 @@
+                       version, VERDATE);
+      fputs ("License.  Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n", stderr);
+      exit (0);
+-}
++     return 0;
++}
+--- a/rnews.c
++++ b/rnews.c
+@@ -29,7 +29,7 @@
+ #include "rnews.h"
+ #include "mbuf.h"
+ #include "getopt.h"
+-#include <direct.h>
++#include <dir.h>
+ 
+ QQ int debuglvl = 0;
+ struct mbuf *getgroups();
+@@ -315,6 +315,7 @@
+      /* Close up the log */
+      deinizlog();
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -326,6 +327,7 @@
+ {
+     fprintf (stderr, "'%s'\n");
+     exit (ABORT);
++     return 0;
+ }
+ 
+ 
+@@ -337,4 +339,5 @@
+      fprintf (stderr,
+               "rnews [-x debug_level] [-n inital_newsgroup] [-z] newsfile\n");
+      exit (1);
++     return 0;
+ }
+--- a/sendmail.c
++++ b/sendmail.c
+@@ -38,6 +38,7 @@
+ 
+ static QQ flag fromdaemon;                      /* mail from user 'daemon' */
+ 
++int uucpbb_interrupt();
+ 
+ int sendmail()
+ {
+@@ -141,6 +142,7 @@
+      unlink (tempfile);
+      asetuid (myuid);
+      *tempfile = '\0';
++     return 0;
+ }
+ 
+ 
+@@ -156,7 +158,7 @@
+ {
+      char *words[40], *p, **wordptr, **wordlast;
+      int count;
+-     struct sgtbuf date;
++     struct os_time date;
+      long seq;
+      register char *lp;
+      char *got_escape = "<ESC> hit...exiting";
+@@ -195,7 +197,7 @@
+         Added 'daemon' --REB */
+ 
+      sprintf (lp,  "From %s %s",
+-                   !fromdaemon ? user : "MAILER-DAEMON",  date822());
++                   !fromdaemon ? user : (char *)"MAILER-DAEMON",  date822());
+ 
+      if (!redirect)
+           puts (lp);
+@@ -209,8 +211,8 @@
+      if (!fromdaemon)
+           sprintf (lp, "%s%s%s%s%c%s%s",
+                        Hfrom,
+-                       *name != '\0' ? name : "",
+-                       *name != '\0' ? " <" : "",
++                       *name != '\0' ? name : (char *)"",
++                       *name != '\0' ? (char *)" <" : (char *)"",
+                        sepsym != '!' ? user : sitename,
+                        sepsym,
+                        sepsym != '!' ? sitename : user,
+@@ -225,10 +227,10 @@
+      fprintf (ltrfile, "%s\n", lp);
+ 
+      /* Message-Id: line */
+-     getime (&date);
++     _os_getime (&date);
+      sprintf (lp, "Message-Id: <%02d%02d%02d%02d%02d.AA%05ld@%s>",
+-                  date.t_year, date.t_month, date.t_day, date.t_hour,
+-                  date.t_minute, seq, sitename);
++                  date.year, date.month, date.day, date.hours,
++                  date.minutes, seq, sitename);
+ 
+      fprintf (ltrfile, "%s\n", lp);
+ 
+@@ -278,7 +280,7 @@
+ 
+           fprintf (ltrfile, "%s%s\n",
+                            Hsubject,
+-                           *subject != '\0' ? subject : "<No subject given>");
++                           *subject != '\0' ? subject : (char *)"<No subject given>");
+        }
+ 
+      /* Reply-To: bob@kc2wz.bubble.org
+@@ -287,8 +289,8 @@
+      if (!fromdaemon)
+           sprintf (lp, "%s%s%s%s%c%s%s",
+                        Hreplyto,
+-                       *name != '\0' ? name : "",
+-                       *name != '\0' ? " <" : "",
++                       *name != '\0' ? name : (char *)"",
++                       *name != '\0' ? (char *)" <" : (char *)"",
+                        sepsym != '!' ? user : sitename,
+                        sepsym,
+                        sepsym != '!' ? sitename : user,
+@@ -351,7 +353,7 @@
+ 
+      putc ('\n', ltrfile);
+ 
+-     /* Sender: line *
++     /* Sender: line */
+ 
+      /* Date: Tue, 12 Feb 91 10:57:45 -0800 */
+      sprintf (lp, "%s%s", Hdate, date822());
+@@ -486,7 +488,7 @@
+           tilde = docmd_na (temp);
+ 
+           if (tilde == SIGINT  ||  tilde == SIGQUIT)
+-               interrupt (0);
++               uucpbb_interrupt (0);
+           else if (tilde == ABORT)
+                return (ABORT);
+ 
+@@ -519,7 +521,7 @@
+                tilde = docmd_na (temp);
+ 
+                if (tilde == SIGINT  ||  tilde == SIGQUIT)
+-                    interrupt (0);
++                    uucpbb_interrupt (0);
+                else if (tilde == ABORT)
+                     return (ABORT);
+ 
+--- a/setuser.c
++++ b/setuser.c
+@@ -25,7 +25,7 @@
+ #include "uucp.h"
+ #include <password.h>
+ #ifndef _OSK
+-#include <os9.h>
++#include <os.h>
+ #endif
+ 
+ EXTERN QQ unsigned myuid;
+@@ -49,4 +49,5 @@
+           newuid = myuid;                         /* no such user */
+ 
+      asetuid (newuid);
++     return 0;
+ }
+--- a/strupr.c
++++ b/strupr.c
+@@ -1,6 +1,8 @@
+ /* convert a string to upper case.  Returns a pointer to the start of the
+ ** string.
+ */
++
++#include <ctype.h>
+ 
+ char *strupr (string)
+ char *string;
+@@ -10,7 +12,7 @@
+      p = string;
+ 
+      while (*p)
+-          *p++ = toupper (*p);
++          *p++ = (char) toupper (*p);
+ 
+      return (string);
+ }
+@@ -29,7 +31,7 @@
+      p = string;
+ 
+      while (*p)
+-          *p++ = tolower (*p);
++          *p++ = (char) tolower (*p);
+ 
+      return (string);
+ }
+--- a/subscribe.c
++++ b/subscribe.c
+@@ -28,6 +28,7 @@
+ 
+ char line[512];
+ 
++int subscribe();
+ 
+ int main(argc, argv)
+ int argc;
+@@ -68,6 +69,7 @@
+           subscribe (argv[i]);
+ 
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -76,8 +78,9 @@
+ char *newsgroup;
+ {
+      register char *p;
++     char *q;
+      FILE *infile, *outfile;
+-     char group[512], flag, articles[512], newnewsrc[15];
++     char group[512], newsflag, articles[512], newnewsrc[15];
+      char *newsrc = _NEWSRC;
+ 
+      p = line;
+@@ -98,25 +101,36 @@
+      while (fgets (p, sizeof (line), infile) != NULL)
+        {
+           *articles = '\0';
+-          sscanf (p, "%[^!:]%c %[^\n]\n", group, &flag, articles);
++          q = group;
++          while (*p != '\0' && *p != '!' && *p != ':')
++               *q++ = *p++;
++          *q = '\0';
++          newsflag = *p++;
++          while (*p == ' ')
++               ++p;
++          q = articles;
++          while (*p != '\0' && *p != '\n')
++               *q++ = *p++;
++          *q = '\0';
+ 
+           if ((strcmp (newsgroup, "all") == 0)
+                || (strcmp (newsgroup, group) == 0))
+             {
+-               if (flag == ':')
++               if (newsflag == ':')
+                     printf ("Newsgroup %s is already subscribed.\n", group);
+                else
+                  {
+                     printf ("Newsgroup %s is now subscribed.\n", group);
+-                    flag = ':';
++                    newsflag = ':';
+                  }
+             }
+-               fprintf (outfile, "%s%c %s\n", group, flag, articles);
++               fprintf (outfile, "%s%c %s\n", group, newsflag, articles);
+        }
+ 
+      fclose (infile);
+      fclose (outfile);
+      filemove (newnewsrc, newsrc);
++     return 0;
+ }
+ 
+ 
+@@ -126,6 +140,7 @@
+ {
+      fprintf (stderr, "subscribe: %s...error %d\n", msg, errno);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -139,4 +154,5 @@
+                       version, VERDATE);
+      fputs ("License.  Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n", stderr);
+      exit (0);
++     return 0;
+ }
+--- a/termio.c
++++ b/termio.c
+@@ -23,6 +23,8 @@
+ */
+ 
+ #include "uucp.h"
++
++void curxy();
+ 
+ #ifdef TERMCAP
+ # ifndef BSDISH
+@@ -41,7 +43,6 @@
+ 
+ extern char *getenv();
+ void ErEOLine();
+-void curxy();
+ 
+ int nrows, ncolumns;
+ static char tcapbuf[TCAPSLEN];
+@@ -72,7 +73,7 @@
+ 
+ # ifndef _OSK
+ #  ifndef BSDISH
+-#   include <os9.h>
++#   include <os.h>
+ 
+ char *crtbynam();
+ char *crtbypth();
+@@ -246,10 +247,6 @@
+ }
+ 
+ 
+-
+-#define FPUTS(STR,FD) tputs(STR,1,out_char)
+-#else
+-#define FPUTS(STR,FD) fputs(STR,FD)
+ #endif
+ 
+ void CurUp()
+@@ -258,7 +255,7 @@
+ # ifdef BSDISH
+      fflush (stdout);
+ # endif
+-     FPUTS (UP, stdout);
++     fputs (UP, stdout);
+ #else
+      putchar ('\x09');
+ #endif
+@@ -274,14 +271,14 @@
+ # ifdef BSDISH
+           fflush(stdout);
+ # endif
+-          FPUTS(CR, stdout);
+-          FPUTS(CE, stdout);
++          fputs (CR, stdout);
++          fputs (CE, stdout);
+      }
+      else {
+-          FPUTS (DL, stdout);
+-     }
+-#else
+-     FPUTS ("\x1f\x31", stdout);
++          fputs (DL, stdout);
++     }
++#else
++     fputs ("\x1f\x31", stdout);
+ #endif
+      fflush (stdout);
+ }
+@@ -307,7 +304,7 @@
+ # ifdef BSDISH
+      fflush(stdout);
+ # endif
+-     FPUTS (CD, stdout);
++     fputs (CD, stdout);
+ #else
+      putchar ('\x0B');
+ #endif
+@@ -322,7 +319,7 @@
+ # ifdef BSDISH
+      fflush(stdout);
+ # endif
+-     FPUTS (CE, stdout);
++     fputs (CE, stdout);
+ #else
+      putchar ('\x04');
+ #endif
+@@ -338,7 +335,7 @@
+ #  ifdef BSDISH
+           fflush(stdout);
+ # endif
+-          FPUTS (BL, stdout);
++          fputs (BL, stdout);
+      }
+ #else
+      putchar ('\x07');
+@@ -355,12 +352,12 @@
+ # ifdef BSDISH
+           fflush (stdout);
+ # endif
+-           FPUTS (SO, stdout);
++           fputs (SO, stdout);
+      }
+      else
+            fputs ("** ", stdout);
+ #else
+-     FPUTS ("\x1f\x20", stdout);
++     fputs ("\x1f\x20", stdout);
+ #endif
+      fflush (stdout);
+ }
+@@ -374,12 +371,12 @@
+ # ifdef BSDISH
+           fflush (stdout);
+ # endif
+-          FPUTS (SE, stdout);
++          fputs (SE, stdout);
+      }
+      else
+           fputs (" **", stdout);
+ #else
+-     FPUTS ("\x1f\x21", stdout);
++     fputs ("\x1f\x21", stdout);
+ #endif
+      fflush (stdout);
+ }
+@@ -393,10 +390,10 @@
+ # ifdef BSDISH
+           fflush (stdout);
+ # endif
+-          FPUTS (VE, stdout);
+-     }
+-#else
+-     FPUTS ("\x05\x21", stdout);
++          fputs (VE, stdout);
++     }
++#else
++     fputs ("\x05\x21", stdout);
+ #endif
+      fflush (stdout);
+ }
+@@ -410,10 +407,10 @@
+ # ifdef BSDISH
+           fflush (stdout);
+ # endif
+-          FPUTS (VI, stdout);
+-     }
+-#else
+-     FPUTS ("\x05\x20", stdout);
++          fputs (VI, stdout);
++     }
++#else
++     fputs ("\x05\x20", stdout);
+ #endif
+      fflush (stdout);
+ }
+@@ -427,7 +424,7 @@
+ # ifdef BSDISH
+           fflush (stdout);
+ # endif
+-          FPUTS (CL, stdout);
++          fputs (CL, stdout);
+      }
+ #else
+      putchar ('\x0c');
+@@ -447,7 +444,7 @@
+ # ifdef BSDISH
+      fflush (stdout);
+ # endif
+-     FPUTS (t, stdout);
++     fputs (t, stdout);
+ #else
+      printf ("\x02%c%c", x+32, y+32);
+ #endif
+--- a/unsubscribe.c
++++ b/unsubscribe.c
+@@ -68,6 +68,7 @@
+           unsubscribe (argv[i]);
+ 
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -76,8 +77,9 @@
+ char *newsgroup;
+ {
+      FILE *infile, *outfile;
+-     char group[512], flag, articles[512], newnewsrc[15];
++     char group[512], newsflag, articles[512], newnewsrc[15];
+      register char *p;
++     char *q;
+      char *newsrc = _NEWSRC;
+ 
+      p = line;
+@@ -98,25 +100,36 @@
+      while (fgets (p, sizeof (line), infile) != NULL)
+        {
+           *articles = '\0';
+-          sscanf (p, "%[^!:]%c %[^\n]\n", group, &flag, articles);
++          q = group;
++          while (*p != '\0' && *p != '!' && *p != ':')
++               *q++ = *p++;
++          *q = '\0';
++          newsflag = *p++;
++          while (*p == ' ')
++               ++p;
++          q = articles;
++          while (*p != '\0' && *p != '\n')
++               *q++ = *p++;
++          *q = '\0';
+ 
+           if ((strcmp (newsgroup, "all") == 0)
+                 || (strcmp (newsgroup, group) == 0))
+             {
+-               if (flag == '!')
+-                    printf ("Newsgroup % is already unsubscribed.\n", group);
++               if (newsflag == '!')
++                    printf ("Newsgroup %s is already unsubscribed.\n", group);
+                else
+                  {
+                     printf ("Newsgroup %s is now unsubscribed.\n", group);
+-                    flag = '!';
++                    newsflag = '!';
+                  }
+             }
+-          fprintf (outfile, "%s%c %s\n", group, flag, articles);
++          fprintf (outfile, "%s%c %s\n", group, newsflag, articles);
+        }
+ 
+      fclose (infile);
+      fclose (outfile);
+      filemove (newnewsrc, newsrc);
++     return 0;
+ }
+ 
+ 
+@@ -126,6 +139,7 @@
+ {
+      fprintf (stderr, "unsubscribe: %s...error %d\n", msg, errno);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -139,4 +153,5 @@
+                       version, VERDATE);
+      fputs ("License.  Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n", stderr);
+      exit (0);
++     return 0;
+ }
+--- a/userparam.c
++++ b/userparam.c
+@@ -38,4 +38,5 @@
+      sprintf (fname, "%s/%s/%s", homedir, uudir, _MAILRC);  /*changed --REB */
+ #endif
+      readparam (fname, FALSE);
++     return 0;
+ }
+--- a/uucico.c
++++ b/uucico.c
+@@ -57,7 +57,7 @@
+ 
+ extern QQ unsigned myuid;
+ 
+-int interrupt();
++int uucpbb_interrupt();
+ 
+ 
+ main (argc, argv)
+@@ -88,7 +88,7 @@
+      pflinit();                                    /* longs will be printed */
+ #endif
+ 
+-     intercept (interrupt);                      /* deal with interruptions */
++     intercept ((sighandler_t) uucpbb_interrupt);                      /* deal with interruptions */
+      asetuid (0);
+ 
+      if (getparam() == FALSE)
+@@ -214,6 +214,7 @@
+                case '?':                        /* help/bad option */
+                     usage();
+             }
++            return 0;
+        }
+ 
+      if (!logflag  &&  debuglvl > 5)
+@@ -289,6 +290,7 @@
+ 
+                          if (uuxflag)
+                               gotmail = TRUE;
++                           return 0;
+                       }
+                     else
+                       {
+@@ -320,6 +322,7 @@
+ 
+                               done = TRUE;
+                            }
++                           return 0;
+                       }
+                  }
+ 
+@@ -358,7 +361,9 @@
+           /* run UUXQT? */
+           if (runuuxqt  &&  uuxflag)
+                do_uuxqt (priority, TRUE, sysname, orphan);
+-       }
++            return 0;
++       }
++     return 0;
+ }
+ 
+ 
+@@ -418,6 +423,7 @@
+                break;
+        }
+      endcall();
++     return 0;
+ }
+ 
+ 
+@@ -501,6 +507,7 @@
+ 
+           offhook = endflag = FALSE;
+        }
++     return 0;
+ }
+ 
+ 
+@@ -609,6 +616,7 @@
+        }
+      else
+           docmd (temp);
++     return 0;
+ }
+ 
+ 
+@@ -622,6 +630,7 @@
+ 
+      for (i = 0; i < howmany; ++i)
+           fputs ("\b \b", stdout);
++     return 0;
+ }
+ 
+ 
+@@ -632,6 +641,7 @@
+ char *msg;
+ {
+      fprintf (log, "%s %s %s ERROR--%s\n", sender, sysname, gtime(), msg);
++     return 0;
+ }
+ 
+ 
+@@ -642,6 +652,7 @@
+ char *msg;
+ {
+      fprintf (log, "%s %s %s %s\n", sender, sysname, gtime(), msg);
++     return 0;
+ }
+ 
+ 
+@@ -655,18 +666,20 @@
+           fprintf (stderr, "...error %d", errno);
+      putc ('\n', stderr);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+ 
+ /* clean up before we exit on keyboard abort -- REB */
+ 
+-int interrupt (sig)
++int uucpbb_interrupt (sig)
+ int sig;
+ {
+      fprintf (log, "\n%s %s %s OPERATOR ABORTED\n", sender,sysname,gtime() );
+      endcall();
+      exit (sig);
++     return 0;
+ }
+ 
+ 
+@@ -712,4 +725,5 @@
+                       version, VERDATE);
+      fputs ("License.  Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n", stderr);
+      exit (0);
+-}
++     return 0;
++}
+--- a/uucico.h
++++ b/uucico.h
+@@ -24,9 +24,6 @@
+ 
+ #include <setjmp.h>
+ #include <signal.h>
+-#ifndef _OSK
+-#include <utime.h>
+-#endif
+ #include <time.h>
+ 
+  /***************************************************************
+--- a/uuclean.c
++++ b/uuclean.c
+@@ -37,13 +37,13 @@
+ #define MAIN                                      /* Added -- REB */
+ 
+ #include "uucp.h"
+-#include <modes.h>
++#include <fcntl.h>
+ #include <time.h>
+ #include <ctype.h>
+-#include <direct.h>
++
++int getopt();
+ #ifndef _OSK
+-#include <utime.h>
+-#include "dir_6809.h"
++#include <dir.h>
+ #else
+ #include <dir.h>
+ #endif
+@@ -162,7 +162,7 @@
+                fatal ("spooldir not in Parameters");
+ 
+      /*  Calculate the time */
+-     rtime (num_days, def_date);
++     uucpbb_rtime (num_days, (struct os_time *)def_date);
+ 
+      if (verbose)
+           printf ("\nRemove all files before: %s\n", timestr);
+@@ -208,6 +208,7 @@
+                mvlogs (FALSE);        /* rotate FileServ */
+        }
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -280,7 +281,7 @@
+ 
+           close (pn);
+ 
+-          if (strncmp (fdbuf.fd_date, def_date, 5) <= 0)
++          if (strncmp ((char *) fdbuf.fd_date, def_date, 5) <= 0)
+             {
+                if (got_data_file)
+                     mail_owner();
+@@ -296,6 +297,7 @@
+                     puts ("Not old enough to kill!");
+        }
+      closedir (dir);
++     return 0;
+ }
+ 
+ 
+@@ -310,42 +312,43 @@
+    Slightly modified by Mark Griffith to return a time the number of days less
+    than the current time as passed in offset. */
+ 
+-int rtime (offset, datebuff)
++int uucpbb_rtime (offset, datebuff)
+ long offset;
+-struct sgtbuf *datebuff;
++struct os_time *datebuff;
+ {
+      long systime;
+      struct tm *utimeptr;
+ 
+-     systime = time ((char *)0);                    /* get current time */
++     systime = time ((long *)0);                    /* get current time */
+ 
+      /* substract the offset in hours */
+      systime -= offset*24L*60L*60L;                 /* changed [MDG] */
+      utimeptr = localtime(&systime);
+ 
+-     datebuff->t_year   = utimeptr->tm_year;
++     datebuff->year   = (unsigned char) utimeptr->tm_year;
+ #ifdef _OSK
+-     datebuff->t_month  = utimeptr->tm_mon + 1;     /* OSK is different!!! */
++     datebuff->month  = utimeptr->tm_mon + 1;     /* OSK is different!!! */
+ #else
+ # ifndef NEWCLIB                                 /* early Kreider CLIB.L    */
+-     datebuff->t_month  = utimeptr->tm_mon;      /* does it one way, newer  */
++     datebuff->month  = utimeptr->tm_mon;      /* does it one way, newer  */
+ # else                                           /* versions (1990) does it */
+-     datebuff->t_month  = utimeptr->tm_mon + 1;  /* like OSK...confused??   */
++     datebuff->month  = (unsigned char) utimeptr->tm_mon + 1;  /* like OSK...confused??   */
+ # endif                                          /* me, too --REB           */
+ #endif
+-     datebuff->t_day    = utimeptr->tm_mday;
+-     datebuff->t_hour   = utimeptr->tm_hour;
+-     datebuff->t_minute = utimeptr->tm_min;
+-     datebuff->t_second = utimeptr->tm_sec;
++     datebuff->day    = (unsigned char) utimeptr->tm_mday;
++     datebuff->hours   = (unsigned char) utimeptr->tm_hour;
++     datebuff->minutes = (unsigned char) utimeptr->tm_min;
++     datebuff->seconds = (unsigned char) utimeptr->tm_sec;
+ 
+      /* Setup a string with the date in it for possible printing.
+         Added [MDG] */
+ 
+      sprintf (timestr,"%02d/%02d/%02d %02d:%02d:%02d",
+-                      datebuff->t_month, datebuff->t_day, datebuff->t_year,
+-                      datebuff->t_hour, datebuff->t_minute,
+-                      datebuff->t_second);
++                      datebuff->month, datebuff->day, datebuff->year,
++                      datebuff->hours, datebuff->minutes,
++                      datebuff->seconds);
+ /*   return (datebuff); */
++     return 0;
+ }
+ 
+ 
+@@ -598,6 +601,7 @@
+ 
+      putc ('\n', stderr);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -619,4 +623,5 @@
+                       version, VERDATE);
+      fputs ("License.  Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n", stderr);
+      exit (0);
+-}
++     return 0;
++}
+--- a/uucp.c
++++ b/uucp.c
+@@ -95,6 +95,7 @@
+           recvuucp (fromfile, options, p1, tofile);
+        }
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -176,6 +177,7 @@
+      asetuid (0);
+      chown (dname, myuid);
+      chown (cname, myuid);
++     return 0;
+ }
+ 
+ 
+@@ -215,6 +217,7 @@
+           fprintf(qfile, "R %s %s %s %s D.0 0666 %s\n",
+                           fromfile, tofile, user, options, user);
+      fclose(qfile);
++     return 0;
+ }
+ 
+ 
+@@ -232,6 +235,7 @@
+ 
+      /* C.systmCXXXXXXX (spooled control file) */
+      sprintf (controlfile, "C.%.8sC%s", system, seq);
++     return 0;
+ }
+ 
+ 
+@@ -247,6 +251,7 @@
+ 
+      putc ('\n', stderr);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -260,4 +265,5 @@
+                       version, VERDATE);
+      fputs ("License.  Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n", stderr);
+      exit (0);
+-}
++     return 0;
++}
+--- a/uucp.h
++++ b/uucp.h
+@@ -26,6 +26,13 @@
+    were made by Bob Billson  */
+ 
+ #include <stdio.h>                                          /* Added --REB */
++#include <stdlib.h>
++#include <unistd.h>
++#include <fcntl.h>
++#include <signal.h>
++#include <time.h>
++#include <ctype.h>
++#include <sys/types.h>
+ 
+  /**************************\
+  * Compiler specific macros *
+--- a/uudecode.c
++++ b/uudecode.c
+@@ -103,6 +103,7 @@
+                exit(0);
+             }
+        }
++     return 0;
+ }
+ 
+ 
+@@ -180,6 +181,7 @@
+  
+      if (n >= 3)
+           putc (c3, f);
++     return 0;
+ }
+ 
+ 
+@@ -217,4 +219,5 @@
+           fprintf (stderr, "%s\n", *help);
+ 
+      exit (2);
+-}
++     return 0;
++}
+--- a/uuencode.c
++++ b/uuencode.c
+@@ -56,6 +56,7 @@
+      encode (in, stdout);
+      puts ("end");
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -84,6 +85,7 @@
+           if (n <= 0)
+                break;
+        }
++     return 0;
+ }
+ 
+ 
+@@ -105,6 +107,7 @@
+      putc (ENC(c2), f);
+      putc (ENC(c3), f);
+      putc (ENC(c4), f);
++     return 0;
+ }
+ 
+ 
+@@ -126,7 +129,7 @@
+           if (c == EOF)
+                return (i);
+ 
+-          buf[i] = c;
++          buf[i] = (char) c;
+        }
+ 
+      return (cnt);
+--- a/uulog.c
++++ b/uulog.c
+@@ -40,9 +40,11 @@
+ 
+ #include "uucp.h"
+ 
++int getopt();
++
+ /* Globals */
+ char sysname[9], username[20], logfile[256], fsysname[9], fusername[20];
+-void usage(), fatal();
++int usage(), fatal();
+ 
+ 
+ int main(argc, argv)
+@@ -52,7 +54,7 @@
+      register FILE *fd;                                 /* Changed --REB */
+      flag all, fserver, dayflag, uulflag;               /*               */
+      int option;
+-     char *day, line[256];
++     char *day, *p, *q, line[256];
+ 
+      all = TRUE;
+      fserver = FALSE;                         /* look at uulog files --REB */
+@@ -93,9 +95,9 @@
+ 
+      sprintf (logfile, "%s/%s%s%s",
+                        logdir,
+-                       uulflag ? "uulog" : "fileserv",
+-                       dayflag ? "." : "",
+-                       dayflag ? day : "");
++                       uulflag ? (char *)"uulog" : (char *)"fileserv",
++                       dayflag ? (char *)"." : (char *)"",
++                       dayflag ? day : (char *)"");
+ 
+      if ((fd = fopen (logfile, "r")) == NULL)
+           exit (_errmsg (errno, "unable to open '%s'\n", logfile));
+@@ -107,7 +109,17 @@
+        {
+           while (fgets (line, sizeof (line), fd) != NULL)
+             {
+-               sscanf (line, "%s %s", fusername, fsysname);
++               p = line;
++               q = fusername;
++               while (*p != '\0' && *p != ' ' && *p != '\t' && *p != '\n')
++                    *q++ = *p++;
++               *q = '\0';
++               while (*p == ' ' || *p == '\t')
++                    ++p;
++               q = fsysname;
++               while (*p != '\0' && *p != ' ' && *p != '\t' && *p != '\n')
++                    *q++ = *p++;
++               *q = '\0';
+ 
+                if (!all)
+                  {
+@@ -136,20 +148,22 @@
+        }
+      fclose (fd);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+ 
+-void fatal (msg)
++int fatal (msg)
+ char *msg;
+ {
+      fprintf (stderr, "uulog: %s\n", msg);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+ 
+-void usage()
++int usage()
+ {
+      register char **use;
+      static char *usetxt[] = {
+@@ -173,4 +187,5 @@
+                       version, VERDATE);
+      fputs ("License.  Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n", stderr);
+      exit (0);
++     return 0;
+ }
+--- a/uuname.c
++++ b/uuname.c
+@@ -25,7 +25,8 @@
+ #include "uucp.h"
+ 
+ char buf[256];
+-void showlocalname(), showsystems(), fatal(), usage();
++void showlocalname(), showsystems();
++int fatal(), usage();
+ 
+ 
+ int main (argc, argv)
+@@ -38,6 +39,7 @@
+           showlocalname();
+      else
+           usage();
++     return 0;
+ }
+ 
+ 
+@@ -86,16 +88,17 @@
+ 
+ 
+ 
+-void fatal (msg)
++int fatal (msg)
+ char *msg;
+ {
+      fprintf (stderr, "uuname: %s...error %d\n", msg, errno);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+ 
+-void usage()
++int usage()
+ {
+      register char **help;
+      static char *helptxt[] = {
+@@ -109,4 +112,5 @@
+           fprintf (stderr, "%s\n", *help);
+ 
+      exit (0);
++     return 0;
+ }
+--- a/uuxqt.c
++++ b/uuxqt.c
+@@ -34,10 +34,12 @@
+ 
+ #include "uucp.h"
+ #ifndef _OSK
+-#include <os9.h>
++#include <os.h>
++#include <dir.h>
++#else
++#include <dir.h>
+ #endif
+ #include <signal.h>
+-#include <dir.h>
+ #include "getopt.h"
+ 
+ #define MOREWORK  128                          /* more work signal */
+@@ -62,19 +64,20 @@
+ char sysname[9] = "";
+ char fname[100];
+ void openlog(), closelog();
++int findxwork();
+ 
+ 
+ int main(argc, argv)
+ int argc;
+ char *argv[];
+ {
+-     int option, interrupt();
++     int option;
+      register char **sysptr;
+ 
+      log = NULL;
+      childid = -1;                                 /* no children yet */
+ 
+-     intercept (interrupt);                        /* set signal trap */
++     intercept ((sighandler_t) uucpbb_interrupt);                        /* set signal trap */
+      myuid = getuid();
+ 
+      if ((logdir = getenv ("LOGDIR")) != NULL)
+@@ -176,6 +179,7 @@
+      munload (rnews, 0);
+      closelog();
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -213,7 +217,7 @@
+ #ifndef _OSK
+           if (patmatch ("*uuxqt*", line, TRUE) == TRUE)
+ #else
+-          if (findstr (1, p, "uuxqt") != 0)
++          if (findstr (p, "uuxqt") != NULL)
+ #endif
+                if (atoi (p) != ourpid)
+                  {
+@@ -229,6 +233,7 @@
+           kill (uupid, MOREWORK);
+           exit (0);
+        }
++     return 0;
+ }
+ 
+ 
+@@ -341,6 +346,7 @@
+             }
+           closedir (dir);
+        }
++     return 0;
+ }
+ 
+ 
+@@ -399,7 +405,7 @@
+ 
+ 
+ 
+-int interrupt (sig)
++int uucpbb_interrupt (sig)
+ int sig;
+ {
+      switch (sig)
+@@ -425,6 +431,7 @@
+                closelog();
+                exit (sig);
+        }
++     return 0;
+ }
+ 
+ 
+@@ -436,9 +443,10 @@
+                    sender, sysname, gtime(), errormsg, msg);
+ 
+      if (errno != 0)
+-          fprintf ("...error #%d", errno);
++          fprintf (log, "...error #%d", errno);
+ 
+      putc ('\n', log);
++     return 0;
+ }
+ 
+ 
+@@ -446,9 +454,10 @@
+ int fatal (msg)
+ char *msg;
+ {
+-     interrupt (errno);
++     uucpbb_interrupt (errno);
+      error (msg);
+      exit (0);
++     return 0;
+ }
+ 
+ 
+@@ -479,4 +488,5 @@
+                       version, VERDATE);
+      fputs ("License.  Please send suggestions/bug reports to:  bob@kc2wz.bubble.org\n", stderr);
+      exit (0);
+-}
++     return 0;
++}
+--- a/whoami.c
++++ b/whoami.c
+@@ -25,6 +25,9 @@
+ #include <stdio.h>
+ #include <password.h>
+ 
++int getuid();
++int asetuid();
++
+ #ifndef ERROR
+ #define ERROR -1
+ #endif
+@@ -45,4 +48,5 @@
+           puts ("Intruder alert");
+      else
+           printf ("you are: %s (UID %d)\n", pwentry->unam, myuid);
++     return 0;
+ }
