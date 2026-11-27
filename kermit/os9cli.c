@@ -8,7 +8,10 @@ char c_buffer[100];
 
 client(ss)
 char ss;
-{ char sinit();
+{
+#ifndef KERMIT_MODERN
+  char sinit();
+#endif
 
   bit8status = UNKNOWN;
   n      = 0;
@@ -58,7 +61,7 @@ cligen()
     switch(t)
     { case 'N':
       case FALSE:
-        spack(c_type, n, strlen(c_buffer), c_buffer);    
+        spack(c_type, n, strlen(c_buffer), c_buffer);
         break;
 
       case 'E':
@@ -73,7 +76,7 @@ cligen()
           putc('\n', fp);
         }
         else if (c_buffer[0] == 'F')
-          fprintf(fp,"\nServer Terminated\n");    
+          fprintf(fp,"\nServer Terminated\n");
         fp = NULL;
         return(TRUE);
 

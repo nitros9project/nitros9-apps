@@ -1,4 +1,4 @@
-CP/M Emulator for OS-9 L2 6809
+# CP/M Emulator for OS-9 L2 6809
 
 This is an emulator to run native CP/M Z-80 applications on OS-9 file system. 
 
@@ -22,3 +22,10 @@ But you can call anytime as:
 You can copy cpm to your local /DD/CMDS folder as well. 
 
 Happy CP/M'ing...
+
+## Building
+
+With LWASM on `PATH`, run `make` in this directory to assemble the OS-9
+command `cpm`. Run `make clean` to remove the command, listings and maps.
+The [software](software/) directory contains the accompanying CP/M programs
+and their historical documentation.

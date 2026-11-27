@@ -7,7 +7,7 @@
 
 char
   *copy   = "copy",  *cwd    = "cwd",    *date    = "date",  *dir    = "dir",
-  *delete = "del",   *rename = "rename", *spaceXX = "free",  *typeXX = "list";
+  *delete = "del",   *renamecmd = "rename", *spaceXX = "free",  *typeXX = "list";
 
 extern char c_buffer[];
 
@@ -16,14 +16,17 @@ extern char **environ;
 char *argv[] = { "shell", NULL, NULL };
 int os9exec();
 #endif
+#ifndef KERMIT_HOST
 int os9fork();
+#endif
 
 command()
 { char command[81], *v[40];
+  FILE *input = stdin;
   struct sgbuf current, tmpsg;
 
   _gs_opt(0, &current);
-  _strass(&tmpsg, &insave, sizeof(tmpsg));
+  memcpy(&tmpsg, &insave, sizeof(tmpsg));
 
   if (tmpsg.sg_class == 0)
   { tmpsg.sg_kbich =
@@ -36,9 +39,9 @@ command()
   { fputs("\nKermit-09> ", stderr);
     fgets(command, 80, stdin);
 
-    if (ferror(stdin) || feof(stdin))
-    { clearerr(stdin);
-      cleareof(stdin);
+    if (ferror(input) || feof(input))
+    { clearerr(input);
+      cleareof(input);
       continue;
     }
 
@@ -61,9 +64,9 @@ command()
     }
 
     else if (!strncmp(command, "close session", 7))
-    { if (log)
-      { fclose(log);
-        log = NULL;
+    { if (session_log)
+      { fclose(session_log);
+        session_log = NULL;
       }
     }
 
@@ -126,15 +129,15 @@ command()
     }
 
     else if (!strncmp(command, "log session", 5))
-    { if (log)
+    { if (session_log)
       { fprintf(stderr,"Already logging session - must close this one\n");
         continue;
       }
-      else 
+      else
       { if (vector(command,v) < 1)
           v[1] = "session.log";
 
-        if ((log = fopen(v[1], "w")) == NULL)
+        if ((session_log = fopen(v[1], "w")) == NULL)
           fprintf(stderr,"Can't open '%s'\n",v[1]);
       }
     }
@@ -147,8 +150,8 @@ command()
     else if (!strncmp(command, "receive", 3))
        printmsg(recsw('R') == FALSE ? "Receive failed." : "done.");
 
-    else if (!strncmp(command, rename, 3))
-      doexec(rename, command);
+    else if (!strncmp(command, renamecmd, 3))
+      doexec(renamecmd, command);
 
     else if (!strncmp(command, "send", 3))
     { filecount = vector(command, v) - 1;
@@ -218,7 +221,7 @@ char *a, *b;
     return (0);
   }
   wait(&status);
-  
+
   if (status)
     fprintf(stderr, "Command '%s' returned with ERROR #%03d\n", a, errno);
 
@@ -241,7 +244,7 @@ char *s, *p[];
   while (*c == ' ')
     c++;
   if (*c == '\n')
-    return (NULL);
+    return 0;
 
   p[i++] = c;
 
@@ -328,7 +331,7 @@ int count;
       if (!generic)
         temp[pos++] = ' ';
     }
-  
+
     if (!generic)
       temp[pos-1] = '\0';
   }
@@ -362,7 +365,7 @@ dial(c)
       if ((numbers = fopen("/dd/sys/numbers", "r")) == NULL)
          if ((numbers = fopen("/d0/sys/numbers", "r")) == NULL)
             /* Error -- could not find the numbers file */
-            return;
+            return 0;
       while (fgets(line, 80, numbers) != NULL)
       {
          if (!strncmp(line, c, 3))  /* Only unique to the first 3 chars? */
@@ -375,7 +378,7 @@ dial(c)
             write(ttyfd, c, strlen(c));
             write(ttyfd, "\n", 1);
             fclose(numbers);
-            return;
+            return 0;
          }
       }
       fclose(numbers);

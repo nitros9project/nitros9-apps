@@ -62,3 +62,16 @@ reference derived from the original Release 3.00 manual.
 
 No ownership, licensing, or redistribution rights are implied by the presence
 of the historical material in this repository.
+
+## Building
+
+With LWTOOLS and ToolShed on `PATH`, run from this directory:
+
+```sh
+make NITROS9DIR=/path/to/nitros9
+```
+
+The build delegates to [6809l2](6809l2/) and produces
+`6809l2/OS9L2BBS.dsk`. Run `make clean` to remove generated artifacts.
+The preserved reference image is described separately in
+[reference/README.md](reference/README.md).

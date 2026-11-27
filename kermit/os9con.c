@@ -12,22 +12,24 @@ extern char **environ;
 char *argv[] = { "shell", NULL, NULL };
 int os9exec();
 #endif
+#ifndef KERMIT_HOST
 int os9fork();
+#endif
 
 char *chelp[] =
-{   "C to close the connection, or:\r\l", 
-    "  0 (zero) to send a null\r\l",
-    "  P Push to system command processor\r\l",
-    "  Q Quit logging\r\l",
-    "  R Resume logging\r\l",
-    "  ? for help\r\l",
-    " escape character twice to send the escape character.\r\l\r\l", NULL
+{   "C to close the connection, or:\r\012",
+    "  0 (zero) to send a null\r\012",
+    "  P Push to system command processor\r\012",
+    "  Q Quit logging\r\012",
+    "  R Resume logging\r\012",
+    "  ? for help\r\012",
+    " escape character twice to send the escape character.\r\012\r\012", NULL
 };
 
 int get_action()
 { char chr;
 
-  printmsg("%s \l", escdisp);
+  printmsg("%s \012", escdisp);
   read(0, &chr, 1);
 
   switch (chr)
@@ -82,7 +84,7 @@ connect()
 
   if (!local)                       /* Nothing to connect to in remote mode */
   { printmsg("No line specified for connection.");
-    return ;
+    return 0;
   }
 
   raw(0, &insave);                                 /* Put input in raw mode */
@@ -98,27 +100,27 @@ connect()
     escdisp[1] = 0;
   }
 
-  printmsg("connected escape = %s ...\r\l", escdisp);
+  printmsg("connected escape = %s ...\r\012", escdisp);
 
   for (;;)
   { if ((tmp = _gs_rdy(ttyfd)) < 0)
     { if (errno != E_NOTRDY)
-        printmsg("_gs_rdy() errno = %d\r\l", errno);
+        printmsg("_gs_rdy() errno = %d\r\012", errno);
     }
     else if ((tmp = read(ttyfd, cbuf, tmp)) < 0)
-      printmsg("read() errno = %d\r\l", errno);
+      printmsg("read() errno = %d\r\012", errno);
     else
     { if (!image)
       { for (buf = &cbuf[tmp]; buf > cbuf; )
           *--buf &= '\177';
       }
       if (write(1, cbuf, tmp) < 0)
-        printmsg("write() errno = %d\r\l", errno);
+        printmsg("write() errno = %d\r\012", errno);
 
-      if (log && logon)
-        if (fwrite(cbuf, 1, tmp, log) == NULL)
+      if (session_log && logon)
+        if (fwrite(cbuf, 1, tmp, session_log) == NULL)
         { fprintf(stderr, "ERR:  Closing log file\n");
-          fclose(log);
+          fclose(session_log);
         }
     }
 

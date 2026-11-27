@@ -1,19 +1,23 @@
-include $(NITROS9DIR)/rules.mak
+.DEFAULT_GOAL := all
+COMPILER ?= c3
+OPT ?= Os
+TICKS ?= 60
+JOBS ?= 8
+PYTHON ?= python3
+HOST_CC ?= cc
 
-CFLAGS += -y -q -dCOCO
-
-RFILES = os9cli.r os9cmd.r os9con.r os9ker.r os9rec.r os9sen.r os9srv.r os9utl.r
-
-# c3 -r compiles x.c to x.r
-%.r: %.c
-	$(CC) $(CFLAGS) $< -r
-
+.PHONY: all kermit c3 cmoc llvm test clean
 all: kermit
-
-kermit: $(RFILES)
-	$(CC) $(RFILES) -f=$@ -m=1k
-
-$(RFILES): os9inc.h
-
+kermit:
+	rm -f kermit
+	$(PYTHON) build/build.py --compiler $(COMPILER) --opt $(OPT) --ticks $(TICKS) --jobs $(JOBS)
+	cp build/out/$(COMPILER)/$(OPT)/kermit kermit
+c3 cmoc llvm:
+	$(MAKE) kermit COMPILER=$@
+test:
+	mkdir -p build/out/tests
+	$(HOST_CC) -std=c99 -Wall -Wextra -Werror -I. message.c tests/message_test.c -o build/out/tests/message_test
+	build/out/tests/message_test
 clean:
-	$(RM) $(RFILES) kermit
+	rm -rf build/out
+	rm -f *.r *.o *.list *.map kermit

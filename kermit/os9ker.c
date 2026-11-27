@@ -17,7 +17,7 @@ char scid[] = "$Header: os9ker, v21.5 90/06/02 15:10:43 SrT $";
 *  Walter Underwood, Ford Aerospace
 *  Glenn Seaton, Kennedy Space Center
 *  Bradley Bosch,
-*  Robert Larson, U. of Southern California <Blarson@usc-ecl>  
+*  Robert Larson, U. of Southern California <Blarson@usc-ecl>
 *  James Jones
 *  Simmule Turner (simmy@nu.cs.fsu.edu)
 *
@@ -79,7 +79,7 @@ char scid[] = "$Header: os9ker, v21.5 90/06/02 15:10:43 SrT $";
 *  - in view of Kermit's avoidance of control characters (save for SOH),
 *    and to let the user avoid buffer overruns, made wiping xon/xoff
 *    fields in path descriptors optional (we also actually look at the
-*    return values from our reads now...). 
+*    return values from our reads now...).
 * 07/02/85 ral
 *  - Add connect command from Brad Bosch's os9 kermit
 *  - Rewrite setstat/getstat for putting in raw mode (os9raw.c)
@@ -161,15 +161,15 @@ char **argv;
   eol = CR;                                     /* EOL for outgoing packets */
   quote = '#';                           /* Standard control-quote char "#" */
   pad = 0;                                                    /* No padding */
-  padchar = NULL;                         /* Use null if any padding wanted */
+  padchar = '\0';                         /* Use null if any padding wanted */
   bctu = bctr = 1;                       /* Default to 1 character checksum */
   cflg = sflg = rflg = 0;                       /* Turn off all parse flags */
   server = qflg = gflg = hflg = 0;
   ttyname = NULL;                                 /* Default is remote mode */
-  cx = cz = 
+  cx = cz =
   sentxz  = FALSE;
 
-  log = NULL;
+  session_log = NULL;
   kflg = 0;
 
   image = FALSE;
@@ -182,7 +182,7 @@ char **argv;
     { case '1':
       case '2':
         bctr = *(cp-1) - '0';
-        break; 
+        break;
       case 'c' :
         cflg++;
         break;                                       /* C = Connect command */
@@ -250,7 +250,7 @@ char **argv;
     local = TRUE;                           /* Indicate we're in local mode */
   }
   else
-  { 
+  {
     /* No LINE specified so we operate in remote mode
      * (i.e. controlling tty is the communications line) */
     ttyfd = 0;
@@ -286,7 +286,11 @@ char **argv;
   }
 
   /* All set up, now execute the command that was given. */
-  intercept(catcher);
+  intercept(
+#ifdef KERMIT_MODERN
+            (sighandler_t)
+#endif
+            catcher);
   timint = MYTIME;                            /* how long to wait 1st time? */
 
   if (cflg)

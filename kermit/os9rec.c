@@ -55,7 +55,7 @@ char rinit()
 { int len, num;                                    /* Packet length, number */
   char sfile();                             /* routine used for get command */
 
-  sentxz = 
+  sentxz =
   rptflg = FALSE;
 
   if (numtry++ > MAXTRY)

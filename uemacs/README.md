@@ -1,3 +1,23 @@
+# MicroEMACS for OS-9
+
+The Bob Santy/Bob Larson MicroEMACS port, distributed by Jim Omura in 1986.
+The original distribution message is preserved below.
+
+## Building
+
+Cross-build from this directory with C3 and LWTOOLS on `PATH`:
+
+```sh
+make NITROS9DIR=/path/to/nitros9
+```
+
+Set `C3BASE` to the C3 installation. The build produces `umacs` for ANSI
+terminals and `umacsc` for CoCo terminal control codes. Run `make clean`
+to remove generated objects and commands.
+
+## Original distribution message
+
+```text
 From: jimomura@lsuc.UUCP (Jim Omura)
 Newsgroups: net.micro.6809
 Subject: MicroEMACS OS-9 Part 1 of 7
@@ -26,5 +46,4 @@ to upload it from my Color Computer to 'lsuc' and other fiascos.
 the whole mess.
 
                                            Cheers! -- Jim Omura
-
- 
+```
