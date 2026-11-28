@@ -1,0 +1,844 @@
+[
+  {
+    "id": "normal",
+    "app": "uniq",
+    "args": [],
+    "input": "alpha\nalpha\nbeta\nGamma\nGamma\nGamma\ndelta\n",
+    "output": "alpha\nbeta\nGamma\ndelta\n"
+  },
+  {
+    "id": "unique",
+    "app": "uniq",
+    "args": [
+      "-u"
+    ],
+    "input": "alpha\nalpha\nbeta\nGamma\nGamma\nGamma\ndelta\n",
+    "output": "beta\ndelta\n"
+  },
+  {
+    "id": "repeated",
+    "app": "uniq",
+    "args": [
+      "-d"
+    ],
+    "input": "alpha\nalpha\nbeta\nGamma\nGamma\nGamma\ndelta\n",
+    "output": "alpha\nGamma\n"
+  },
+  {
+    "id": "counts",
+    "app": "uniq",
+    "args": [
+      "-c"
+    ],
+    "input": "alpha\nalpha\nbeta\nGamma\nGamma\nGamma\ndelta\n",
+    "output": "2 alpha\n1 beta\n3 Gamma\n1 delta\n"
+  },
+  {
+    "id": "fields",
+    "app": "uniq",
+    "args": [
+      "-1"
+    ],
+    "input": "one same\ntwo same\nthree other\n",
+    "output": "one same\nthree other\n"
+  },
+  {
+    "id": "chars",
+    "app": "uniq",
+    "args": [
+      "^1"
+    ],
+    "input": "afoo\nbfoo\ncbar\n",
+    "output": "afoo\ncbar\n"
+  },
+  {
+    "id": "empty",
+    "app": "uniq",
+    "args": [],
+    "input": "",
+    "output": ""
+  },
+  {
+    "id": "nonadj",
+    "app": "uniq",
+    "args": [],
+    "input": "alpha\nbeta\nalpha\n",
+    "output": "alpha\nbeta\nalpha\n"
+  },
+  {
+    "id": "literal",
+    "app": "dgrep",
+    "args": [
+      "alpha"
+    ],
+    "input": "Alpha\nbeta\nALPHABET\naab\nacb\n123\n\n",
+    "output": "Alpha\nALPHABET\n"
+  },
+  {
+    "id": "anchor",
+    "app": "dgrep",
+    "args": [
+      "^alpha$"
+    ],
+    "input": "Alpha\nbeta\nALPHABET\naab\nacb\n123\n\n",
+    "output": "Alpha\n"
+  },
+  {
+    "id": "class",
+    "app": "dgrep",
+    "args": [
+      "^a[ac]+b$"
+    ],
+    "input": "Alpha\nbeta\nALPHABET\naab\nacb\n123\n\n",
+    "output": "aab\nacb\n"
+  },
+  {
+    "id": "star",
+    "app": "dgrep",
+    "args": [
+      "^ab*$"
+    ],
+    "input": "a\nab\nabbb\nac\n",
+    "output": "a\nab\nabbb\n"
+  },
+  {
+    "id": "plus",
+    "app": "dgrep",
+    "args": [
+      "^ab+$"
+    ],
+    "input": "a\nab\nabbb\nac\n",
+    "output": "ab\nabbb\n"
+  },
+  {
+    "id": "digit",
+    "app": "dgrep",
+    "args": [
+      ":d+"
+    ],
+    "input": "Alpha\nbeta\nALPHABET\naab\nacb\n123\n\n",
+    "output": "123\n"
+  },
+  {
+    "id": "count",
+    "app": "dgrep",
+    "args": [
+      "-c",
+      "alpha"
+    ],
+    "input": "Alpha\nbeta\nALPHABET\naab\nacb\n123\n\n",
+    "output": "2\n"
+  },
+  {
+    "id": "invert",
+    "app": "dgrep",
+    "args": [
+      "-v",
+      "alpha"
+    ],
+    "input": "Alpha\nbeta\nALPHABET\naab\nacb\n123\n\n",
+    "output": "beta\naab\nacb\n123\n\n"
+  },
+  {
+    "id": "numbers",
+    "app": "dgrep",
+    "args": [
+      "-n",
+      "alpha"
+    ],
+    "input": "Alpha\nbeta\nALPHABET\naab\nacb\n123\n\n",
+    "output": "1\tAlpha\n3\tALPHABET\n"
+  },
+  {
+    "id": "file",
+    "app": "dgrep",
+    "args": [
+      "-f",
+      "alpha",
+      "INPUT"
+    ],
+    "input": "Alpha\nbeta\nALPHABET\naab\nacb\n123\n\n",
+    "output": "Alpha\nALPHABET\n"
+  },
+  {
+    "id": "nomatch",
+    "app": "dgrep",
+    "args": [
+      "zzzzz"
+    ],
+    "input": "Alpha\nbeta\nALPHABET\naab\nacb\n123\n\n",
+    "output": ""
+  },
+  {
+    "id": "append-print",
+    "app": "ed",
+    "args": [
+      "-"
+    ],
+    "input": "a\nalpha\nbeta\n.\n1,$p\nQ\n",
+    "output": "alpha\nbeta\n"
+  },
+  {
+    "id": "substitute",
+    "app": "ed",
+    "args": [
+      "-"
+    ],
+    "input": "a\nalpha alpha\nbeta\n.\n1s/alpha/ALPHA/g\n1,$p\nQ\n",
+    "output": "ALPHA ALPHA\nbeta\n"
+  },
+  {
+    "id": "delete",
+    "app": "ed",
+    "args": [
+      "-"
+    ],
+    "input": "a\none\ntwo\nthree\n.\n2d\n1,$p\nQ\n",
+    "output": "one\nthree\n"
+  },
+  {
+    "id": "insert",
+    "app": "ed",
+    "args": [
+      "-"
+    ],
+    "input": "a\none\nthree\n.\n2i\ntwo\n.\n1,$p\nQ\n",
+    "output": "one\ntwo\nthree\n"
+  },
+  {
+    "id": "move",
+    "app": "ed",
+    "args": [
+      "-"
+    ],
+    "input": "a\none\ntwo\nthree\n.\n1m3\n1,$p\nQ\n",
+    "output": "two\nthree\none\n"
+  },
+  {
+    "id": "global",
+    "app": "ed",
+    "args": [
+      "-"
+    ],
+    "input": "a\nred\nblue\nredder\n.\ng/red/p\nQ\n",
+    "output": "red\nredder\n"
+  },
+  {
+    "id": "save-reopen",
+    "app": "ed",
+    "args": [
+      "-"
+    ],
+    "input": "a\nalpha\nbeta\n.\n1s/alpha/ALPHA/\nw @RESULT@\nE @RESULT@\n1,$p\nq\n",
+    "output": "ALPHA\nbeta\n",
+    "output_files": {
+      "RESULT": "ALPHA\nbeta\n"
+    }
+  },
+  {
+    "id": "read-native",
+    "app": "ed",
+    "args": [
+      "-"
+    ],
+    "input": "r @SOURCE@\n1,$p\nQ\n",
+    "output": "alpha\nbeta\n",
+    "files": {
+      "SOURCE": "alpha\nbeta\n"
+    }
+  },
+  {
+    "id": "empty",
+    "app": "cb",
+    "args": [],
+    "input": "",
+    "output": ""
+  },
+  {
+    "id": "block",
+    "app": "cb",
+    "args": [],
+    "input": "int main(){return 0;}\n",
+    "output": "int main(){\n   return 0;\n}\n"
+  },
+  {
+    "id": "nested-if",
+    "app": "cb",
+    "args": [],
+    "input": "void f(){if(a){b();}else{c();}}\n",
+    "output": "void f(){\n   if(a){\n      b();\n   }\n   else{\n      c();\n   }\n}\n"
+  },
+  {
+    "id": "comments",
+    "app": "cb",
+    "args": [],
+    "input": "/* heading */\nvoid f(){/* note */x=1;}\n",
+    "output": "/* heading */\nvoid f(){/* note */\n   x=1;\n}\n"
+  },
+  {
+    "id": "quoted",
+    "app": "cb",
+    "args": [],
+    "input": "void f(){s=\"{;}\";c='}';}\n",
+    "output": "void f(){\n   s=\"{;}\";\n   c='}';\n}\n"
+  },
+  {
+    "id": "for",
+    "app": "cb",
+    "args": [],
+    "input": "void f(){for(i=0;i<2;i++){x++;}}\n",
+    "output": "void f(){\n   for(i=0;i<2;i++){\n      x++;\n   }\n}\n"
+  },
+  {
+    "id": "switch",
+    "app": "cb",
+    "args": [],
+    "input": "void f(){switch(x){case 1:y();break;default:z();}}\n",
+    "output": "void f(){\n   switch(x){\n   case 1:\n      y();\n      break;\n   default:\n      z();\n   }\n}\n"
+  },
+  {
+    "id": "preprocessor",
+    "app": "cb",
+    "args": [],
+    "input": "#define N 2\nvoid f(){x=N;}\n",
+    "output": "#define N 2\nvoid f(){\n   x=N;\n}\n"
+  },
+  {
+    "id": "empty-archive",
+    "app": "lb",
+    "args": [
+      "INPUT"
+    ],
+    "isolated": true,
+    "input_hex": "",
+    "output": "",
+    "output_files": {
+      "LIST": {
+        "path": "modlist",
+        "text": ""
+      }
+    }
+  },
+  {
+    "id": "single-module",
+    "app": "lb",
+    "args": [
+      "INPUT"
+    ],
+    "isolated": true,
+    "input_hex": "62cd23871180001a0b1a0d0a010000000000000000000001010000006f6e650000003900000000",
+    "output": "",
+    "output_files": {
+      "LIST": {
+        "path": "modlist",
+        "text": "one\n"
+      },
+      "one": {
+        "path": "X.one.r",
+        "hex": "62cd23871180001a0b1a0d0a010000000000000000000001010000006f6e650000003900000000"
+      }
+    }
+  },
+  {
+    "id": "multiple-modules",
+    "app": "lb",
+    "args": [
+      "INPUT"
+    ],
+    "isolated": true,
+    "input_hex": "62cd23871180001a0b1a0d0a0100000000000000000000030100000066697273740000008601390000000062cd23871180001a0b1a0d0a010000000000000600000001010000007365636f6e640000003968656c6c6f0000000000",
+    "output": "",
+    "output_files": {
+      "LIST": {
+        "path": "modlist",
+        "text": "first\nsecond\n"
+      },
+      "first": {
+        "path": "X.first.r",
+        "hex": "62cd23871180001a0b1a0d0a01000000000000000000000301000000666972737400000086013900000000"
+      },
+      "second": {
+        "path": "X.second.r",
+        "hex": "62cd23871180001a0b1a0d0a010000000000000600000001010000007365636f6e640000003968656c6c6f0000000000"
+      }
+    }
+  },
+  {
+    "id": "all-byte-values",
+    "app": "lb",
+    "args": [
+      "INPUT"
+    ],
+    "isolated": true,
+    "input_hex": "62cd23871180001a0b1a0d0a0100000000000100000501000100000062696e617279000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000d0a80fffffefdfcfbfaf9f8f7f6f5f4f3f2f1f0efeeedecebeae9e8e7e6e5e4e3e2e1e0dfdedddcdbdad9d8d7d6d5d4d3d2d1d0cfcecdcccbcac9c8c7c6c5c4c3c2c1c0bfbebdbcbbbab9b8b7b6b5b4b3b2b1b0afaeadacabaaa9a8a7a6a5a4a3a2a1a09f9e9d9c9b9a999897969594939291908f8e8d8c8b8a898887868584838281807f7e7d7c7b7a797877767574737271706f6e6d6c6b6a696867666564636261605f5e5d5c5b5a595857565554535251504f4e4d4c4b4a494847464544434241403f3e3d3c3b3a393837363534333231302f2e2d2c2b2a292827262524232221201f1e1d1c1b1a191817161514131211100f0e0d0c0b0a0908070605040302010000000000",
+    "output": "",
+    "output_files": {
+      "LIST": {
+        "path": "modlist",
+        "text": "binary\n"
+      },
+      "binary": {
+        "path": "X.binary.r",
+        "hex": "62cd23871180001a0b1a0d0a0100000000000100000501000100000062696e617279000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000d0a80fffffefdfcfbfaf9f8f7f6f5f4f3f2f1f0efeeedecebeae9e8e7e6e5e4e3e2e1e0dfdedddcdbdad9d8d7d6d5d4d3d2d1d0cfcecdcccbcac9c8c7c6c5c4c3c2c1c0bfbebdbcbbbab9b8b7b6b5b4b3b2b1b0afaeadacabaaa9a8a7a6a5a4a3a2a1a09f9e9d9c9b9a999897969594939291908f8e8d8c8b8a898887868584838281807f7e7d7c7b7a797877767574737271706f6e6d6c6b6a696867666564636261605f5e5d5c5b5a595857565554535251504f4e4d4c4b4a494847464544434241403f3e3d3c3b3a393837363534333231302f2e2d2c2b2a292827262524232221201f1e1d1c1b1a191817161514131211100f0e0d0c0b0a0908070605040302010000000000"
+      }
+    }
+  },
+  {
+    "id": "symbols-and-references",
+    "app": "lb",
+    "args": [
+      "INPUT"
+    ],
+    "isolated": true,
+    "input_hex": "62cd23871180001a0b1a0d0a0100000000000004000300200100000072656673000002656e747279000400006461746100010002000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f0d0a00ff800d0a00016f75747369646500000220000a20000d000320000320000a20000d",
+    "output": "",
+    "output_files": {
+      "LIST": {
+        "path": "modlist",
+        "text": "refs\n        entry\n        data\n"
+      },
+      "refs": {
+        "path": "X.refs.r",
+        "hex": "62cd23871180001a0b1a0d0a0100000000000004000300200100000072656673000002656e747279000400006461746100010002000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f0d0a00ff800d0a00016f75747369646500000220000a20000d000320000320000a20000d"
+      }
+    }
+  },
+  {
+    "id": "numbered",
+    "app": "ppc",
+    "args": [
+      "@SOURCE@"
+    ],
+    "isolated": true,
+    "input": "",
+    "files": {
+      "SOURCE": {
+        "path": "sample",
+        "text": "alpha\nbeta\n"
+      }
+    },
+    "output": "\n\nsample                                      11/26/26  13:45:06       Page   1\n\n  1=alpha\n  2=beta\n\f"
+  },
+  {
+    "id": "no-numbers",
+    "app": "ppc",
+    "args": [
+      "-n",
+      "@SOURCE@"
+    ],
+    "isolated": true,
+    "input": "",
+    "files": {
+      "SOURCE": {
+        "path": "sample",
+        "text": "alpha\nbeta\n"
+      }
+    },
+    "output": "\n\nsample                                      11/26/26  13:45:06       Page   1\n\nalpha\nbeta\n\f"
+  },
+  {
+    "id": "forced-page",
+    "app": "ppc",
+    "args": [
+      "@SOURCE@"
+    ],
+    "isolated": true,
+    "input": "",
+    "files": {
+      "SOURCE": {
+        "path": "sample",
+        "text": "alpha\n/*page*/\nbeta\n"
+      }
+    },
+    "output": "\n\nsample                                      11/26/26  13:45:06       Page   1\n\n  1=alpha\n\f\n\nsample                                      11/26/26  13:45:06       Page   2\n\n  3=beta\n\f"
+  },
+  {
+    "id": "suppression",
+    "app": "ppc",
+    "args": [
+      "@SOURCE@"
+    ],
+    "isolated": true,
+    "input": "",
+    "files": {
+      "SOURCE": {
+        "path": "sample",
+        "text": "alpha\n/*noprint*/\nhidden\n/*print*/\nbeta\n"
+      }
+    },
+    "output": "\n\nsample                                      11/26/26  13:45:06       Page   1\n\n  1=alpha\n  5=beta\n\f"
+  },
+  {
+    "id": "page-boundary",
+    "app": "ppc",
+    "args": [
+      "@SOURCE@"
+    ],
+    "isolated": true,
+    "input": "",
+    "files": {
+      "SOURCE": {
+        "path": "sample",
+        "text": "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\nline11\nline12\nline13\nline14\nline15\nline16\nline17\nline18\nline19\nline20\nline21\nline22\nline23\nline24\nline25\nline26\nline27\nline28\nline29\nline30\nline31\nline32\nline33\nline34\nline35\nline36\nline37\nline38\nline39\nline40\nline41\nline42\nline43\nline44\nline45\nline46\nline47\nline48\nline49\nline50\nline51\nline52\nline53\nline54\nline55\nline56\nline57\nline58\nline59\nline60\nline61\n"
+      }
+    },
+    "output": "\n\nsample                                      11/26/26  13:45:06       Page   1\n\n  1=line1\n  2=line2\n  3=line3\n  4=line4\n  5=line5\n  6=line6\n  7=line7\n  8=line8\n  9=line9\n 10=line10\n 11=line11\n 12=line12\n 13=line13\n 14=line14\n 15=line15\n 16=line16\n 17=line17\n 18=line18\n 19=line19\n 20=line20\n 21=line21\n 22=line22\n 23=line23\n 24=line24\n 25=line25\n 26=line26\n 27=line27\n 28=line28\n 29=line29\n 30=line30\n 31=line31\n 32=line32\n 33=line33\n 34=line34\n 35=line35\n 36=line36\n 37=line37\n 38=line38\n 39=line39\n 40=line40\n 41=line41\n 42=line42\n 43=line43\n 44=line44\n 45=line45\n 46=line46\n 47=line47\n 48=line48\n 49=line49\n 50=line50\n 51=line51\n 52=line52\n 53=line53\n 54=line54\n 55=line55\n 56=line56\n 57=line57\n 58=line58\n 59=line59\n\f\n\nsample                                      11/26/26  13:45:06       Page   2\n\n 60=line60\n 61=line61\n\f"
+  },
+  {
+    "id": "multiple-files",
+    "app": "ppc",
+    "args": [
+      "@SOURCE@",
+      "@OTHER@"
+    ],
+    "isolated": true,
+    "input": "",
+    "files": {
+      "SOURCE": {
+        "path": "sample",
+        "text": "alpha\n"
+      },
+      "OTHER": {
+        "path": "other",
+        "text": "beta\n"
+      }
+    },
+    "output": "\n\nsample                                      11/26/26  13:45:06       Page   1\n\n  1=alpha\n\f\n\nother                                       11/26/26  13:45:06       Page   1\n\n  1=beta\n\f"
+  },
+  {
+    "id": "empty",
+    "app": "ppc",
+    "args": [
+      "@SOURCE@"
+    ],
+    "isolated": true,
+    "input": "",
+    "files": {
+      "SOURCE": {
+        "path": "sample",
+        "text": ""
+      }
+    },
+    "output": "\n\nsample                                      11/26/26  13:45:06       Page   1\n\n\f"
+  },
+  {
+    "id": "directives-column-one",
+    "app": "ppc",
+    "args": [
+      "@SOURCE@"
+    ],
+    "isolated": true,
+    "input": "",
+    "files": {
+      "SOURCE": {
+        "path": "sample",
+        "text": " /*page*/\n/*page*/ trailing\n/*print*/ trailing\n"
+      }
+    },
+    "output": "\n\nsample                                      11/26/26  13:45:06       Page   1\n\n  1= /*page*/\n  2=/*page*/ trailing\n  3=/*print*/ trailing\n\f"
+  },
+  {
+    "id": "insert-save",
+    "app": "umacs",
+    "args": [],
+    "isolated": true,
+    "input": "alpha\nbeta\n\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 2 lines]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "alpha\nbeta\n"
+      }
+    }
+  },
+  {
+    "id": "insert-save",
+    "app": "umacsc",
+    "args": [],
+    "isolated": true,
+    "input": "alpha\nbeta\n\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 2 lines]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "alpha\nbeta\n"
+      }
+    }
+  },
+  {
+    "id": "read-edit",
+    "app": "umacs",
+    "args": [
+      "@SOURCE@"
+    ],
+    "isolated": true,
+    "input": "\u0005!\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 2 lines]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "alpha!\nbeta\n"
+      }
+    },
+    "files": {
+      "SOURCE": {
+        "path": "source",
+        "text": "alpha\nbeta\n"
+      }
+    }
+  },
+  {
+    "id": "read-edit",
+    "app": "umacsc",
+    "args": [
+      "@SOURCE@"
+    ],
+    "isolated": true,
+    "input": "\u0005!\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 2 lines]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "alpha!\nbeta\n"
+      }
+    },
+    "files": {
+      "SOURCE": {
+        "path": "source",
+        "text": "alpha\nbeta\n"
+      }
+    }
+  },
+  {
+    "id": "delete-join",
+    "app": "umacs",
+    "args": [],
+    "isolated": true,
+    "input": "one\ntwo\u001b<\u0005\u0004\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 1 line]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "onetwo\n"
+      }
+    }
+  },
+  {
+    "id": "delete-join",
+    "app": "umacsc",
+    "args": [],
+    "isolated": true,
+    "input": "one\ntwo\u001b<\u0005\u0004\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 1 line]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "onetwo\n"
+      }
+    }
+  },
+  {
+    "id": "kill-yank",
+    "app": "umacs",
+    "args": [],
+    "isolated": true,
+    "input": "alpha\nbeta\n\u001b<\u000b\u0005\u0019\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 2 lines]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "alpha\nbeta\n"
+      }
+    }
+  },
+  {
+    "id": "kill-yank",
+    "app": "umacsc",
+    "args": [],
+    "isolated": true,
+    "input": "alpha\nbeta\n\u001b<\u000b\u0005\u0019\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 2 lines]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "alpha\nbeta\n"
+      }
+    }
+  },
+  {
+    "id": "word-case",
+    "app": "umacs",
+    "args": [],
+    "isolated": true,
+    "input": "alpha beta\u001b<\u001bu\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 1 line]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "ALPHA beta\n"
+      }
+    }
+  },
+  {
+    "id": "word-case",
+    "app": "umacsc",
+    "args": [],
+    "isolated": true,
+    "input": "alpha beta\u001b<\u001bu\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 1 line]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "ALPHA beta\n"
+      }
+    }
+  },
+  {
+    "id": "search-insert",
+    "app": "umacs",
+    "args": [],
+    "isolated": true,
+    "input": "alpha beta\u001b<\u0013beta\n!\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 1 line]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "alpha beta!\n"
+      }
+    }
+  },
+  {
+    "id": "search-insert",
+    "app": "umacsc",
+    "args": [],
+    "isolated": true,
+    "input": "alpha beta\u001b<\u0013beta\n!\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 1 line]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "alpha beta!\n"
+      }
+    }
+  },
+  {
+    "id": "region-kill",
+    "app": "umacs",
+    "args": [],
+    "isolated": true,
+    "input": "abcXYZ\u0001\u0006\u0006\u0006\u0000\u0005\u0017\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 1 line]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "abc\n"
+      }
+    }
+  },
+  {
+    "id": "region-kill",
+    "app": "umacsc",
+    "args": [],
+    "isolated": true,
+    "input": "abcXYZ\u0001\u0006\u0006\u0006\u0000\u0005\u0017\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 1 line]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "abc\n"
+      }
+    }
+  },
+  {
+    "id": "keyboard-macro",
+    "app": "umacs",
+    "args": [],
+    "isolated": true,
+    "input": "\u0018(xy\u0018)\u0018e\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 1 line]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "xyxy\n"
+      }
+    }
+  },
+  {
+    "id": "keyboard-macro",
+    "app": "umacsc",
+    "args": [],
+    "isolated": true,
+    "input": "\u0018(xy\u0018)\u0018e\u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 1 line]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "xyxy\n"
+      }
+    }
+  },
+  {
+    "id": "word-wrap",
+    "app": "umacs",
+    "args": [],
+    "isolated": true,
+    "input": "\u00155\u0018fone two \u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 2 lines]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "one\ntwo \n"
+      }
+    }
+  },
+  {
+    "id": "word-wrap",
+    "app": "umacsc",
+    "args": [],
+    "isolated": true,
+    "input": "\u00155\u0018fone two \u0018\u0017saved\n\u0018\u0003",
+    "output_contains": [
+      "[Wrote 2 lines]"
+    ],
+    "output_files": {
+      "RESULT": {
+        "path": "saved",
+        "text": "one\ntwo \n"
+      }
+    }
+  }
+]

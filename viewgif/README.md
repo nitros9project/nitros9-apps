@@ -115,3 +115,10 @@ This import replaces embedded assembly with C and library system-call wrappers,
 adds prototypes and build support, packs the LZW dictionary and palette tables
 to fit the 6809 address space, and checks malformed input. Dithering uses a small
 deterministic generator. Generated test fixtures are original test data.
+
+## VBCC builds
+
+This package also supports `make vbcc` using the shared 6809 VBCC build
+configuration. See [VBCC setup, local toolchain fixes, validation limits and
+module sizes](../build-support/vbcc/README.md). Outputs are in
+`build/out/vbcc/Os/`.

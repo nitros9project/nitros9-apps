@@ -1,0 +1,15 @@
+--- a/targets.c
++++ b/targets.c
+@@ -1203,6 +1203,12 @@
+     if (mask < 0) {
+       if (sign!=2 && bsiz<(int)gv->bits_per_taddr)  /* sign extend addresses */
+         insval = sign_extend(insval,gv->bits_per_taddr);
++      /* 6809 PC arithmetic wraps at 16 bits, including long branches
++         and the relative constructor table in an OS-9 module. */
++      if (t == R_PC && bsiz == 16 && fff[gv->dest_format]->addr_bits == 16 &&
++          !strcmp(fff[gv->dest_format]->tname,"os9-6809") &&
++          v >= -65535 && v <= 65535)
++        insval = sign_extend(insval & 0xffff,16);
+       if (!checkrange(insval,sign,bsiz))
+         return insval;  /* range check failed on 'insval' */
+     }

@@ -3,11 +3,11 @@ COMPILER ?= c3
 OPT ?= Os
 JOBS ?= 8
 PYTHON ?= python3
-.PHONY: all c3 cmoc llvm test clean
+.PHONY: all c3 cmoc llvm vbcc test clean
 all:
 	$(PYTHON) build/build.py --compiler $(COMPILER) --opt $(OPT) --jobs $(JOBS)
 	cp build/out/$(COMPILER)/$(OPT)/sled sled
-c3 cmoc llvm:
+c3 cmoc llvm vbcc:
 	$(MAKE) all COMPILER=$@
 # Supply BOOT, ROMS, MAME and OS9 for the interactive emulator test.
 test: all

@@ -113,3 +113,10 @@ archived spelling and type errors, bounds prompt and word-wrap buffers, uses
 byte-oriented keyboard input, and repairs current-line and end-of-file saving.
 The [historical CC3IO note](docs/cc3io-note.txt) describes an old OS-9 patch;
 it is not an instruction to patch a current NitrOS-9 installation.
+
+## VBCC builds
+
+This package also supports `make vbcc` using the shared 6809 VBCC build
+configuration. See [VBCC setup, local toolchain fixes, validation limits and
+module sizes](../build-support/vbcc/README.md). Outputs are in
+`build/out/vbcc/Os/`.

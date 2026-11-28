@@ -174,7 +174,7 @@ int set_scrn(void)
 
 int get_size(void)
 {
-    struct registers reg;
+    struct sled_regs reg;
     memset(&reg,0,sizeof(reg));
 
     reg.rg_a = 1;                     /* Set to do the SSsize Getstat call */

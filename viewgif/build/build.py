@@ -24,6 +24,9 @@ def run(command,cwd,log):
 
 
 def build(args):
+    if args.compiler == 'vbcc':
+        if args.opt != 'Os':raise ValueError('VBCC builds currently require --opt Os')
+        return subprocess.call([sys.executable, str(REPO/'build-support/vbcc.py'), '--package', 'viewgif'])
     out=ROOT/'build/out'/args.compiler/args.opt
     out.mkdir(parents=True,exist_ok=True)
     for name in TARGETS:
@@ -104,7 +107,7 @@ def build(args):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--compiler',choices=('c3','cmoc','llvm'),default='c3')
+    p.add_argument('--compiler',choices=('c3','cmoc','llvm','vbcc'),default='c3')
     p.add_argument('--opt',choices=('Os','Oz','O0','O1','O2','O3'),default='Os')
     p.add_argument('--jobs',type=int,default=8)
     args=p.parse_args()

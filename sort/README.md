@@ -70,3 +70,10 @@ make -f os9.mak                 # Native OS-9 build with cc1
 
 C3 and LWTOOLS must be on `PATH`; set `C3BASE` to the C3 installation.
 `os9.mak` is installed as the makefile when sources are copied to a NitrOS-9 disk.
+
+## VBCC builds
+
+This package also supports `make vbcc` using the shared 6809 VBCC build
+configuration. See [VBCC setup, local toolchain fixes, validation limits and
+module sizes](../build-support/vbcc/README.md). Outputs are in
+`build/out/vbcc/Os/`.

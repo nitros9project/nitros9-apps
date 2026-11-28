@@ -11,8 +11,12 @@
 #include <setjmp.h>
 #include <signal.h>
 #define direct
-#ifdef SLED_LLVM
+#if defined(SLED_LLVM) || defined(SLED_VBCC)
 #define system cmoc_system
+#endif
+#ifdef SLED_VBCC
+FILE *vb_raw_fopen(const char *,const char *);
+#define fopen vb_raw_fopen
 #endif
 int sled_key(void);
 #undef getchar
@@ -24,12 +28,12 @@ struct termopts {
  op_dulnch,op_psch,op_kbich,op_kbach,op_bsech,op_bellch,
  op_parity,op_baud,rest[10];
 };
-struct registers {int rg_x,rg_y; char rg_a,rg_b;};
+struct sled_regs {int rg_x,rg_y; char rg_a,rg_b;};
 #define I_GETSTT 0x8d
 #ifndef EOL
 #define EOL '\r'
 #endif
-int sled_os9(int code, struct registers *r);
+int sled_os9(int code, struct sled_regs *r);
 #define _os9 sled_os9
 int slgetopt(int code,int path,void *buf);
 int slsetopt(int code,int path,void *buf);

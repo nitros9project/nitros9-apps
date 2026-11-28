@@ -157,3 +157,10 @@ sent to him.
 
 Contributed by Boisy. The archive contains some AIF/icon
 files for a particular GUI on the MM/1 called Desktop.
+
+## VBCC builds
+
+This package also supports `make vbcc` using the shared 6809 VBCC build
+configuration. See [VBCC setup, local toolchain fixes, validation limits and
+module sizes](../build-support/vbcc/README.md). Outputs are in
+`build/out/vbcc/Os/`.

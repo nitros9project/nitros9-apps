@@ -86,3 +86,10 @@ The legacy C3/native message implementations remain available.
 
 The existing native `os9.mak` selects `cc1`, `rlink` and KLibc and defines
 `LEVEL2` for the historical library's timeout convention.
+
+## VBCC builds
+
+This package also supports `make vbcc` using the shared 6809 VBCC build
+configuration. See [VBCC setup, local toolchain fixes, validation limits and
+module sizes](../build-support/vbcc/README.md). Outputs are in
+`build/out/vbcc/Os/`.

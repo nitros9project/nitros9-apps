@@ -1,0 +1,15 @@
+--- a/machines/hc12/machine.c
++++ b/machines/hc12/machine.c
+@@ -3467,6 +3467,12 @@
+ 	  get_acc(f,p);
+ 	  reg=acc;
+ 	}
++      }
++      /* Do not overwrite the right operand before a subtraction. */
++      if(CPU==6809 && c==SUB && ISIDX(reg) && isreg(q2) && p->q2.reg==reg){
++        if(regs[acc] && !scratchreg(acc,p))
++          get_acc(f,p);
++        reg=acc;
+       }
+       if(c==ADD||c==ADDI2P||c==SUB||c==SUBIFP){
+ 	int opdone=0;
