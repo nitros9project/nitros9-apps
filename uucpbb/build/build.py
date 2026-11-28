@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build UUCPbb's C commands with C3, CMOC, or LLVM."""
+"""Build UUCPbb's C commands with C3, CMOC, LLVM, or VBCC."""
 import argparse
 import importlib.util
 import json
@@ -29,6 +29,12 @@ def run(command, cwd, log, env):
 def build(args):
     env = os.environ.copy()
     env['PATH'] = str(SHELF / 'bin') + os.pathsep + env.get('PATH', '')
+    if args.compiler == 'vbcc':
+        if args.opt != 'Os':raise ValueError('VBCC builds currently require --opt Os')
+        targets=json.loads((PACKAGE/'build-llvm/targets.json').read_text())
+        if args.target!='all' and args.target not in targets:raise ValueError('Unknown target: '+args.target)
+        selection=['--package','uucpbb'] if args.target=='all' else ['--target',args.target]
+        return subprocess.call([sys.executable,str(PACKAGE.parent/'build-support/vbcc.py'),*selection],env=env)
     if args.compiler == 'llvm':
         return subprocess.call([sys.executable, str(PACKAGE / 'build-llvm/build.py'),
                                 'build', '--target', args.target, '--opt', args.opt,
@@ -137,7 +143,7 @@ def build(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--compiler', choices=('c3', 'cmoc', 'llvm'), default='c3')
+    parser.add_argument('--compiler', choices=('c3', 'cmoc', 'llvm', 'vbcc'), default='c3')
     parser.add_argument('--target', default='all')
     parser.add_argument('--opt', default='Os', choices=('O0', 'O1', 'O2', 'O3', 'Os', 'Oz'))
     parser.add_argument('--jobs', default=8, type=int)

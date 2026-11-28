@@ -41,6 +41,10 @@ packages that provide them. Use `make clean` to remove generated commands and
 disk images. Most disk builds require the corresponding NitrOS-9 modules and
 commands to have been built first.
 
+All 39 C commands additionally support `make vbcc`; see the
+[VBCC build guide](build-support/vbcc/README.md) for dependencies, required
+local toolchain fixes, validation coverage and module sizes.
+
 ## Source and licensing
 
 Most packages were migrated from the NitrOS-9 `3rdparty/packages` tree.

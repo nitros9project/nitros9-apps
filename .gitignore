@@ -14,3 +14,18 @@ ed/ed
 # UUCPbb source-build artifacts.
 uucpbb/build/out/
 uucpbb/**/__pycache__/
+
+# Compiler-specific generated application builds.
+**/build/out/
+
+# Commands installed by legacy C application make targets.
+sort/sort
+uemacs/umacs
+uemacs/umacsc
+kreider/uniq/uniq
+kreider/cb/cb
+kreider/ppc/ppc
+kreider/dgrep/dgrep
+kreider/lb/lb
+mroff/man/man
+mroff/mroff/mroff

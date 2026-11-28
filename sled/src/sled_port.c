@@ -1,11 +1,11 @@
-/* OS-9 calls and CoWin control sequences shared by all three compilers. */
+/* OS-9 calls and CoWin control sequences shared by all supported compilers. */
 #include "sled_port.h"
 static int status(int result)
 {
  if(result) {errno=result;return -1;}
  return 0;
 }
-int sled_os9(int code,struct registers *r)
+int sled_os9(int code,struct sled_regs *r)
 {
  registers_6809 n;int result;
  memset(&n,0,sizeof(n));n.a=r->rg_a;n.b=r->rg_b;n.x=r->rg_x;n.y=r->rg_y;
@@ -91,6 +91,8 @@ void sled_sleep(int ticks) {_os9_sleep(&ticks);}
 int sled_key(void)
 {
  char c;int count,rc;
+ /* Raw reads bypass stdio: display complete prompts before waiting. */
+ fflush(stdout);fflush(stderr);
  count=1;rc=_os_read(0,&c,&count);
  if(rc || count!=1) return EOF;
  return ((int)c)&255;

@@ -1,0 +1,16 @@
+--- a/rw.s
++++ b/rw.s
+@@ -60,7 +60,12 @@
+ 	ldy	6,s
+ 	tfr	b,a
+ 	os9	I$Read
+-	bcs	erry
++	bcc	read_ok
++	cmpb	#211		; OS-9 E$EOF is a zero-byte POSIX read
++	bne	erry
++	ldd	#0
++	puls	y,pc
++read_ok:
+ 	tfr	y,d
+ 	puls	y,pc
+ 

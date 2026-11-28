@@ -50,6 +50,9 @@ def run(command, cwd, log, env):
 
 
 def build(args):
+    if args.compiler == 'vbcc':
+        if args.opt != 'Os':raise ValueError('VBCC builds currently require --opt Os')
+        return subprocess.call([sys.executable, str(REPO/'build-support/vbcc.py'), '--package', 'kermit', '--ticks', str(args.ticks)])
     env = os.environ.copy()
     out = ROOT / 'build/out' / args.compiler / args.opt
     out.mkdir(parents=True, exist_ok=True)
@@ -142,7 +145,7 @@ def build(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--compiler', choices=('c3', 'cmoc', 'llvm'), default='c3')
+    parser.add_argument('--compiler', choices=('c3', 'cmoc', 'llvm', 'vbcc'), default='c3')
     parser.add_argument('--opt', choices=('Os', 'Oz', 'O0', 'O1', 'O2', 'O3'), default='Os')
     parser.add_argument('--ticks', type=int, default=60)
     parser.add_argument('--jobs', type=int, default=8)

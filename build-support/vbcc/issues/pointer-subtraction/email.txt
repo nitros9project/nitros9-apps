@@ -1,0 +1,13 @@
+Subject: Two 6809 backend wrong-code reproducers: subtraction and accumulator preservation
+
+Hi Volker,
+
+I found two wrong-code cases in 6809 Release 1 Preview 2026-01-25 (vbcc V0.9i pre, hc12 backend V1.0). The attached ZIP contains separate small C89 reproducers, generated assembly, source archive hashes, and proposed patches.
+
+1. Pointer subtraction: with -cpu=6809 -pcrel -drel -O=1023, the backend computes the scaled offset in X, then loads top into X, destroying that offset. The resulting subtraction computes top-top and stores through address zero. The pristine source reproduces this; applying only the earlier frontend one-past-array fix does not cure it. An unoptimized native control and the patched optimized control both print POINTER SUBTRACTION PASS. The faulty optimized control corrupts its failure message, so it must run on a separate boot.
+
+2. Accumulator preservation / argument pushes: a small maprows() loop should map each of 192 rows to itself. The pristine optimized compiler prints ACCUMULATOR RESTORE FAIL on NitrOS-9; the corrected compiler prints ACCUMULATOR RESTORE PASS. The emitter removes a puls a,b / pshs b,a;ga pair even though the pair restores D. A second interaction inserts an extra accumulator save before PUSH, despite the long-argument PUSH code having its own preservation logic. The proposed patch retains the restore as ldd 0,s and lets PUSH use its own save logic.
+
+The second case was found because ViewGIF's color bars lost the expected shifts at one-third and two-thirds of the image. These reports keep compiler behavior separate from application compatibility changes and a separate vlink relocation issue.
+
+Please review the proposed fixes, including whether they should be restricted or generalized for other CPUs. I have not validated other backend targets.

@@ -6,13 +6,13 @@ JOBS ?= 8
 PYTHON ?= python3
 HOST_CC ?= cc
 
-.PHONY: all kermit c3 cmoc llvm test clean
+.PHONY: all kermit c3 cmoc llvm vbcc test clean
 all: kermit
 kermit:
 	rm -f kermit
 	$(PYTHON) build/build.py --compiler $(COMPILER) --opt $(OPT) --ticks $(TICKS) --jobs $(JOBS)
 	cp build/out/$(COMPILER)/$(OPT)/kermit kermit
-c3 cmoc llvm:
+c3 cmoc llvm vbcc:
 	$(MAKE) kermit COMPILER=$@
 test:
 	mkdir -p build/out/tests
