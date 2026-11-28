@@ -1,2 +1,6 @@
 # Unified patches preserve source whitespace and blank context lines.
 uucpbb/build/patches/*.patch -whitespace
+
+# Preserve whitespace in upstream patch context and removed lines.
+build-support/vbcc/*.patch -whitespace
+build-support/vbcc/**/*.patch -whitespace

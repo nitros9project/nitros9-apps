@@ -1,0 +1,28 @@
+--- a/type_expr.c
++++ b/type_expr.c
+@@ -592,18 +592,19 @@
+ 
+ static type *best_addi2pt(zmax sz)
+ {
++  /* The offset must represent the one-past address, not only sz - 1. */
+   if(!array_workaround){
+-    if(!zmeqto(sizetab[CHAR],sizetab[INT])&&!zmeqto(sz,Z0)&&MINADDUI2P<=(UNSIGNED|CHAR)&&zumleq(zm2zum(sz),zumadd(tu_max[CHAR],ZU1))){
++    if(!zmeqto(sizetab[CHAR],sizetab[INT])&&!zmeqto(sz,Z0)&&MINADDUI2P<=(UNSIGNED|CHAR)&&zumleq(zm2zum(sz),tu_max[CHAR])){
+       return &uct;
+-    }else if(!zmeqto(sizetab[CHAR],sizetab[INT])&&!zmeqto(sz,Z0)&&MINADDI2P<=CHAR&&zumleq(sz,zmadd(t_max[CHAR],Z1))){
++    }else if(!zmeqto(sizetab[CHAR],sizetab[INT])&&!zmeqto(sz,Z0)&&MINADDI2P<=CHAR&&zumleq(sz,t_max[CHAR])){
+       return &sct;
+-    }else if(!zmeqto(sizetab[SHORT],sizetab[INT])&&!zmeqto(sz,Z0)&&MINADDUI2P<=(UNSIGNED|SHORT)&&zumleq(zm2zum(sz),zumadd(tu_max[SHORT],ZU1))){
++    }else if(!zmeqto(sizetab[SHORT],sizetab[INT])&&!zmeqto(sz,Z0)&&MINADDUI2P<=(UNSIGNED|SHORT)&&zumleq(zm2zum(sz),tu_max[SHORT])){
+       return &ust;
+-    }else if(!zmeqto(sizetab[SHORT],sizetab[INT])&&!zmeqto(sz,Z0)&&MINADDI2P<=SHORT&&zmleq(sz,zmadd(t_max[SHORT],Z1))){
++    }else if(!zmeqto(sizetab[SHORT],sizetab[INT])&&!zmeqto(sz,Z0)&&MINADDI2P<=SHORT&&zmleq(sz,t_max[SHORT])){
+       return &sst;
+-    }else if((!HAVE_INT_SIZET)&&!zmeqto(sizetab[INT],sizetab[LONG])&&!zmeqto(sz,Z0)&&MINADDUI2P<=(UNSIGNED|INT)&&zumleq(zm2zum(sz),zumadd(tu_max[INT],ZU1))){
++    }else if((!HAVE_INT_SIZET)&&!zmeqto(sizetab[INT],sizetab[LONG])&&!zmeqto(sz,Z0)&&MINADDUI2P<=(UNSIGNED|INT)&&zumleq(zm2zum(sz),tu_max[INT])){
+       return &uit;
+-    }else if(!(HAVE_INT_SIZET)&&!zmeqto(sizetab[INT],sizetab[LONG])&&!zmeqto(sz,Z0)&&MINADDI2P<=INT&&zmleq(sz,zmadd(t_max[INT],Z1))){
++    }else if(!(HAVE_INT_SIZET)&&!zmeqto(sizetab[INT],sizetab[LONG])&&!zmeqto(sz,Z0)&&MINADDI2P<=INT&&zmleq(sz,t_max[INT])){
+       return &sit;
+     }
+   }

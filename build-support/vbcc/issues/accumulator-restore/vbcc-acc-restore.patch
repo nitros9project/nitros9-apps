@@ -1,0 +1,20 @@
+--- a/machines/hc12/machine.c
++++ b/machines/hc12/machine.c
+@@ -538,7 +538,7 @@
+     }
+ 
+     if(!strcmp(asmline[0],"\tpshs\tb,a;ga\n")&&!strcmp(asmline[1],"\tpuls\ta,b\n")){
+-      remove_asm();
++      strcpy(asmline[1],"\tldd\t0,s\n");
+       remove_asm();
+       return rm=1;
+     }
+@@ -2327,7 +2327,7 @@
+       continue;
+     }
+ 
+-    if(pulled_acc){
++    if(pulled_acc && c!=PUSH){
+       if(c==CALL||
+ 	 (isreg(q1)&&(p->q1.reg==acc||p->q1.reg==dx))||
+ 	 (isreg(q2)&&(p->q2.reg==acc||p->q2.reg==dx))||

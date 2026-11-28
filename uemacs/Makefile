@@ -1,3 +1,16 @@
+COMPILER ?= c3
+ifneq ($(filter vbcc,$(MAKECMDGOALS)),)
+COMPILER := vbcc
+endif
+ifeq ($(COMPILER),vbcc)
+.DEFAULT_GOAL := all
+.PHONY: all vbcc clean
+all:
+	python3 ../build-support/vbcc.py --package uemacs --install
+vbcc: all
+clean:
+	python3 -c 'import shutil; shutil.rmtree("../uemacs/build/out/vbcc",ignore_errors=True)'
+else
 #  makefile for Micro emacs for os9/68000
 # temp files on ram disk
 include $(NITROS9DIR)/rules.mak
@@ -39,3 +52,5 @@ $(RESTR) ueansi.r uecoco.r: ueed.h
 
 clean:
 	$(RM) $(RFILES) ueansi.r uecoco.r umacs umacsc
+
+endif

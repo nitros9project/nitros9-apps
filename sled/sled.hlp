@@ -1,0 +1,61 @@
+.po 0
+.ll 80
+.ce 1
+SLED Command Summary
+.bl 2
+.in 8
+Command                 Action
+-------                 --------------------------------------------
+Up Arrow                Move up one line.
+Down Arrow              Move down one line.
+Right Arrow             Move right one character.
+Left Arrow              Move left one character.
+Shift-Up Arrow          Move back on screen page.
+Shift-Down Arrow        Move forward one screen page.
+Shift-Right Arrow       Tab to next Tab stop.
+Shift-Left Arrow        Detab to previous Tab stop.
+.bl 1
+<ENTER>                 Start a new line.
+.bl 1
+Cntl - A                Add (or insert) a new line at cursor position.
+Cntl - B                Go to the beginning of the text buffer.
+Cntl - C                Clear to the end of the current line.
+Cntl - D                Delete the character under the cursor.
+Alt  - D                Change to a new directory.
+Cntl - E                Go to the end of the text buffer.
+Cntl - F                Alternate file read.
+Cntl - G                Enter Global Command Processor.
+Cntl - K                Delete the current line.
+Alt  - M                Mark block of text.
+Cntl - N                Insert a single SPACE at the cursor position.
+Cntl - O                Alternate output.  Doesn't delete lines.
+Cntl - P                Position the cursor to a text line.
+Cntl - Q                Quit SLED
+Cntl - R                Read an input file.
+Cntl - S                Set the left margin at the cursor position.
+Cntl - U                Update the text buffer.
+Alt  - U                User interface to the Shell.
+Cntl - V                Move to the next screen line.
+Cntl - W                Write the buffer to a file deleting lines.
+.bl 1
+Alt -- H                Show Help screens.
+.bl 1
+F1                      Toggle Insert Mode On/Off.
+F2                      Toggle Word-Wrap On/Off.
+Shift-F1                Toggle Auto-Indent Mode On/Off.
+.bl 1
+<ESC>ape (Cntl-Break)   Abort a command in progress.
+.bl 2
+.ce 1
+Global Commands
+.bl 1
+Command                 Action
+-------                 --------------------------------------------
+C                       Execute the copy of the marked block.
+M                       Execute the move of the marked block.
+K [#lines]              Kill block or #lines starting at cursor
+                        position.
+A #lines                Add #lines starting at cursor position.
+F/string/#times         Find <string> #times
+R/string1/string2/#     Replace <string1> with <string2> #times.
+

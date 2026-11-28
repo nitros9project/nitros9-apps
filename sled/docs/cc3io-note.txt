@@ -1,0 +1,17 @@
+                            CC3IO Patch
+
+If you will be using a Monochrome monitor with SLED, you will need to make
+a patch to the CC3IO module that corrects a bug.  Without this patch, SLED
+will be unable to determine the monitor type you are using.
+
+The patch is as follows:
+
+            Offset      Old Value    New Value
+            ------      ---------    ---------
+            $07D2         $E7          $ED
+
+This patch should be made to your system even if you are not planning on
+using a monochrome monitor since it corrects a rather serious bug in the
+OS9 system call to get the monitor type set using the MONTYPE command.
+
+Mark

@@ -69,3 +69,10 @@ Source archive: `PROG/Unpacked/SRC/lb_C_Lib_splitter.lzh (lb.c)`.
 
 > "copyright 1984 by Carl R. Kreider / released to the public domain
 > for non-commercial use"
+
+## VBCC builds
+
+This package also supports `make vbcc` using the shared 6809 VBCC build
+configuration. See [VBCC setup, local toolchain fixes, validation limits and
+module sizes](../build-support/vbcc/README.md). Outputs are in
+`build/out/vbcc/Os/`.

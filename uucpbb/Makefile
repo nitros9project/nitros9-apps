@@ -10,12 +10,14 @@ CMOC_OS9_DIR ?= $(abspath ../../nitros9-c-libs)
 NITROS9DIR ?= $(abspath ../../nitros9)
 export C3BASE CMOC_OS9_DIR NITROS9DIR
 
-ifneq ($(filter $(COMPILER),c3 cmoc llvm),$(COMPILER))
-$(error COMPILER must be c3, cmoc, or llvm)
+ifneq ($(filter $(COMPILER),c3 cmoc llvm vbcc),$(COMPILER))
+$(error COMPILER must be c3, cmoc, llvm, or vbcc)
 endif
 
 ifeq ($(COMPILER),llvm)
 OUT = build-llvm/out/$(OPT)
+else ifeq ($(COMPILER),vbcc)
+OUT = build/out/vbcc/Os
 else
 OUT = build/out/$(COMPILER)
 endif
@@ -30,12 +32,12 @@ DOCS = adduser.man aliases.doc chown.man cnvrtmail.man fileserv.man fixtext.man 
        uuclean.man uucp.man uucpbb.doc uulog.man uuxqt.man whoami.man
 DISKS = uucpbb21_6809.dsk uucpbb21_6309.dsk
 
-.PHONY: all commands components c3 cmoc llvm dsk clean dskcopy info
+.PHONY: all commands components c3 cmoc llvm vbcc dsk clean dskcopy info
 all: dsk
 commands:
 	$(PYTHON) build/build.py --compiler $(COMPILER) --target $(TARGET) --opt $(OPT) --jobs $(JOBS)
 components: commands
-c3 cmoc llvm:
+c3 cmoc llvm vbcc:
 	$(MAKE) commands COMPILER=$@
 
 # Keep the historical disk target names, but rebuild from the selected compiler

@@ -5,7 +5,7 @@ JOBS ?= 8
 PYTHON ?= python3
 HOST_CC ?= cc
 export HOST_CC
-.PHONY: all viewgif viewvef c3 cmoc llvm test clean
+.PHONY: all viewgif viewvef c3 cmoc llvm vbcc test clean
 all: viewgif viewvef
 viewgif:
 	rm -f viewgif viewvef
@@ -13,7 +13,7 @@ viewgif:
 	cp build/out/$(COMPILER)/$(OPT)/viewgif viewgif
 	cp build/out/$(COMPILER)/$(OPT)/viewvef viewvef
 viewvef: viewgif
-c3 cmoc llvm:
+c3 cmoc llvm vbcc:
 	$(MAKE) all COMPILER=$@
 test:
 	$(PYTHON) tests/test_decode.py
