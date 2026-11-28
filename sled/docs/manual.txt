@@ -1,0 +1,1122 @@
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 1
+
+
+
+
+
+
+
+
+
+                                  S L E D
+
+                                  Ver 2.2
+
+
+                             A Full Screen Editor
+
+
+                              by Mark Griffith
+
+
+
+                            (c) 1985, 1987, 1988
+                      All rights reserved by the author
+
+                  Copying for personal or educational benefit
+                  is allowed, but this program may not be
+                  sold individually or as part of a package,
+                  in whole or in part without the written
+                  consent of the authors.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 2
+
+
+                            - INTRODUCTION -
+
+    SLED  is  a  full screen, line oriented editor.  It was written to
+    work on the Tandy  Color  Computer  3  under  the  OS-9  operating
+    system,  but  should  work  on  any  OS-9 computer with some minor
+    modification.    If  used  on  the  Color  Computer  3  it    will
+    automatically  adjust  to the type and size of screen in operation
+    and use the windowing capabilities of OS9 Level II on the CoCo.
+
+    SLED  supports  all  the  functions  that  an  editor  should  and
+    includes  many  dedicated word processor capabilities such as word
+    wrapping, automatic  indentation  of  text  lines,  and  automatic
+    character  insert.   Also, SLED supports global processing such as
+    find and replace, block copies and  moves,  and  block  insertions
+    and deletions.
+
+    The  evolution  of  SLED started with the original version written
+    by Richard Johnson in 1985. SLED  was  uploaded  into  the  public
+    domain  and placed in the OS-9 User's Group library.  SLED was, at
+    that time, a generic editor designed to work on  almost  any  OS-9
+    machine.    When OS-9 Level II was released for the CoCo3 early in
+    1987, I found a need for a better and faster editor than what  was
+    already  available.    Looking  again  at  SLED, I saw it could be
+    rather easily modified to work  in  the  new  environment.    This
+    version  is  the  result  of  my many changes and additions to the
+    original code.
+
+    SLED has been modified for faster operation in the OS-9, Level  II
+    environment.    Screen  updating  has  been  improved and SLED now
+    makes use of new screen editing  features  of  Level  II  and  the
+    CoCo3.    In  addition,  and  most  importantly,  SLED  will  work
+    effortlessly with the new Windowing capabilities provided  by  the
+    CoCo3.
+
+    When  executed, SLED will determine the size of the window you are
+    currently in and  adjust  the  display  accordingly.    There  is,
+    however,  a  lower  limit  to the size of a window, and that is 40
+    columns by 16 lines.  SLED is able to adjust its  screen  size  to
+    the  size  of  the  window  in use, and will work correctly in any
+    window from the minimum size to a maximum  of  80  columns  by  24
+    lines.    Intermediate  window  sizes are all correctly supported.
+    If SLED is started in a window smaller than the minimum  size,  an
+    error  message  will  be  printed  on  the screen.  If SLED cannot
+    determine the size of the screen, it will default to a size of  80
+    columns by 24 rows.
+
+    The  large  majority  of  any  credit  for  SLED  should go to the
+    original author, Richard Johnson.  His modular  programming  style
+    and  the well thought out design of SLED made it extremely easy to
+    convert.  My thanks to him for his outstanding contribution  which
+    I hope will become widely used under Level II OS-9.
+
+
+
+
+
+
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 3
+
+    To  use SLED in the most effective way you should plan to also use
+    a text formatter such  as  the  MROFF  formatter  in  DL6  of  the
+    Compuserve  OS9  Forum.    This  formatter  uses the "dot" command
+    convention  and  is  extremely  easy  to  use  while  having  very
+    powerful  capabilities.    SLED  and  the MROFF formatter together
+    make a very powerful combination.
+
+    If anyone has  any  comments  or  complaints  about  SLED,  please
+    forward  them  to  me  as  Richard  Johnson is no longer active in
+    Compuserve.  I will answer any questions that I can.
+
+    My address is:
+
+            Mark Griffith
+            524-B South Conway Rd.
+            Orlando, FL.  32807
+
+         On Compuserve my UID is 76070,41
+         On Delphi my ID is MARKGRIFF
+
+    The address of Richard Johnson is:
+
+            4212 Marianna Road
+            Jacksonville, FL.  32217
+
+
+                            - A DISCLAIMER -
+
+    Any one using this program does so at his own risk.  There are  no
+    guarantees  given as to it's usefulness for any application.  Sale
+    or promotional use of this program is expressly forbidden  without
+    the authors written consent.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 4
+
+
+                     DESCRIPTION OF SLED FUNCTIONS
+
+
+                           - STARTING SLED -
+
+
+    To  begin  an editing session with SLED, start the editor with the
+    command:
+
+              OS9: sled [filename]
+
+    The filename is optional.  When the SLED  edit  window  comes  up,
+    any  file  named  on  the command line will be opened and the file
+    will be read into the edit buffer until it is full.    If  you  do
+    not  give  a  filename  on  the command line, you can then use the
+    READ command (CTRL-R) to read in as many text lines  as  you  wish
+    from  any  filename you give at the read prompt.  If you include a
+    filename and there is no matching file  on  the  disk,  SLED  will
+    create a new file by that name.
+
+    When  the  edit  window  is displayed, you will see a ruler bar at
+    the top of the window, and, depending  on  what  size  window  you
+    started  SLED  in,  the  SLED name and version number in the lower
+    right corner.  The actual size of the  edit  window  will  be  two
+    characters  less  than  the  total  window width, and 2 lines less
+    than the total window length.  For example, if you start  SLED  in
+    an  80  x 24 window, your edit window will be 78 characters across
+    by 22 lines.
+
+    The bottom line of the screen is the status line.   The  different
+    prompts  for the option flags will appear here when that option is
+    set.  See the example on the next page.
+
+    At this point let me mention the screen colors.   SLED  will  read
+    the  screen  type  and  the  currently  displayed  foreground  and
+    background colors when it  first  begins.    The  colors  you  had
+    defined  will not be changed in the edit window.  However, certain
+    colors were chosen for the status flags on the  status  line,  and
+    for  the overlay windows that pop up in response to your commands.
+    These colors  will  be  correct  on  an  RGB  or  Color  Composite
+    monitor.    With a monochrome monitor, SLED defaults to a white on
+    black screen.  When you exit  SLED,  any  palette  registers  that
+    were  changed will be restored to what they were before you began.
+    You must have used the MONTYPE command to set  your  monitor  type
+    for SLED to correctly read it.
+
+    SLED  begins  in  the  type-over  mode.  That is, any text that is
+    already on the screen will be written over by anything  you  type.
+    If  you  are  starting  a new file, just begin typing.  To issue a
+    command, press and hold down the CTRL key and then press  the  key
+    for  the  appropriate  command,  as in CTRL-G to invoke the global
+    processor.  Pressing ALT-H at  any  time  a  menu  or  an  overlay
+    window  is  not  present  will start the Help message function and
+    you will see a series of help screens to aid you  in  using  SLED.
+    Pressing  one  or more of the Function Keys (F1 / F2) or a Shifted
+    F1 key will invoke the editing option  for  that  key.    See  the
+    explanation of each command key function below.
+
+
+
+
+
+
+OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 5
+
+          This is an example of the SLED screen as you will see it.
+
+
+
+-----------------------------------------------------------------------------
+|....|....1....|....2....|....3....|....4....|....5....|....6....|....7....||
+|                                                ^                          |
+|                                          The ruler bar                    |
+|Your text will go here of course.                                          |
+|                                              Marker showing               |
+|                                              no CR at line end  ------>  -|
+|                                                                           |
+|                                                                           |
+|                                                                           |
+|                                                                           |
+|                   +----------------------------------+                    |
+|                   |                                  |                    |
+|                   | The Command Window appears here  |                    |
+|                   |                                  |                    |
+|                   +----------------------------------+                    |
+|                                                                           |
+|                                                                           |
+|                                                                           |
+|                                                                           |
+|         Option Flags (On when set)                                        |
+|           /        |        |     \                                       |
+|          /         |        |      \                                      |
+|         /          |        |       \       This is the last screen line  |
+|  Insert On   Word-Wrap  Auto-Indent  Block Marked           Sled Ver 2.2  |
+-----------------------------------------------------------------------------
+
+
+
+    Turning  on one of the options causes the option flag to appear on
+    the status line.  Press the same key or key combo to turn off  the
+    option.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 6
+
+                          - CURSOR MOVEMENT -
+
+
+    The  cursor  control keys operate as expected; <uparrow> moves the
+    cursor up one line, <downarrow> moves down one line,  <rightarrow>
+    moves  one  character position to the right and <leftarrow> one to
+    the left.
+
+    ENTER:
+
+         Pressing ENTER ends the current text line and  starts  a  new
+         screen  line.    SLED  does not mark the end of a line on the
+         screen with a carriage return marker.  Rather, it  marks  any
+         line  that DOES NOT end in a carriage return with a dash (-).
+         This is used to show you when a  line  wraps  around  to  the
+         next screen line, but is actually one continuous line.
+         You  can  press  ENTER  at any point in the line, EXCEPT when
+         the Insert-Mode function is turned on.  See  Insert-Mode  for
+         more details.
+
+    CTRL - Y:
+
+         This  command  starts  a  new  screen line but not a new text
+         line, i.e., the end of the line is NOT set  with  a  carriage
+         return  and  the  marker  will  appear.    This is useful for
+         entering lines longer the the width of the edit  window,  and
+         not  have  them  broken  in  the  output file.  Used often in
+         writing BASIC09 or "C" source code.  Typing past the  end  of
+         the  current  line will extend that line into the next screen
+         line without placing a carriage return character at the  end.
+
+    SHIFT Up-Arrow:
+
+         This command moves backwards one screen page.
+
+    SHIFT Down-Arrow:
+
+         This command moves forwards one screen page.
+
+    Shift Right-Arrow:
+
+         Tabs  to  the  next set tab stop or end of the current screen
+         line.  You will not be able to tab past the end of  a  screen
+         line,  but  you  can  move  to  the next line by pressing the
+         Right-Arrow key.  See the section  on  Insert-Mode  for  some
+         extra  instructions  on using the Tab keys.  SLED defaults to
+         a tab stop set every 4 spaces.  This is  different  than  the
+         usual  standard  of 8 spaces for a tab and is set as such for
+         "C" programming ease.
+
+    Shift Left-Arrow:
+
+         De-tabs to the previous tab stop or to the left margin.    If
+         the  Auto-Indent option is on, this is the only way of moving
+         the cursor back to the left of the indented position.
+
+
+
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 7
+
+    CTRL - B:
+
+         Moves to the beginning of the text buffer.
+
+    CTRL - E:
+
+         Moves to the end of the text buffer.  Pressing BREAK also
+         works in the same manner
+
+    CTRL - P:
+
+         Allows positioning to any text line in the buffer.  You will
+         be prompted to enter the line number you wish to move to.
+
+                          - SCREEN FORMATTING -
+
+    CTRL - T:
+
+         Toggles the Tab stop On/Off at  the  current  screen  column.
+         SLED  starts  with  tabs set at every four columns.  To add a
+         tab stop, place the cursor at the desired position and  enter
+         this  command.    To  delete  a tab stop, place the cursor at
+         that tab position and enter this command.
+
+    CTRL - S:
+
+         Sets the left margin to the current screen column.   To  move
+         left  of  the current margin, De-tab, or SHIFT-leftarrow must
+         be used.  If the margin is set to  anything  other  than  the
+         first  column (column zero), SLED will place a red "M" on the
+         ruler bar at the current margin position.  To set the  margin
+         to  the  extreme  left  again,  move  the  cursor to the left
+         border of the screen and enter this command.   The  "M"  will
+         disappear.
+
+                        - ADDITION AND DELETION -
+
+
+    CTRL - A:
+
+         Adds  a  line  BEFORE  the current line moving all text up to
+         make room.  You  can  add  as  many  lines  as  you  need  by
+         repeatedly  using  this  command, or using the Global Command
+         Processor to insert a larger  number  of  text  lines.    The
+         cursor can be at any position in the line.
+
+    CTRL - K:
+
+         Kills  or  deletes  the  current line and moves text back one
+         line to fill.  As with adding text lines above, you can  kill
+         as  many  as  you  want  using  this  command,  but it may be
+         quicker to use the Global  Command  Processor  to  delete  or
+         kill  a large number (or ALL lines with '*') of text lines in
+         the buffer.  The cursor can be at any point in the line.
+
+
+
+
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 8
+
+    ALT - M:
+
+         Entering  this  command  the  first  time  begins  the  block
+         marking  procedure.    The  text line the cursor is currently
+         displayed on will be the FIRST line if the marked block.    A
+         flashing  prompt  "MARKING  BLOCK"  will appear on the status
+         line to warn the using the marking procedure has begun.
+
+         NOTE: If you are using SLED on a 40 column screen, the  block
+         marking  prompts  WILL  NOT  be  displayed since there is not
+         enough room on the status line.
+
+         The first line of  the  block  will  now  be  highlighted  by
+         displaying  it  in  RED.    On  monochrome screens, this will
+         appear to be a slightly different shade  of  your  foreground
+         color.    The  next  step  is to move the cursor through your
+         text to the line you want as the  last  line  of  the  marked
+         block.    Pressing  ALT-M  again  on  this  line will end the
+         marking procedure and all the lines  included  in  the  block
+         will  now  be re-displayed in RED.  Also, the flashing prompt
+         on the status line will be replaced  with  a  "Block  Marked"
+         message.
+
+         Note  that  you  can  mark the start of a block and then move
+         either up or down through the text to mark  the  end  of  the
+         block.    In  other  words,  if you started the block marking
+         procedure on line 25 of your text and then moved  the  cursor
+         to  line  20,  line  20  would become the start of the marked
+         block and line 25 would become the end of the  marked  block.
+
+         The  marked  block will be the text that is acted upon by any
+         write  or  output  commands,  block  copies,    moves,    and
+         deletions.    See  the  section  of this manual that explains
+         those functions for a more complete description.
+
+         To un-mark a block of text, simply enter the ALT-M command  a
+         third  time.    Any text in the block will be re-displayed in
+         the default foreground color.
+
+         NOTE: During the time a block is marked, it  will  always  be
+         displayed  in  RED  even  if  you  page  off  that screen and
+         return.  This serves to remind you and let  you  see  exactly
+         the  blocked off area.  Also, since SLED is a line orientated
+         editor, deleting or adding lines at a position  in  the  text
+         buffer  BEFORE  the  marked block will cause the blocked area
+         to be moved.  For example, if you marked  off  a  section  of
+         text as in the example below:
+
+              This is an example portion of a text buffer.
+              It is used to explain the block marking procedure.
+              THIS IS THE MARKED OFF AREA OF THE TEXT
+              THAT IS USED IN THIS EXAMPLE.  NOTICE IT IS
+              all in capital letters.
+
+
+
+
+
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 9
+
+
+         If  you  then  went  to a line anywhere BEFORE the marked off
+         block and added two lines of text, the marked block will  now
+         be:
+
+              THIS IS AN EXAMPLE PORTION OF A TEXT BUFFER.
+              IT IS USED TO EXPLAIN THE BLOCK MARKING PROCEDURE.
+              This is the marked off area of the test
+              that is used in this example.  Notice it is not
+              all in capital letters.
+
+
+         The  thing to remember here is once you mark a block of text,
+         don't change any of the text in the  buffer  prior  to  where
+         the  marked  block  is.    Changing  means adding or deleting
+         lines of text.
+
+
+    CTRL - C:
+
+         Clears the remainder of the screen  line  starting  with  the
+         character under the current cursor position.
+
+    CTRL - D:
+
+         Deletes  the  character  that  the cursor is on and moves all
+         text characters to the left one position.  This occurs  until
+         the end of a text line is found.
+
+    F1: (Insert Mode)
+
+         Toggles  the  insert  mode  on or off.  When this mode is on,
+         "Insert-On"  is  displayed  on  the  status  line  and    any
+         characters  entered  will  insert  themselves  into  the text
+         moving all following characters to the right one position.
+
+         NOTE: Pressing SHIFT-RightArrow (Tab)  while  in  the  Insert
+         Mode  will  place  enough  spaces  in  the  text  to move the
+         character under the cursor and all characters  to  the  right
+         to  the  next  tab  stop.   Also, pressing ENTER while insert
+         mode is on will cause the text  line  to  be  broken  at  the
+         cursor  position  and  the remainder of the line moved to and
+         displayed on a new line that is inserted into the buffer.
+
+    F2: (Word-Wrap)
+
+         Toggles the Word-Wrap function on and  off.    When  on,  any
+         incomplete  word  entered at the end of a screen line will be
+         wrapped around to  the  next  line  and  displayed  unbroken.
+         Also,  a  carriage  return  character will be appended to the
+         previous text line as the word is wrapped.   If  there  is  a
+         line  of  text below the line you are typing on and a word is
+         wrapped, a new line will be inserted into the buffer to  make
+         room  for  the  wrapped  word(s).  This option allows SLED to
+         function much like a word processor.
+
+
+
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 10
+
+    Shift-F1: (Auto-Indent)
+
+         Toggles the Auto-Indent  function  on  and  off.    When  on,
+         pressing  ENTER  or  typing  to the end of a screen line will
+         cause the next line to begin at the position in the  previous
+         line  that is NOT A SPACE.  To move to the left of the indent
+         position, use the De-Tab or Shift-Left Arrow key.    Pressing
+         the  left  arrow key will cause the cursor to move to the end
+         of the previous screen line.  When used in  conjunction  with
+         word-wrapping,  this  feature makes for extremely easy typing
+         on a formatted page.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 11
+
+
+                              - FILE FUNCTIONS -
+
+
+         SLED operates so files larger than the available  memory  can
+         be  easily  edited.  When you first issue a READ command, the
+         file you name becomes the default read file.  You  can  write
+         out  the  buffer  to a temporary file that SLED creates or to
+         any output filename you specify.
+
+
+         CTRL - R:
+
+              Control R enters the main read mode.  The  prompt  'READ
+              ?'  is displayed and the editor waits for a response.  A
+              positive number should be entered or a  '*'  (for  ALL),
+              followed  by an optional Filename.  The number indicates
+              the number of text lines to be  read  into  the  buffer.
+              If  there  is  no  more space in the buffer for the full
+              number of lines to  be  read,  a  warning  will  appear.
+              Actually,  the  buffer  is  not completely full, and you
+              can then edit and add to  the  current  buffer  contents
+              until  you  either write out the entire buffer or a part
+              of it, or until you receive a message  that  the  buffer
+              is  full.  At that time, you will have to write at least
+              some of the buffer to the output file.
+
+              If no filename is specified the last Read file is  used.
+
+
+              The   first  time  you  issue  a  READ  command,  or  by
+              specifying a filename  on  the  command  line  when  you
+              invoked  SLED,  that  file  becomes  the  ORIGINAL file.
+              This  filename  is  saved  to  allow  deleting  it  upon
+              quiting  SLED,  assuming  a  new file was created during
+              the editing session.   For  more  information,  see  the
+              section on quiting SLED.
+
+              Note  that  the  file  being  read is NOT closed after a
+              read, but remains open to allow reading in only part  of
+              the  file, editing it, saving it to a new file, and then
+              reading in some more.  The text is read into the  buffer
+              at  the  CURRENT  cursor  position.   This allows you to
+              read files and insert them into your text at any  point.
+
+
+              As  the  file  is  being read into the edit buffer, SLED
+              checks  for  linefeed  and  tab  characters.    When   a
+              linefeed  ($0A)  is encountered, it will be changed to a
+              single space.  If a tab character ($09)  is  seen,  SLED
+              will  expand  it  into the correct number of spaces that
+              are needed to tab over to the next set tab stop.   These
+              features  were  added  for use in editing BASIC09 source
+              code files and to eliminate the need to strip or  expand
+              tabs in a text file prior to editing it.
+
+
+
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 12
+
+                   Format : READ ? #lines [*] [Filename]
+
+
+         CTRL - W:
+
+              Control  W  enters  the  main  Write  mode.   the prompt
+              'WRITE ?' is  displayed  and  the  editor  waits  for  a
+              positive  number  (or '*') and an optional Filename.  If
+              a marked block of text is to be written, you  only  need
+              to  enter  the  filename  or  press  enter to write to a
+              unique file.  The lines are  then  written  out  to  the
+              Write  file  starting at the current cursor position and
+              then are deleted from the text buffer.  If  no  filename
+              is  specified,  the last Write file is used.  If this is
+              the FIRST time you have issued a WRITE command, and  you
+              DO  NOT  specify  an output filename, SLED will create a
+              unique  filename  as  a  temporary  file.    The  unique
+              filename  is  based  upon  the  process  ID  number that
+              identifies SLED to the OS9 system.  Once  this  file  is
+              created,  any  subsequent  writes  will  be to this file
+              unless you provide a new filename,  at  which  time  the
+              new file becomes the default output file.
+
+              NOTE:    If    by    chance,  a  unique  filename  (i.e.
+              SLEDTMP.XXX) exists when you go to write to a  temporary
+              file,  it  will be OVERWRITTEN.  Make sure you delete or
+              rename any unique temporary files that you create  while
+              using SLED.
+
+              The  unique filename is used to allow several users in a
+              multi-user system to be editing the same original  input
+              file,  but  have  separate  and  unique output filenames
+              thereby avoiding any file naming conflicts.
+
+              Note that if you provide  an  output  filename  and  the
+              file  already  exits,  the  new text will be appended to
+              the end of the existing file.  You can also use the  '*'
+              character  to  write  out ALL the buffer.  Also, as with
+              READ, the file being written  to  is  NOT  closed  after
+              each  write.    If a marked block of text exists in your
+              buffer (the "Block Marked" prompt is  displayed  in  the
+              status  line),  that block will be written out.  You can
+              either specify the filename or allow SLED to write to  a
+              unique  file.    In  either  case,  once  the  block  is
+              written, it will be deleted from the text buffer.
+
+
+                   Format : WRITE ? #lines [*] [Filename]
+
+
+         CTRL - F:
+
+              Control F is a duplicate of Control R, and provides  the
+              same   features.    This  command  allows  reading  from
+              multiple files at the  same  time  while  retaining  the
+              last  set  Read  file.    Using  this  command with Read
+              allows the merging of two files in any  order  of  lines
+              from  either  file.  If the filename is not specified it
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 13
+
+              will use the last file opened by  this  command.    Note
+              that  using  the  alternate read command is the best way
+              to include text from other  files  into  your  new  file
+              without  resetting  the  input  filename and loosing the
+              capability to  delete  the  original  when  the  editing
+              session is finished.
+
+
+                   Format : Alt Read ? #lines [*] [Filename]
+
+         CTRL - O:
+
+              Control  O  is  like  Control  F  in that it provides an
+              alternate  way  to  send  text  to  a  file  or  device.
+              However,  its  most important difference from Control W,
+              or Write, is that it doesn't delete the  lines  that  it
+              writes  out  to  the  File.    This  allows  its use for
+              printer listings, or  creating  multiple  files  of  the
+              same  text.    Note  that  the file is closed after each
+              use, so that  the  filename  must  be  respecified  each
+              time.
+
+              If  the  file  already  exists,  SLED will prompt you to
+              decide if you want to overwrite  the  existing  file  or
+              not.    This  is  slightly different than the WRITE mode
+              and was added to allow a user to keep  SLED  running  in
+              one  window  with  a  file  in the buffer, and write out
+              edited versions to the same  filename  while  keeping  a
+              copy  in  memory.  This is very useful while running "C"
+              compiles.  If you answer the prompt with "Y",  the  file
+              will  be  overwritten.  Responding with a "N" will cause
+              the text written out to be appended to the  end  of  the
+              file.
+
+              If  you  select the printer as the output filename (/p),
+              SLED  will  not  prompt  you  to  overwrite,  but   will
+              immediately  send  the text to the printer port.  If you
+              use a different device name for  your  printer  such  as
+              /p1  or  /pp,  you will either have to modify the source
+              code to reflect this, or contact me and  I  will  do  it
+              for you.
+
+              If  a  marked  block  of  text  is  defined  (the "Block
+              Marked" prompt is being displayed on the  status  line),
+              this  block  will  be  written  out and only this block.
+              You do not need to specify the number of  lines  to  use
+              in  this case as it is automatic.  For example; to write
+              a marked block to the printer,  mark  the  area,  select
+              the  OUTPUT  function,  and  enter  "/p"  at the prompt.
+              Note that the marked block WILL NOT be deleted from  the
+              text buffer.
+
+
+                Format : OUTPUT ? #lines [*] Filename [Device (/P)]
+
+
+
+
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 14
+
+    CTRL - U:
+
+         Control  U  is  the  UPDATE  command.    When this command is
+         issued, SLED will save to a disk file all  the  text  in  the
+         edit  buffer  from  the  beginning  up to the line BEFORE the
+         line the cursor is on, clear that text from the  buffer,  and
+         then  read  in as much as it can from the read file appending
+         it to the end of the text in the buffer.  The  file  that  is
+         used  to  save  the text will be any file that had previously
+         been written to during that editing  session,  or  SLED  will
+         create  a  unique  output file if nothing had been previously
+         saved.
+
+         This command is very useful when editing files that are  much
+         larger  than what can be held in SLED's text buffer, allowing
+         the user to make minor changes in a large file without a  lot
+         of  command  input.   If you need to update the entire buffer
+         at once, simply move the cursor to the end of the buffer  and
+         issue the update command.
+
+    NOTE:  Whenever  a  new line is added to the buffer, SLED does not
+    mark  that  line  as  being  terminated  with  a  carriage  return
+    character  unless  you press ENTER.  If the line is not terminated
+    as such, SLED fills it with SPACES.  Usually, you  will  not  need
+    to  worry  about this since your text will appear on the screen as
+    you typed it in except for the marker (-) at the end of  the  line
+    that is not terminated with a carriage return.
+
+    When  SLED  writes  the buffer to a disk file or printer, it first
+    checks each line to determine if it is a  single  line  of  spaces
+    and  not  terminated  by a carriage return.  If this is true, SLED
+    will concatenate the line to a single carriage  return  to  insure
+    proper formatting of your output text.
+
+
+                           - Other Commands -
+
+
+    CTRL - Q:
+
+         Control  Q Quits or ends the edit session.  A prompt to allow
+         the saving of any text is provided if text still  remains  in
+         the  edit buffer.  If you respond with "Y", your text will be
+         automatically  saved  to  whatever  output  file  you    have
+         created.   If you have not written anything out of the buffer
+         during your  editing  session,  SLED  will  create  a  unique
+         temporary  file  for  you,  save  the text in the buffer, and
+         then  prompt  you  to  delete  the  original  file  or   not.
+         Responding  with  yes  ("Y")  will  delete  the  old file and
+         rename the new filename to that of the original.
+
+         If you have saved some of your text, SLED will  check  for  a
+         unique  filename.   If this file exists, SLED assumes it is a
+         new copy of the original input file and will  prompt  you  to
+         decide  if  you  want  to  delete  the original file.  If you
+         elect to delete the original file, SLED will remove  it  from
+         the  directory  and  then rename the unique temporary file to
+         the original input filename.  Electing not to delete it  will
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 15
+
+         end  the  editing  session and return you to the OS9: prompt.
+         You can then look  at  your  directory  and  see  the  unique
+         filename    that   was  created.    It  will  have  the  name
+         "sledtmp.xxx" where "xxx" is the process ID of SLED while  it
+         was invoked.
+
+         When  quiting  SLED,  it  is  quite  possible  that  all  the
+         original file had not been read into the  text  buffer.    If
+         you  quit  at  this  time,  only a portion of your file would
+         have been saved into the new file.   To  prevent  this,  SLED
+         checks  to see if all the original file had been read, and if
+         not, SLED will copy over from the original to  the  new  file
+         any  text that remains.  However, the copy procedure does not
+         perform the same character editing functions  as  when  using
+         the  READ  command -- that is, linefeeds and tabs will remain
+         as such in the text file.
+
+    ALT - U:
+
+         Alternate U provides a  User  interface  to  the  Shell.    A
+         command  line  is provided and up to eighty characters may be
+         typed in.  If longer lines are needed or if you are going  to
+         enter  a lot of system commands then do so by calling another
+         Shell by pressing ENTER at the prompt.  When  that  Shell  is
+         ended  using  CTRL-BREAK,  control  is  passed  back  to  the
+         editor.
+
+    ALT - D:
+
+         This command allows you to change to  a  new  directory  from
+         within  SLED.  Just enter the name of the directory to change
+         to at the prompt.
+
+    <ESC>ape:
+
+         Escape aborts any command  in  progress  including  the  Quit
+         command.   It will also abort the User command as long as the
+         User  command  line  has  not  been  finished.    <ESC>    is
+         <CTRL><BREAK> on the Tandy Color Computer 3.
+
+    ALT-H:
+
+         This  is  the  request  for  HELP function.  A series of help
+         screens will be displayed asking you to press  ENTER  to  see
+         the  next  screen.  Pressing any other key will return you to
+         to the text entry mode.
+
+    CTRL-G: - Enters the Global Command Processor.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 16
+
+
+            - Description of the Global Command Processor -
+
+
+    The global command processor contains commands that work  on  more
+    than  just  one  screen or text line.  These are Move, Copy, Find,
+    Replace and multi-line versions of Add line and Kill  line.    All
+    Global commands work on the basis of screen lines.
+
+    Copy and Move :
+
+         Before  a  move  or copy can be executed a block of text must
+         be created using the ALT-M command.  After marking the  block
+         of  text  to  be  used,  the  cursor  should  be moved to the
+         position where the block is to be Moved or Copied.   This  is
+         much  more  complicated  to write than to actually do so some
+         experimentation should be done  to  become  comfortable  with
+         these  two  commands.   Copy makes a new copy of the original
+         lines and inserts them into the text.   Move  actually  moves
+         the  original  lines  to the new location, deleting them from
+         the previous position.
+
+         Formats :  Move = Global : M <ENTER>
+                    Copy = Global : C <ENTER>
+
+
+    Find and Replace :
+
+         Find is a simple search; it looks for the  pattern  specified
+         and  moves  the  cursor  to  that  line  and  re-displays the
+         screen.  The pattern to  be  found  must  EXACTLY  match  the
+         string  entered,  including  upper  or lower case characters.
+         No wildcard characters are supported.    If  you  elected  to
+         REPLACE  the  pattern  found with another string, the REPLACE
+         command  will  work  on  the  entire  buffer  replacing   ALL
+         occurrences  of  the specified pattern or just the number you
+         specify.
+
+         Formats : Find    = Global : F/pattern/#times
+                   Replace = Global : R/pattern/replacement/#times
+
+
+         Once you have specified the pattern to be  found,  SLED  will
+         display  the  first occurrence of that pattern in the buffer,
+         or if you specified 10 times, the  tenth  occurrence  in  the
+         buffer.    If  you wish to see the NEXT occurrence, enter the
+         NEXT command (CTRL-N) and the next string  will  be  searched
+         for  and  displayed.   This function is only supported by the
+         FIND command, and not REPLACE.
+
+    Add and Kill lines : Add and Kill lines is simply a multiple  line
+
+         version  of normal editor commands.  When a block of text has
+         been marked off, issuing the KILL command  will  delete  only
+         those lines from the text buffer.
+
+         Formats :  Add  = Global : A #blank lines
+                    Kill = Global : K [#lines]
+
+
+
+
+
+
+    OS-9 Level II        S L E D  U S E R S   M A N U A L                Page 17
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

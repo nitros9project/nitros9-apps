@@ -10,6 +10,7 @@ This repository contains applications and application suites for NitrOS-9:
 - [mroff](mroff/README.md) — Mark Griffith's `mroff` text formatter and `man` reader, with the Kreider C library manual pages
 - [multivue](multivue/README.md) — Multi-Vue graphical environment and applications
 - [os9l2bbs](os9l2bbs/README.md) — OS-9 Level 2 BBS package
+- [sled](sled/README.md) — SLED 2.2 full-screen CoCo 3 editor
 - [sort](sort/README.md) — a text sort with no limit on the number of lines, using temporary files
 - [uemacs](uemacs/README.md) — MicroEMACS port for OS-9
 - [uucpbb](uucpbb/README.md) — UUCPbb communications package
@@ -31,7 +32,7 @@ make NITROS9DIR=/path/to/nitros9
 
 C source builds require the C3 host tools and LWTOOLS on `PATH`, with
 `C3BASE` pointing to the C3 headers and runtime installation. Assembly builds
-use LWASM; disk packaging also needs ToolShed's `os9` command. Kermit, UUCPbb, and ViewGIF
+use LWASM; disk packaging also needs ToolShed's `os9` command. Kermit, SLED, UUCPbb, and ViewGIF
 additionally support CMOC and LLVM; see each application's README for its
 compiler selection and dependencies.
 
@@ -43,7 +44,7 @@ commands to have been built first.
 ## Source and licensing
 
 Most packages were migrated from the NitrOS-9 `3rdparty/packages` tree.
-ViewGIF was imported from the Microware OS-9 archive; see its README for
+SLED and ViewGIF were imported from the Microware OS-9 archive; see their READMEs for
 provenance and reuse conditions.
 They retain their original source notices, documentation, and licensing
 terms. No repository-wide license is asserted over packages that do not
