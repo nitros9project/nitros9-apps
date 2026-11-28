@@ -1,0 +1,211 @@
+                         OS9 ViewGIF by Vaughn Cato
+                                Version 2.0
+                            Formal Documentation
+
+* Parts of this documentation that were added or changed in this version are
+marked with an asterisk (*).
+
+  Viewgif is a public domain program for OS9 on the Tandy Color Computer 3.
+It was written to provide a better display for GIF pictures.  Viewgif offers
+many options in displaying a GIF picture.  By using these options along with
+the built-in features of the program, very good representations of GIF
+pictures may be produced even for pictures made for more advanced graphics
+hardware.
+
+  Viewgif analyzes the colors needed for the GIF picture to find the best
+color combinations for the CoCo.  Two mutually exclusive factors are involved
+in the analysis.  The dithering factor determines how much difference between
+the color desired and the color the CoCo can produce is needed before
+dithering is used.  With a dithering factor of 42, if there is any difference
+dithering will be used.  With a dithering factor of 0, dithering will never
+be used.  The color tolerance used determines the maximum difference between
+the color desired and a CoCo color that will be accepted.  If I have
+calculated correctly, the maximum needed should be 42, which means any color
+plus or minus 42 intensity levels (from a range of 0-255) will be accepted.
+  Dithering works in the following way:
+    If, for example the color desired is half way between two possible CoCo
+colors, then one of the two CoCo colors will be displayed at random when
+that color is desired, each color having a 50% chance of being used.  If the
+desired color is 3/4 of the way between two possible CoCo colors, then the
+farther color will have a 25% chance of being used and the closer color a
+75% chance.
+  The randomness is somewhat biased depending on what pixel is being
+displayed.  The bias is that the upper color will be more likely on even
+pixels on even lines and odd pixels on odd lines, and the lower colors will
+be more likely on odd pixels on even lines and even pixels on odd lines.
+This will produce a checker board type pattern of dithered pixels in the
+picture, which is the best possible when the desired color is exactly half
+way between two CoCo colors.
+  A 640 resolution screen will always be used if the number of palettes
+required is 4 or less.  A 320 resolution screen will be used otherwise.
+Because of this, any picture using only shades of one color (ie. black and
+white) will always be in 640 resolution.
+* As of version 2.0, a new feature has been added which I call flickering.
+This is a simple technique which involves making two seperate pictures with
+seperate palettes and then rapidly flipping between the two windows.  When
+this is in effect, the number of available colors increases from 64 to 343,
+and the number of colors available at one time goes from 16 up to a
+theoretical 128 (most pictures seem to average 30-40).  There is a noticable
+flicker in most pictures, but it is not especially annoying.
+
+  The following are options for viewgif.  The options a,r,s,i,n, and p can
+  be precede other options after a -.  For example, -ars and -srm2 are
+  accptable and will be interpreted as -a -r -s and -s -r -m2 respectively.
+
+* -d[[=]<dfactor>]
+     This option allows the user to specify the maximum dithering factor to
+     be used.  In some pictures, the dithering affect can be more harmful
+     than helpful.  If the dfactor parameter is omitted, 0 will be used.
+     Color tolerance can be interpreted as a negative dfactor.
+
+  -a
+     The -a option will make the resulting height of the picture be an even
+     division of the original picture.  This can be helpful on some pictures
+     that have been pre-dithered.  On those pictures, without this option,
+     the picture will have horizontal bands of brighter and darker pixels.
+     Pictures up to 200 pixels vertically will have a 1:1 ratio of pixels.
+     Pictures 201 to 400 pixels vertically will have a 2:1 ratio of pixels
+     and so forth.  Without this option, the picture will be made to fit
+     exactly within 192 pixels vertically.
+
+  -u[[=]<filename>]
+     Many pictures, especially those with more than 32 colors, will often
+     not use all of the colors in the color map privided with the picture.
+     The unused colors are often random.  These unused colors can cause the
+     viewer to have to sacrifice color "nearness" to allocate CoCo colors
+     for these colors.  To help avoid this problem, a color usage table
+     can be produced the specifies exactly which colors were used in the
+     picture.  After a picture has been displayed a count of how many colors
+     were used in the picture will be given.  If this number is less than
+     the maximum colors for that picture, a color usage file should be
+     generated.  Specifying the -u option with the color usage filename
+     (the picture filename with a .use extension is recommended) will
+     generated the color usage file if it does not exist or use it if it
+     does.
+
+  -g
+  -g[=]2
+     A picture displayed in full color loose alot of detail if many varied
+     colors are needed.  In this case, converting the picture to a black
+     and white picture is desirable.  These pictures are always displayed
+     in 640 resolution because of the number of colors needed is always
+     4 or less.  -g will determine the brightness of a pixel by averaging
+     the brightness of the red,green, and blue components.  -g2 will determine
+     the brightness of a pixel by finding the maximum brightness between the
+     red, green, and blue components.
+
+  -r
+     By default, a 16x16 element random number table is used for speed in
+     dithering.  When using this table, patterns can occur in the picture
+     than can be displeasing to the eye.  The -r option will make all random
+     numbers be generated with a true random number generator so these
+     patterns will not occur.  Display speed will be somewhat slower with
+     this option however.
+
+  -m[[=]<magfact>]
+     The -m option will allow the user to magnify the picture by an integer
+     amount.  -m2 will result in picture with twice the normal detail.
+     The magnification can range from 1 (normal) to 64.  On a picture of a
+     higher resolution than the CoCo can display, when magnified the
+     picture will show detail unseen at normal magnification.
+
+  -x[[=]<start x>]
+     The -x option allows you to specify where in the picture from left to
+     right display will begin.  Start x is given in 1/64 width increments.
+     0 (normal) is the left side of the screen, 32 is the middle, and 64
+     is the right side.
+
+  -y[[=]<start y>]
+     The -y option is for specifying the vertical position to start within
+     the picture and works in a similar manner to the -x option.
+
+* -v[[=]<filename>]
+     The -v option will allow you to generate a vef format file of the
+     picture.  When this option is used, 320 resolution is always used and
+     the picture is always displayed, even when the -n option is used.  If
+     no filename is given, no error is produced, but no file is generated.
+     Using -v without a filename can be used to force a 320 resolution
+     picture (for whatever reason).  When flicker is in use, the -v option
+     will cause two files to be saved, one with the file name you specified
+     and another with the file name and a .2 extension.  You can use viewvef
+     to display these "flicker VEFs."
+
+  -s
+     The -s option will turn off the printing of any informative information.
+     This option is automatically used if the -c option is used.
+
+  -i
+     The -i option prints extended information about the picture, specifically
+     the color map for the picture, the resulting CoCo color map, and the
+     translation table produced for the picture.  The -c option overrides
+     this option.
+
+  -n
+     The -n option disables displaying the picture.  If the -n option is used
+     and no color usage table is being generated and no vef file is to be
+     generated the actual picture will not be read.  This option can be used
+     if only information about the picture is desired.  The -v option
+     overrides this option.
+
+  -p[[=]<seconds>]
+     The -p option sets the delay time after a picture has been displayed.
+     Normally, a tone is sounded when a picture is completed and the picture
+     is displayed until ENTER is pressed.  If the -p option is used the
+     tone will not be generated and no key will be required before continuing.
+
+  -c
+     The -c option will force the viewer to use the current window to display
+     the picture.  The window will be ended and the screen of the appropriate
+     type will be set.  This option forces the -s option and will override the
+     -i option.
+
+* -f
+     The -f option disables flickering.  Pictures will be displayed in the
+     same manner as in ViewGIF 1.0.
+
+* -b[=]<britefac>
+     The -b option allows you to specify a brightness factor for the picture.
+     The brightness factor is a number ranging from 1 to 16 where 1 is very
+     dim and 16 is normal brightness.
+
+   Hints:
+     If bands of brighter and darker horizontal lines appear in the picture,
+     try using the -a option.  If the number of colors used is less than
+     the maximum available (this information is printed after a picture has
+     been displayed) try using a color usage file with the -u option.  If the
+     picture lacks detail, try using the -g or -g2 options to make a black
+     and white version of the picture.  If undesirable patterns occur in the
+*    picture, try using the -r option.  If the dithering factor is less than
+     21, for flickered pictures, or 42 for non-flickered pictures, then
+     decreasing the brightness with the -b option can improve the quality
+     of the picture.
+
+*  Notes:
+     A picture that uses flicker will take 2 to 3 times as long to analyze
+     than with the flicker off.  The analysis stage has been improved somewhat
+     in that it will check to see if the best quality will work first and
+     not analyze any furthur if it will.  Because of this, if you specify
+     a dithering factor with the -d option that is less than or equal to
+     the best dithering factor for a picture (this information is given
+     after analysis is complete) the analysis time will be reduced
+     significantly, so keeping track of dithering factors for each picture
+     can be helpful.  I have found that it helps greatly to have a directory
+     with usage files and another directory with the gif files and then
+     have script files for each picture which will display the picture
+     with the best parameters you have found.
+
+     When a picture that uses flicker is being displayed, it will slowly
+     switch back and forth between colors.  Don't worry, this is NOT the
+     "flicker" effect.
+
+Any comments or suggestions would be appreciated.  Send them to:
+
+                                                         Vaughn Cato
+                                                   1244 E. Piedmont Rd. NE
+                                                     Marietta, Ga. 30062
+
+                You never know,
+              how far you can go,
+                 with a CoCo.
+
+                 Vaughn Cato

@@ -1,0 +1,6 @@
+build/out/
+/viewgif
+/viewvef
+__pycache__/
+build/graphics/
+tests/__pycache__/

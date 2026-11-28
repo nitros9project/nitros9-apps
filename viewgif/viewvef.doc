@@ -1,0 +1,12 @@
+ViewVEF 1.0 by Vaughn Cato
+
+   ViewVEF is a small program that allows you to display "flicker VEF" files
+as well as the normal vef files.  The command format is:
+
+viewvef <filename> [<pause length>]
+
+   If a file with the filename given and a .2 extension is found it will be
+flickered along with the file with the filename.  If not, only the file with
+the filename specified will be displayed.  If no pause length is specified,
+it will pause until the ENTER key is pressed.  If a pause length is
+specified, it will delay for that many seconds before ending.
