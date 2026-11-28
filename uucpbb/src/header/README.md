@@ -1,3 +1,5 @@
+# UUCPbb legacy CoCo headers
+
 These are header files which this package needs for compiling on the CoCo.
 Some of these were not on the original Microware C compiler disks.
 

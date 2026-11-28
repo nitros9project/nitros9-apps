@@ -4,7 +4,7 @@ Mark Griffith's 1990 package of documentation for Carl Kreider's C library
 (KLibc, in `nitros9-languages/ccompiler/klibc`), from the OS-9/6809 archive:
 `PROG/Unpacked/SRC/CLib_Krieder_91_doc.lzh`. CR line endings are converted
 to LF. Each file was first committed as archived, and every later change is
-in a commit of its own. Griffith's own `Readme` and `NOTICE` describe the
+in a commit of its own. Griffith's [original notes](ARCHIVE-NOTES.md) and `NOTICE` describe the
 package as he released it.
 
 None of the files carries a copyright or licence notice.
@@ -17,9 +17,13 @@ None of the files carries a copyright or licence notice.
 
 `mroff` and `man` each build two ways:
 
-    make             cross-build on a host with c3 (Makefile)
-    make -f os9.mak  build on OS-9 with cc1, against KLibc; installed as
-                     the makefile when the source is copied to a NitrOS-9 disk
+```sh
+make NITROS9DIR=/path/to/nitros9  # Cross-build with C3
+make -f os9.mak                 # Native OS-9 build with cc1 and KLibc
+```
+
+C3 and LWTOOLS must be on `PATH`; set `C3BASE` to the C3 installation.
+`os9.mak` is installed as the makefile when sources are copied to a NitrOS-9 disk.
 
 ## Where man looks
 

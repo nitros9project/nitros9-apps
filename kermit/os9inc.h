@@ -10,6 +10,23 @@
 #endif
 
 #include <time.h>
+#ifdef KERMIT_HOST
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#ifndef KERMIT_TPS
+#define KERMIT_TPS 60
+#endif
+#endif
+#ifdef KERMIT_LLVM
+#include <cmoc_os9.h>
+typedef cmoc_sighandler_t sighandler_t;
+#define open cmoc_open
+#define wait cmoc_wait
+#define E_NOTRDY E$NotRdy
+#endif
 
 #ifdef COCO
 /* coco cannot handle floppy and other i/o at the same time */
@@ -18,6 +35,10 @@
 
 #ifndef EXTERN
 #define EXTERN extern  /* global varibles are extern in all but one module */
+#endif
+
+#ifdef KERMIT_MODERN
+#define DIRECT
 #endif
 
 #ifdef OSK
@@ -30,13 +51,21 @@
 
 #include <stdio.h>       /* Standard UNIX definitions */
 
+#ifdef KERMIT_HOST
+#define cleareof(p) clearerr(p)
+#endif
+
 #ifndef cleareof
 /* Microware's stdio.h has no cleareof; this is c3's definition */
 #define cleareof(p) ((p)->_flag &= ~_EOF)
 #endif
 
 #ifndef OSK
+#ifdef KERMIT_HOST
+#define sleep(sec) tsleep((sec) * KERMIT_TPS + 1)
+#else
 #define sleep(sec) tsleep((sec) * tps + 1)
+#endif
 #endif
 
 #include <signal.h>
@@ -61,7 +90,7 @@
 #define MYPAD        0      /* Number of padding characters I will need */
 #define MYPCHAR      0      /* Padding character I need (NULL) */
 
-#define MYEOL     '\n'      /* End-Of-Line character I need */
+#define MYEOL     CR      /* End-Of-Line character I need */
 
 #define UNKNOWN     -1      /* Haven't seen other side's 8th-bit info */
 #define WILLING      0      /* Other side is willing to quote 8th bit */
@@ -79,6 +108,8 @@
 #define STOPCUR     ctl('X')
 #define STOPALL     ctl('Z')
 
+#undef TRUE
+#undef FALSE
 #define TRUE        -1      /* Boolean constants */
 #define FALSE        0
 
@@ -95,7 +126,9 @@
 
 
 /* Global Variables */
+#ifndef KERMIT_LLVM
 extern int          errno;          /* System error number */
+#endif
 EXTERN DIRECT int   size;           /* Size of present data */
 EXTERN DIRECT int   rpsiz;          /* Maximum receive packet size */
 EXTERN DIRECT int   spsiz;          /* Maximum send packet size */
@@ -139,11 +172,28 @@ EXTERN char         packet[MAXPACKSIZ + 5]; /* Packet buffer */
 EXTERN int          catcher();              /* intercept routine */
 
 EXTERN DIRECT FILE  *fp;                    /* => current disk file */
-EXTERN DIRECT FILE  *log;                   /* => Logfile */
+EXTERN DIRECT FILE  *session_log;                   /* => Logfile */
 
 EXTERN jmp_buf      env;                    /* for timeout longjump */
 
+#ifndef KERMIT_MODERN
 #include <sgstat.h>
+#endif
 EXTERN
 struct sgbuf insave, outsave, linesave;     /* scf modes for devices */
 
+
+#ifdef KERMIT_HOST
+int client(), cligen(), command(), doexec(), vector(), doremote(), dial();
+int get_action(), connect(), recsw(), sendsw(), servsw();
+int spack(), catcher(), tstkbd(), bufill(), xgetc(), xungetc(), encode();
+int bufemp(), gnxtfl(), spar(), rpar(), flushinput(), usage(), prerrpkt();
+int raw(), cook(), blurb();
+#ifdef KERMIT_MODERN
+char sinit(char);
+int printmsg(const char *, ...);
+int error(const char *, ...);
+#else
+int printmsg(), error();
+#endif
+#endif

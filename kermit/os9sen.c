@@ -11,7 +11,10 @@
  *  by sendsw are responsible for changing the state. */
 
 sendsw()
-{ char sinit(), sfile(), sdata(), seof(), sbreak();
+{ char sfile(), sdata(), seof(), sbreak();
+#ifndef KERMIT_MODERN
+  char sinit();
+#endif
 
   state = 'S';                          /* Send initiate is the start state */
   n = 0;                                       /* Initialize message number */

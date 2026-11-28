@@ -1,1 +1,3 @@
 /kermit
+build/out/
+build/__pycache__/

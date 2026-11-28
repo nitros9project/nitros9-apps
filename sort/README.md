@@ -63,6 +63,10 @@ there is no floating point and no limit on their length.
 
 ## Building
 
-    make             cross-build on a host with c3 (Makefile)
-    make -f os9.mak  build on OS-9 with cc1; installed as the makefile
-                     when the source is copied to a NitrOS-9 disk
+```sh
+make NITROS9DIR=/path/to/nitros9  # Cross-build with C3
+make -f os9.mak                 # Native OS-9 build with cc1
+```
+
+C3 and LWTOOLS must be on `PATH`; set `C3BASE` to the C3 installation.
+`os9.mak` is installed as the makefile when sources are copied to a NitrOS-9 disk.

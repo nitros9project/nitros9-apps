@@ -1,0 +1,821 @@
+{
+  "before": {
+    "c3": {
+      "viewgif": {
+        "module_bytes": 20646,
+        "loaded_bytes": {
+          "libraries": 4801,
+          "startup": 398,
+          "application": 15424,
+          "module header, name, CRC and padding": 23
+        },
+        "largest_objects": [
+          {
+            "object": "viewgif.r",
+            "bytes": 8136
+          },
+          {
+            "object": "gifwin.r",
+            "bytes": 3789
+          },
+          {
+            "object": "setmap.r",
+            "bytes": 3499
+          },
+          {
+            "object": "printf.o",
+            "bytes": 660
+          },
+          {
+            "object": "fseek.o",
+            "bytes": 406
+          },
+          {
+            "object": "crt0.o",
+            "bytes": 396
+          },
+          {
+            "object": "fopen.o",
+            "bytes": 338
+          },
+          {
+            "object": "pflinit.o",
+            "bytes": 301
+          },
+          {
+            "object": "getc.o",
+            "bytes": 233
+          },
+          {
+            "object": "fflush.o",
+            "bytes": 220
+          },
+          {
+            "object": "iob_data.o",
+            "bytes": 214
+          },
+          {
+            "object": "cldiv.o",
+            "bytes": 213
+          }
+        ]
+      },
+      "viewvef": {
+        "module_bytes": 5708,
+        "loaded_bytes": {
+          "libraries": 3285,
+          "startup": 398,
+          "application": 2002,
+          "module header, name, CRC and padding": 23
+        },
+        "largest_objects": [
+          {
+            "object": "viewvef.r",
+            "bytes": 2002
+          },
+          {
+            "object": "printf.o",
+            "bytes": 660
+          },
+          {
+            "object": "fseek.o",
+            "bytes": 406
+          },
+          {
+            "object": "crt0.o",
+            "bytes": 396
+          },
+          {
+            "object": "pflinit.o",
+            "bytes": 301
+          },
+          {
+            "object": "fflush.o",
+            "bytes": 220
+          },
+          {
+            "object": "iob_data.o",
+            "bytes": 214
+          },
+          {
+            "object": "gs.o",
+            "bytes": 136
+          },
+          {
+            "object": "chcodes.o",
+            "bytes": 134
+          },
+          {
+            "object": "putc.o",
+            "bytes": 117
+          },
+          {
+            "object": "setbase.o",
+            "bytes": 113
+          },
+          {
+            "object": "io_6.o",
+            "bytes": 103
+          }
+        ]
+      }
+    },
+    "cmoc": {
+      "viewgif": {
+        "module_bytes": 23729,
+        "loaded_bytes": {
+          "application": 15904,
+          "startup": 290,
+          "libraries": 7512,
+          "module header, name, CRC and padding": 23
+        },
+        "largest_objects": [
+          {
+            "object": "viewgif.o",
+            "bytes": 8337
+          },
+          {
+            "object": "gifwin.o",
+            "bytes": 3969
+          },
+          {
+            "object": "setmap.o",
+            "bytes": 3598
+          },
+          {
+            "object": "printf.os9_o",
+            "bytes": 1144
+          },
+          {
+            "object": "printf.o",
+            "bytes": 670
+          },
+          {
+            "object": "fseek.o",
+            "bytes": 468
+          },
+          {
+            "object": "io.o",
+            "bytes": 447
+          },
+          {
+            "object": "fopen.o",
+            "bytes": 362
+          },
+          {
+            "object": "pflinit.o",
+            "bytes": 295
+          },
+          {
+            "object": "crt.os9_o",
+            "bytes": 290
+          },
+          {
+            "object": "fflush.o",
+            "bytes": 260
+          },
+          {
+            "object": "xtoa.o",
+            "bytes": 257
+          }
+        ]
+      },
+      "viewvef": {
+        "module_bytes": 7661,
+        "loaded_bytes": {
+          "application": 2173,
+          "startup": 290,
+          "libraries": 5175,
+          "module header, name, CRC and padding": 23
+        },
+        "largest_objects": [
+          {
+            "object": "viewvef.o",
+            "bytes": 2173
+          },
+          {
+            "object": "printf.os9_o",
+            "bytes": 1144
+          },
+          {
+            "object": "printf.o",
+            "bytes": 670
+          },
+          {
+            "object": "fseek.o",
+            "bytes": 468
+          },
+          {
+            "object": "io.o",
+            "bytes": 447
+          },
+          {
+            "object": "pflinit.o",
+            "bytes": 295
+          },
+          {
+            "object": "crt.os9_o",
+            "bytes": 290
+          },
+          {
+            "object": "fflush.o",
+            "bytes": 260
+          },
+          {
+            "object": "iob_data.o",
+            "bytes": 208
+          },
+          {
+            "object": "dwtoa.os9_o",
+            "bytes": 190
+          },
+          {
+            "object": "stat.o",
+            "bytes": 189
+          },
+          {
+            "object": "putc.o",
+            "bytes": 131
+          }
+        ]
+      }
+    },
+    "llvm": {
+      "viewgif": {
+        "module_bytes": 32736,
+        "loaded_bytes": {
+          "compiler runtime and startup": 2782,
+          "application": 16497,
+          "OS-9 compatibility library": 1075,
+          "picolibc": 10488,
+          "pooled strings and linker tables": 1870,
+          "module header, name, CRC and padding": 24
+        },
+        "largest_objects": [
+          {
+            "object": "viewgif.o",
+            "bytes": 9220
+          },
+          {
+            "object": "setmap.o",
+            "bytes": 4265
+          },
+          {
+            "object": "libc.a(libc_stdio_vfiprintf.c.o)",
+            "bytes": 3671
+          },
+          {
+            "object": "gifwin.o",
+            "bytes": 3012
+          },
+          {
+            "object": "<internal>",
+            "bytes": 1870
+          },
+          {
+            "object": "libc.a(libc_stdio_bufio.c.o)",
+            "bytes": 1808
+          },
+          {
+            "object": "libclang_rt.os9.a(crt1.o)",
+            "bytes": 1131
+          },
+          {
+            "object": "libc.a(libc_stdio_strtol.c.o)",
+            "bytes": 927
+          },
+          {
+            "object": "libclang_rt.builtins.a(divsi.S.obj)",
+            "bytes": 577
+          },
+          {
+            "object": "libcmoc_os9_compat.a(kernel.o)",
+            "bytes": 507
+          },
+          {
+            "object": "libc.a(libc_stdlib_malloc.c.o)",
+            "bytes": 493
+          },
+          {
+            "object": "libos9.a(open.c.o)",
+            "bytes": 447
+          }
+        ]
+      },
+      "viewvef": {
+        "module_bytes": 12746,
+        "loaded_bytes": {
+          "compiler runtime and startup": 2522,
+          "application": 1752,
+          "OS-9 compatibility library": 603,
+          "picolibc": 7636,
+          "pooled strings and linker tables": 209,
+          "module header, name, CRC and padding": 24
+        },
+        "largest_objects": [
+          {
+            "object": "libc.a(libc_stdio_vfiprintf.c.o)",
+            "bytes": 3671
+          },
+          {
+            "object": "libc.a(libc_stdio_bufio.c.o)",
+            "bytes": 1808
+          },
+          {
+            "object": "viewvef.o",
+            "bytes": 1752
+          },
+          {
+            "object": "libclang_rt.os9.a(crt1.o)",
+            "bytes": 1131
+          },
+          {
+            "object": "libc.a(libc_stdio_strtol.c.o)",
+            "bytes": 927
+          },
+          {
+            "object": "libclang_rt.builtins.a(divsi.S.obj)",
+            "bytes": 577
+          },
+          {
+            "object": "libos9.a(lseek.c.o)",
+            "bytes": 299
+          },
+          {
+            "object": "libcmoc_os9_compat.a(kernel.o)",
+            "bytes": 271
+          },
+          {
+            "object": "libclang_rt.os9.a(crt0.o)",
+            "bytes": 213
+          },
+          {
+            "object": "<internal>",
+            "bytes": 209
+          },
+          {
+            "object": "libclang_rt.os9.a(syscalls.o)",
+            "bytes": 180
+          },
+          {
+            "object": "libcmoc_os9_compat.a(native.o)",
+            "bytes": 176
+          }
+        ]
+      }
+    }
+  },
+  "after": {
+    "c3": {
+      "viewgif": {
+        "module_bytes": 19956,
+        "loaded_bytes": {
+          "libraries": 4801,
+          "startup": 398,
+          "application": 14734,
+          "module header, name, CRC and padding": 23
+        },
+        "largest_objects": [
+          {
+            "object": "viewgif.r",
+            "bytes": 8118
+          },
+          {
+            "object": "setmap.r",
+            "bytes": 3499
+          },
+          {
+            "object": "gifwin.r",
+            "bytes": 3117
+          },
+          {
+            "object": "printf.o",
+            "bytes": 660
+          },
+          {
+            "object": "fseek.o",
+            "bytes": 406
+          },
+          {
+            "object": "crt0.o",
+            "bytes": 396
+          },
+          {
+            "object": "fopen.o",
+            "bytes": 338
+          },
+          {
+            "object": "pflinit.o",
+            "bytes": 301
+          },
+          {
+            "object": "getc.o",
+            "bytes": 233
+          },
+          {
+            "object": "fflush.o",
+            "bytes": 220
+          },
+          {
+            "object": "iob_data.o",
+            "bytes": 214
+          },
+          {
+            "object": "cldiv.o",
+            "bytes": 213
+          }
+        ]
+      },
+      "viewvef": {
+        "module_bytes": 4267,
+        "loaded_bytes": {
+          "libraries": 2056,
+          "startup": 398,
+          "application": 1790,
+          "module header, name, CRC and padding": 23
+        },
+        "largest_objects": [
+          {
+            "object": "viewvef.r",
+            "bytes": 1790
+          },
+          {
+            "object": "fseek.o",
+            "bytes": 406
+          },
+          {
+            "object": "crt0.o",
+            "bytes": 396
+          },
+          {
+            "object": "fflush.o",
+            "bytes": 220
+          },
+          {
+            "object": "iob_data.o",
+            "bytes": 214
+          },
+          {
+            "object": "gs.o",
+            "bytes": 136
+          },
+          {
+            "object": "setbase.o",
+            "bytes": 113
+          },
+          {
+            "object": "io_6.o",
+            "bytes": 103
+          },
+          {
+            "object": "ccmult.o",
+            "bytes": 83
+          },
+          {
+            "object": "atoi.o",
+            "bytes": 77
+          },
+          {
+            "object": "stat_2.o",
+            "bytes": 61
+          },
+          {
+            "object": "syscall.o",
+            "bytes": 53
+          }
+        ]
+      }
+    },
+    "cmoc": {
+      "viewgif": {
+        "module_bytes": 21697,
+        "loaded_bytes": {
+          "application": 15267,
+          "startup": 290,
+          "libraries": 6117,
+          "module header, name, CRC and padding": 23
+        },
+        "largest_objects": [
+          {
+            "object": "viewgif.o",
+            "bytes": 8458
+          },
+          {
+            "object": "setmap.o",
+            "bytes": 3598
+          },
+          {
+            "object": "gifwin.o",
+            "bytes": 3211
+          },
+          {
+            "object": "printf.o",
+            "bytes": 670
+          },
+          {
+            "object": "fseek.o",
+            "bytes": 468
+          },
+          {
+            "object": "io.o",
+            "bytes": 447
+          },
+          {
+            "object": "fopen.o",
+            "bytes": 362
+          },
+          {
+            "object": "pflinit.o",
+            "bytes": 295
+          },
+          {
+            "object": "crt.os9_o",
+            "bytes": 290
+          },
+          {
+            "object": "fflush.o",
+            "bytes": 260
+          },
+          {
+            "object": "xtoa.o",
+            "bytes": 257
+          },
+          {
+            "object": "signedDivDWordDWord.os9_o",
+            "bytes": 238
+          }
+        ]
+      },
+      "viewvef": {
+        "module_bytes": 2805,
+        "loaded_bytes": {
+          "application": 1938,
+          "startup": 290,
+          "libraries": 554,
+          "module header, name, CRC and padding": 23
+        },
+        "largest_objects": [
+          {
+            "object": "viewvef.o",
+            "bytes": 1938
+          },
+          {
+            "object": "crt.os9_o",
+            "bytes": 290
+          },
+          {
+            "object": "gs.o",
+            "bytes": 111
+          },
+          {
+            "object": "syscall.o",
+            "bytes": 53
+          },
+          {
+            "object": "read.o",
+            "bytes": 49
+          },
+          {
+            "object": "write.o",
+            "bytes": 41
+          },
+          {
+            "object": "ATOW.os9_o",
+            "bytes": 40
+          },
+          {
+            "object": "atoi.os9_o",
+            "bytes": 30
+          },
+          {
+            "object": "memset.os9_o",
+            "bytes": 30
+          },
+          {
+            "object": "isspace.os9_o",
+            "bytes": 27
+          },
+          {
+            "object": "syscommon.o",
+            "bytes": 25
+          },
+          {
+            "object": "MUL16.os9_o",
+            "bytes": 24
+          }
+        ]
+      }
+    },
+    "llvm": {
+      "viewgif": {
+        "module_bytes": 31666,
+        "loaded_bytes": {
+          "compiler runtime and startup": 2782,
+          "application": 16394,
+          "OS-9 compatibility library": 1083,
+          "picolibc": 9529,
+          "pooled strings and linker tables": 1853,
+          "module header, name, CRC and padding": 25
+        },
+        "largest_objects": [
+          {
+            "object": "viewgif.o",
+            "bytes": 9206
+          },
+          {
+            "object": "setmap.o",
+            "bytes": 4265
+          },
+          {
+            "object": "libc.a(libc_stdio_vfiprintf.c.o)",
+            "bytes": 3671
+          },
+          {
+            "object": "gifwin.o",
+            "bytes": 2761
+          },
+          {
+            "object": "<internal>",
+            "bytes": 1853
+          },
+          {
+            "object": "libc.a(libc_stdio_bufio.c.o)",
+            "bytes": 1808
+          },
+          {
+            "object": "libclang_rt.os9.a(crt1.o)",
+            "bytes": 1131
+          },
+          {
+            "object": "libclang_rt.builtins.a(divsi.S.obj)",
+            "bytes": 577
+          },
+          {
+            "object": "libcmoc_os9_compat.a(kernel.o)",
+            "bytes": 507
+          },
+          {
+            "object": "libc.a(libc_stdlib_malloc.c.o)",
+            "bytes": 493
+          },
+          {
+            "object": "libos9.a(open.c.o)",
+            "bytes": 447
+          },
+          {
+            "object": "libc.a(libc_stdio_fdopen.c.o)",
+            "bytes": 355
+          }
+        ]
+      },
+      "viewvef": {
+        "module_bytes": 4801,
+        "loaded_bytes": {
+          "compiler runtime and startup": 1635,
+          "application": 1921,
+          "OS-9 compatibility library": 611,
+          "picolibc": 486,
+          "pooled strings and linker tables": 125,
+          "module header, name, CRC and padding": 23
+        },
+        "largest_objects": [
+          {
+            "object": "viewvef.o",
+            "bytes": 1759
+          },
+          {
+            "object": "libclang_rt.os9.a(crt1.o)",
+            "bytes": 1131
+          },
+          {
+            "object": "libcmoc_os9_compat.a(kernel.o)",
+            "bytes": 271
+          },
+          {
+            "object": "libclang_rt.os9.a(crt0.o)",
+            "bytes": 213
+          },
+          {
+            "object": "libcmoc_os9_compat.a(native.o)",
+            "bytes": 184
+          },
+          {
+            "object": "libclang_rt.os9.a(syscalls.o)",
+            "bytes": 180
+          },
+          {
+            "object": "numbers.o",
+            "bytes": 162
+          },
+          {
+            "object": "<internal>",
+            "bytes": 125
+          },
+          {
+            "object": "libos9.a(errno.c.o)",
+            "bytes": 120
+          },
+          {
+            "object": "libcmoc_os9_compat.a(signals.o)",
+            "bytes": 118
+          },
+          {
+            "object": "libos9.a(write.c.o)",
+            "bytes": 82
+          },
+          {
+            "object": "libos9.a(read.c.o)",
+            "bytes": 80
+          }
+        ]
+      }
+    }
+  },
+  "measured_steps": {
+    "dead": {
+      "c3": {
+        "viewgif": 20435,
+        "viewvef": 5574
+      },
+      "cmoc": {
+        "viewgif": 23447,
+        "viewvef": 7525
+      },
+      "llvm": {
+        "viewgif": 32736,
+        "viewvef": 12746
+      }
+    },
+    "messages": {
+      "c3": {
+        "viewgif": 20435,
+        "viewvef": 4387
+      },
+      "cmoc": {
+        "viewgif": 23447,
+        "viewvef": 2947
+      },
+      "llvm": {
+        "viewgif": 32736,
+        "viewvef": 6361
+      }
+    },
+    "specialized": {
+      "c3": {
+        "viewgif": 20249,
+        "viewvef": 4267
+      },
+      "cmoc": {
+        "viewgif": 23245,
+        "viewvef": 2805
+      },
+      "llvm": {
+        "viewgif": 32642,
+        "viewvef": 6323
+      }
+    },
+    "usage": {
+      "c3": {
+        "viewgif": 19956,
+        "viewvef": 4267
+      },
+      "cmoc": {
+        "viewgif": 22955,
+        "viewvef": 2805
+      },
+      "llvm": {
+        "viewgif": 32454,
+        "viewvef": 6323
+      }
+    },
+    "numbers": {
+      "c3": {
+        "viewgif": 20033,
+        "viewvef": 4344
+      },
+      "cmoc": {
+        "viewgif": 23013,
+        "viewvef": 2806
+      },
+      "llvm": {
+        "viewgif": 31658,
+        "viewvef": 4793
+      }
+    },
+    "CMOC single formatter": {
+      "c3": {
+        "viewgif": 19956,
+        "viewvef": 4267
+      },
+      "cmoc": {
+        "viewgif": 21697,
+        "viewvef": 2805
+      },
+      "llvm": {
+        "viewgif": 31658,
+        "viewvef": 4793
+      }
+    }
+  },
+  "runtime_correction": "The LLVM syscall and snapshot register-copy loops now explicitly test U; two CMPU instructions add 8 loaded bytes."
+}

@@ -2,6 +2,9 @@
 /* Packet handling and misc. routines for OS-9 Kermit */
 
 #include "os9inc.h"
+#ifdef KERMIT_MODERN
+#include "message.h"
+#endif
 
 #define SIGYOBRO 24
 
@@ -69,7 +72,7 @@ catcher(signal)
 register int signal;
 { if (signal == SIGYOBRO)
   { datardy = 1;
-    longjmp(ttyenv);
+    longjmp(ttyenv, 1);
   }
 
   exit(signal);
@@ -129,24 +132,28 @@ char ttyrefill()
   if ((qty = _gs_rdy(ttyfd)) < 0)
   { datardy = 0;
     if (setjmp(ttyenv) == 0)
-    { if (_ss_ssig(ttyfd, SIGYOBRO) != (-1))
+    { if (_ss_ssig(ttyfd,
+#ifdef KERMIT_MODERN
+                       (void *)
+#endif
+                       SIGYOBRO) != (-1))
         if (!datardy)
         { if (sleep(timint) == 0)
           { _ss_rel(ttyfd);
-            longjmp(env);
+            longjmp(env, 1);
           }
         }
     }
 
     if ((qty = _gs_rdy(ttyfd)) < 0)
     { error("can't stat");
-      longjmp(env);
+      longjmp(env, 1);
     }
   }
 
   if ((qty = read(ttyfd, rbuf, qty)) < 0)
   { error("read error");
-    longjmp(env);
+    longjmp(env, 1);
   }
   rcursor = rbuf;
   rtop = rcursor + qty;
@@ -198,7 +205,7 @@ char *data;                                                  /* Packet data */
   *dscan = 0;                                   /* Mark the end of the data */
   rchksum = unchar(t);                                /* Convert to numeric */
   if (bctu == 2)
-    rchksum = (rchksum << 6) | unchar(t = ttyin()); 
+    rchksum = (rchksum << 6) | unchar(t = ttyin());
 
   if (debug > 1)                                 /* Display incoming packet */
   { printf("  rpack type: %c\n", type);
@@ -288,7 +295,7 @@ int xgetc()
 
   if (sawcr)
   { sawcr = FALSE;
-    return '\l';
+    return '\012';
   }
 
   if ((result = getc(fp)) == '\n')
@@ -305,7 +312,7 @@ xungetc(c)
 register int c;
 { if (image)
     ungetc(c, fp);
-  else if (c == '\l')
+  else if (c == '\012')
     sawcr = TRUE;
   else
   { sawcr = FALSE;
@@ -389,7 +396,7 @@ int len;                                                          /* Length */
 
     t |= bit8;
 
-    if (t != '\l' || image)
+    if (t != '\012' || image)
     { while (--count >= 0)
         putc(t, fp);
     }
@@ -517,20 +524,20 @@ flushinput()
  *  Print summary of usage info and quit */
 
 char *utab[] =
-{ "Usage: kermit [-opt{flags} [line esc.char]]\n", "\n", 
-    "    -s file(s)   send (use '-s -' to send from stdin)\n", 
+{ "Usage: kermit [-opt{flags} [line esc.char]]\n", "\n",
+    "    -s file(s)   send (use '-s -' to send from stdin)\n",
     "    -r           receive\n",
-    "    -k           receive to stdout\n", 
-    "    -g file(s)   get remote file(s) from server\n", 
-    "    -x           enter server mode\n", 
+    "    -k           receive to stdout\n",
+    "    -g file(s)   get remote file(s) from server\n",
+    "    -x           enter server mode\n",
     "    -f           finish remote server\n",
-    " flags--\n", 
-    "     l           set communication line\n", 
-    "     e           set the escape character\n", 
-    "     i           binary file or OS-9 to OS-9\n", 
-    "     d           increase debug level\n", 
-    "     X           disable xon/xoff\n", 
-    "     F           No filename conversions\n", 
+    " flags--\n",
+    "     l           set communication line\n",
+    "     e           set the escape character\n",
+    "     i           binary file or OS-9 to OS-9\n",
+    "     d           increase debug level\n",
+    "     X           disable xon/xoff\n",
+    "     F           No filename conversions\n",
     "     1,2         block check type\n",
     "     8           Toggle 8-bit data\n", NULL
 };
@@ -545,6 +552,37 @@ usage()
  *
  *  Print message on standard output if not remote. */
 
+#ifdef KERMIT_MODERN
+int printmsg(const char *fmt, ...)
+{
+  char msg[256];
+  va_list args;
+  va_start(args, fmt);
+  kermit_vformat(msg, sizeof(msg), fmt, args);
+  if (local && !kflg)
+  {
+    fputs("Kermit: ", stderr);
+    fputs(msg, stderr);
+    putc('\n', stderr);
+  }
+  va_end(args);
+  return 0;
+}
+
+int error(const char *fmt, ...)
+{
+  char msg[80];
+  va_list args;
+  va_start(args, fmt);
+  kermit_vformat(msg, sizeof(msg), fmt, args);
+  va_end(args);
+  if (!local || server)
+    spack('E', n, strlen(msg), msg);
+  else
+    printmsg("%s", msg);
+  return 0;
+}
+#else
 /*VARARGS1*/
 printmsg(fmt, a1, a2, a3, a4, a5)
 register char *fmt;
@@ -577,6 +615,8 @@ char *fmt;
     printmsg(fmt, a1, a2, a3, a4, a5);
 }
 
+#endif
+
 /* p r e r r p k t
  *
  *  Print contents of error packet received from remote host. */
@@ -585,7 +625,7 @@ register char *msg;
 { fprintf(stderr, "Kermit aborting; remote host error msg:\n%s\n", msg);
 }
 
-/* 06/30/85 ral Initial coding, partially adapted from 
+/* 06/30/85 ral Initial coding, partially adapted from
  *              code by Bradley Bosch */
 
 /* save current state in savesg and force path into raw mode */
@@ -599,9 +639,9 @@ struct sgbuf*savesg;
 
   if (tempsg.sg_class == 0)
   {                                           /* only change things for scf */
-    tempsg.sg_delete = tempsg.sg_backsp = tempsg.sg_echo  = tempsg.sg_alf   = 
-    tempsg.sg_pause  = tempsg.sg_dlnch  = tempsg.sg_eorch = tempsg.sg_eofch = 
-    tempsg.sg_rlnch  = tempsg.sg_dulnch = tempsg.sg_psch  = tempsg.sg_kbich = 
+    tempsg.sg_delete = tempsg.sg_backsp = tempsg.sg_echo  = tempsg.sg_alf   =
+    tempsg.sg_pause  = tempsg.sg_dlnch  = tempsg.sg_eorch = tempsg.sg_eofch =
+    tempsg.sg_rlnch  = tempsg.sg_dulnch = tempsg.sg_psch  = tempsg.sg_kbich =
     tempsg.sg_kbach = 0;
 
     if (!wantxon)
